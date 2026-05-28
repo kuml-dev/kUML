@@ -1,0 +1,52 @@
+= kUML
+:toc:
+:toc-placement: preamble
+:icons: font
+
+image::docs/images/kuml-banner.png[kUML Banner,link=https://github.com/kuml-dev/kUML]
+
+*kUML* ist ein Modellierungswerkzeug, das UML 2.x, SysML 2 und C4 als
+type-safe Kotlin-DSL ausdrückt — das erste UML-Werkzeug, das bewusst
+für die LLM-Ära entworfen wurde.
+
+image:https://img.shields.io/maven-central/v/io.kuml/kuml-core[Maven Central]
+image:https://img.shields.io/github/license/kuml-dev/kUML[Apache 2.0]
+image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/ci.yml[CI]
+
+== Quick Start
+
+[source,kotlin]
+----
+// hello.kuml.kts
+diagram(name = "Hello kUML", type = DiagramType.CLASS) {
+    // Phase 1: classOf, association, etc.
+}
+----
+
+[source,bash]
+----
+kuml render hello.kuml.kts --format svg
+----
+
+== Status
+
+[cols="1,3,1"]
+|===
+| Phase | Inhalt | Status
+
+| Phase 0
+| Gradle Setup, Kotlin Scripting Host, Hello-World-DSL
+| 🚧 In Arbeit
+
+| Phase 1
+| UML-Metamodell + DSL (5 Diagrammtypen), C4 vollständig, Rendering
+| 📋 Geplant
+
+| Phase 2
+| OCL-Subset, CLI, Markdown-Code-Block, MCP-Server, Codegen, GraalVM
+| 📋 Geplant
+|===
+
+== Lizenz
+
+Apache 2.0 — siehe link:LICENSE[LICENSE]
