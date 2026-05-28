@@ -1,0 +1,56 @@
+= kuml-core-model
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-core-model*
+
+Pure Kotlin sealed-class metamodel — the root type hierarchy shared by all kUML
+modelling languages (UML 2.x, SysML 2, C4).
+
+No EMF, no code generation, no reflection magic. Just `sealed interface` and
+`data class`.
+
+== Core Types
+
+[cols="1,3"]
+|===
+| Type | Description
+
+| `KumlElement`
+| Root `sealed interface` for every element in a kUML model.
+
+| `KumlModel`
+| Top-level container holding a list of `KumlDiagram` instances.
+
+| `KumlDiagram`
+| A single diagram with a name, a `DiagramType`, and a list of child elements.
+
+| `DiagramType`
+| Enum of all supported diagram types (V1: `CLASS`, `SEQUENCE`, `STATE`, `COMPONENT`, `USE_CASE`; V1.1 adds the remaining 9 UML 2.x types).
+|===
+
+== Usage
+
+[source,kotlin]
+----
+val diagram = KumlDiagram(
+    name = "Order System",
+    type = DiagramType.CLASS,
+)
+val model = KumlModel(diagrams = listOf(diagram))
+----
+
+In practice, models are built via the DSL in `kuml-core-dsl` — direct
+instantiation is reserved for testing and tooling.
+
+== Installation
+
+[source,kotlin]
+----
+dependencies {
+    implementation("io.kuml:kuml-core-model:0.1.0")
+}
+----
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]

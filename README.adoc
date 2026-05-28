@@ -3,23 +3,31 @@
 :toc-placement: preamble
 :icons: font
 
-image::docs/images/kuml-banner.png[kUML Banner,link=https://github.com/kuml-dev/kUML]
+image::docs/images/kuml-banner.png[kUML — Kotlin UML Modelling,link=https://github.com/kuml-dev/kUML]
 
-*kUML* ist ein Modellierungswerkzeug, das UML 2.x, SysML 2 und C4 als
-type-safe Kotlin-DSL ausdrückt — das erste UML-Werkzeug, das bewusst
-für die LLM-Ära entworfen wurde.
+*kUML* is a modelling tool that expresses UML 2.x, SysML 2 and C4 as a
+type-safe Kotlin DSL — the first UML tool deliberately designed for the LLM era.
 
 image:https://img.shields.io/maven-central/v/io.kuml/kuml-core[Maven Central]
 image:https://img.shields.io/github/license/kuml-dev/kUML[Apache 2.0]
 image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/ci.yml[CI]
+
+== Why kUML?
+
+Existing UML tools fall into two categories:
+
+* *Graphical CASE tools* (Enterprise Architect, MagicDraw) — proper modelling, but expensive and not Git-friendly.
+* *Text-based diagram tools* (PlantUML, Mermaid) — versionable, but drawing tools only with weak UML support.
+
+kUML closes this gap: a real modelling tool, expressed as Kotlin source code, fully versionable in Git, and built from the ground up for LLM-assisted workflows.
 
 == Quick Start
 
 [source,kotlin]
 ----
 // hello.kuml.kts
-diagram(name = "Hello kUML", type = DiagramType.CLASS) {
-    // Phase 1: classOf, association, etc.
+diagram(name = "Order System", type = DiagramType.CLASS) {
+    // Phase 1: classOf, association, interfaceOf, …
 }
 ----
 
@@ -28,25 +36,73 @@ diagram(name = "Hello kUML", type = DiagramType.CLASS) {
 kuml render hello.kuml.kts --format svg
 ----
 
-== Status
+== Features
 
-[cols="1,3,1"]
+[cols="1,3"]
 |===
-| Phase | Inhalt | Status
+| Feature | Description
 
-| Phase 0
-| Gradle Setup, Kotlin Scripting Host, Hello-World-DSL
-| 🚧 In Arbeit
+| *Type-safe DSL*
+| UML 2.x, SysML 2 and C4 as idiomatic Kotlin — compile-time validation, full IDE support.
 
-| Phase 1
-| UML-Metamodell + DSL (5 Diagrammtypen), C4 vollständig, Rendering
-| 📋 Geplant
+| *LLM-native*
+| Named parameters, canonical formatter, structured JSON errors, MCP server — designed for reliable LLM code generation.
 
-| Phase 2
-| OCL-Subset, CLI, Markdown-Code-Block, MCP-Server, Codegen, GraalVM
-| 📋 Geplant
+| *Model Driven Architecture*
+| M2M transformations (Design → Implementation → Deployment) and M2T code generation.
+
+| *Pure Kotlin metamodel*
+| No EMF in the core — `sealed`/`data class` hierarchy only. XMI interop available as optional `kuml-io-emf` module.
+
+| *OCL subset*
+| Object Constraint Language constraints directly on the Kotlin model.
 |===
 
-== Lizenz
+== Roadmap
 
-Apache 2.0 — siehe link:LICENSE[LICENSE]
+[cols="1,4,1"]
+|===
+| Phase | Scope | Status
+
+| *Phase 0*
+| Gradle multimodule setup, Kotlin Scripting host, `diagram{}` DSL entry-point
+| ✅ Done
+
+| *Phase 1*
+| UML metamodel + DSL (5 diagram types), full C4, Kuiver rendering → SVG/PNG, themes
+| 📋 Planned
+
+| *Phase 2*
+| OCL subset, CLI, Markdown code block, MCP server, `kuml-gen-kotlin`, GraalVM Native, Maven Central
+| 📋 Planned
+
+| *V1.1*
+| Remaining 9 UML diagram types, profiles, Gradle plugin, AsciiDoc, IDE plugin (minimal), `kuml simulate`
+| 📋 Planned
+
+| *V2*
+| SysML 2 + KerML, M2M transformations, reverse engineering, XMI, Web UI, Compose Desktop
+| 📋 Planned
+|===
+
+== Modules
+
+[source]
+----
+kuml-core/
+  kuml-core-model    ← Sealed Kotlin metamodel base types
+  kuml-core-dsl      ← DSL builder infrastructure
+  kuml-core-script   ← Kotlin Scripting host + KumlScriptDefinition
+kuml-metamodel/
+  kuml-metamodel-uml ← UML 2.x (Phase 1)
+  kuml-metamodel-c4  ← C4 model (Phase 1)
+kuml-renderer/       ← Kuiver + ELK + themes (Phase 1)
+kuml-io/             ← SVG/JSON export (Phase 2)
+kuml-llm/            ← LLM backend interface + providers (Phase 2)
+kuml-mcp/            ← MCP server — Stdio + SSE (Phase 2)
+kuml-cli/            ← Command-line interface (Phase 2)
+----
+
+== License
+
+Apache 2.0 — see link:LICENSE[LICENSE]
