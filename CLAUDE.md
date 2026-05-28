@@ -701,9 +701,9 @@ mkdir -p .claude/commands
 git clone https://github.com/kepano/obsidian-skills ~/.claude/commands/
 ```
 
-#### kUML Slash Commands (bereits eingerichtet)
+#### kUML-spezifische Slash Commands (bereits eingerichtet)
 
-Die folgenden projektspezifischen Commands liegen in `.claude/commands/` und sind sofort nutzbar:
+Projektspezifische Commands in `.claude/commands/` — prüfen DSL-Konventionen, generieren Tests und Fehler nach kUML-Schema:
 
 | Priorität | Command | Zweck | Roadmap-Phase |
 |---|---|---|---|
@@ -713,6 +713,19 @@ Die folgenden projektspezifischen Commands liegen in `.claude/commands/` und sin
 | 🥈 | `/adoc` | AsciiDoc-Dokumentation schreiben (nie Markdown!) | Phase 0+ |
 | 🥈 | `/emf` | Eclipse EMF Guidance für `kuml-io-emf` (optional) | Phase 0–3 |
 | 🥉 | `/mcp-review` | Sicherheits-Review für MCP-Tool-Implementierungen | Phase 6.5 |
+
+#### Allgemeine Workflow-Commands (bereits eingerichtet)
+
+Universelle Entwicklungs-Commands aus offiziellen Claude Code Plugins — in `.claude/commands/` eingecheckt, für alle Repo-Kloner sofort verfügbar:
+
+| Priorität | Command | Zweck | Wann verwenden |
+|---|---|---|---|
+| 🥇 | `/feature-dev` | 7-Phasen-Feature-Entwicklung mit Multi-Agenten (Exploration → Architektur → Review) | Neue Roadmap-Features implementieren |
+| 🥇 | `/code-review` | GitHub-PR-Review: 5 parallele Agenten + Confidence-Scoring (≥80 = real) | Nach PR-Erstellung, automatisch kommentiert |
+| 🥇 | `/commit` | Git-Commit mit automatisch generierter Commit-Message | Schneller Commit auf aktuellem Branch |
+| 🥈 | `/commit-push-pr` | Branch → Commit → Push → PR in einem Schritt | Feature fertig, PR direkt aufmachen |
+| 🥈 | `/review-pr` | Lokales Pre-PR-Review: Tests, Types, Error-Handling, Simplification | Vor dem PR-Erstellen, ohne GitHub |
+| 🥉 | `/clean-gone` | Verwaiste lokale Branches löschen (nach remote-Merge) | Regelmäßige Branch-Hygiene |
 
 #### Reihenfolge beim ersten Öffnen des Repos
 
@@ -728,6 +741,7 @@ cd ~/workspace/kuml
 
 # 4. Ersten DSL-Code schreiben → /dsl-check
 # 5. Ersten Test schreiben → /gen-test
+# 6. Feature entwickeln → /feature-dev "Klassendiagramm-DSL für Phase 1"
 ```
 
 ---
