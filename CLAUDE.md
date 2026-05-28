@@ -701,6 +701,19 @@ mkdir -p .claude/commands
 git clone https://github.com/kepano/obsidian-skills ~/.claude/commands/
 ```
 
+#### kUML Slash Commands (bereits eingerichtet)
+
+Die folgenden projektspezifischen Commands liegen in `.claude/commands/` und sind sofort nutzbar:
+
+| Priorität | Command | Zweck | Roadmap-Phase |
+|---|---|---|---|
+| 🥇 | `/dsl-check` | DSL-Konsistenz: Named Params, kanonische Form, Sichtbarkeit | Phase 1+ |
+| 🥇 | `/kuml-error` | Strukturierte Fehler mit korrekten KUML-E-xxx Codes | Phase 1+ |
+| 🥇 | `/gen-test` | Test-Boilerplate nach kUML-Konventionen generieren | Phase 1–8 |
+| 🥈 | `/adoc` | AsciiDoc-Dokumentation schreiben (nie Markdown!) | Phase 0+ |
+| 🥈 | `/emf` | Eclipse EMF Guidance für `kuml-io-emf` (optional) | Phase 0–3 |
+| 🥉 | `/mcp-review` | Sicherheits-Review für MCP-Tool-Implementierungen | Phase 6.5 |
+
 #### Reihenfolge beim ersten Öffnen des Repos
 
 ```bash
@@ -712,6 +725,9 @@ cd ~/workspace/kuml
 
 # 3. Context7 prüfen
 /use-mcp context7
+
+# 4. Ersten DSL-Code schreiben → /dsl-check
+# 5. Ersten Test schreiben → /gen-test
 ```
 
 ---
