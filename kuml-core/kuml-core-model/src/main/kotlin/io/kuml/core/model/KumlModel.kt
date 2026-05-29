@@ -3,10 +3,20 @@ package io.kuml.core.model
 /**
  * Root container for a kUML model.
  *
- * A model is the result of evaluating one or more `*.kuml.kts` script files.
+ * A model wraps a single [root] element and carries the metadata that
+ * classifies it: which modeling [language] it uses and on which MDA [level]
+ * it lives.
  *
- * @property diagrams All diagrams defined in this model.
+ * @property root The top-level element of this model.
+ * @property language The modeling language used (UML, SYSML2, C4, MIXED).
+ * @property level The MDA abstraction level (CIM, PIM, PSM, DEPLOYMENT).
+ * @property name Human-readable name of the model.
+ * @property metadata Arbitrary additional metadata.
  */
 data class KumlModel(
-    val diagrams: List<KumlDiagram> = emptyList(),
-) : KumlElement
+    val root: KumlElement,
+    val language: ModelingLanguage,
+    val level: ModelLevel,
+    val name: String,
+    val metadata: Map<String, Any> = emptyMap(),
+)
