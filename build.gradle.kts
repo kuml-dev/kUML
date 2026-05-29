@@ -5,7 +5,7 @@ plugins {
 }
 
 allprojects {
-    group = "io.kuml"
+    group = "dev.kuml"
     version = "0.1.0-SNAPSHOT"
 }
 

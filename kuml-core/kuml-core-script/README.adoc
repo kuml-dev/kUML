@@ -13,9 +13,13 @@ Kotlin Scripting host for `*.kuml.kts` files. Provides `KumlScriptDefinition`
 the following default imports, so no explicit `import` statements are needed
 in script files:
 
-* `io.kuml.core.model.*`
-* `io.kuml.core.model.DiagramType.*`
-* `io.kuml.core.dsl.*`
+* `dev.kuml.core.model.*` — `KumlModel`, `DiagramType`, `ModelLevel`, `KumlMetaValue`, …
+* `dev.kuml.core.model.DiagramType.*` — enum constants
+* `dev.kuml.core.dsl.*` — `diagram(…)` entry point
+* `dev.kuml.uml.dsl.*` — `umlModel`, `classOf`, `interfaceOf`, `enumOf`, `` `package` ``, `association`, …
+* `dev.kuml.uml.*` — `UmlClass`, `UmlInterface`, `Visibility`, `AggregationKind`, …
+* `dev.kuml.uml.Visibility.*` — visibility enum constants
+* `dev.kuml.uml.AggregationKind.*` — aggregation enum constants
 
 `KumlScriptHost` wraps `BasicJvmScriptingHost` and exposes two `eval` overloads
 — one for files, one for inline strings.
@@ -26,8 +30,17 @@ in script files:
 
 [source,kotlin]
 ----
-diagram(name = "Hello kUML", type = DiagramType.CLASS) {
-    // no imports needed
+// No imports needed — everything is in scope via KumlScriptDefinition
+umlModel("Order Domain") {
+    val status = enumOf("OrderStatus") {
+        literal("DRAFT")
+        literal("CONFIRMED")
+    }
+    classOf("Order") {
+        attribute("id", type = "UUID")
+        attribute("status", type = status)
+        operation("confirm")
+    }
 }
 ----
 
@@ -35,11 +48,11 @@ diagram(name = "Hello kUML", type = DiagramType.CLASS) {
 
 [source,kotlin]
 ----
-import io.kuml.core.script.KumlScriptHost
+import dev.kuml.core.script.KumlScriptHost
 import kotlin.script.experimental.api.ScriptDiagnostic
 import java.io.File
 
-val result = KumlScriptHost.eval(File("hello.kuml.kts"))
+val result = KumlScriptHost.eval(File("order-domain.kuml.kts"))
 
 val errors = result.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
 check(errors.isEmpty()) { errors.joinToString("\n") }
@@ -49,17 +62,17 @@ check(errors.isEmpty()) { errors.joinToString("\n") }
 
 `KumlScriptHost` uses `dependenciesFromCurrentContext(wholeClasspath = true)`.
 This means the JVM classpath at evaluation time is passed to the script compiler.
-`kuml-core-model` and `kuml-core-dsl` must therefore be on the calling
-application's classpath — which is guaranteed when depending on this module,
-since both are declared as `api` dependencies.
+`kuml-core-model`, `kuml-core-dsl`, and `kuml-metamodel-uml` must therefore be on
+the calling application's classpath — which is guaranteed when depending on this
+module, since all three are declared as `api` dependencies transitively.
 
 == Installation
 
 [source,kotlin]
 ----
 dependencies {
-    implementation("io.kuml:kuml-core-script:0.1.0")
-    // kuml-core-model and kuml-core-dsl are exposed transitively via api()
+    implementation("dev.kuml:kuml-core-script:0.1.0")
+    // kuml-core-model, kuml-core-dsl, and kuml-metamodel-uml are exposed transitively via api()
 }
 ----
 

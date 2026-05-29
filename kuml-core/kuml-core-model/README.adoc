@@ -6,8 +6,8 @@ image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-core
 Pure Kotlin sealed-class metamodel — the root type hierarchy shared by all kUML
 modelling languages (UML 2.x, SysML 2, C4).
 
-No EMF, no code generation, no reflection magic. Just `sealed interface` and
-`data class`.
+No EMF, no code generation, no reflection magic.
+Just `interface`, `sealed interface`, and `data class`.
 
 == Core Types
 
@@ -16,38 +16,53 @@ No EMF, no code generation, no reflection magic. Just `sealed interface` and
 | Type | Description
 
 | `KumlElement`
-| Root `sealed interface` for every element in a kUML model.
+| Root `interface` for every element in a kUML model.
+  Plain `interface` (not sealed) so that language-specific modules can extend it across module boundaries.
+
+| `KumlNamespaceMember`
+| Extends `KumlElement` with a `name: String` property.
 
 | `KumlModel`
-| Top-level container holding a list of `KumlDiagram` instances.
+| Top-level container: one `root` element, a `ModelingLanguage`, a `ModelLevel`, and free-form `metadata`.
 
 | `KumlDiagram`
-| A single diagram with a name, a `DiagramType`, and a list of child elements.
+| A single diagram — `name`, `DiagramType`, and a flat `elements: List<KumlElement>`.
 
 | `DiagramType`
-| Enum of all supported diagram types (V1: `CLASS`, `SEQUENCE`, `STATE`, `COMPONENT`, `USE_CASE`; V1.1 adds the remaining 9 UML 2.x types).
+| Enum: `CLASS`, `SEQUENCE`, `STATE`, `COMPONENT`, `USE_CASE` (V1); more in V1.1.
+
+| `ModelingLanguage`
+| Enum: `UML`, `SYSML2`, `C4`, `MIXED`.
+
+| `ModelLevel`
+| MDA enum: `CIM`, `PIM`, `PSM`, `DEPLOYMENT`.
+
+| `KumlMetaValue`
+| Sealed interface for typed metadata values: `Text`, `Integer`, `Decimal`, `Flag`, `Items`, `Entries`.
+  All variants are `@Serializable` for use with `kotlinx.serialization`.
 |===
 
 == Usage
 
+Direct instantiation is reserved for testing and tooling.
+In practice models are built via the DSL in `kuml-core-dsl`:
+
 [source,kotlin]
 ----
-val diagram = KumlDiagram(
-    name = "Order System",
-    type = DiagramType.CLASS,
-)
-val model = KumlModel(diagrams = listOf(diagram))
+// order.kuml.kts — no imports needed (KumlScriptDefinition provides them)
+umlModel("Order Domain") {
+    classOf("Order") {
+        attribute("id", type = "UUID")
+    }
+}
 ----
-
-In practice, models are built via the DSL in `kuml-core-dsl` — direct
-instantiation is reserved for testing and tooling.
 
 == Installation
 
 [source,kotlin]
 ----
 dependencies {
-    implementation("io.kuml:kuml-core-model:0.1.0")
+    implementation("dev.kuml:kuml-core-model:0.1.0")
 }
 ----
 

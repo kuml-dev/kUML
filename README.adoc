@@ -8,7 +8,7 @@ image::docs/images/kuml-banner.png[kUML — Kotlin UML Modelling,link=https://gi
 *kUML* is a modelling tool that expresses UML 2.x, SysML 2 and C4 as a
 type-safe Kotlin DSL — the first UML tool deliberately designed for the LLM era.
 
-image:https://img.shields.io/maven-central/v/io.kuml/kuml-core[Maven Central]
+image:https://img.shields.io/maven-central/v/dev.kuml/kuml-core[Maven Central]
 image:https://img.shields.io/github/license/kuml-dev/kUML[Apache 2.0]
 image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/ci.yml[CI]
 
@@ -25,15 +25,38 @@ kUML closes this gap: a real modelling tool, expressed as Kotlin source code, fu
 
 [source,kotlin]
 ----
-// hello.kuml.kts
-diagram(name = "Order System", type = DiagramType.CLASS) {
-    // Phase 1: classOf, association, interfaceOf, …
+// order-domain.kuml.kts
+umlModel("Order Domain") {
+
+    val status = enumOf("OrderStatus") {
+        literal("DRAFT"); literal("CONFIRMED"); literal("SHIPPED"); literal("CANCELLED")
+    }
+
+    `package`("domain") {
+        classOf("Order") {
+            attribute("id",     type = "UUID")
+            attribute("status", type = status)
+            operation("confirm")
+            operation("cancel")
+        }
+        classOf("OrderItem") {
+            attribute("quantity",  type = "Int")
+            attribute("unitPrice", type = "BigDecimal")
+        }
+    }
+
+    association(sourceId = "domain::Order", targetId = "domain::OrderItem") {
+        name       = "contains"
+        aggregation = AggregationKind.COMPOSITE
+        source { multiplicity("1") }
+        target { multiplicity("1..*") }
+    }
 }
 ----
 
 [source,bash]
 ----
-kuml render hello.kuml.kts --format svg
+kuml render order-domain.kuml.kts --format svg
 ----
 
 == Features
@@ -69,8 +92,8 @@ kuml render hello.kuml.kts --format svg
 | ✅ Done
 
 | *Phase 1*
-| UML metamodel + DSL (5 diagram types), full C4, Kuiver rendering → SVG/PNG, themes
-| 📋 Planned
+| UML metamodel ✅ + UML DSL ✅ (5 diagram types), full C4, Kuiver rendering → SVG/PNG, themes
+| 🚧 In Progress
 
 | *Phase 2*
 | OCL subset, CLI, Markdown code block, MCP server, `kuml-gen-kotlin`, GraalVM Native, Maven Central
@@ -91,10 +114,10 @@ kuml render hello.kuml.kts --format svg
 ----
 kuml-core/
   kuml-core-model    ← Sealed Kotlin metamodel base types
-  kuml-core-dsl      ← DSL builder infrastructure
+  kuml-core-dsl      ← DSL builder infrastructure (UML builders in dev.kuml.uml.dsl)
   kuml-core-script   ← Kotlin Scripting host + KumlScriptDefinition
 kuml-metamodel/
-  kuml-metamodel-uml ← UML 2.x (Phase 1)
+  kuml-metamodel-uml ← UML 2.x sealed hierarchy + serialization (Phase 1 ✅)
   kuml-metamodel-c4  ← C4 model (Phase 1)
 kuml-renderer/       ← Kuiver + ELK + themes (Phase 1)
 kuml-io/             ← SVG/JSON export (Phase 2)

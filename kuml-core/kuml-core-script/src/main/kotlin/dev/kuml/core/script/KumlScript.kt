@@ -41,8 +41,10 @@ object KumlScriptCompilationConfiguration : ScriptCompilationConfiguration({
         // Core model types
         "dev.kuml.core.model.*",
         "dev.kuml.core.model.DiagramType.*",
-        // DSL entry-points
+        // DSL entry-points (diagram, umlModel)
         "dev.kuml.core.dsl.*",
+        // UML DSL builders (classOf, interfaceOf, enumOf, `package`, association, …)
+        "dev.kuml.uml.dsl.*",
         // UML metamodel (Phase 1+)
         "dev.kuml.uml.*",
         "dev.kuml.uml.Visibility.*",
