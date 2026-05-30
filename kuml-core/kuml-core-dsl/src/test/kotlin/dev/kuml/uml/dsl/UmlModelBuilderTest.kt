@@ -11,41 +11,41 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 class UmlModelBuilderTest : FunSpec({
 
     test("umlModel with name produces a KumlModel") {
-        val model = umlModel("Order Domain")
+        val model = umlModel(name = "Order Domain")
         model.name shouldBe "Order Domain"
     }
 
     test("umlModel language is always UML") {
-        val model = umlModel("M")
+        val model = umlModel(name = "M")
         model.language shouldBe ModelingLanguage.UML
     }
 
     test("umlModel default level is PIM") {
-        val model = umlModel("M")
+        val model = umlModel(name = "M")
         model.level shouldBe ModelLevel.PIM
     }
 
     test("umlModel respects explicit level") {
-        val model = umlModel("M", level = ModelLevel.PSM)
+        val model = umlModel(name = "M", level = ModelLevel.PSM)
         model.level shouldBe ModelLevel.PSM
     }
 
     test("umlModel root diagram name equals model name") {
-        val model = umlModel("Order Domain")
+        val model = umlModel(name = "Order Domain")
         (model.root as dev.kuml.core.model.KumlDiagram).name shouldBe "Order Domain"
     }
 
     test("umlModel with empty block has no elements in root diagram") {
-        val model = umlModel("Empty") {}
+        val model = umlModel(name = "Empty") {}
         model.root.shouldBeInstanceOf<dev.kuml.core.model.KumlDiagram>()
         (model.root as dev.kuml.core.model.KumlDiagram).elements.shouldBeEmpty()
     }
 
     test("umlModel accumulates classOf elements in the root diagram") {
         val model =
-            umlModel("Domain") {
-                classOf("Order")
-                classOf("Customer")
+            umlModel(name = "Domain") {
+                classOf(name = "Order")
+                classOf(name = "Customer")
             }
         val diagram = model.root as dev.kuml.core.model.KumlDiagram
         diagram.elements shouldHaveSize 2
@@ -53,9 +53,9 @@ class UmlModelBuilderTest : FunSpec({
 
     test("umlModel accumulates relationship via association") {
         val model =
-            umlModel("Domain") {
-                classOf("Order")
-                classOf("Item")
+            umlModel(name = "Domain") {
+                classOf(name = "Order")
+                classOf(name = "Item")
                 association(sourceId = "Order", targetId = "Item")
             }
         val diagram = model.root as dev.kuml.core.model.KumlDiagram

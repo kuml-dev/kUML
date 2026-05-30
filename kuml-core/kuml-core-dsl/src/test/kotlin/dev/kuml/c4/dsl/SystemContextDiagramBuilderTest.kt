@@ -11,10 +11,10 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("system context diagram can be created with persons and systems") {
         val model =
-            c4Model("Test") {
-                val p = person("Person")
-                val s = softwareSystem("System")
-                systemContextDiagram("Context") {
+            c4Model(name = "Test") {
+                val p = person(name = "Person")
+                val s = softwareSystem(name = "System")
+                systemContextDiagram(name = "Context") {
                     include(p, s)
                 }
             }
@@ -27,12 +27,12 @@ class SystemContextDiagramBuilderTest : FunSpec({
     test("container elements are rejected in include()") {
         val thrown =
             try {
-                c4Model("Test") {
+                c4Model(name = "Test") {
                     val s =
-                        softwareSystem("System") {
-                            container("Container")
+                        softwareSystem(name = "System") {
+                            container(name = "Container")
                         }
-                    systemContextDiagram("Context") {
+                    systemContextDiagram(name = "Context") {
                         include(s) // s is OK but its containers aren't
                     }
                 }
@@ -45,13 +45,13 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("relationships are automatically filtered") {
         val model =
-            c4Model("Test") {
-                val p = person("Person")
-                val s1 = softwareSystem("System 1")
-                val s2 = softwareSystem("System 2")
-                relationship(p, s1) { technology = "Uses" }
-                relationship(s1, s2) { technology = "Calls" }
-                systemContextDiagram("Context") {
+            c4Model(name = "Test") {
+                val p = person(name = "Person")
+                val s1 = softwareSystem(name = "System 1")
+                val s2 = softwareSystem(name = "System 2")
+                relationship(source = p, target = s1) { technology = "Uses" }
+                relationship(source = s1, target = s2) { technology = "Calls" }
+                systemContextDiagram(name = "Context") {
                     include(p, s1) // s2 is NOT included
                 }
             }
@@ -62,11 +62,11 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("include() with varargs adds multiple elements") {
         val model =
-            c4Model("Test") {
-                val p1 = person("P1")
-                val p2 = person("P2")
-                val s = softwareSystem("S")
-                systemContextDiagram("Context") {
+            c4Model(name = "Test") {
+                val p1 = person(name = "P1")
+                val p2 = person(name = "P2")
+                val s = softwareSystem(name = "S")
+                systemContextDiagram(name = "Context") {
                     include(p1, p2, s) // Multiple at once
                 }
             }
@@ -76,13 +76,13 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("external systems are included") {
         val model =
-            c4Model("Test") {
-                val p = person("Person")
-                val internal = softwareSystem("Internal System")
-                val external = softwareSystem("External System") { external = true }
-                relationship(p, internal) { technology = "Uses" }
-                relationship(internal, external) { technology = "Calls" }
-                systemContextDiagram("Context") {
+            c4Model(name = "Test") {
+                val p = person(name = "Person")
+                val internal = softwareSystem(name = "Internal System")
+                val external = softwareSystem(name = "External System") { external = true }
+                relationship(source = p, target = internal) { technology = "Uses" }
+                relationship(source = internal, target = external) { technology = "Calls" }
+                systemContextDiagram(name = "Context") {
                     include(p, internal, external)
                 }
             }
@@ -92,11 +92,11 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("exclude() removes elements from diagram") {
         val model =
-            c4Model("Test") {
-                val p1 = person("P1")
-                val p2 = person("P2")
-                val s = softwareSystem("S")
-                systemContextDiagram("Context") {
+            c4Model(name = "Test") {
+                val p1 = person(name = "P1")
+                val p2 = person(name = "P2")
+                val s = softwareSystem(name = "S")
+                systemContextDiagram(name = "Context") {
                     include(p1, p2, s)
                     exclude(p2) // Exclude one
                 }
@@ -107,10 +107,10 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("element() method works for persons") {
         val model =
-            c4Model("Test") {
-                val p = person("Person")
-                systemContextDiagram("Context") {
-                    element(p)
+            c4Model(name = "Test") {
+                val p = person(name = "Person")
+                systemContextDiagram(name = "Context") {
+                    element(elem = p)
                 }
             }
         val diag = model.diagrams[0].shouldBeInstanceOf<SystemContextDiagram>()
@@ -119,10 +119,10 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("element() method works for systems") {
         val model =
-            c4Model("Test") {
-                val s = softwareSystem("System")
-                systemContextDiagram("Context") {
-                    element(s)
+            c4Model(name = "Test") {
+                val s = softwareSystem(name = "System")
+                systemContextDiagram(name = "Context") {
+                    element(elem = s)
                 }
             }
         val diag = model.diagrams[0].shouldBeInstanceOf<SystemContextDiagram>()
@@ -131,12 +131,12 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("title() and note() methods do not crash") {
         val model =
-            c4Model("Test") {
-                val p = person("P")
-                systemContextDiagram("Context") {
+            c4Model(name = "Test") {
+                val p = person(name = "P")
+                systemContextDiagram(name = "Context") {
                     include(p)
-                    title("System Context")
-                    note("This is a note")
+                    title(text = "System Context")
+                    note(text = "This is a note")
                 }
             }
         model.diagrams shouldHaveSize 1
@@ -144,9 +144,9 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("description is preserved in diagram") {
         val model =
-            c4Model("Test") {
-                val p = person("P")
-                systemContextDiagram("Context", "This is the context") {
+            c4Model(name = "Test") {
+                val p = person(name = "P")
+                systemContextDiagram(name = "Context", description = "This is the context") {
                     include(p)
                 }
             }
@@ -156,14 +156,14 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("no relationships when elements are disjoint") {
         val model =
-            c4Model("Test") {
-                val p1 = person("P1")
-                val p2 = person("P2")
-                val s1 = softwareSystem("S1")
-                val s2 = softwareSystem("S2")
-                relationship(p1, s1) { technology = "Uses" }
-                relationship(p2, s2) { technology = "Uses" }
-                systemContextDiagram("Context") {
+            c4Model(name = "Test") {
+                val p1 = person(name = "P1")
+                val p2 = person(name = "P2")
+                val s1 = softwareSystem(name = "S1")
+                val s2 = softwareSystem(name = "S2")
+                relationship(source = p1, target = s1) { technology = "Uses" }
+                relationship(source = p2, target = s2) { technology = "Uses" }
+                systemContextDiagram(name = "Context") {
                     include(p1, s1) // Only first pair
                 }
             }
@@ -173,14 +173,14 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("multiple diagrams can be created") {
         val model =
-            c4Model("Test") {
-                val p = person("Person")
-                val s1 = softwareSystem("System 1")
-                val s2 = softwareSystem("System 2")
-                systemContextDiagram("Context 1") {
+            c4Model(name = "Test") {
+                val p = person(name = "Person")
+                val s1 = softwareSystem(name = "System 1")
+                val s2 = softwareSystem(name = "System 2")
+                systemContextDiagram(name = "Context 1") {
                     include(p, s1)
                 }
-                systemContextDiagram("Context 2") {
+                systemContextDiagram(name = "Context 2") {
                     include(p, s2)
                 }
             }
@@ -193,8 +193,8 @@ class SystemContextDiagramBuilderTest : FunSpec({
 
     test("empty diagram has no elements or relationships") {
         val model =
-            c4Model("Test") {
-                systemContextDiagram("Empty Context") {
+            c4Model(name = "Test") {
+                systemContextDiagram(name = "Empty Context") {
                     // No includes
                 }
             }

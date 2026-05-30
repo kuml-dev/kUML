@@ -94,7 +94,7 @@ class DynamicDiagramBuilderImpl(
                 sequence = sequenceCounter,
                 technology = technology,
                 response = false,
-            )
+            ),
         )
 
         elementIds.add(from.id)
@@ -118,7 +118,7 @@ class DynamicDiagramBuilderImpl(
                 sequence = sequenceCounter,
                 technology = technology,
                 response = true,
-            )
+            ),
         )
 
         elementIds.add(from.id)

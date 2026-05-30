@@ -15,56 +15,56 @@ class ClassBuilderTest : FunSpec({
 
     test("classOf with name builds a UmlClass") {
         val cls =
-            umlModel("M") { classOf("Order") }
+            umlModel(name = "M") { classOf(name = "Order") }
                 .elements.filterIsInstance<UmlClass>().first()
         cls.name shouldBe "Order"
     }
 
     test("classOf id defaults to name at root level") {
         val cls =
-            umlModel("M") { classOf("Order") }
+            umlModel(name = "M") { classOf(name = "Order") }
                 .elements.filterIsInstance<UmlClass>().first()
         cls.id shouldBe "Order"
     }
 
     test("classOf explicit id overrides derived id") {
         val cls =
-            umlModel("M") { classOf("Order", id = "custom::Order") }
+            umlModel(name = "M") { classOf(name = "Order", id = "custom::Order") }
                 .elements.filterIsInstance<UmlClass>().first()
         cls.id shouldBe "custom::Order"
     }
 
     test("classOf default visibility is PUBLIC") {
         val cls =
-            umlModel("M") { classOf("Order") }
+            umlModel(name = "M") { classOf(name = "Order") }
                 .elements.filterIsInstance<UmlClass>().first()
         cls.visibility shouldBe Visibility.PUBLIC
     }
 
     test("classOf isAbstract defaults to false") {
         val cls =
-            umlModel("M") { classOf("Order") }
+            umlModel(name = "M") { classOf(name = "Order") }
                 .elements.filterIsInstance<UmlClass>().first()
         cls.isAbstract shouldBe false
     }
 
     test("classOf sets isAbstract when configured") {
         val cls =
-            umlModel("M") { classOf("Shape") { isAbstract = true } }
+            umlModel(name = "M") { classOf(name = "Shape") { isAbstract = true } }
                 .elements.filterIsInstance<UmlClass>().first()
         cls.isAbstract shouldBe true
     }
 
     test("classOf sets visibility when configured") {
         val cls =
-            umlModel("M") { classOf("Internal") { visibility = Visibility.PACKAGE } }
+            umlModel(name = "M") { classOf(name = "Internal") { visibility = Visibility.PACKAGE } }
                 .elements.filterIsInstance<UmlClass>().first()
         cls.visibility shouldBe Visibility.PACKAGE
     }
 
     test("classOf returned handle has correct id") {
         var handle: UmlClass? = null
-        umlModel("M") { handle = classOf("Order") }
+        umlModel(name = "M") { handle = classOf(name = "Order") }
         handle!!.id shouldBe "Order"
     }
 
@@ -72,8 +72,8 @@ class ClassBuilderTest : FunSpec({
 
     test("attribute with string type is added to class") {
         val cls =
-            umlModel("M") {
-                classOf("Order") {
+            umlModel(name = "M") {
+                classOf(name = "Order") {
                     attribute(name = "id", type = "UUID")
                 }
             }.elements.filterIsInstance<UmlClass>().first()
@@ -83,25 +83,25 @@ class ClassBuilderTest : FunSpec({
 
     test("attribute id is derived from class id and attribute name") {
         val cls =
-            umlModel("M") {
-                classOf("Order") { attribute("id", "UUID") }
+            umlModel(name = "M") {
+                classOf(name = "Order") { attribute(name = "id", type = "UUID") }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.attributes[0].id shouldBe "Order::id"
     }
 
     test("attribute default visibility is PRIVATE") {
         val cls =
-            umlModel("M") {
-                classOf("Order") { attribute("id", "UUID") }
+            umlModel(name = "M") {
+                classOf(name = "Order") { attribute(name = "id", type = "UUID") }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.attributes[0].visibility shouldBe Visibility.PRIVATE
     }
 
     test("attribute with explicit visibility respects it") {
         val cls =
-            umlModel("M") {
-                classOf("Order") {
-                    attribute("name", "String", visibility = Visibility.PROTECTED)
+            umlModel(name = "M") {
+                classOf(name = "Order") {
+                    attribute(name = "name", type = "String", visibility = Visibility.PROTECTED)
                 }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.attributes[0].visibility shouldBe Visibility.PROTECTED
@@ -109,25 +109,25 @@ class ClassBuilderTest : FunSpec({
 
     test("attribute with isStatic flag is stored") {
         val cls =
-            umlModel("M") {
-                classOf("Counter") { attribute("count", "Int", isStatic = true) }
+            umlModel(name = "M") {
+                classOf(name = "Counter") { attribute(name = "count", type = "Int", isStatic = true) }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.attributes[0].isStatic shouldBe true
     }
 
     test("attribute with isReadOnly flag is stored") {
         val cls =
-            umlModel("M") {
-                classOf("Config") { attribute("host", "String", isReadOnly = true) }
+            umlModel(name = "M") {
+                classOf(name = "Config") { attribute(name = "host", type = "String", isReadOnly = true) }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.attributes[0].isReadOnly shouldBe true
     }
 
     test("attribute with classifier handle sets referencedId") {
         val model =
-            umlModel("M") {
-                val status = enumOf("Status") { literal("ACTIVE") }
-                classOf("Order") { attribute("status", type = status) }
+            umlModel(name = "M") {
+                val status = enumOf(name = "Status") { literal(name = "ACTIVE") }
+                classOf(name = "Order") { attribute(name = "status", type = status) }
             }
         val cls = model.elements.filterIsInstance<UmlClass>().first()
         cls.attributes[0].type.name shouldBe "Status"
@@ -136,11 +136,11 @@ class ClassBuilderTest : FunSpec({
 
     test("multiple attributes accumulate in order") {
         val cls =
-            umlModel("M") {
-                classOf("Order") {
-                    attribute("id", "UUID")
-                    attribute("createdAt", "Instant")
-                    attribute("status", "String")
+            umlModel(name = "M") {
+                classOf(name = "Order") {
+                    attribute(name = "id", type = "UUID")
+                    attribute(name = "createdAt", type = "Instant")
+                    attribute(name = "status", type = "String")
                 }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.attributes shouldHaveSize 3
@@ -151,8 +151,8 @@ class ClassBuilderTest : FunSpec({
 
     test("operation is added to class") {
         val cls =
-            umlModel("M") {
-                classOf("Order") { operation("confirm") }
+            umlModel(name = "M") {
+                classOf(name = "Order") { operation(name = "confirm") }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.operations shouldHaveSize 1
         cls.operations[0].name shouldBe "confirm"
@@ -160,16 +160,16 @@ class ClassBuilderTest : FunSpec({
 
     test("operation id uses parentheses notation") {
         val cls =
-            umlModel("M") {
-                classOf("Order") { operation("confirm") }
+            umlModel(name = "M") {
+                classOf(name = "Order") { operation(name = "confirm") }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.operations[0].id shouldBe "Order::confirm()"
     }
 
     test("operation without parameters has empty parameter list") {
         val cls =
-            umlModel("M") {
-                classOf("Order") { operation("confirm") }
+            umlModel(name = "M") {
+                classOf(name = "Order") { operation(name = "confirm") }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.operations[0].parameters.shouldBeEmpty()
     }
@@ -178,9 +178,9 @@ class ClassBuilderTest : FunSpec({
 
     test("extends inside classOf creates a UmlGeneralization in the diagram") {
         val model =
-            umlModel("M") {
-                val animal = classOf("Animal")
-                classOf("Dog") { extends(animal) }
+            umlModel(name = "M") {
+                val animal = classOf(name = "Animal")
+                classOf(name = "Dog") { extends(general = animal) }
             }
         val gens = model.elements.filterIsInstance<UmlGeneralization>()
         gens shouldHaveSize 1
@@ -190,17 +190,17 @@ class ClassBuilderTest : FunSpec({
 
     test("extends by string id creates a UmlGeneralization") {
         val model =
-            umlModel("M") {
-                classOf("Dog") { extends("Animal") }
+            umlModel(name = "M") {
+                classOf(name = "Dog") { extends(generalId = "Animal") }
             }
         model.elements.filterIsInstance<UmlGeneralization>() shouldHaveSize 1
     }
 
     test("implements inside classOf creates a UmlInterfaceRealization in the diagram") {
         val model =
-            umlModel("M") {
-                val iface = interfaceOf("Serializable")
-                classOf("Order") { implements(iface) }
+            umlModel(name = "M") {
+                val iface = interfaceOf(name = "Serializable")
+                classOf(name = "Order") { implements(iface = iface) }
             }
         val reals = model.elements.filterIsInstance<UmlInterfaceRealization>()
         reals shouldHaveSize 1

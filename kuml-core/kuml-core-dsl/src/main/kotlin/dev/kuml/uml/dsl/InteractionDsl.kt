@@ -396,6 +396,7 @@ fun UmlInteractionScope.loop(
 
 fun UmlInteractionScope.par(block: FragmentBuilder.() -> Unit) = fragment(InteractionOperator.PAR, block = block)
 
+@Suppress("FunctionName")
 fun UmlInteractionScope.break_(
     guard: String? = null,
     block: OperandBuilder.() -> Unit,
@@ -417,6 +418,7 @@ fun UmlInteractionOperandScope.loop(
 
 fun UmlInteractionOperandScope.par(block: FragmentBuilder.() -> Unit) = fragment(InteractionOperator.PAR, block = block)
 
+@Suppress("FunctionName")
 fun UmlInteractionOperandScope.break_(
     guard: String? = null,
     block: OperandBuilder.() -> Unit,

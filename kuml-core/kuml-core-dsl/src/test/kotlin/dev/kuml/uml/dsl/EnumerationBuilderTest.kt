@@ -11,29 +11,29 @@ class EnumerationBuilderTest : FunSpec({
 
     test("enumOf builds a UmlEnumeration") {
         val enum =
-            umlModel("M") { enumOf("OrderStatus") }
+            umlModel(name = "M") { enumOf(name = "OrderStatus") }
                 .elements.filterIsInstance<UmlEnumeration>().first()
         enum.name shouldBe "OrderStatus"
     }
 
     test("enumOf id defaults to name at root level") {
         val enum =
-            umlModel("M") { enumOf("OrderStatus") }
+            umlModel(name = "M") { enumOf(name = "OrderStatus") }
                 .elements.filterIsInstance<UmlEnumeration>().first()
         enum.id shouldBe "OrderStatus"
     }
 
     test("enumOf with no literals has empty literal list") {
         val enum =
-            umlModel("M") { enumOf("Empty") {} }
+            umlModel(name = "M") { enumOf(name = "Empty") {} }
                 .elements.filterIsInstance<UmlEnumeration>().first()
         enum.literals.shouldBeEmpty()
     }
 
     test("enumOf literal is added with correct name") {
         val enum =
-            umlModel("M") {
-                enumOf("Status") { literal("ACTIVE") }
+            umlModel(name = "M") {
+                enumOf(name = "Status") { literal(name = "ACTIVE") }
             }.elements.filterIsInstance<UmlEnumeration>().first()
         enum.literals shouldHaveSize 1
         enum.literals[0].name shouldBe "ACTIVE"
@@ -41,20 +41,20 @@ class EnumerationBuilderTest : FunSpec({
 
     test("enumOf literal id is derived from enum id and literal name") {
         val enum =
-            umlModel("M") {
-                enumOf("Status") { literal("ACTIVE") }
+            umlModel(name = "M") {
+                enumOf(name = "Status") { literal(name = "ACTIVE") }
             }.elements.filterIsInstance<UmlEnumeration>().first()
         enum.literals[0].id shouldBe "Status::ACTIVE"
     }
 
     test("enumOf multiple literals accumulate in order") {
         val enum =
-            umlModel("M") {
-                enumOf("OrderStatus") {
-                    literal("DRAFT")
-                    literal("CONFIRMED")
-                    literal("SHIPPED")
-                    literal("CANCELLED")
+            umlModel(name = "M") {
+                enumOf(name = "OrderStatus") {
+                    literal(name = "DRAFT")
+                    literal(name = "CONFIRMED")
+                    literal(name = "SHIPPED")
+                    literal(name = "CANCELLED")
                 }
             }.elements.filterIsInstance<UmlEnumeration>().first()
         enum.literals shouldHaveSize 4
@@ -63,20 +63,20 @@ class EnumerationBuilderTest : FunSpec({
 
     test("enumOf default visibility is PUBLIC") {
         val enum =
-            umlModel("M") { enumOf("E") }
+            umlModel(name = "M") { enumOf(name = "E") }
                 .elements.filterIsInstance<UmlEnumeration>().first()
         enum.visibility shouldBe Visibility.PUBLIC
     }
 
     test("enumOf returned handle has correct id") {
         var handle: UmlEnumeration? = null
-        umlModel("M") { handle = enumOf("Status") { literal("A") } }
+        umlModel(name = "M") { handle = enumOf(name = "Status") { literal(name = "A") } }
         handle!!.id shouldBe "Status"
     }
 
     test("enumOf explicit id override is respected") {
         val enum =
-            umlModel("M") { enumOf("Status", id = "pkg::Status") }
+            umlModel(name = "M") { enumOf(name = "Status", id = "pkg::Status") }
                 .elements.filterIsInstance<UmlEnumeration>().first()
         enum.id shouldBe "pkg::Status"
     }
