@@ -11,8 +11,8 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class ComponentDiagramBuilderTest : FunSpec({
-    test("component diagram shows all components of a container") {
+class ComponentDiagramBuilderTest : FunSpec(body = {
+    test(name = "component diagram shows all components of a container") {
         val model =
             c4Model("Test") {
                 val system =
@@ -38,7 +38,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 4 // Container + 3 Components
     }
 
-    test("external containers are included when flag is set") {
+    test(name = "external containers are included when flag is set") {
         val model =
             c4Model("Test") {
                 val system =
@@ -67,7 +67,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         diag.elements.size shouldBe 3
     }
 
-    test("external containers are excluded when flag is false") {
+    test(name = "external containers are excluded when flag is false") {
         val model =
             c4Model("Test") {
                 val system =
@@ -96,7 +96,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         diag.elements.size shouldBe 2
     }
 
-    test("exclude components") {
+    test(name = "exclude components") {
         val model =
             c4Model("Test") {
                 val system =
@@ -131,7 +131,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         elementNames.contains("Component 1") shouldBe true
     }
 
-    test("relationships between components are included") {
+    test(name = "relationships between components are included") {
         val model =
             c4Model("Test") {
                 val system =
@@ -162,7 +162,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         diag.relationships shouldHaveSize 1
     }
 
-    test("components from other containers are not auto-included") {
+    test(name = "components from other containers are not auto-included") {
         val model =
             c4Model("Test") {
                 val system =
@@ -194,7 +194,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         elementNames.contains("Component A") shouldBe true
     }
 
-    test("serialization round-trip works") {
+    test(name = "serialization round-trip works") {
         val model =
             c4Model("Test") {
                 val system =
@@ -223,7 +223,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         model.diagrams[0].shouldBeInstanceOf<ComponentDiagram>()
     }
 
-    test("diagram name and description are set correctly") {
+    test(name = "diagram name and description are set correctly") {
         val model =
             c4Model("Test") {
                 val system =
@@ -248,7 +248,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         diag.description shouldBe "Components in the API container"
     }
 
-    test("relationships can be disabled") {
+    test(name = "relationships can be disabled") {
         val model =
             c4Model("Test") {
                 val system =

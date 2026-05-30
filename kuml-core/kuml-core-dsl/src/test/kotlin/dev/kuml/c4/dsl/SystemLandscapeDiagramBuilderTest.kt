@@ -10,8 +10,8 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class SystemLandscapeDiagramBuilderTest : FunSpec({
-    test("includes all systems and persons by default") {
+class SystemLandscapeDiagramBuilderTest : FunSpec(body = {
+    test(name = "includes all systems and persons by default") {
         val model =
             c4Model("Test") {
                 person("P1")
@@ -27,7 +27,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 4
     }
 
-    test("can exclude systems") {
+    test(name = "can exclude systems") {
         val model =
             c4Model("Test") {
                 val p = person("Person")
@@ -44,7 +44,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 2
     }
 
-    test("can exclude persons") {
+    test(name = "can exclude persons") {
         val model =
             c4Model("Test") {
                 val p1 = person("Person1")
@@ -61,7 +61,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 2
     }
 
-    test("relationships between systems are included") {
+    test(name = "relationships between systems are included") {
         val model =
             c4Model("Test") {
                 val s1 = softwareSystem("S1")
@@ -75,7 +75,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diag.relationships shouldHaveSize 1
     }
 
-    test("relationships between persons and systems are included") {
+    test(name = "relationships between persons and systems are included") {
         val model =
             c4Model("Test") {
                 val p = person("Person")
@@ -89,7 +89,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diag.relationships shouldHaveSize 1
     }
 
-    test("containers and components are not included") {
+    test(name = "containers and components are not included") {
         val model =
             c4Model("Test") {
                 val p = person("Person")
@@ -106,7 +106,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 2
     }
 
-    test("can include specific elements") {
+    test(name = "can include specific elements") {
         val model =
             c4Model("Test") {
                 val p1 = person("Person1")
@@ -125,7 +125,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 2
     }
 
-    test("excludes elements from relationships when not included") {
+    test(name = "excludes elements from relationships when not included") {
         val model =
             c4Model("Test") {
                 val s1 = softwareSystem("S1")
@@ -144,7 +144,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diag.relationships shouldHaveSize 1
     }
 
-    test("can disable auto-include of systems") {
+    test(name = "can disable auto-include of systems") {
         val model =
             c4Model("Test") {
                 val p = person("Person")
@@ -162,7 +162,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 2
     }
 
-    test("can disable auto-include of persons") {
+    test(name = "can disable auto-include of persons") {
         val model =
             c4Model("Test") {
                 val p1 = person("Person1")
@@ -180,7 +180,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 2
     }
 
-    test("serialization round-trip works") {
+    test(name = "serialization round-trip works") {
         val model =
             c4Model("Test") {
                 person("P")
@@ -196,7 +196,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diagrams shouldHaveSize 1
     }
 
-    test("diagram name and description are set correctly") {
+    test(name = "diagram name and description are set correctly") {
         val model =
             c4Model("Test") {
                 person("P")
@@ -212,7 +212,7 @@ class SystemLandscapeDiagramBuilderTest : FunSpec({
         diag.description shouldBe "Enterprise overview"
     }
 
-    test("empty model produces empty diagram") {
+    test(name = "empty model produces empty diagram") {
         val model =
             c4Model("Test") {
                 systemLandscapeDiagram("Empty Landscape")

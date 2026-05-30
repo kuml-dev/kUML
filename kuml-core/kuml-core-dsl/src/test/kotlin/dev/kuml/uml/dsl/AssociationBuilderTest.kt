@@ -7,11 +7,11 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 
-class AssociationBuilderTest : FunSpec({
+class AssociationBuilderTest : FunSpec(body = {
 
     // ── By string IDs ──────────────────────────────────────────────────────────
 
-    test("association by string ids creates UmlAssociation") {
+    test(name = "association by string ids creates UmlAssociation") {
         val model =
             umlModel("M") {
                 classOf("Order")
@@ -21,7 +21,7 @@ class AssociationBuilderTest : FunSpec({
         model.elements.filterIsInstance<UmlAssociation>() shouldHaveSize 1
     }
 
-    test("association by string ids has correct end type ids") {
+    test(name = "association by string ids has correct end type ids") {
         val model =
             umlModel("M") {
                 association(sourceId = "Order", targetId = "Item")
@@ -31,7 +31,7 @@ class AssociationBuilderTest : FunSpec({
         assoc.ends[1].typeId shouldBe "Item"
     }
 
-    test("association id format is assoc::source-->target") {
+    test(name = "association id format is assoc::source-->target") {
         val model =
             umlModel("M") {
                 association(sourceId = "Order", targetId = "Item")
@@ -40,7 +40,7 @@ class AssociationBuilderTest : FunSpec({
         assoc.id shouldBe "assoc::Order-->Item"
     }
 
-    test("named association id includes name segment") {
+    test(name = "named association id includes name segment") {
         val model =
             umlModel("M") {
                 association(sourceId = "Order", targetId = "Item") { name = "contains" }
@@ -51,7 +51,7 @@ class AssociationBuilderTest : FunSpec({
 
     // ── By classifier handles ──────────────────────────────────────────────────
 
-    test("association by classifier handles uses handle ids") {
+    test(name = "association by classifier handles uses handle ids") {
         val model =
             umlModel("M") {
                 val order = classOf("Order")
@@ -63,7 +63,7 @@ class AssociationBuilderTest : FunSpec({
         assoc.ends[1].typeId shouldBe "Item"
     }
 
-    test("association by handle from enum uses enum id as typeId") {
+    test(name = "association by handle from enum uses enum id as typeId") {
         val model =
             umlModel("M") {
                 val status = enumOf("OrderStatus") { literal("DRAFT") }
@@ -76,7 +76,7 @@ class AssociationBuilderTest : FunSpec({
 
     // ── Aggregation ────────────────────────────────────────────────────────────
 
-    test("association default aggregation is NONE") {
+    test(name = "association default aggregation is NONE") {
         val model =
             umlModel("M") {
                 association(sourceId = "A", targetId = "B")
@@ -84,7 +84,7 @@ class AssociationBuilderTest : FunSpec({
         model.elements.filterIsInstance<UmlAssociation>().first().aggregation shouldBe AggregationKind.NONE
     }
 
-    test("association aggregation COMPOSITE is stored") {
+    test(name = "association aggregation COMPOSITE is stored") {
         val model =
             umlModel("M") {
                 association(sourceId = "Order", targetId = "Item") {
@@ -94,7 +94,7 @@ class AssociationBuilderTest : FunSpec({
         model.elements.filterIsInstance<UmlAssociation>().first().aggregation shouldBe AggregationKind.COMPOSITE
     }
 
-    test("association aggregation SHARED is stored") {
+    test(name = "association aggregation SHARED is stored") {
         val model =
             umlModel("M") {
                 association(sourceId = "Team", targetId = "Member") {
@@ -106,7 +106,7 @@ class AssociationBuilderTest : FunSpec({
 
     // ── Multiplicity ───────────────────────────────────────────────────────────
 
-    test("source end multiplicity string is parsed correctly") {
+    test(name = "source end multiplicity string is parsed correctly") {
         val model =
             umlModel(name = "M") {
                 association(sourceId = "Order", targetId = "Item") {
@@ -117,7 +117,7 @@ class AssociationBuilderTest : FunSpec({
         assoc.ends[0].multiplicity shouldBe Multiplicity(lower = 1, upper = 1)
     }
 
-    test("target end multiplicity 1..* is parsed correctly") {
+    test(name = "target end multiplicity 1..* is parsed correctly") {
         val model =
             umlModel(name = "M") {
                 association(sourceId = "Order", targetId = "Item") {
@@ -128,7 +128,7 @@ class AssociationBuilderTest : FunSpec({
         assoc.ends[1].multiplicity shouldBe Multiplicity(lower = 1, upper = null)
     }
 
-    test("target end multiplicity 0..* is parsed correctly") {
+    test(name = "target end multiplicity 0..* is parsed correctly") {
         val model =
             umlModel(name = "M") {
                 association(sourceId = "Customer", targetId = "Order") {
@@ -141,7 +141,7 @@ class AssociationBuilderTest : FunSpec({
 
     // ── Role ──────────────────────────────────────────────────────────────────
 
-    test("source end role is stored") {
+    test(name = "source end role is stored") {
         val model =
             umlModel("M") {
                 association(sourceId = "Order", targetId = "Item") {
@@ -154,7 +154,7 @@ class AssociationBuilderTest : FunSpec({
 
     // ── Both ends default navigable ────────────────────────────────────────────
 
-    test("association ends are navigable by default") {
+    test(name = "association ends are navigable by default") {
         val model =
             umlModel("M") {
                 association(sourceId = "A", targetId = "B")

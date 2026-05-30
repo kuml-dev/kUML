@@ -15,16 +15,16 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class StateDiagramBuilderTest : FunSpec({
+class StateDiagramBuilderTest : FunSpec(body = {
 
-    test("empty state diagram builds with empty state machine") {
+    test(name = "empty state diagram builds with empty state machine") {
         val d = stateDiagram("Empty")
         val sm = d.elements.single() as UmlStateMachine
         sm.vertices.shouldBeEmpty()
         sm.transitions.shouldBeEmpty()
     }
 
-    test("state has deterministic id and stores entry/exit/doActivity") {
+    test(name = "state has deterministic id and stores entry/exit/doActivity") {
         val d =
             stateDiagram("OrderSM") {
                 state("Draft") {
@@ -40,13 +40,13 @@ class StateDiagramBuilderTest : FunSpec({
         s.doActivity shouldBe "notify()"
     }
 
-    test("initialState creates pseudostate of kind INITIAL") {
+    test(name = "initialState creates pseudostate of kind INITIAL") {
         val d = stateDiagram("X") { initialState() }
         val ps = (d.elements.single() as UmlStateMachine).vertices.single() as UmlPseudostate
         ps.kind shouldBe PseudostateKind.INITIAL
     }
 
-    test("finalState creates UmlFinalState") {
+    test(name = "finalState creates UmlFinalState") {
         val d = stateDiagram("X") { finalState("Done") }
         val fs = (d.elements.single() as UmlStateMachine).vertices.single()
         fs.shouldBeInstanceOf<UmlFinalState>()
@@ -54,14 +54,14 @@ class StateDiagramBuilderTest : FunSpec({
         fs.id shouldBe "X::Done"
     }
 
-    test("choice creates pseudostate of kind CHOICE") {
+    test(name = "choice creates pseudostate of kind CHOICE") {
         val d = stateDiagram("X") { choice("PaymentOK?") }
         val ps = (d.elements.single() as UmlStateMachine).vertices.single() as UmlPseudostate
         ps.kind shouldBe PseudostateKind.CHOICE
         ps.id shouldBe "X::PaymentOK?"
     }
 
-    test("transition between two states has correct ids and labels") {
+    test(name = "transition between two states has correct ids and labels") {
         val d =
             stateDiagram("OrderSM") {
                 val draft = state("Draft")
@@ -82,7 +82,7 @@ class StateDiagramBuilderTest : FunSpec({
         t.effect shouldBe "log()"
     }
 
-    test("two transitions with same endpoints get disambiguated ids") {
+    test(name = "two transitions with same endpoints get disambiguated ids") {
         val d =
             stateDiagram("X") {
                 val a = state("A")
@@ -94,7 +94,7 @@ class StateDiagramBuilderTest : FunSpec({
         ids shouldContainExactly listOf("X::t::A->B", "X::t::A->B~2")
     }
 
-    test("composite state stores substates under its own id") {
+    test(name = "composite state stores substates under its own id") {
         val d =
             stateDiagram("OrderSM") {
                 compositeState("Processing") {
@@ -111,7 +111,7 @@ class StateDiagramBuilderTest : FunSpec({
             )
     }
 
-    test("transition between substates of a composite is registered on the state machine") {
+    test(name = "transition between substates of a composite is registered on the state machine") {
         val d =
             stateDiagram("X") {
                 val composite =
@@ -128,18 +128,18 @@ class StateDiagramBuilderTest : FunSpec({
         sm.transitions.single().sourceId shouldBe "X::Group::A"
     }
 
-    test("diagram type is STATE and config is StateDiagramConfig") {
+    test(name = "diagram type is STATE and config is StateDiagramConfig") {
         val d = stateDiagram("X") { showGuards = false }
         d.type shouldBe DiagramType.STATE
         (d.config as StateDiagramConfig).showGuards shouldBe false
     }
 
-    test("state machine name equals diagram name") {
+    test(name = "state machine name equals diagram name") {
         val d = stateDiagram("OrderLifecycle")
         (d.elements.single() as UmlStateMachine).name shouldBe "OrderLifecycle"
     }
 
-    test("fork and join create pseudostates of correct kind") {
+    test(name = "fork and join create pseudostates of correct kind") {
         val d =
             stateDiagram("X") {
                 fork("split")

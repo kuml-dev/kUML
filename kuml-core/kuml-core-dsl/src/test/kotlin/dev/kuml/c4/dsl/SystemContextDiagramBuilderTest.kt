@@ -7,9 +7,9 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class SystemContextDiagramBuilderTest : FunSpec({
+class SystemContextDiagramBuilderTest : FunSpec(body = {
 
-    test("system context diagram can be created with persons and systems") {
+    test(name = "system context diagram can be created with persons and systems") {
         val model =
             c4Model(name = "Test") {
                 val p = person(name = "Person")
@@ -24,7 +24,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         diag.name shouldBe "Context"
     }
 
-    test("container elements are rejected in include()") {
+    test(name = "container elements are rejected in include()") {
         val thrown =
             try {
                 c4Model(name = "Test") {
@@ -43,7 +43,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         thrown shouldBe false // Just test that system alone doesn't throw
     }
 
-    test("relationships are automatically filtered") {
+    test(name = "relationships are automatically filtered") {
         val model =
             c4Model(name = "Test") {
                 val p = person(name = "Person")
@@ -60,7 +60,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         diag.relationships shouldHaveSize 1 // only p → s1
     }
 
-    test("include() with varargs adds multiple elements") {
+    test(name = "include() with varargs adds multiple elements") {
         val model =
             c4Model(name = "Test") {
                 val p1 = person(name = "P1")
@@ -74,7 +74,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 3
     }
 
-    test("external systems are included") {
+    test(name = "external systems are included") {
         val model =
             c4Model(name = "Test") {
                 val p = person(name = "Person")
@@ -90,7 +90,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 3
     }
 
-    test("exclude() removes elements from diagram") {
+    test(name = "exclude() removes elements from diagram") {
         val model =
             c4Model(name = "Test") {
                 val p1 = person(name = "P1")
@@ -105,7 +105,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 2
     }
 
-    test("element() method works for persons") {
+    test(name = "element() method works for persons") {
         val model =
             c4Model(name = "Test") {
                 val p = person(name = "Person")
@@ -117,7 +117,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 1
     }
 
-    test("element() method works for systems") {
+    test(name = "element() method works for systems") {
         val model =
             c4Model(name = "Test") {
                 val s = softwareSystem(name = "System")
@@ -129,7 +129,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 1
     }
 
-    test("title() and note() methods do not crash") {
+    test(name = "title() and note() methods do not crash") {
         val model =
             c4Model(name = "Test") {
                 val p = person(name = "P")
@@ -142,7 +142,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         model.diagrams shouldHaveSize 1
     }
 
-    test("description is preserved in diagram") {
+    test(name = "description is preserved in diagram") {
         val model =
             c4Model(name = "Test") {
                 val p = person(name = "P")
@@ -154,7 +154,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         diag.description shouldBe "This is the context"
     }
 
-    test("no relationships when elements are disjoint") {
+    test(name = "no relationships when elements are disjoint") {
         val model =
             c4Model(name = "Test") {
                 val p1 = person(name = "P1")
@@ -171,7 +171,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         diag.relationships shouldHaveSize 1
     }
 
-    test("multiple diagrams can be created") {
+    test(name = "multiple diagrams can be created") {
         val model =
             c4Model(name = "Test") {
                 val p = person(name = "Person")
@@ -191,7 +191,7 @@ class SystemContextDiagramBuilderTest : FunSpec({
         diag2.name shouldBe "Context 2"
     }
 
-    test("empty diagram has no elements or relationships") {
+    test(name = "empty diagram has no elements or relationships") {
         val model =
             c4Model(name = "Test") {
                 systemContextDiagram(name = "Empty Context") {

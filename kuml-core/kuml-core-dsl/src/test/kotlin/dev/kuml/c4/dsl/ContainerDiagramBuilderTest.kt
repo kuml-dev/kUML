@@ -11,8 +11,8 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class ContainerDiagramBuilderTest : FunSpec({
-    test("container diagram shows all containers of a system") {
+class ContainerDiagramBuilderTest : FunSpec(body = {
+    test(name = "container diagram shows all containers of a system") {
         val model =
             c4Model("Test") {
                 val system =
@@ -32,7 +32,7 @@ class ContainerDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 4
     }
 
-    test("external systems are optional") {
+    test(name = "external systems are optional") {
         val model =
             c4Model("Test") {
                 val system =
@@ -55,7 +55,7 @@ class ContainerDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 4
     }
 
-    test("exclude containers is supported") {
+    test(name = "exclude containers is supported") {
         val model =
             c4Model("Test") {
                 val system =
@@ -74,7 +74,7 @@ class ContainerDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 3
     }
 
-    test("container count includes system plus all its containers") {
+    test(name = "container count includes system plus all its containers") {
         val model =
             c4Model("Test") {
                 val system =
@@ -94,7 +94,7 @@ class ContainerDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 4
     }
 
-    test("multiple external systems are included") {
+    test(name = "multiple external systems are included") {
         val model =
             c4Model("Test") {
                 val system =
@@ -119,7 +119,7 @@ class ContainerDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 5
     }
 
-    test("external systems are excluded when showExternalSystems is false") {
+    test(name = "external systems are excluded when showExternalSystems is false") {
         val model =
             c4Model("Test") {
                 val system =
@@ -142,7 +142,7 @@ class ContainerDiagramBuilderTest : FunSpec({
         diag.elements shouldHaveSize 3
     }
 
-    test("system must be set") {
+    test(name = "system must be set") {
         var thrown = false
         try {
             c4Model("Test") {
@@ -160,7 +160,7 @@ class ContainerDiagramBuilderTest : FunSpec({
         thrown shouldBe true
     }
 
-    test("serialization round-trip works") {
+    test(name = "serialization round-trip works") {
         val model =
             c4Model("Test") {
                 val system =
@@ -181,7 +181,7 @@ class ContainerDiagramBuilderTest : FunSpec({
         diagrams shouldHaveSize 1
     }
 
-    test("relationships external to diagram are excluded") {
+    test(name = "relationships external to diagram are excluded") {
         val model =
             c4Model("Test") {
                 val system1 =
@@ -207,7 +207,7 @@ class ContainerDiagramBuilderTest : FunSpec({
         diag.relationships shouldHaveSize 0
     }
 
-    test("diagram name and description are set correctly") {
+    test(name = "diagram name and description are set correctly") {
         val model =
             c4Model("Test") {
                 val system =
@@ -225,7 +225,7 @@ class ContainerDiagramBuilderTest : FunSpec({
         diag.description shouldBe "This shows the containers"
     }
 
-    test("only includes containers of the target system") {
+    test(name = "only includes containers of the target system") {
         val model =
             c4Model("Test") {
                 val system1 =

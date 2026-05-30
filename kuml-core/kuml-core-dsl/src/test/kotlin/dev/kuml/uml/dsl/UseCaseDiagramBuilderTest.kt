@@ -18,37 +18,37 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class UseCaseDiagramBuilderTest : FunSpec({
+class UseCaseDiagramBuilderTest : FunSpec(body = {
 
-    test("empty use-case diagram builds without error") {
-        val d = useCaseDiagram("Empty") {}
+    test(name = "empty use-case diagram builds without error") {
+        val d = useCaseDiagram(name = "Empty") {}
         d.name shouldBe "Empty"
         d.type shouldBe DiagramType.USE_CASE
         d.elements.shouldHaveSize(0)
     }
 
-    test("actor is added with deterministic id") {
-        val d = useCaseDiagram("Checkout") { actor("Customer") }
+    test(name = "actor is added with deterministic id") {
+        val d = useCaseDiagram(name = "Checkout") { actor(name = "Customer") }
         val actors = d.elements.filterIsInstance<UmlActor>()
         actors shouldHaveSize 1
         actors.single().id shouldBe "Customer"
         actors.single().name shouldBe "Customer"
     }
 
-    test("useCase is added with deterministic id") {
-        val d = useCaseDiagram("Checkout") { useCase("Place Order") }
+    test(name = "useCase is added with deterministic id") {
+        val d = useCaseDiagram(name = "Checkout") { useCase(name = "Place Order") }
         val useCases = d.elements.filterIsInstance<UmlUseCase>()
         useCases shouldHaveSize 1
         useCases.single().id shouldBe "Place Order"
         useCases.single().name shouldBe "Place Order"
     }
 
-    test("subject contains the listed use cases") {
+    test(name = "subject contains the listed use cases") {
         val d =
-            useCaseDiagram("Checkout") {
-                val a = useCase("A")
-                val b = useCase("B")
-                subject("Shop", a, b)
+            useCaseDiagram(name = "Checkout") {
+                val a = useCase(name = "A")
+                val b = useCase(name = "B")
+                subject(name = "Shop", containedUseCases = arrayOf(a, b))
             }
         val subjects = d.elements.filterIsInstance<UmlUseCaseSubject>()
         subjects shouldHaveSize 1
@@ -56,11 +56,11 @@ class UseCaseDiagramBuilderTest : FunSpec({
         s.useCaseIds shouldBe listOf("A", "B")
     }
 
-    test("include relationship uses UmlIds-include format") {
+    test(name = "include relationship uses UmlIds-include format") {
         val d =
-            useCaseDiagram("Checkout") {
-                val a = useCase("Place Order")
-                val b = useCase("Validate Cart")
+            useCaseDiagram(name = "Checkout") {
+                val a = useCase(name = "Place Order")
+                val b = useCase(name = "Validate Cart")
                 include(base = a, addition = b)
             }
         val rels = d.elements.filterIsInstance<UmlInclude>()
@@ -70,11 +70,11 @@ class UseCaseDiagramBuilderTest : FunSpec({
         rels.single().additionId shouldBe "Validate Cart"
     }
 
-    test("extend with extensionPoint stores extensionPoint") {
+    test(name = "extend with extensionPoint stores extensionPoint") {
         val d =
-            useCaseDiagram("Checkout") {
-                val place = useCase("Place Order")
-                val discount = useCase("Apply Discount")
+            useCaseDiagram(name = "Checkout") {
+                val place = useCase(name = "Place Order")
+                val discount = useCase(name = "Apply Discount")
                 extend(base = place, extension = discount, at = "PaymentChosen")
             }
         val rels = d.elements.filterIsInstance<UmlExtend>()
@@ -84,17 +84,17 @@ class UseCaseDiagramBuilderTest : FunSpec({
         rels.single().extensionId shouldBe "Apply Discount"
     }
 
-    test("actor to useCase association is accepted") {
+    test(name = "actor to useCase association is accepted") {
         val d =
-            useCaseDiagram("Checkout") {
-                val customer = actor("Customer")
-                val place = useCase("Place Order")
+            useCaseDiagram(name = "Checkout") {
+                val customer = actor(name = "Customer")
+                val place = useCase(name = "Place Order")
                 association(source = customer, target = place)
             }
         d.elements.filterIsInstance<UmlAssociation>() shouldHaveSize 1
     }
 
-    test("adding UmlClass to use-case diagram throws") {
+    test(name = "adding UmlClass to use-case diagram throws") {
         val cls = UmlClass(id = "X", name = "X")
         val builder = UseCaseDiagramBuilder(name = "Bad")
         shouldThrow<IllegalArgumentException> {
@@ -102,7 +102,7 @@ class UseCaseDiagramBuilderTest : FunSpec({
         }
     }
 
-    test("adding UmlDependency to use-case diagram throws") {
+    test(name = "adding UmlDependency to use-case diagram throws") {
         val dep = UmlDependency(id = "dep::A..>B", clientId = "A", supplierId = "B")
         val builder = UseCaseDiagramBuilder(name = "Bad")
         shouldThrow<IllegalArgumentException> {
@@ -110,7 +110,7 @@ class UseCaseDiagramBuilderTest : FunSpec({
         }
     }
 
-    test("config is UseCaseDiagramConfig with defaults") {
+    test(name = "config is UseCaseDiagramConfig with defaults") {
         val d = useCaseDiagram("Config Test") {}
         val config = d.config
         config.shouldBeInstanceOf<UseCaseDiagramConfig>()

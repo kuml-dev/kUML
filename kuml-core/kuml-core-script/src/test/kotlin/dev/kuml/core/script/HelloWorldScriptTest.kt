@@ -11,9 +11,9 @@ import kotlin.script.experimental.api.ScriptDiagnostic
  * Goal: `diagram(name = "Test") { }` in a `*.kuml.kts` script compiles
  * and evaluates without errors.
  */
-class HelloWorldScriptTest : FunSpec({
+class HelloWorldScriptTest : FunSpec(body = {
 
-    test("minimal diagram script compiles and runs without errors") {
+    test(name = "minimal diagram script compiles and runs without errors") {
         val result =
             KumlScriptHost.eval(
                 code = """diagram(name = "Hello kUML") {}""",
@@ -22,7 +22,7 @@ class HelloWorldScriptTest : FunSpec({
         errors.shouldBeEmpty()
     }
 
-    test("diagram with explicit DiagramType compiles") {
+    test(name = "diagram with explicit DiagramType compiles") {
         val result =
             KumlScriptHost.eval(
                 code =
@@ -37,7 +37,7 @@ class HelloWorldScriptTest : FunSpec({
         errors.shouldBeEmpty()
     }
 
-    test("all V1 DiagramType values are accessible in script scope") {
+    test(name = "all V1 DiagramType values are accessible in script scope") {
         val result =
             KumlScriptHost.eval(
                 code =
@@ -56,7 +56,7 @@ class HelloWorldScriptTest : FunSpec({
         errors.shouldBeEmpty()
     }
 
-    test("script syntax error is reported as ERROR diagnostic") {
+    test(name = "script syntax error is reported as ERROR diagnostic") {
         val result =
             KumlScriptHost.eval(
                 code = """this is not valid kotlin!!!""",

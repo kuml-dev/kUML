@@ -6,11 +6,11 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class StructureModelTest : FunSpec({
+class StructureModelTest : FunSpec(body = {
 
     // ── UmlComponent ──────────────────────────────────────────────────────────
 
-    test("minimal component builds with required fields only") {
+    test(name = "minimal component builds with required fields only") {
         val comp = UmlComponent(id = "PaymentSvc", name = "PaymentSvc")
         comp.ports.shouldBeEmpty()
         comp.providedInterfaceIds.shouldBeEmpty()
@@ -20,7 +20,7 @@ class StructureModelTest : FunSpec({
         comp.shouldBeInstanceOf<UmlClassifier>()
     }
 
-    test("component stores provided and required interfaces by ID") {
+    test(name = "component stores provided and required interfaces by ID") {
         val comp =
             UmlComponent(
                 id = "OrderSvc",
@@ -33,7 +33,7 @@ class StructureModelTest : FunSpec({
         comp.requiredInterfaceIds shouldHaveSize 2
     }
 
-    test("component holds ports") {
+    test(name = "component holds ports") {
         val port =
             UmlPort(
                 id = "OrderSvc::orderPort",
@@ -50,12 +50,12 @@ class StructureModelTest : FunSpec({
         comp.ports[0].type?.name shouldBe "IOrderSvc"
     }
 
-    test("conjugated port is modelled with isConjugated = true") {
+    test(name = "conjugated port is modelled with isConjugated = true") {
         val port = UmlPort(id = "C::p", name = "p", isConjugated = true)
         port.isConjugated shouldBe true
     }
 
-    test("component can be nested") {
+    test(name = "component can be nested") {
         val inner = UmlComponent(id = "System::API", name = "API")
         val outer =
             UmlComponent(
@@ -69,7 +69,7 @@ class StructureModelTest : FunSpec({
 
     // ── UmlConnector ──────────────────────────────────────────────────────────
 
-    test("connector links two ports by ID") {
+    test(name = "connector links two ports by ID") {
         val conn =
             UmlConnector(
                 id = "conn::System::API::orderPort--System::DB::dbPort",
@@ -85,19 +85,19 @@ class StructureModelTest : FunSpec({
 
     // ── UmlActor / UmlUseCase ─────────────────────────────────────────────────
 
-    test("actor builds and is a UmlClassifier") {
+    test(name = "actor builds and is a UmlClassifier") {
         val actor = UmlActor(id = "Customer", name = "Customer")
         actor.name shouldBe "Customer"
         actor.shouldBeInstanceOf<UmlClassifier>()
     }
 
-    test("use case builds and is a UmlClassifier") {
+    test(name = "use case builds and is a UmlClassifier") {
         val uc = UmlUseCase(id = "PlaceOrder", name = "Place Order")
         uc.name shouldBe "Place Order"
         uc.shouldBeInstanceOf<UmlClassifier>()
     }
 
-    test("use case subject holds use-case IDs") {
+    test(name = "use case subject holds use-case IDs") {
         val subject =
             UmlUseCaseSubject(
                 id = "OnlineShop",
@@ -110,7 +110,7 @@ class StructureModelTest : FunSpec({
 
     // ── UmlInclude / UmlExtend ────────────────────────────────────────────────
 
-    test("include stores base and addition IDs") {
+    test(name = "include stores base and addition IDs") {
         val inc =
             UmlInclude(
                 id = "include::Checkout..>ValidateCart",
@@ -122,7 +122,7 @@ class StructureModelTest : FunSpec({
         inc.shouldBeInstanceOf<UmlRelationship>()
     }
 
-    test("extend stores base, extension and optional extension point") {
+    test(name = "extend stores base, extension and optional extension point") {
         val ext =
             UmlExtend(
                 id = "extend::Checkout..>ApplyDiscount",
@@ -136,14 +136,14 @@ class StructureModelTest : FunSpec({
         ext.shouldBeInstanceOf<UmlRelationship>()
     }
 
-    test("extend without extension point defaults to null") {
+    test(name = "extend without extension point defaults to null") {
         val ext = UmlExtend(id = "x", baseId = "A", extensionId = "B")
         ext.extensionPoint shouldBe null
     }
 
     // ── Visibility ────────────────────────────────────────────────────────────
 
-    test("Visibility has exactly PUBLIC, PRIVATE, PROTECTED, PACKAGE") {
+    test(name = "Visibility has exactly PUBLIC, PRIVATE, PROTECTED, PACKAGE") {
         Visibility.entries.map { it.name } shouldBe
             listOf("PUBLIC", "PRIVATE", "PROTECTED", "PACKAGE")
     }

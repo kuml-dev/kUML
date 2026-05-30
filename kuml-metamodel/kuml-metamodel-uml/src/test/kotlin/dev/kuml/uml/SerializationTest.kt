@@ -7,7 +7,7 @@ import io.kotest.matchers.string.shouldContain
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class SerializationTest : FunSpec({
+class SerializationTest : FunSpec(body = {
 
     val json =
         Json {
@@ -17,7 +17,7 @@ class SerializationTest : FunSpec({
 
     // ── UmlClass round-trip ───────────────────────────────────────────────────
 
-    test("UmlClass round-trips through JSON") {
+    test(name = "UmlClass round-trips through JSON") {
         val before =
             UmlClass(
                 id = "domain::Order",
@@ -49,7 +49,7 @@ class SerializationTest : FunSpec({
 
     // ── UmlInterface round-trip ───────────────────────────────────────────────
 
-    test("UmlInterface round-trips through JSON") {
+    test(name = "UmlInterface round-trips through JSON") {
         val before =
             UmlInterface(
                 id = "IOrderSvc",
@@ -66,7 +66,7 @@ class SerializationTest : FunSpec({
 
     // ── UmlEnumeration round-trip ─────────────────────────────────────────────
 
-    test("UmlEnumeration round-trips through JSON") {
+    test(name = "UmlEnumeration round-trips through JSON") {
         val before =
             UmlEnumeration(
                 id = "OrderStatus",
@@ -84,7 +84,7 @@ class SerializationTest : FunSpec({
 
     // ── UmlAssociation round-trip ─────────────────────────────────────────────
 
-    test("UmlAssociation round-trips through JSON") {
+    test(name = "UmlAssociation round-trips through JSON") {
         val before =
             UmlAssociation(
                 id = "assoc::Order-->Item",
@@ -102,7 +102,7 @@ class SerializationTest : FunSpec({
 
     // ── UmlStateMachine round-trip ────────────────────────────────────────────
 
-    test("UmlStateMachine round-trips through JSON") {
+    test(name = "UmlStateMachine round-trips through JSON") {
         val before =
             UmlStateMachine(
                 id = "OrderSM",
@@ -131,7 +131,7 @@ class SerializationTest : FunSpec({
 
     // ── UmlInteraction round-trip ─────────────────────────────────────────────
 
-    test("UmlInteraction round-trips through JSON") {
+    test(name = "UmlInteraction round-trips through JSON") {
         val before =
             UmlInteraction(
                 id = "PlaceOrder",
@@ -158,7 +158,7 @@ class SerializationTest : FunSpec({
 
     // ── UmlComponent round-trip ───────────────────────────────────────────────
 
-    test("UmlComponent round-trips through JSON") {
+    test(name = "UmlComponent round-trips through JSON") {
         val before =
             UmlComponent(
                 id = "OrderSvc",
@@ -173,7 +173,7 @@ class SerializationTest : FunSpec({
 
     // ── Polymorphic List<UmlElement> round-trip ───────────────────────────────
 
-    test("polymorphic List<UmlElement> round-trips with type discriminator") {
+    test(name = "polymorphic List<UmlElement> round-trips with type discriminator") {
         val elements: List<UmlElement> =
             listOf(
                 UmlClass(id = "Order", name = "Order"),
@@ -189,7 +189,7 @@ class SerializationTest : FunSpec({
         after shouldBe elements
     }
 
-    test("JSON for polymorphic UmlElement contains type discriminator") {
+    test(name = "JSON for polymorphic UmlElement contains type discriminator") {
         val elements: List<UmlElement> =
             listOf(
                 UmlClass(id = "A", name = "A"),
@@ -201,7 +201,7 @@ class SerializationTest : FunSpec({
 
     // ── KumlMetaValue in metadata ─────────────────────────────────────────────
 
-    test("metadata with KumlMetaValue round-trips through JSON") {
+    test(name = "metadata with KumlMetaValue round-trips through JSON") {
         val before =
             UmlClass(
                 id = "Annotated",
@@ -222,7 +222,7 @@ class SerializationTest : FunSpec({
 
     // ── Multiplicity round-trip ───────────────────────────────────────────────
 
-    test("unbounded multiplicity round-trips with null upper") {
+    test(name = "unbounded multiplicity round-trips with null upper") {
         val before = Multiplicity(lower = 1, upper = null)
         val text = json.encodeToString(before)
         val after = json.decodeFromString<Multiplicity>(text)
@@ -232,7 +232,7 @@ class SerializationTest : FunSpec({
 
     // ── UmlPackage round-trip ─────────────────────────────────────────────────
 
-    test("UmlPackage with nested members round-trips through JSON") {
+    test(name = "UmlPackage with nested members round-trips through JSON") {
         val before =
             UmlPackage(
                 id = "domain",

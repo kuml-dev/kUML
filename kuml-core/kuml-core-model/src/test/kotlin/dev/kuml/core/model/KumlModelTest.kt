@@ -7,9 +7,9 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 import io.kotest.matchers.maps.shouldBeEmpty as mapShouldBeEmpty
 
-class KumlModelTest : FunSpec({
+class KumlModelTest : FunSpec(body = {
 
-    test("KumlModel wraps a root element with language, level and name") {
+    test(name = "KumlModel wraps a root element with language, level and name") {
         val root = KumlDiagram(name = "Root Diagram")
         val model =
             KumlModel(
@@ -25,7 +25,7 @@ class KumlModelTest : FunSpec({
         model.name shouldBe "My Model"
     }
 
-    test("KumlModel metadata is empty by default") {
+    test(name = "KumlModel metadata is empty by default") {
         val model =
             KumlModel(
                 root = KumlDiagram(name = "Root"),
@@ -36,7 +36,7 @@ class KumlModelTest : FunSpec({
         model.metadata.mapShouldBeEmpty()
     }
 
-    test("ModelingLanguage has exactly UML, SYSML2, C4, MIXED") {
+    test(name = "ModelingLanguage has exactly UML, SYSML2, C4, MIXED") {
         ModelingLanguage.entries.shouldContainExactlyInAnyOrder(
             ModelingLanguage.UML,
             ModelingLanguage.SYSML2,
@@ -45,7 +45,7 @@ class KumlModelTest : FunSpec({
         )
     }
 
-    test("ModelLevel has exactly CIM, PIM, PSM, DEPLOYMENT") {
+    test(name = "ModelLevel has exactly CIM, PIM, PSM, DEPLOYMENT") {
         ModelLevel.entries.shouldContainExactlyInAnyOrder(
             ModelLevel.CIM,
             ModelLevel.PIM,
@@ -54,43 +54,43 @@ class KumlModelTest : FunSpec({
         )
     }
 
-    test("KumlDiagram is a KumlNamespaceMember and KumlElement") {
+    test(name = "KumlDiagram is a KumlNamespaceMember and KumlElement") {
         val diagram = KumlDiagram(name = "Test")
         diagram.shouldBeInstanceOf<KumlNamespaceMember>()
         diagram.shouldBeInstanceOf<KumlElement>()
     }
 
-    test("KumlDiagram id defaults to its name") {
+    test(name = "KumlDiagram id defaults to its name") {
         val diagram = KumlDiagram(name = "Default Id")
         diagram.id shouldBe "Default Id"
     }
 
-    test("KumlDiagram metadata is empty by default") {
+    test(name = "KumlDiagram metadata is empty by default") {
         val diagram = KumlDiagram(name = "No Metadata")
         diagram.metadata.mapShouldBeEmpty()
     }
 
-    test("KumlDiagram defaults to CLASS type") {
+    test(name = "KumlDiagram defaults to CLASS type") {
         val diagram = KumlDiagram(name = "Default")
         diagram.type shouldBe DiagramType.CLASS
     }
 
-    test("KumlDiagram elements are empty by default") {
+    test(name = "KumlDiagram elements are empty by default") {
         val diagram = KumlDiagram(name = "Empty")
         diagram.elements.shouldBeEmpty()
     }
 
-    test("KumlMetaValue Text holds a string") {
+    test(name = "KumlMetaValue Text holds a string") {
         val v = KumlMetaValue.Text(value = "hello")
         v.value shouldBe "hello"
     }
 
-    test("KumlMetaValue Integer holds a long") {
+    test(name = "KumlMetaValue Integer holds a long") {
         val v = KumlMetaValue.Integer(value = 42L)
         v.value shouldBe 42L
     }
 
-    test("KumlMetaValue Flag holds a boolean") {
+    test(name = "KumlMetaValue Flag holds a boolean") {
         val v = KumlMetaValue.Flag(value = true)
         v.value shouldBe true
     }

@@ -7,9 +7,9 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 
-class OperationBuilderTest : FunSpec({
+class OperationBuilderTest : FunSpec(body = {
 
-    test("operation without parameters uses empty parentheses in id") {
+    test(name = "operation without parameters uses empty parentheses in id") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Order") { operation(name = "confirm") }
@@ -17,7 +17,7 @@ class OperationBuilderTest : FunSpec({
         cls.operations[0].id shouldBe "Order::confirm()"
     }
 
-    test("operation default visibility is PUBLIC") {
+    test(name = "operation default visibility is PUBLIC") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Order") { operation(name = "confirm") }
@@ -25,7 +25,7 @@ class OperationBuilderTest : FunSpec({
         cls.operations[0].visibility shouldBe Visibility.PUBLIC
     }
 
-    test("operation with one parameter includes type in id") {
+    test(name = "operation with one parameter includes type in id") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Repo") {
@@ -35,7 +35,7 @@ class OperationBuilderTest : FunSpec({
         cls.operations[0].id shouldBe "Repo::find(Long)"
     }
 
-    test("operation with multiple parameters joins types with comma in id") {
+    test(name = "operation with multiple parameters joins types with comma in id") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Repo") {
@@ -48,7 +48,7 @@ class OperationBuilderTest : FunSpec({
         cls.operations[0].id shouldBe "Repo::findBy(String,Boolean)"
     }
 
-    test("overloaded operations get distinct ids") {
+    test(name = "overloaded operations get distinct ids") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Svc") {
@@ -62,7 +62,7 @@ class OperationBuilderTest : FunSpec({
         (ids[0] == ids[1]) shouldBe false
     }
 
-    test("operation returns type is stored") {
+    test(name = "operation returns type is stored") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Repo") {
@@ -72,7 +72,7 @@ class OperationBuilderTest : FunSpec({
         cls.operations[0].returnType?.name shouldBe "List"
     }
 
-    test("operation isAbstract flag is stored") {
+    test(name = "operation isAbstract flag is stored") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Shape") {
@@ -82,7 +82,7 @@ class OperationBuilderTest : FunSpec({
         cls.operations[0].isAbstract shouldBe true
     }
 
-    test("operation isStatic flag is stored") {
+    test(name = "operation isStatic flag is stored") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Factory") {
@@ -92,7 +92,7 @@ class OperationBuilderTest : FunSpec({
         cls.operations[0].isStatic shouldBe true
     }
 
-    test("parameter direction defaults to IN") {
+    test(name = "parameter direction defaults to IN") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Svc") {
@@ -102,7 +102,7 @@ class OperationBuilderTest : FunSpec({
         cls.operations[0].parameters[0].direction shouldBe ParameterDirection.IN
     }
 
-    test("parameter explicit direction is stored") {
+    test(name = "parameter explicit direction is stored") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Svc") {
@@ -114,7 +114,7 @@ class OperationBuilderTest : FunSpec({
         cls.operations[0].parameters[0].direction shouldBe ParameterDirection.OUT
     }
 
-    test("operation on interface uses interface id as prefix") {
+    test(name = "operation on interface uses interface id as prefix") {
         val iface =
             umlModel(name = "M") {
                 interfaceOf(name = "IRepo") { operation(name = "findAll") }
@@ -122,7 +122,7 @@ class OperationBuilderTest : FunSpec({
         iface.operations[0].id shouldBe "IRepo::findAll()"
     }
 
-    test("multiple operations accumulate in declaration order") {
+    test(name = "multiple operations accumulate in declaration order") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Order") {

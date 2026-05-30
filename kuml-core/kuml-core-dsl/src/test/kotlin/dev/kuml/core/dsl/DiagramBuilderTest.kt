@@ -5,35 +5,35 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.shouldBe
 
-class DiagramBuilderTest : FunSpec({
+class DiagramBuilderTest : FunSpec(body = {
 
-    test("diagram with name builds a KumlDiagram") {
+    test(name = "diagram with name builds a KumlDiagram") {
         val d = diagram(name = "My Diagram")
         d.name shouldBe "My Diagram"
     }
 
-    test("diagram defaults to CLASS type") {
+    test(name = "diagram defaults to CLASS type") {
         val d = diagram(name = "Default")
         d.type shouldBe DiagramType.CLASS
     }
 
-    test("diagram respects explicit type") {
+    test(name = "diagram respects explicit type") {
         val d = diagram(name = "Sequence", type = DiagramType.SEQUENCE)
         d.type shouldBe DiagramType.SEQUENCE
     }
 
-    test("diagram elements are empty by default") {
+    test(name = "diagram elements are empty by default") {
         val d = diagram(name = "Empty") {}
         d.elements.shouldBeEmpty()
     }
 
-    test("diagram with empty block is equivalent to diagram without block") {
+    test(name = "diagram with empty block is equivalent to diagram without block") {
         val withBlock = diagram(name = "Test") {}
         val withoutBlock = diagram(name = "Test")
         withBlock shouldBe withoutBlock
     }
 
-    test("named parameters are used correctly") {
+    test(name = "named parameters are used correctly") {
         val d =
             diagram(
                 name = "Named Params Test",

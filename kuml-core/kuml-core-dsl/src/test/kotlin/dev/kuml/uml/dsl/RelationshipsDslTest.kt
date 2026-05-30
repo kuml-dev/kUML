@@ -7,11 +7,11 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 
-class RelationshipsDslTest : FunSpec({
+class RelationshipsDslTest : FunSpec(body = {
 
     // ── Generalization ─────────────────────────────────────────────────────────
 
-    test("top-level generalization creates UmlGeneralization") {
+    test(name = "top-level generalization creates UmlGeneralization") {
         val model =
             umlModel("M") {
                 classOf("Dog")
@@ -21,7 +21,7 @@ class RelationshipsDslTest : FunSpec({
         model.elements.filterIsInstance<UmlGeneralization>() shouldHaveSize 1
     }
 
-    test("generalization id uses gen:: prefix with -|> notation") {
+    test(name = "generalization id uses gen:: prefix with -|> notation") {
         val model =
             umlModel("M") {
                 generalization(specificId = "Dog", generalId = "Animal")
@@ -29,7 +29,7 @@ class RelationshipsDslTest : FunSpec({
         model.elements.filterIsInstance<UmlGeneralization>().first().id shouldBe "gen::Dog-|>Animal"
     }
 
-    test("generalization stores specific and general ids") {
+    test(name = "generalization stores specific and general ids") {
         val model =
             umlModel("M") {
                 generalization(specificId = "Dog", generalId = "Animal")
@@ -39,7 +39,7 @@ class RelationshipsDslTest : FunSpec({
         gen.generalId shouldBe "Animal"
     }
 
-    test("generalization by classifier handles uses handle ids") {
+    test(name = "generalization by classifier handles uses handle ids") {
         val model =
             umlModel("M") {
                 val animal = classOf("Animal")
@@ -53,7 +53,7 @@ class RelationshipsDslTest : FunSpec({
 
     // ── Realization ────────────────────────────────────────────────────────────
 
-    test("top-level realization creates UmlInterfaceRealization") {
+    test(name = "top-level realization creates UmlInterfaceRealization") {
         val model =
             umlModel("M") {
                 interfaceOf("IOrderSvc")
@@ -63,7 +63,7 @@ class RelationshipsDslTest : FunSpec({
         model.elements.filterIsInstance<UmlInterfaceRealization>() shouldHaveSize 1
     }
 
-    test("realization id uses real:: prefix with ..|> notation") {
+    test(name = "realization id uses real:: prefix with ..|> notation") {
         val model =
             umlModel("M") {
                 realization(implementingId = "OrderSvc", interfaceId = "IOrderSvc")
@@ -72,7 +72,7 @@ class RelationshipsDslTest : FunSpec({
             "real::OrderSvc..|>IOrderSvc"
     }
 
-    test("realization by handles uses handle ids") {
+    test(name = "realization by handles uses handle ids") {
         val model =
             umlModel("M") {
                 val iface = interfaceOf("IRepo")
@@ -86,7 +86,7 @@ class RelationshipsDslTest : FunSpec({
 
     // ── Dependency ─────────────────────────────────────────────────────────────
 
-    test("top-level dependency creates UmlDependency") {
+    test(name = "top-level dependency creates UmlDependency") {
         val model =
             umlModel("M") {
                 classOf("Order")
@@ -96,7 +96,7 @@ class RelationshipsDslTest : FunSpec({
         model.elements.filterIsInstance<UmlDependency>() shouldHaveSize 1
     }
 
-    test("dependency id uses dep:: prefix with ..> notation") {
+    test(name = "dependency id uses dep:: prefix with ..> notation") {
         val model =
             umlModel("M") {
                 dependency(clientId = "Order", supplierId = "OrderStatus")
@@ -104,7 +104,7 @@ class RelationshipsDslTest : FunSpec({
         model.elements.filterIsInstance<UmlDependency>().first().id shouldBe "dep::Order..>OrderStatus"
     }
 
-    test("dependency with name label stores it") {
+    test(name = "dependency with name label stores it") {
         val model =
             umlModel("M") {
                 dependency(clientId = "A", supplierId = "B", name = "<<use>>")
@@ -112,7 +112,7 @@ class RelationshipsDslTest : FunSpec({
         model.elements.filterIsInstance<UmlDependency>().first().name shouldBe "<<use>>"
     }
 
-    test("dependency by handles uses handle ids") {
+    test(name = "dependency by handles uses handle ids") {
         val model =
             umlModel("M") {
                 val order = classOf("Order")

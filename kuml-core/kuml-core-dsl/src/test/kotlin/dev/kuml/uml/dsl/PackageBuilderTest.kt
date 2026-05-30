@@ -8,30 +8,30 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class PackageBuilderTest : FunSpec({
+class PackageBuilderTest : FunSpec(body = {
 
-    test("package builds a UmlPackage") {
+    test(name = "package builds a UmlPackage") {
         val pkg =
             umlModel(name = "M") { `package`(name = "domain") }
                 .elements.filterIsInstance<UmlPackage>().first()
         pkg.name shouldBe "domain"
     }
 
-    test("package id defaults to name at root level") {
+    test(name = "package id defaults to name at root level") {
         val pkg =
             umlModel(name = "M") { `package`(name = "domain") }
                 .elements.filterIsInstance<UmlPackage>().first()
         pkg.id shouldBe "domain"
     }
 
-    test("packageOf alias works as well") {
+    test(name = "packageOf alias works as well") {
         val pkg =
             umlModel(name = "M") { packageOf(name = "infra") }
                 .elements.filterIsInstance<UmlPackage>().first()
         pkg.name shouldBe "infra"
     }
 
-    test("classOf inside package gets qualified id") {
+    test(name = "classOf inside package gets qualified id") {
         val pkg =
             umlModel(name = "M") {
                 `package`(name = "domain") {
@@ -44,7 +44,7 @@ class PackageBuilderTest : FunSpec({
         cls.id shouldBe "domain::Order"
     }
 
-    test("classOf inside package has name only as name") {
+    test(name = "classOf inside package has name only as name") {
         val pkg =
             umlModel(name = "M") {
                 `package`(name = "domain") { classOf(name = "Order") }
@@ -52,7 +52,7 @@ class PackageBuilderTest : FunSpec({
         (pkg.members[0] as UmlClass).name shouldBe "Order"
     }
 
-    test("enumOf inside package gets qualified id") {
+    test(name = "enumOf inside package gets qualified id") {
         val pkg =
             umlModel(name = "M") {
                 `package`(name = "domain") {
@@ -64,7 +64,7 @@ class PackageBuilderTest : FunSpec({
         enum.literals[0].id shouldBe "domain::OrderStatus::DRAFT"
     }
 
-    test("nested packages propagate id chain") {
+    test(name = "nested packages propagate id chain") {
         val root =
             umlModel(name = "M") {
                 `package`(name = "com") {
@@ -79,7 +79,7 @@ class PackageBuilderTest : FunSpec({
         cls.id shouldBe "com::example::Order"
     }
 
-    test("multiple classifiers inside a package are all added as members") {
+    test(name = "multiple classifiers inside a package are all added as members") {
         val pkg =
             umlModel(name = "M") {
                 `package`(name = "domain") {
@@ -91,14 +91,14 @@ class PackageBuilderTest : FunSpec({
         pkg.members shouldHaveSize 3
     }
 
-    test("package explicit id override is respected") {
+    test(name = "package explicit id override is respected") {
         val pkg =
             umlModel(name = "M") { `package`(name = "domain", id = "my.domain") }
                 .elements.filterIsInstance<UmlPackage>().first()
         pkg.id shouldBe "my.domain"
     }
 
-    test("package at root level ends up as element of the diagram") {
+    test(name = "package at root level ends up as element of the diagram") {
         val model = umlModel(name = "M") { `package`(name = "domain") }
         model.elements shouldHaveSize 1
         model.elements[0].shouldBeInstanceOf<UmlPackage>()

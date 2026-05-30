@@ -14,9 +14,9 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class DslScopeIsolationTest : FunSpec({
+class DslScopeIsolationTest : FunSpec(body = {
 
-    test("diagram scope has UML builders available") {
+    test(name = "diagram scope has UML builders available") {
         val d =
             diagram(name = "Class Diagram", type = DiagramType.CLASS) {
                 classOf("Order")
@@ -26,7 +26,7 @@ class DslScopeIsolationTest : FunSpec({
         d.elements[0].shouldBeInstanceOf<UmlClass>()
     }
 
-    test("umlModel scope can build full order domain model") {
+    test(name = "umlModel scope can build full order domain model") {
         val model =
             umlModel("Order Domain") {
                 val status =
@@ -85,7 +85,7 @@ class DslScopeIsolationTest : FunSpec({
         associations shouldHaveSize 2
     }
 
-    test("diagram scope also supports classOf and associations") {
+    test(name = "diagram scope also supports classOf and associations") {
         val d =
             diagram(name = "Inheritance", type = DiagramType.CLASS) {
                 val animal = classOf("Animal") { isAbstract = true }
@@ -98,7 +98,7 @@ class DslScopeIsolationTest : FunSpec({
         d.elements.filterIsInstance<UmlGeneralization>() shouldHaveSize 3
     }
 
-    test("package scope does not expose association builder (compile-time safety)") {
+    test(name = "package scope does not expose association builder (compile-time safety)") {
         // This test documents the intended scope restriction:
         // Calling association() inside `package { }` is not possible because
         // PackageBuilder : UmlContainerScope (not UmlModelScope).

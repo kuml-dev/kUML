@@ -14,21 +14,21 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class ComponentDiagramBuilderTest : FunSpec({
+class ComponentDiagramBuilderTest : FunSpec(body = {
 
-    test("empty component diagram builds without error") {
+    test(name = "empty component diagram builds without error") {
         val d = componentDiagram("Empty") {}
         d.name shouldBe "Empty"
         d.type shouldBe DiagramType.COMPONENT
         d.elements.shouldHaveSize(0)
     }
 
-    test("component is added with deterministic id") {
+    test(name = "component is added with deterministic id") {
         val d = componentDiagram("Arch") { component("OrderService") }
         d.elements.filterIsInstance<UmlComponent>().single().id shouldBe "OrderService"
     }
 
-    test("port is created with qualified id under its component") {
+    test(name = "port is created with qualified id under its component") {
         val d =
             componentDiagram("Arch") {
                 component("OrderService") { port("api") }
@@ -37,7 +37,7 @@ class ComponentDiagramBuilderTest : FunSpec({
             .ports.single().id shouldBe "OrderService::api"
     }
 
-    test("provides stores interface id on component") {
+    test(name = "provides stores interface id on component") {
         val d =
             componentDiagram("Arch") {
                 val orderApi = interfaceOf("IOrderApi")
@@ -47,7 +47,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         comp.providedInterfaceIds shouldBe listOf("IOrderApi")
     }
 
-    test("requires stores interface id on component") {
+    test(name = "requires stores interface id on component") {
         val d =
             componentDiagram("Arch") {
                 val eventBus = interfaceOf("IEventBus")
@@ -57,7 +57,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         comp.requiredInterfaceIds shouldBe listOf("IEventBus")
     }
 
-    test("nested component is stored inside parent component") {
+    test(name = "nested component is stored inside parent component") {
         val d =
             componentDiagram("Arch") {
                 component("OrderService") { component("OrderRepository") }
@@ -66,7 +66,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         parent.nestedComponents.single().id shouldBe "OrderService::OrderRepository"
     }
 
-    test("connect by component+port-name creates UmlConnector with full port ids") {
+    test(name = "connect by component+port-name creates UmlConnector with full port ids") {
         val d =
             componentDiagram("Arch") {
                 val a = component("A") { port("out") }
@@ -78,18 +78,18 @@ class ComponentDiagramBuilderTest : FunSpec({
         c.end2Id shouldBe "B::in"
     }
 
-    test("diagram type is COMPONENT") {
+    test(name = "diagram type is COMPONENT") {
         componentDiagram("X") {}.type shouldBe DiagramType.COMPONENT
     }
 
-    test("adding UmlClass to component diagram throws") {
+    test(name = "adding UmlClass to component diagram throws") {
         val builder = ComponentDiagramBuilder("Bad")
         shouldThrow<IllegalArgumentException> {
             builder.addNamedElement(UmlClass(id = "X", name = "X"))
         }
     }
 
-    test("adding UmlAssociation to component diagram throws") {
+    test(name = "adding UmlAssociation to component diagram throws") {
         val builder = ComponentDiagramBuilder("Bad")
         val assoc =
             UmlAssociation(
@@ -103,7 +103,7 @@ class ComponentDiagramBuilderTest : FunSpec({
         shouldThrow<IllegalArgumentException> { builder.addRelationship(assoc) }
     }
 
-    test("config is ComponentDiagramConfig with defaults") {
+    test(name = "config is ComponentDiagramConfig with defaults") {
         val d = componentDiagram("Config Test") {}
         val config = d.config
         config.shouldBeInstanceOf<ComponentDiagramConfig>()

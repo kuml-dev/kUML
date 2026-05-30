@@ -6,11 +6,11 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class ClassModelTest : FunSpec({
+class ClassModelTest : FunSpec(body = {
 
     // ── UmlClass ──────────────────────────────────────────────────────────────
 
-    test("minimal class builds with required fields only") {
+    test(name = "minimal class builds with required fields only") {
         val cls = UmlClass(id = "Order", name = "Order")
         cls.id shouldBe "Order"
         cls.name shouldBe "Order"
@@ -23,12 +23,12 @@ class ClassModelTest : FunSpec({
         cls.metadata.isEmpty() shouldBe true
     }
 
-    test("abstract class is modelled with isAbstract = true") {
+    test(name = "abstract class is modelled with isAbstract = true") {
         val cls = UmlClass(id = "AbstractBase", name = "AbstractBase", isAbstract = true)
         cls.isAbstract shouldBe true
     }
 
-    test("class with attributes stores all properties") {
+    test(name = "class with attributes stores all properties") {
         val idProp =
             UmlProperty(
                 id = "Order::id",
@@ -55,7 +55,7 @@ class ClassModelTest : FunSpec({
         cls.attributes[1].name shouldBe "status"
     }
 
-    test("class with operations stores all operations") {
+    test(name = "class with operations stores all operations") {
         val confirm =
             UmlOperation(
                 id = "Order::confirm()",
@@ -80,7 +80,7 @@ class ClassModelTest : FunSpec({
         cls.operations[1].returnType?.name shouldBe "Boolean"
     }
 
-    test("class is a UmlElement and UmlNamedElement") {
+    test(name = "class is a UmlElement and UmlNamedElement") {
         val cls = UmlClass(id = "X", name = "X")
         cls.shouldBeInstanceOf<UmlElement>()
         cls.shouldBeInstanceOf<UmlNamedElement>()
@@ -89,14 +89,14 @@ class ClassModelTest : FunSpec({
 
     // ── UmlInterface ──────────────────────────────────────────────────────────
 
-    test("interface builds with required fields only") {
+    test(name = "interface builds with required fields only") {
         val iface = UmlInterface(id = "IOrderSvc", name = "IOrderSvc")
         iface.name shouldBe "IOrderSvc"
         iface.operations.shouldBeEmpty()
         iface.shouldBeInstanceOf<UmlClassifier>()
     }
 
-    test("interface holds operations") {
+    test(name = "interface holds operations") {
         val op = UmlOperation(id = "IOrderSvc::place()", name = "place")
         val iface =
             UmlInterface(
@@ -109,7 +109,7 @@ class ClassModelTest : FunSpec({
 
     // ── UmlEnumeration ────────────────────────────────────────────────────────
 
-    test("enumeration holds literals") {
+    test(name = "enumeration holds literals") {
         val draft = UmlEnumerationLiteral(id = "OrderStatus::DRAFT", name = "DRAFT")
         val confirmed = UmlEnumerationLiteral(id = "OrderStatus::CONFIRMED", name = "CONFIRMED")
         val enum =
@@ -126,7 +126,7 @@ class ClassModelTest : FunSpec({
 
     // ── UmlPackage ────────────────────────────────────────────────────────────
 
-    test("package holds named members") {
+    test(name = "package holds named members") {
         val cls = UmlClass(id = "domain::Order", name = "Order")
         val enum = UmlEnumeration(id = "domain::Status", name = "Status")
         val pkg =
@@ -139,7 +139,7 @@ class ClassModelTest : FunSpec({
         pkg.shouldBeInstanceOf<UmlNamedElement>()
     }
 
-    test("packages can be nested") {
+    test(name = "packages can be nested") {
         val inner = UmlPackage(id = "outer::inner", name = "inner")
         val outer =
             UmlPackage(
@@ -152,12 +152,12 @@ class ClassModelTest : FunSpec({
 
     // ── UmlProperty ───────────────────────────────────────────────────────────
 
-    test("property defaults to PRIVATE visibility") {
+    test(name = "property defaults to PRIVATE visibility") {
         val prop = UmlProperty(id = "X::x", name = "x", type = UmlTypeRef(name = "Int"))
         prop.visibility shouldBe Visibility.PRIVATE
     }
 
-    test("property holds multiplicity") {
+    test(name = "property holds multiplicity") {
         val prop =
             UmlProperty(
                 id = "Order::items",
@@ -169,7 +169,7 @@ class ClassModelTest : FunSpec({
         prop.multiplicity.upper shouldBe null
     }
 
-    test("static read-only property is modelled correctly") {
+    test(name = "static read-only property is modelled correctly") {
         val prop =
             UmlProperty(
                 id = "Config::MAX",
@@ -184,7 +184,7 @@ class ClassModelTest : FunSpec({
 
     // ── UmlOperation ──────────────────────────────────────────────────────────
 
-    test("operation with parameters stores them in order") {
+    test(name = "operation with parameters stores them in order") {
         val p1 =
             UmlParameter(
                 id = "Order::find(Long,String)::id",
@@ -212,7 +212,7 @@ class ClassModelTest : FunSpec({
 
     // ── UmlConstraint ─────────────────────────────────────────────────────────
 
-    test("constraint stores OCL body as raw string") {
+    test(name = "constraint stores OCL body as raw string") {
         val c =
             UmlConstraint(
                 id = "Order::hasItems",

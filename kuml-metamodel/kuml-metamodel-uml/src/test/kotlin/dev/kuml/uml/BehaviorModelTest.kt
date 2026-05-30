@@ -6,11 +6,11 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class BehaviorModelTest : FunSpec({
+class BehaviorModelTest : FunSpec(body = {
 
     // ── UmlInteraction (Sequence Diagram) ──────────────────────────────────────
 
-    test("minimal interaction builds with name only") {
+    test(name = "minimal interaction builds with name only") {
         val interaction = UmlInteraction(id = "PlaceOrder", name = "PlaceOrder")
         interaction.lifelines.shouldBeEmpty()
         interaction.messages.shouldBeEmpty()
@@ -18,7 +18,7 @@ class BehaviorModelTest : FunSpec({
         interaction.shouldBeInstanceOf<UmlNamedElement>()
     }
 
-    test("interaction holds lifelines") {
+    test(name = "interaction holds lifelines") {
         val customer = UmlLifeline(id = "PlaceOrder::ll::Customer", name = "Customer", isActor = true)
         val service =
             UmlLifeline(
@@ -37,7 +37,7 @@ class BehaviorModelTest : FunSpec({
         interaction.lifelines[1].represents?.name shouldBe "OrderService"
     }
 
-    test("interaction holds messages in sequence order") {
+    test(name = "interaction holds messages in sequence order") {
         val msg1 =
             UmlMessage(
                 id = "PlaceOrder::msg::1",
@@ -68,7 +68,7 @@ class BehaviorModelTest : FunSpec({
         interaction.messages[1].sort shouldBe MessageSort.REPLY
     }
 
-    test("combined fragment ALT stores two operands with guards") {
+    test(name = "combined fragment ALT stores two operands with guards") {
         val success =
             UmlInteractionOperand(
                 guard = "[payment.success]",
@@ -92,26 +92,26 @@ class BehaviorModelTest : FunSpec({
         fragment.shouldBeInstanceOf<UmlElement>()
     }
 
-    test("MessageSort has all expected values") {
+    test(name = "MessageSort has all expected values") {
         MessageSort.entries.map { it.name } shouldBe
             listOf("SYNC_CALL", "ASYNC_CALL", "REPLY", "CREATE", "DELETE")
     }
 
-    test("InteractionOperator has all expected values") {
+    test(name = "InteractionOperator has all expected values") {
         InteractionOperator.entries.map { it.name } shouldBe
             listOf("ALT", "OPT", "LOOP", "PAR", "BREAK")
     }
 
     // ── UmlStateMachine ────────────────────────────────────────────────────────
 
-    test("minimal state machine builds with name only") {
+    test(name = "minimal state machine builds with name only") {
         val sm = UmlStateMachine(id = "OrderSM", name = "OrderSM")
         sm.vertices.shouldBeEmpty()
         sm.transitions.shouldBeEmpty()
         sm.shouldBeInstanceOf<UmlNamedElement>()
     }
 
-    test("state machine holds states and transitions") {
+    test(name = "state machine holds states and transitions") {
         val initial =
             UmlPseudostate(
                 id = "OrderSM::__initial",
@@ -154,24 +154,24 @@ class BehaviorModelTest : FunSpec({
         sm.transitions[1].guard shouldBe null
     }
 
-    test("UmlState is a UmlVertex and UmlNamedElement") {
+    test(name = "UmlState is a UmlVertex and UmlNamedElement") {
         val state = UmlState(id = "SM::S", name = "S")
         state.shouldBeInstanceOf<UmlVertex>()
         state.shouldBeInstanceOf<UmlNamedElement>()
     }
 
-    test("UmlPseudostate holds its kind") {
+    test(name = "UmlPseudostate holds its kind") {
         val ps = UmlPseudostate(id = "SM::init", name = "init", kind = PseudostateKind.INITIAL)
         ps.kind shouldBe PseudostateKind.INITIAL
         ps.shouldBeInstanceOf<UmlVertex>()
     }
 
-    test("UmlFinalState is a UmlVertex") {
+    test(name = "UmlFinalState is a UmlVertex") {
         val fs = UmlFinalState(id = "SM::end", name = "end")
         fs.shouldBeInstanceOf<UmlVertex>()
     }
 
-    test("composite state holds substates") {
+    test(name = "composite state holds substates") {
         val sub = UmlState(id = "SM::Outer::Inner", name = "Inner")
         val outer =
             UmlState(
@@ -183,7 +183,7 @@ class BehaviorModelTest : FunSpec({
         outer.substates[0].name shouldBe "Inner"
     }
 
-    test("state has entry, exit and doActivity") {
+    test(name = "state has entry, exit and doActivity") {
         val state =
             UmlState(
                 id = "SM::Active",
@@ -197,7 +197,7 @@ class BehaviorModelTest : FunSpec({
         state.doActivity shouldBe "processEvents()"
     }
 
-    test("PseudostateKind has all expected values") {
+    test(name = "PseudostateKind has all expected values") {
         PseudostateKind.entries.map { it.name } shouldBe
             listOf("INITIAL", "CHOICE", "FORK", "JOIN", "JUNCTION", "SHALLOW_HISTORY", "DEEP_HISTORY")
     }

@@ -12,9 +12,9 @@ import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 
-class SequenceDiagramBuilderTest : FunSpec({
+class SequenceDiagramBuilderTest : FunSpec(body = {
 
-    test("empty sequence diagram has interaction with no lifelines or messages") {
+    test(name = "empty sequence diagram has interaction with no lifelines or messages") {
         val d = sequenceDiagram("Empty")
         val i = d.elements.single() as UmlInteraction
         i.lifelines.shouldBeEmpty()
@@ -22,7 +22,7 @@ class SequenceDiagramBuilderTest : FunSpec({
         i.fragments.shouldBeEmpty()
     }
 
-    test("lifeline has deterministic id and stores represents and isActor") {
+    test(name = "lifeline has deterministic id and stores represents and isActor") {
         val d =
             sequenceDiagram("PlaceOrder") {
                 lifeline("Customer") {
@@ -36,7 +36,7 @@ class SequenceDiagramBuilderTest : FunSpec({
         ll.represents?.name shouldBe "User"
     }
 
-    test("messages get sequential 1-based sequence numbers in call order") {
+    test(name = "messages get sequential 1-based sequence numbers in call order") {
         val d =
             sequenceDiagram("X") {
                 val a = lifeline("A")
@@ -53,7 +53,7 @@ class SequenceDiagramBuilderTest : FunSpec({
             )
     }
 
-    test("asyncMessage / reply / create / delete set the correct sort") {
+    test(name = "asyncMessage / reply / create / delete set the correct sort") {
         val d =
             sequenceDiagram("X") {
                 val a = lifeline("A")
@@ -70,7 +70,7 @@ class SequenceDiagramBuilderTest : FunSpec({
             )
     }
 
-    test("alt fragment with two branches stores correct messageIds per operand") {
+    test(name = "alt fragment with two branches stores correct messageIds per operand") {
         val d =
             sequenceDiagram("X") {
                 val a = lifeline("A")
@@ -90,7 +90,7 @@ class SequenceDiagramBuilderTest : FunSpec({
         frag.operands[1].messageIds shouldContainExactly listOf("X::msg::2")
     }
 
-    test("opt fragment with single operand and guard") {
+    test(name = "opt fragment with single operand and guard") {
         val d =
             sequenceDiagram("X") {
                 val a = lifeline("A")
@@ -108,7 +108,7 @@ class SequenceDiagramBuilderTest : FunSpec({
         frag.operands[0].messageIds shouldContainExactly listOf("X::msg::1")
     }
 
-    test("loop fragment with single operand") {
+    test(name = "loop fragment with single operand") {
         val d =
             sequenceDiagram("X") {
                 val a = lifeline("A")
@@ -124,7 +124,7 @@ class SequenceDiagramBuilderTest : FunSpec({
         frag.operands.single().messageIds shouldContainExactly listOf("X::msg::1")
     }
 
-    test("par fragment with two branches") {
+    test(name = "par fragment with two branches") {
         val d =
             sequenceDiagram("X") {
                 val a = lifeline("A")
@@ -143,7 +143,7 @@ class SequenceDiagramBuilderTest : FunSpec({
         frag.operands[1].messageIds shouldContainExactly listOf("X::msg::2")
     }
 
-    test("nested fragment ids are recorded in parent operand fragmentIds") {
+    test(name = "nested fragment ids are recorded in parent operand fragmentIds") {
         val d =
             sequenceDiagram("X") {
                 val a = lifeline("A")
@@ -167,7 +167,7 @@ class SequenceDiagramBuilderTest : FunSpec({
         innerOpt.operands.single().messageIds shouldContainExactly listOf("X::msg::2")
     }
 
-    test("sequence numbers continue monotonically across fragment boundaries") {
+    test(name = "sequence numbers continue monotonically across fragment boundaries") {
         val d =
             sequenceDiagram("X") {
                 val a = lifeline("A")
@@ -185,18 +185,18 @@ class SequenceDiagramBuilderTest : FunSpec({
         msgs.map { it.sequence } shouldContainExactly listOf(1, 2, 3, 4)
     }
 
-    test("diagram type is SEQUENCE and config is SequenceDiagramConfig") {
+    test(name = "diagram type is SEQUENCE and config is SequenceDiagramConfig") {
         val d = sequenceDiagram("X") { showSequenceNumbers = true }
         d.type shouldBe DiagramType.SEQUENCE
         (d.config as SequenceDiagramConfig).showSequenceNumbers shouldBe true
     }
 
-    test("interaction name equals diagram name") {
+    test(name = "interaction name equals diagram name") {
         val d = sequenceDiagram("PlaceOrder")
         (d.elements.single() as UmlInteraction).name shouldBe "PlaceOrder"
     }
 
-    test("break_ fragment has correct operator") {
+    test(name = "break_ fragment has correct operator") {
         val d =
             sequenceDiagram("X") {
                 val a = lifeline("A")

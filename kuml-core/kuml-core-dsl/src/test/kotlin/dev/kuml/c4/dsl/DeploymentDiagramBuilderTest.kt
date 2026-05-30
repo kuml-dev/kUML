@@ -10,8 +10,8 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class DeploymentDiagramBuilderTest : FunSpec({
-    test("deployment nodes can be nested hierarchically") {
+class DeploymentDiagramBuilderTest : FunSpec(body = {
+    test(name = "deployment nodes can be nested hierarchically") {
         val model =
             c4Model("Test") {
                 val system =
@@ -37,7 +37,7 @@ class DeploymentDiagramBuilderTest : FunSpec({
         diag.elements.size shouldBe 3 // Cloud + Web Server + DB Server
     }
 
-    test("containers are deployed to nodes") {
+    test(name = "containers are deployed to nodes") {
         val model =
             c4Model("Test") {
                 val system =
@@ -61,7 +61,7 @@ class DeploymentDiagramBuilderTest : FunSpec({
         diag.elements.shouldNotBeEmpty()
     }
 
-    test("node instances are tracked") {
+    test(name = "node instances are tracked") {
         val model =
             c4Model("Test") {
                 val system =
@@ -80,7 +80,7 @@ class DeploymentDiagramBuilderTest : FunSpec({
         diag.elements.shouldNotBeEmpty()
     }
 
-    test("multiple deployment contexts") {
+    test(name = "multiple deployment contexts") {
         val model =
             c4Model("Test") {
                 val system =
@@ -101,7 +101,7 @@ class DeploymentDiagramBuilderTest : FunSpec({
         diag.elements.size shouldBe 2 // Dev node + Prod node
     }
 
-    test("deployment relationships are inferred") {
+    test(name = "deployment relationships are inferred") {
         val model =
             c4Model("Test") {
                 val system =
@@ -131,7 +131,7 @@ class DeploymentDiagramBuilderTest : FunSpec({
         diag.relationships.size shouldBe 0
     }
 
-    test("deeply nested nodes") {
+    test(name = "deeply nested nodes") {
         val model =
             c4Model("Test") {
                 val system =
@@ -153,7 +153,7 @@ class DeploymentDiagramBuilderTest : FunSpec({
         diag.elements.shouldNotBeEmpty()
     }
 
-    test("serialization round-trip works") {
+    test(name = "serialization round-trip works") {
         val model =
             c4Model("Test") {
                 val system =
@@ -174,7 +174,7 @@ class DeploymentDiagramBuilderTest : FunSpec({
         decoded.diagrams.filterIsInstance<DeploymentDiagram>() shouldHaveSize 1
     }
 
-    test("diagram name and description are set correctly") {
+    test(name = "diagram name and description are set correctly") {
         val model =
             c4Model("Test") {
                 val system =
@@ -194,7 +194,7 @@ class DeploymentDiagramBuilderTest : FunSpec({
         diag.description shouldBe "Production deployment"
     }
 
-    test("empty deployment diagram is allowed") {
+    test(name = "empty deployment diagram is allowed") {
         val model =
             c4Model("Test") {
                 softwareSystem("System") {

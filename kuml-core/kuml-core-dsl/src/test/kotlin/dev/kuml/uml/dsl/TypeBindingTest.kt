@@ -8,17 +8,17 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 
-class TypeBindingTest : FunSpec({
+class TypeBindingTest : FunSpec(body = {
 
     // ── typeRef() helpers ──────────────────────────────────────────────────────
 
-    test("typeRef with string name sets name and null referencedId") {
+    test(name = "typeRef with string name sets name and null referencedId") {
         val ref = typeRef("UUID")
         ref.name shouldBe "UUID"
         ref.referencedId.shouldBeNull()
     }
 
-    test("typeRef with classifier handle sets name and referencedId") {
+    test(name = "typeRef with classifier handle sets name and referencedId") {
         var cls: dev.kuml.uml.UmlClass? = null
         umlModel(name = "M") { cls = classOf(name = "Order") }
         val ref = typeRef(cls!!)
@@ -26,7 +26,7 @@ class TypeBindingTest : FunSpec({
         ref.referencedId shouldBe "Order"
     }
 
-    test("typeRef with nested classifier carries qualified id as referencedId") {
+    test(name = "typeRef with nested classifier carries qualified id as referencedId") {
         var cls: dev.kuml.uml.UmlClass? = null
         umlModel(name = "M") {
             `package`(name = "domain") { cls = classOf(name = "Order") }
@@ -37,7 +37,7 @@ class TypeBindingTest : FunSpec({
 
     // ── attribute overloads ────────────────────────────────────────────────────
 
-    test("attribute with String type and attribute with typeRef produce same type name") {
+    test(name = "attribute with String type and attribute with typeRef produce same type name") {
         val model =
             umlModel(name = "M") {
                 classOf(name = "Order") {
@@ -51,7 +51,7 @@ class TypeBindingTest : FunSpec({
         cls.attributes[0].type shouldBe cls.attributes[1].type
     }
 
-    test("attribute with classifier handle has referencedId set") {
+    test(name = "attribute with classifier handle has referencedId set") {
         val model =
             umlModel(name = "M") {
                 val status = enumOf(name = "Status") { literal(name = "A") }
@@ -62,7 +62,7 @@ class TypeBindingTest : FunSpec({
         cls.attributes[0].type.referencedId shouldBe "Status"
     }
 
-    test("attribute with string type has null referencedId") {
+    test(name = "attribute with string type has null referencedId") {
         val model =
             umlModel(name = "M") {
                 classOf(name = "Order") { attribute(name = "id", type = "UUID") }
@@ -73,31 +73,31 @@ class TypeBindingTest : FunSpec({
 
     // ── parseMultiplicity ──────────────────────────────────────────────────────
 
-    test("parseMultiplicity of 1 is 1..1") {
+    test(name = "parseMultiplicity of 1 is 1..1") {
         parseMultiplicity(spec = "1") shouldBe Multiplicity(lower = 1, upper = 1)
     }
 
-    test("parseMultiplicity of 0..1 is 0..1") {
+    test(name = "parseMultiplicity of 0..1 is 0..1") {
         parseMultiplicity(spec = "0..1") shouldBe Multiplicity(lower = 0, upper = 1)
     }
 
-    test("parseMultiplicity of 1..* is 1..null") {
+    test(name = "parseMultiplicity of 1..* is 1..null") {
         parseMultiplicity(spec = "1..*") shouldBe Multiplicity(lower = 1, upper = null)
     }
 
-    test("parseMultiplicity of 0..* is 0..null") {
+    test(name = "parseMultiplicity of 0..* is 0..null") {
         parseMultiplicity(spec = "0..*") shouldBe Multiplicity(lower = 0, upper = null)
     }
 
-    test("parseMultiplicity of * is 0..null") {
+    test(name = "parseMultiplicity of * is 0..null") {
         parseMultiplicity(spec = "*") shouldBe Multiplicity(lower = 0, upper = null)
     }
 
-    test("parseMultiplicity of 2..5 is 2..5") {
+    test(name = "parseMultiplicity of 2..5 is 2..5") {
         parseMultiplicity(spec = "2..5") shouldBe Multiplicity(lower = 2, upper = 5)
     }
 
-    test("parseMultiplicity of invalid format throws") {
+    test(name = "parseMultiplicity of invalid format throws") {
         shouldThrow<IllegalArgumentException> { parseMultiplicity(spec = "bad") }
     }
 })

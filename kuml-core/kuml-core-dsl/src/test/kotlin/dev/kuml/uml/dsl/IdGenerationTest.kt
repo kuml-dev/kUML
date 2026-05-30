@@ -10,9 +10,9 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldStartWith
 
-class IdGenerationTest : FunSpec({
+class IdGenerationTest : FunSpec(body = {
 
-    test("two identical DSL blocks produce identical ids") {
+    test(name = "two identical DSL blocks produce identical ids") {
         fun buildModel() =
             umlModel(name = "M") {
                 `package`(name = "domain") {
@@ -34,7 +34,7 @@ class IdGenerationTest : FunSpec({
         (pkg1.members[0] as UmlClass).id shouldBe (pkg2.members[0] as UmlClass).id
     }
 
-    test("deep nesting produces correct qualified id chain") {
+    test(name = "deep nesting produces correct qualified id chain") {
         val model =
             umlModel(name = "M") {
                 `package`(name = "com") {
@@ -58,7 +58,7 @@ class IdGenerationTest : FunSpec({
         order.operations[0].id shouldBe "com::example::Order::confirm()"
     }
 
-    test("operation id with parameters uses types for disambiguation") {
+    test(name = "operation id with parameters uses types for disambiguation") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "Repo") {
@@ -69,7 +69,7 @@ class IdGenerationTest : FunSpec({
         cls.operations[0].id shouldContain "Long"
     }
 
-    test("disambiguation appends ~2 for first name collision") {
+    test(name = "disambiguation appends ~2 for first name collision") {
         val model =
             umlModel(name = "M") {
                 classOf(name = "Order")
@@ -80,7 +80,7 @@ class IdGenerationTest : FunSpec({
         classes[1].id shouldBe "Order~2"
     }
 
-    test("explicit id override bypasses name-based derivation") {
+    test(name = "explicit id override bypasses name-based derivation") {
         val model =
             umlModel(name = "M") {
                 classOf(name = "Order", id = "my.company.Order")
@@ -88,7 +88,7 @@ class IdGenerationTest : FunSpec({
         model.elements.filterIsInstance<UmlClass>().first().id shouldBe "my.company.Order"
     }
 
-    test("attribute id starts with owner id") {
+    test(name = "attribute id starts with owner id") {
         val cls =
             umlModel(name = "M") {
                 classOf(name = "domain::Order") {
@@ -98,7 +98,7 @@ class IdGenerationTest : FunSpec({
         cls.attributes[0].id shouldStartWith "domain::Order"
     }
 
-    test("generalization id contains both specific and general ids") {
+    test(name = "generalization id contains both specific and general ids") {
         val model =
             umlModel(name = "M") {
                 generalization(specificId = "Dog", generalId = "Animal")
@@ -108,7 +108,7 @@ class IdGenerationTest : FunSpec({
         gen.id shouldContain "Animal"
     }
 
-    test("association id contains source and target ids") {
+    test(name = "association id contains source and target ids") {
         val model =
             umlModel(name = "M") {
                 association(sourceId = "Order", targetId = "Item")
@@ -118,7 +118,7 @@ class IdGenerationTest : FunSpec({
         assoc.id shouldContain "Item"
     }
 
-    test("enum literal id is derived from enum id") {
+    test(name = "enum literal id is derived from enum id") {
         val enum =
             umlModel(name = "M") {
                 enumOf(name = "domain::Status") { literal(name = "DRAFT") }

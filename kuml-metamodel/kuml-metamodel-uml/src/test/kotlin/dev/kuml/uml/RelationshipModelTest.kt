@@ -5,11 +5,11 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class RelationshipModelTest : FunSpec({
+class RelationshipModelTest : FunSpec(body = {
 
     // ── UmlAssociation ────────────────────────────────────────────────────────
 
-    test("association between two classes stores both ends") {
+    test(name = "association between two classes stores both ends") {
         val ends =
             listOf(
                 UmlAssociationEnd(typeId = "domain::Order", role = "order", multiplicity = Multiplicity(lower = 1, upper = 1)),
@@ -27,7 +27,7 @@ class RelationshipModelTest : FunSpec({
         assoc.aggregation shouldBe AggregationKind.NONE
     }
 
-    test("composition is modelled via aggregation = COMPOSITE") {
+    test(name = "composition is modelled via aggregation = COMPOSITE") {
         val assoc =
             UmlAssociation(
                 id = "assoc::Order-->Items",
@@ -41,7 +41,7 @@ class RelationshipModelTest : FunSpec({
         assoc.aggregation shouldBe AggregationKind.COMPOSITE
     }
 
-    test("shared aggregation is modelled via aggregation = SHARED") {
+    test(name = "shared aggregation is modelled via aggregation = SHARED") {
         val assoc =
             UmlAssociation(
                 id = "assoc::Team-->Member",
@@ -55,7 +55,7 @@ class RelationshipModelTest : FunSpec({
         assoc.aggregation shouldBe AggregationKind.SHARED
     }
 
-    test("named association stores name") {
+    test(name = "named association stores name") {
         val assoc =
             UmlAssociation(
                 id = "assoc::Customer-->Order::places",
@@ -69,7 +69,7 @@ class RelationshipModelTest : FunSpec({
         assoc.name shouldBe "places"
     }
 
-    test("association is a UmlRelationship and UmlElement") {
+    test(name = "association is a UmlRelationship and UmlElement") {
         val assoc =
             UmlAssociation(
                 id = "x",
@@ -81,7 +81,7 @@ class RelationshipModelTest : FunSpec({
 
     // ── UmlGeneralization ─────────────────────────────────────────────────────
 
-    test("generalization stores specific and general IDs") {
+    test(name = "generalization stores specific and general IDs") {
         val gen =
             UmlGeneralization(
                 id = "gen::Dog-|>Animal",
@@ -95,7 +95,7 @@ class RelationshipModelTest : FunSpec({
 
     // ── UmlInterfaceRealization ───────────────────────────────────────────────
 
-    test("interface realization stores implementing and interface IDs") {
+    test(name = "interface realization stores implementing and interface IDs") {
         val real =
             UmlInterfaceRealization(
                 id = "real::OrderSvc..|>IOrderSvc",
@@ -109,7 +109,7 @@ class RelationshipModelTest : FunSpec({
 
     // ── UmlDependency ─────────────────────────────────────────────────────────
 
-    test("dependency stores client and supplier IDs") {
+    test(name = "dependency stores client and supplier IDs") {
         val dep =
             UmlDependency(
                 id = "dep::Order..>OrderStatus",
@@ -121,7 +121,7 @@ class RelationshipModelTest : FunSpec({
         dep.shouldBeInstanceOf<UmlRelationship>()
     }
 
-    test("named dependency stores label") {
+    test(name = "named dependency stores label") {
         val dep =
             UmlDependency(
                 id = "dep::Service..>Repo",
@@ -134,19 +134,19 @@ class RelationshipModelTest : FunSpec({
 
     // ── Multiplicity ──────────────────────────────────────────────────────────
 
-    test("multiplicity defaults to exactly one") {
+    test(name = "multiplicity defaults to exactly one") {
         val m = Multiplicity()
         m.lower shouldBe 1
         m.upper shouldBe 1
     }
 
-    test("unbounded multiplicity uses null upper") {
+    test(name = "unbounded multiplicity uses null upper") {
         val m = Multiplicity(lower = 0, upper = null)
         m.lower shouldBe 0
         m.upper shouldBe null
     }
 
-    test("AggregationKind has exactly NONE, SHARED, COMPOSITE") {
+    test(name = "AggregationKind has exactly NONE, SHARED, COMPOSITE") {
         AggregationKind.entries.map { it.name } shouldBe listOf("NONE", "SHARED", "COMPOSITE")
     }
 })

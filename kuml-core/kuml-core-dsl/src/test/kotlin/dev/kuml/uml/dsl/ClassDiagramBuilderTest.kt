@@ -14,19 +14,22 @@ import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
-class ClassDiagramBuilderTest : FunSpec({
+class ClassDiagramBuilderTest : FunSpec(body = {
 
-    test("empty class diagram builds without error") {
+    test(name = "empty class diagram builds without error") {
         val d = classDiagram(name = "Empty") {}
         d.name shouldBe "Empty"
         d.elements.shouldHaveSize(0)
     }
 
-    test("classDiagram contains added class") {
+    test(name = "classDiagram contains added class") {
         val d =
             classDiagram(name = "My Diagram") {
                 classOf(name = "Order") {
-                    attribute(name = "id", type = "UUID")
+                    attribute(
+                        name = "id",
+                        type = "UUID",
+                    )
                 }
             }
         val classes = d.elements.filterIsInstance<UmlClass>()
@@ -34,12 +37,15 @@ class ClassDiagramBuilderTest : FunSpec({
         classes.first().name shouldBe "Order"
     }
 
-    test("classDiagram contains interface and generalization") {
+    test(name = "classDiagram contains interface and generalization") {
         val d =
             classDiagram(name = "Hierarchy") {
                 val animal = classOf(name = "Animal") { isAbstract = true }
                 val dog = classOf(name = "Dog") {}
-                generalization(specific = dog, general = animal)
+                generalization(
+                    specific = dog,
+                    general = animal,
+                )
             }
         d.elements.filterIsInstance<UmlClass>() shouldHaveSize 2
         val gens = d.elements.filterIsInstance<UmlGeneralization>()
@@ -48,12 +54,15 @@ class ClassDiagramBuilderTest : FunSpec({
         gens.first().generalId shouldBe "Animal"
     }
 
-    test("classDiagram with association between two classes") {
+    test(name = "classDiagram with association between two classes") {
         val d =
             classDiagram(name = "Association") {
                 val customer = classOf(name = "Customer") {}
                 val order = classOf(name = "Order") {}
-                association(source = customer, target = order) {
+                association(
+                    source = customer,
+                    target = order,
+                ) {
                     source { multiplicity(spec = "1") }
                     target { multiplicity(spec = "0..*") }
                 }
@@ -61,9 +70,9 @@ class ClassDiagramBuilderTest : FunSpec({
         d.elements.filterIsInstance<UmlAssociation>() shouldHaveSize 1
     }
 
-    test("showAttributes false is stored in config") {
+    test(name = "showAttributes false is stored in config") {
         val d =
-            classDiagram("Config Test") {
+            classDiagram(name = "Config Test") {
                 showAttributes = false
             }
         val config = d.config
@@ -72,23 +81,32 @@ class ClassDiagramBuilderTest : FunSpec({
         config.showOperations shouldBe true
     }
 
-    test("adding state machine to class diagram throws") {
-        val sm = UmlStateMachine(id = "OrderSM", name = "OrderSM")
+    test(name = "adding state machine to class diagram throws") {
+        val sm =
+            UmlStateMachine(
+                id = "OrderSM",
+                name = "OrderSM",
+            )
         val builder = ClassDiagramBuilder(name = "Bad")
         shouldThrow<IllegalArgumentException> {
             builder.addNamedElement(sm)
         }
     }
 
-    test("adding include relationship to class diagram throws") {
-        val include = UmlInclude(id = "include::A..>B", baseId = "A", additionId = "B")
+    test(name = "adding include relationship to class diagram throws") {
+        val include =
+            UmlInclude(
+                id = "include::A..>B",
+                baseId = "A",
+                additionId = "B",
+            )
         val builder = ClassDiagramBuilder(name = "Bad")
         shouldThrow<IllegalArgumentException> {
             builder.addRelationship(include)
         }
     }
 
-    test("diagram type is CLASS") {
+    test(name = "diagram type is CLASS") {
         val d = classDiagram(name = "Test") {}
         d.type shouldBe DiagramType.CLASS
     }

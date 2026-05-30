@@ -13,9 +13,9 @@ import io.kotest.matchers.shouldBe
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class C4ModelBuilderTest : FunSpec({
+class C4ModelBuilderTest : FunSpec(body = {
 
-    test("metamodel: C4Person can be constructed directly") {
+    test(name = "metamodel: C4Person can be constructed directly") {
         val person =
             C4Person(
                 id = "p1",
@@ -31,7 +31,7 @@ class C4ModelBuilderTest : FunSpec({
         person.location shouldBe "Office"
     }
 
-    test("metamodel: C4SoftwareSystem can be constructed directly") {
+    test(name = "metamodel: C4SoftwareSystem can be constructed directly") {
         val system =
             C4SoftwareSystem(
                 id = "sys1",
@@ -46,7 +46,7 @@ class C4ModelBuilderTest : FunSpec({
         system.containers.shouldBeEmpty()
     }
 
-    test("metamodel: C4Container can be constructed directly") {
+    test(name = "metamodel: C4Container can be constructed directly") {
         val container =
             C4Container(
                 id = "c1",
@@ -62,7 +62,7 @@ class C4ModelBuilderTest : FunSpec({
         container.system shouldBe "sys1"
     }
 
-    test("metamodel: C4Component can be constructed directly") {
+    test(name = "metamodel: C4Component can be constructed directly") {
         val component =
             C4Component(
                 id = "comp1",
@@ -77,7 +77,7 @@ class C4ModelBuilderTest : FunSpec({
         component.container shouldBe "c1"
     }
 
-    test("metamodel: C4DeploymentNode can be constructed directly") {
+    test(name = "metamodel: C4DeploymentNode can be constructed directly") {
         val node =
             C4DeploymentNode(
                 id = "node1",
@@ -93,7 +93,7 @@ class C4ModelBuilderTest : FunSpec({
         node.instances shouldBe 3
     }
 
-    test("metamodel: C4Relationship can be constructed directly") {
+    test(name = "metamodel: C4Relationship can be constructed directly") {
         val relationship =
             C4Relationship(
                 id = "rel1",
@@ -109,7 +109,7 @@ class C4ModelBuilderTest : FunSpec({
         relationship.technology shouldBe "HTTPS"
     }
 
-    test("metamodel: C4Model can be constructed directly") {
+    test(name = "metamodel: C4Model can be constructed directly") {
         val person = C4Person(id = "p1", name = "Alice")
         val system = C4SoftwareSystem(id = "sys1", name = "System A")
         val relationship =
@@ -131,14 +131,14 @@ class C4ModelBuilderTest : FunSpec({
         model.relationships.shouldHaveSize(1)
     }
 
-    test("DSL: empty c4Model builds without error") {
+    test(name = "DSL: empty c4Model builds without error") {
         val model = c4Model(name = "Empty Model")
         model.name shouldBe "Empty Model"
         model.elements.shouldBeEmpty()
         model.relationships.shouldBeEmpty()
     }
 
-    test("DSL: c4Model with person") {
+    test(name = "DSL: c4Model with person") {
         val model =
             c4Model(name = "With Person") {
                 person(name = "Alice") {
@@ -155,7 +155,7 @@ class C4ModelBuilderTest : FunSpec({
         persons.first().location shouldBe "Office"
     }
 
-    test("DSL: c4Model with softwareSystem") {
+    test(name = "DSL: c4Model with softwareSystem") {
         val model =
             c4Model(name = "With System") {
                 softwareSystem(name = "Banking System") {
@@ -169,7 +169,7 @@ class C4ModelBuilderTest : FunSpec({
         systems.first().description shouldBe "Main banking system"
     }
 
-    test("DSL: softwareSystem contains containers (nesting)") {
+    test(name = "DSL: softwareSystem contains containers (nesting)") {
         val model =
             c4Model(name = "Nested System") {
                 softwareSystem(name = "Banking System") {
@@ -193,7 +193,7 @@ class C4ModelBuilderTest : FunSpec({
         }
     }
 
-    test("DSL: container contains components (nesting)") {
+    test(name = "DSL: container contains components (nesting)") {
         val model =
             c4Model(name = "Nested Container") {
                 softwareSystem(name = "System") {
@@ -219,7 +219,7 @@ class C4ModelBuilderTest : FunSpec({
         }
     }
 
-    test("DSL: relationship between person and system") {
+    test(name = "DSL: relationship between person and system") {
         val model =
             c4Model(name = "Relationships") {
                 val customer = person(name = "Customer")
@@ -235,7 +235,7 @@ class C4ModelBuilderTest : FunSpec({
         relationships.first().technology shouldBe "HTTPS"
     }
 
-    test("DSL: bidirectional relationship") {
+    test(name = "DSL: bidirectional relationship") {
         val model =
             c4Model(name = "Bidirectional") {
                 val system1 = softwareSystem(name = "System A")
@@ -250,7 +250,7 @@ class C4ModelBuilderTest : FunSpec({
         relationships.first().bidirectional shouldBe true
     }
 
-    test("DSL: deploymentNode with nesting") {
+    test(name = "DSL: deploymentNode with nesting") {
         val model =
             c4Model(name = "Deployment") {
                 deploymentNode(name = "Production") {
@@ -270,7 +270,7 @@ class C4ModelBuilderTest : FunSpec({
         parentNodes.first().technology shouldBe "AWS"
     }
 
-    test("DSL: serialization round-trip") {
+    test(name = "DSL: serialization round-trip") {
         val originalModel =
             c4Model(name = "Serializable") {
                 val customer =
@@ -303,7 +303,7 @@ class C4ModelBuilderTest : FunSpec({
         decodedPersons.first().name shouldBe originalPersons.first().name
     }
 
-    test("DSL: multiple persons have different IDs") {
+    test(name = "DSL: multiple persons have different IDs") {
         val model =
             c4Model(name = "Multiple Persons") {
                 person(name = "Alice")
@@ -316,7 +316,7 @@ class C4ModelBuilderTest : FunSpec({
         ids.shouldHaveSize(3)
     }
 
-    test("DSL: multiple elements across different levels") {
+    test(name = "DSL: multiple elements across different levels") {
         val model =
             c4Model(name = "Complex Model") {
                 // Persons
