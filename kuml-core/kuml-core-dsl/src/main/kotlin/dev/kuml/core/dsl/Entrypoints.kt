@@ -4,6 +4,7 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.uml.dsl.ClassDiagramBuilder
 import dev.kuml.uml.dsl.ComponentDiagramBuilder
+import dev.kuml.uml.dsl.StateDiagramBuilder
 import dev.kuml.uml.dsl.UseCaseDiagramBuilder
 
 /**
@@ -120,3 +121,38 @@ fun componentDiagram(
     name: String,
     block: ComponentDiagramBuilder.() -> Unit = {},
 ): KumlDiagram = ComponentDiagramBuilder(name = name).apply(block).build()
+
+/**
+ * Creates a UML state-machine diagram.
+ *
+ * The diagram contains exactly one [dev.kuml.uml.UmlStateMachine] —
+ * named after the diagram — populated by the [block].
+ *
+ * Available builders:
+ * - [dev.kuml.uml.dsl.state] — simple state with optional entry/exit/do
+ * - [dev.kuml.uml.dsl.initialState], [dev.kuml.uml.dsl.finalState]
+ * - [dev.kuml.uml.dsl.choice], [dev.kuml.uml.dsl.fork], [dev.kuml.uml.dsl.join], [dev.kuml.uml.dsl.junction]
+ * - [dev.kuml.uml.dsl.compositeState] — composite with nested substates
+ * - [dev.kuml.uml.dsl.transition] — transition between two vertices
+ *
+ * ```kotlin
+ * stateDiagram("Order Lifecycle") {
+ *     val init      = initialState()
+ *     val draft     = state("Draft")
+ *     val confirmed = state("Confirmed")
+ *     val done      = finalState("Done")
+ *
+ *     transition(init,      draft)
+ *     transition(draft,     confirmed) { trigger = "confirm()" }
+ *     transition(confirmed, done)      { trigger = "ship()" }
+ * }
+ * ```
+ *
+ * @param name Human-readable diagram name (also the state-machine name).
+ * @param block Builder lambda.
+ * @return The built [KumlDiagram] with [dev.kuml.core.model.StateDiagramConfig] attached.
+ */
+fun stateDiagram(
+    name: String,
+    block: StateDiagramBuilder.() -> Unit = {},
+): KumlDiagram = StateDiagramBuilder(name = name).apply(block).build()

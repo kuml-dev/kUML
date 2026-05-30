@@ -59,3 +59,22 @@ data class ComponentDiagramConfig(
     val showNestedComponents: Boolean = true,
     val showStereotype: Boolean = true,
 ) : DiagramConfig
+
+/**
+ * Display options for a UML state-machine diagram.
+ *
+ * @property showGuards Render `[guard]` labels on transition arrows.
+ * @property showEffects Render `/effect` labels on transition arrows.
+ * @property showEntryExitActions Display entry/exit/do compartments on state nodes.
+ * @property orientation Top-down vs. left-right layout hint.
+ */
+@Serializable
+data class StateDiagramConfig(
+    val showGuards: Boolean = true,
+    val showEffects: Boolean = true,
+    val showEntryExitActions: Boolean = true,
+    val orientation: StateDiagramOrientation = StateDiagramOrientation.TOP_DOWN,
+) : DiagramConfig
+
+@Serializable
+enum class StateDiagramOrientation { TOP_DOWN, LEFT_RIGHT }

@@ -77,6 +77,48 @@ interface UmlComponentScope {
 }
 
 /**
+ * Receiver scope for [dev.kuml.uml.UmlStateMachine] bodies.
+ *
+ * Implemented by [StateDiagramBuilder]. Sub-scopes for composite states
+ * implement [UmlCompositeStateScope].
+ */
+@KumlDsl
+interface UmlStateMachineScope {
+    /** Qualified ID of the enclosing state machine (= state diagram name). */
+    val stateMachineId: String
+
+    /** Shared mutable ID registry across the whole state diagram. */
+    val takenIds: MutableSet<String>
+
+    /** Internal: called by [state], [initialState], etc. to register a vertex. */
+    fun addVertex(vertex: dev.kuml.uml.UmlVertex)
+
+    /** Internal: called by [transition] to register a transition. */
+    fun addTransition(transition: dev.kuml.uml.UmlTransition)
+}
+
+/**
+ * Receiver scope for [dev.kuml.uml.UmlState.substates] inside a composite state.
+ *
+ * Substate-IDs are derived from the enclosing state's ID, not from the
+ * state machine's ID.
+ *
+ * Transitions are NOT declared in this scope — declare them at the
+ * [UmlStateMachineScope] level using vertex handles returned here.
+ */
+@KumlDsl
+interface UmlCompositeStateScope {
+    /** Qualified ID of the enclosing composite state. */
+    val parentStateId: String
+
+    /** Shared mutable ID registry across the whole state diagram. */
+    val takenIds: MutableSet<String>
+
+    /** Internal: called by [state], [initialState], etc. to register a substate. */
+    fun addSubstate(vertex: dev.kuml.uml.UmlVertex)
+}
+
+/**
  * Receiver scope for classifier bodies — owns attributes, operations,
  * and inline relationship declarations.
  *
