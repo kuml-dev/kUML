@@ -92,7 +92,7 @@ kuml render order-domain.kuml.kts --format svg
 | ✅ Done
 
 | *Phase 1*
-| UML metamodel ✅ + UML DSL ✅ (5 diagram types), full C4, Kuiver rendering → SVG/PNG, themes
+| UML metamodel ✅ + UML DSL ✅ (5 diagram types: class, sequence, state, component, use-case) + C4 metamodel ✅ + C4 DSL ✅ (all 6 diagram builders). Remaining: Kuiver rendering → SVG/PNG, themes, `C4CodeElement`
 | 🚧 In Progress
 
 | *Phase 2*
@@ -113,17 +113,24 @@ kuml render order-domain.kuml.kts --format svg
 [source]
 ----
 kuml-core/
-  kuml-core-model    ← Sealed Kotlin metamodel base types
-  kuml-core-dsl      ← DSL builder infrastructure (UML builders in dev.kuml.uml.dsl)
-  kuml-core-script   ← Kotlin Scripting host + KumlScriptDefinition
+  kuml-core-model    ← Sealed Kotlin metamodel base types ✅
+  kuml-core-dsl      ← DSL builders: UML (5 diagram types) + C4 (6 diagram types) ✅
+  kuml-core-script   ← Kotlin Scripting host + KumlScriptDefinition ✅
+  kuml-core-ocl      ← OCL subset interpreter (Phase 2)
 kuml-metamodel/
-  kuml-metamodel-uml ← UML 2.x sealed hierarchy + serialization (Phase 1 ✅)
-  kuml-metamodel-c4  ← C4 model (Phase 1)
-kuml-renderer/       ← Kuiver + ELK + themes (Phase 1)
-kuml-io/             ← SVG/JSON export (Phase 2)
-kuml-llm/            ← LLM backend interface + providers (Phase 2)
-kuml-mcp/            ← MCP server — Stdio + SSE (Phase 2)
+  kuml-metamodel-uml ← UML 2.x sealed hierarchy + serialization ✅
+  kuml-metamodel-c4  ← C4 sealed hierarchy + C4Model ✅
+kuml-renderer/
+  kuml-kuiver        ← Kuiver rendering backend (Phase 1)
+  kuml-layout        ← Layout engine abstraction + ELK adapter (Phase 1)
+  kuml-themes        ← Theme `Plain` and plugin mechanism (Phase 1)
+kuml-io/
+  kuml-io-svg        ← SVG export (Phase 2)
+  kuml-io-json       ← JSON export (Phase 2)
+kuml-llm/            ← LLM backend interface + benchmark (Phase 2)
+kuml-mcp/            ← MCP server — Stdio transport (Phase 2)
 kuml-cli/            ← Command-line interface (Phase 2)
+kuml-packaging/      ← GraalVM Native Image (Phase 2)
 ----
 
 == License
