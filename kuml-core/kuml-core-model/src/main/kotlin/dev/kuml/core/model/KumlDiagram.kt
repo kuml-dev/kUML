@@ -16,4 +16,5 @@ data class KumlDiagram(
     val elements: List<KumlElement> = emptyList(),
     override val id: String = name,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+    val config: DiagramConfig? = null,
 ) : KumlNamespaceMember
