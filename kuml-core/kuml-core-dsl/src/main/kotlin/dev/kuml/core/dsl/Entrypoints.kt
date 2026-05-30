@@ -3,6 +3,7 @@ package dev.kuml.core.dsl
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.uml.dsl.ClassDiagramBuilder
+import dev.kuml.uml.dsl.UseCaseDiagramBuilder
 
 /**
  * Creates a kUML diagram.
@@ -57,3 +58,36 @@ fun classDiagram(
     name: String,
     block: ClassDiagramBuilder.() -> Unit = {},
 ): KumlDiagram = ClassDiagramBuilder(name = name).apply(block).build()
+
+/**
+ * Creates a UML use-case diagram.
+ *
+ * Available builders in the [block]:
+ * - [dev.kuml.uml.dsl.actor], [dev.kuml.uml.dsl.useCase], [dev.kuml.uml.dsl.subject]
+ * - [dev.kuml.uml.dsl.include], [dev.kuml.uml.dsl.extend]
+ * - [dev.kuml.uml.dsl.association] (for actor ↔ use-case connections)
+ * - [dev.kuml.uml.dsl.generalization] (for actor or use-case specialisation)
+ *
+ * ```kotlin
+ * useCaseDiagram("Checkout") {
+ *     val customer = actor("Customer")
+ *     val place    = useCase("Place Order")
+ *     val validate = useCase("Validate Cart")
+ *     val pay      = useCase("Apply Discount")
+ *
+ *     subject("Online Shop", place, validate, pay)
+ *
+ *     association(source = customer, target = place)
+ *     include(base = place, addition = validate)
+ *     extend(base = place, extension = pay, at = "PaymentChosen")
+ * }
+ * ```
+ *
+ * @param name Human-readable diagram name.
+ * @param block Builder lambda.
+ * @return The built [KumlDiagram] with [dev.kuml.core.model.UseCaseDiagramConfig] attached.
+ */
+fun useCaseDiagram(
+    name: String,
+    block: UseCaseDiagramBuilder.() -> Unit = {},
+): KumlDiagram = UseCaseDiagramBuilder(name = name).apply(block).build()

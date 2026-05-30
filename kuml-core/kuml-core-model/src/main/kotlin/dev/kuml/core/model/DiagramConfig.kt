@@ -28,3 +28,18 @@ data class ClassDiagramConfig(
 
 /** Which classifiers are included in the rendered output based on their visibility. */
 enum class VisibilityFilter { ALL, PUBLIC_AND_PROTECTED, PUBLIC_ONLY }
+
+/**
+ * Display options for a UML use-case diagram.
+ *
+ * @property showSubjectBox Render the subject as a labeled boundary rectangle.
+ * @property actorStyle Stick-figure vs. rectangle-with-stereotype.
+ */
+@Serializable
+data class UseCaseDiagramConfig(
+    val showSubjectBox: Boolean = true,
+    val actorStyle: ActorStyle = ActorStyle.STICK_FIGURE,
+) : DiagramConfig
+
+@Serializable
+enum class ActorStyle { STICK_FIGURE, RECTANGLE }
