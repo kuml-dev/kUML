@@ -50,6 +50,33 @@ interface UmlModelScope : UmlContainerScope {
 }
 
 /**
+ * Receiver scope for [dev.kuml.uml.UmlComponent] bodies — owns ports,
+ * nested components, and provided/required interface references.
+ *
+ * Implemented by [ComponentBuilder].
+ */
+@KumlDsl
+interface UmlComponentScope {
+    /** Qualified ID of the owning component. */
+    val ownerId: String
+
+    /** Shared mutable ID registry — same instance as the enclosing container. */
+    val takenIds: MutableSet<String>
+
+    /** Internal: called by [port] to register a port. */
+    fun addPort(port: dev.kuml.uml.UmlPort)
+
+    /** Internal: called by [component] (nested) to register a sub-component. */
+    fun addNestedComponent(component: dev.kuml.uml.UmlComponent)
+
+    /** Internal: called by [provides] to register a provided interface ID. */
+    fun addProvidedInterface(interfaceId: String)
+
+    /** Internal: called by [requires] to register a required interface ID. */
+    fun addRequiredInterface(interfaceId: String)
+}
+
+/**
  * Receiver scope for classifier bodies — owns attributes, operations,
  * and inline relationship declarations.
  *

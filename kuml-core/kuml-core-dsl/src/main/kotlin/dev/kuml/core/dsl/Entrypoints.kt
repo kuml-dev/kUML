@@ -3,6 +3,7 @@ package dev.kuml.core.dsl
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.uml.dsl.ClassDiagramBuilder
+import dev.kuml.uml.dsl.ComponentDiagramBuilder
 import dev.kuml.uml.dsl.UseCaseDiagramBuilder
 
 /**
@@ -91,3 +92,31 @@ fun useCaseDiagram(
     name: String,
     block: UseCaseDiagramBuilder.() -> Unit = {},
 ): KumlDiagram = UseCaseDiagramBuilder(name = name).apply(block).build()
+
+/**
+ * Creates a UML component diagram.
+ *
+ * Available builders in the [block]:
+ * - [dev.kuml.uml.dsl.component] — top-level component (with nested `component { }`, `port`,
+ *   `provides`, `requires` inside)
+ * - [dev.kuml.uml.dsl.interfaceOf] — interfaces referenced by `provides` / `requires`
+ * - [dev.kuml.uml.dsl.connect] — connectors between ports
+ * - [dev.kuml.uml.dsl.dependency] — «use» dependencies between components
+ *
+ * ```kotlin
+ * componentDiagram("Architecture") {
+ *     val orderApi = interfaceOf("IOrderApi") { operation("placeOrder") }
+ *     val order    = component("OrderService") { port("api"); provides(orderApi) }
+ *     val invoice  = component("InvoiceService") { port("orderEvents"); requires(orderApi) }
+ *     connect(end1 = order, port1 = "api", end2 = invoice, port2 = "orderEvents")
+ * }
+ * ```
+ *
+ * @param name Human-readable diagram name.
+ * @param block Builder lambda.
+ * @return The built [KumlDiagram] with [dev.kuml.core.model.ComponentDiagramConfig] attached.
+ */
+fun componentDiagram(
+    name: String,
+    block: ComponentDiagramBuilder.() -> Unit = {},
+): KumlDiagram = ComponentDiagramBuilder(name = name).apply(block).build()

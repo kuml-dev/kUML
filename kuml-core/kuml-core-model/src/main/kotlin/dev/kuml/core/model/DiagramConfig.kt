@@ -43,3 +43,19 @@ data class UseCaseDiagramConfig(
 
 @Serializable
 enum class ActorStyle { STICK_FIGURE, RECTANGLE }
+
+/**
+ * Display options for a UML component diagram.
+ *
+ * @property showPortLabels Display port names next to their squares.
+ * @property showInterfaceContracts Render provided/required interfaces as ball-and-socket symbols.
+ * @property showNestedComponents Render nested components inside their owner's boundary.
+ * @property showStereotype Always render the «component» keyword.
+ */
+@Serializable
+data class ComponentDiagramConfig(
+    val showPortLabels: Boolean = true,
+    val showInterfaceContracts: Boolean = true,
+    val showNestedComponents: Boolean = true,
+    val showStereotype: Boolean = true,
+) : DiagramConfig
