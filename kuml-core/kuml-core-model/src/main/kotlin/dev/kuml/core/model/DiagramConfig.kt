@@ -78,3 +78,19 @@ data class StateDiagramConfig(
 
 @Serializable
 enum class StateDiagramOrientation { TOP_DOWN, LEFT_RIGHT }
+
+/**
+ * Display options for a UML sequence diagram.
+ *
+ * @property showActivationBars Render activation rectangles on lifelines for sync calls.
+ * @property showSequenceNumbers Prefix message labels with their sequence number.
+ * @property showReturnArrows Always draw explicit dashed return arrows for replies.
+ * @property numberFragmentBranches Number ALT/PAR operands with `1:`, `2:` …
+ */
+@Serializable
+data class SequenceDiagramConfig(
+    val showActivationBars: Boolean = true,
+    val showSequenceNumbers: Boolean = false,
+    val showReturnArrows: Boolean = true,
+    val numberFragmentBranches: Boolean = true,
+) : DiagramConfig

@@ -119,6 +119,68 @@ interface UmlCompositeStateScope {
 }
 
 /**
+ * Receiver scope for [dev.kuml.uml.UmlInteraction] bodies — the top-level
+ * scope of a sequence diagram.
+ *
+ * Implemented by [SequenceDiagramBuilder]. Fragment branches expose a
+ * narrower scope [UmlInteractionOperandScope] (no [lifeline] there).
+ */
+@KumlDsl
+interface UmlInteractionScope {
+    /** Qualified ID of the enclosing interaction (= diagram name). */
+    val interactionId: String
+
+    /** Shared mutable ID registry across the whole sequence diagram. */
+    val takenIds: MutableSet<String>
+
+    /** Returns the next 1-based sequence number for a message. */
+    fun nextSequenceNumber(): Int
+
+    /** Returns the next 1-based index for a combined fragment. */
+    fun nextFragmentIndex(): Int
+
+    /** Internal: called by [lifeline] to register a participant. */
+    fun addLifeline(lifeline: dev.kuml.uml.UmlLifeline)
+
+    /** Internal: called by [message] (and convenience overloads) to register a message. */
+    fun addMessage(message: dev.kuml.uml.UmlMessage)
+
+    /** Internal: called by [fragment] to register a combined fragment. */
+    fun addFragment(fragment: dev.kuml.uml.UmlCombinedFragment)
+}
+
+/**
+ * Receiver scope for [dev.kuml.uml.UmlInteractionOperand] bodies — one
+ * branch inside a combined fragment.
+ *
+ * Messages and nested fragments added here are physically stored on the
+ * enclosing [UmlInteraction] but their IDs are additionally recorded in
+ * this operand for the structural reference.
+ *
+ * Lifelines cannot be declared here — declare them at the diagram scope.
+ */
+@KumlDsl
+interface UmlInteractionOperandScope {
+    /** Qualified ID of the enclosing interaction. */
+    val interactionId: String
+
+    /** Shared mutable ID registry across the whole sequence diagram. */
+    val takenIds: MutableSet<String>
+
+    /** Returns the next 1-based sequence number for a message. */
+    fun nextSequenceNumber(): Int
+
+    /** Returns the next 1-based index for a combined fragment. */
+    fun nextFragmentIndex(): Int
+
+    /** Internal: called by [message] etc. — registers on interaction + records ID here. */
+    fun addMessage(message: dev.kuml.uml.UmlMessage)
+
+    /** Internal: called by [fragment] — registers on interaction + records ID here. */
+    fun addFragment(fragment: dev.kuml.uml.UmlCombinedFragment)
+}
+
+/**
  * Receiver scope for classifier bodies — owns attributes, operations,
  * and inline relationship declarations.
  *

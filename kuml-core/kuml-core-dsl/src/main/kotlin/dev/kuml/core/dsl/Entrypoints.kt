@@ -4,6 +4,7 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.uml.dsl.ClassDiagramBuilder
 import dev.kuml.uml.dsl.ComponentDiagramBuilder
+import dev.kuml.uml.dsl.SequenceDiagramBuilder
 import dev.kuml.uml.dsl.StateDiagramBuilder
 import dev.kuml.uml.dsl.UseCaseDiagramBuilder
 
@@ -156,3 +157,42 @@ fun stateDiagram(
     name: String,
     block: StateDiagramBuilder.() -> Unit = {},
 ): KumlDiagram = StateDiagramBuilder(name = name).apply(block).build()
+
+/**
+ * Creates a UML sequence diagram.
+ *
+ * The diagram contains exactly one [dev.kuml.uml.UmlInteraction] —
+ * named after the diagram — populated by the [block].
+ *
+ * Available builders:
+ * - [dev.kuml.uml.dsl.lifeline]
+ * - [dev.kuml.uml.dsl.message] (+ `asyncMessage`, `reply`, `create`, `delete`)
+ * - [dev.kuml.uml.dsl.fragment] / [dev.kuml.uml.dsl.alt] / [dev.kuml.uml.dsl.opt] /
+ *   [dev.kuml.uml.dsl.loop] / [dev.kuml.uml.dsl.par] / [dev.kuml.uml.dsl.break_]
+ *
+ * Message sequence numbers are assigned automatically in DSL call order,
+ * including messages inside nested fragments.
+ *
+ * ```kotlin
+ * sequenceDiagram("Place Order") {
+ *     val customer = lifeline("Customer") { isActor = true }
+ *     val frontend = lifeline("Frontend")
+ *     val backend  = lifeline("Backend")
+ *
+ *     message(customer, frontend, "submitOrder()")
+ *     message(frontend, backend, "POST /orders")
+ *     alt {
+ *         branch(guard = "[valid]") { reply(backend, frontend, "201 Created") }
+ *         branch(guard = "[invalid]") { reply(backend, frontend, "400 Bad Request") }
+ *     }
+ *     reply(frontend, customer, "confirmation")
+ * }
+ * ```
+ *
+ * @param name Human-readable diagram name (also the interaction name).
+ * @return The built [KumlDiagram] with [dev.kuml.core.model.SequenceDiagramConfig].
+ */
+fun sequenceDiagram(
+    name: String,
+    block: SequenceDiagramBuilder.() -> Unit = {},
+): KumlDiagram = SequenceDiagramBuilder(name = name).apply(block).build()
