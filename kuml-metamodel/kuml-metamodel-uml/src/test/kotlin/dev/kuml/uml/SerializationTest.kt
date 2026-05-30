@@ -90,8 +90,8 @@ class SerializationTest : FunSpec({
                 id = "assoc::Order-->Item",
                 ends =
                     listOf(
-                        UmlAssociationEnd(typeId = "Order", multiplicity = Multiplicity(1, 1)),
-                        UmlAssociationEnd(typeId = "Item", multiplicity = Multiplicity(1, null)),
+                        UmlAssociationEnd(typeId = "Order", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                        UmlAssociationEnd(typeId = "Item", multiplicity = Multiplicity(lower = 1, upper = null)),
                     ),
                 aggregation = AggregationKind.COMPOSITE,
             )

@@ -20,7 +20,7 @@ class TypeBindingTest : FunSpec({
 
     test("typeRef with classifier handle sets name and referencedId") {
         var cls: dev.kuml.uml.UmlClass? = null
-        umlModel("M") { cls = classOf("Order") }
+        umlModel(name = "M") { cls = classOf(name = "Order") }
         val ref = typeRef(cls!!)
         ref.name shouldBe "Order"
         ref.referencedId shouldBe "Order"
@@ -28,8 +28,8 @@ class TypeBindingTest : FunSpec({
 
     test("typeRef with nested classifier carries qualified id as referencedId") {
         var cls: dev.kuml.uml.UmlClass? = null
-        umlModel("M") {
-            `package`("domain") { cls = classOf("Order") }
+        umlModel(name = "M") {
+            `package`(name = "domain") { cls = classOf(name = "Order") }
         }
         val ref = typeRef(cls!!)
         ref.referencedId shouldBe "domain::Order"
@@ -39,10 +39,10 @@ class TypeBindingTest : FunSpec({
 
     test("attribute with String type and attribute with typeRef produce same type name") {
         val model =
-            umlModel("M") {
-                classOf("Order") {
-                    attribute("a", type = "UUID")
-                    attribute("b", type = typeRef("UUID"))
+            umlModel(name = "M") {
+                classOf(name = "Order") {
+                    attribute(name = "a", type = "UUID")
+                    attribute(name = "b", type = typeRef(name = "UUID"))
                 }
             }
         val cls = model.elements.filterIsInstance<UmlClass>().first()
@@ -53,9 +53,9 @@ class TypeBindingTest : FunSpec({
 
     test("attribute with classifier handle has referencedId set") {
         val model =
-            umlModel("M") {
-                val status = enumOf("Status") { literal("A") }
-                classOf("Order") { attribute("status", type = status) }
+            umlModel(name = "M") {
+                val status = enumOf(name = "Status") { literal(name = "A") }
+                classOf(name = "Order") { attribute(name = "status", type = status) }
             }
         val cls = model.elements.filterIsInstance<UmlClass>().first()
         cls.attributes[0].type.referencedId.shouldNotBeNull()
@@ -64,8 +64,8 @@ class TypeBindingTest : FunSpec({
 
     test("attribute with string type has null referencedId") {
         val model =
-            umlModel("M") {
-                classOf("Order") { attribute("id", type = "UUID") }
+            umlModel(name = "M") {
+                classOf(name = "Order") { attribute(name = "id", type = "UUID") }
             }
         val cls = model.elements.filterIsInstance<UmlClass>().first()
         cls.attributes[0].type.referencedId.shouldBeNull()
@@ -74,31 +74,31 @@ class TypeBindingTest : FunSpec({
     // ── parseMultiplicity ──────────────────────────────────────────────────────
 
     test("parseMultiplicity of 1 is 1..1") {
-        parseMultiplicity("1") shouldBe Multiplicity(1, 1)
+        parseMultiplicity(spec = "1") shouldBe Multiplicity(lower = 1, upper = 1)
     }
 
     test("parseMultiplicity of 0..1 is 0..1") {
-        parseMultiplicity("0..1") shouldBe Multiplicity(0, 1)
+        parseMultiplicity(spec = "0..1") shouldBe Multiplicity(lower = 0, upper = 1)
     }
 
     test("parseMultiplicity of 1..* is 1..null") {
-        parseMultiplicity("1..*") shouldBe Multiplicity(1, null)
+        parseMultiplicity(spec = "1..*") shouldBe Multiplicity(lower = 1, upper = null)
     }
 
     test("parseMultiplicity of 0..* is 0..null") {
-        parseMultiplicity("0..*") shouldBe Multiplicity(0, null)
+        parseMultiplicity(spec = "0..*") shouldBe Multiplicity(lower = 0, upper = null)
     }
 
     test("parseMultiplicity of * is 0..null") {
-        parseMultiplicity("*") shouldBe Multiplicity(0, null)
+        parseMultiplicity(spec = "*") shouldBe Multiplicity(lower = 0, upper = null)
     }
 
     test("parseMultiplicity of 2..5 is 2..5") {
-        parseMultiplicity("2..5") shouldBe Multiplicity(2, 5)
+        parseMultiplicity(spec = "2..5") shouldBe Multiplicity(lower = 2, upper = 5)
     }
 
     test("parseMultiplicity of invalid format throws") {
-        shouldThrow<IllegalArgumentException> { parseMultiplicity("bad") }
+        shouldThrow<IllegalArgumentException> { parseMultiplicity(spec = "bad") }
     }
 })
 

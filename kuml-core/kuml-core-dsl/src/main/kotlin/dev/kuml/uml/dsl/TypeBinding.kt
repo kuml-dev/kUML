@@ -51,10 +51,10 @@ fun typeRef(classifier: UmlClassifier): UmlTypeRef = UmlTypeRef(name = classifie
  */
 fun parseMultiplicity(spec: String): Multiplicity {
     return when (val s = spec.trim()) {
-        "1" -> Multiplicity(1, 1)
-        "0..1" -> Multiplicity(0, 1)
-        "0..*", "*" -> Multiplicity(0, null)
-        "1..*" -> Multiplicity(1, null)
+        "1" -> Multiplicity(lower = 1, upper = 1)
+        "0..1" -> Multiplicity(lower = 0, upper = 1)
+        "0..*", "*" -> Multiplicity(lower = 0, upper = null)
+        "1..*" -> Multiplicity(lower = 1, upper = null)
         else -> {
             if (s.contains("..")) {
                 val parts = s.split("..")
@@ -71,12 +71,12 @@ fun parseMultiplicity(spec: String): Multiplicity {
                                 ?: throw IllegalArgumentException("Invalid multiplicity upper bound: $spec")
                         }
                     }
-                Multiplicity(lower, upper)
+                Multiplicity(lower = lower, upper = upper)
             } else {
                 val n =
                     s.toIntOrNull()
                         ?: throw IllegalArgumentException("Invalid multiplicity: $spec")
-                Multiplicity(n, n)
+                Multiplicity(lower = n, upper = n)
             }
         }
     }

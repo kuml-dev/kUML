@@ -6,93 +6,93 @@ import dev.kuml.c4.dsl.relationship
 import dev.kuml.c4.dsl.softwareSystem
 import dev.kuml.c4.dsl.systemLandscapeDiagram
 
-c4Model("Enterprise Banking Landscape") {
+c4Model(name = "Enterprise Banking Landscape") {
     // Persons / Roles
     val customer =
-        person("Customer") {
+        person(name = "Customer") {
             description = "A customer using banking services"
         }
 
     val admin =
-        person("Administrator") {
+        person(name = "Administrator") {
             description = "System administrator managing banking infrastructure"
         }
 
     // Software Systems
     val mainBanking =
-        softwareSystem("Main Banking System") {
+        softwareSystem(name = "Main Banking System") {
             description = "Handles customer accounts, transfers, and payments"
         }
 
     val creditCard =
-        softwareSystem("Credit Card System") {
+        softwareSystem(name = "Credit Card System") {
             description = "Manages credit card operations and billing"
         }
 
     val loan =
-        softwareSystem("Loan Management System") {
+        softwareSystem(name = "Loan Management System") {
             description = "Manages loan applications and disbursements"
         }
 
     val emailService =
-        softwareSystem("Email Service") {
+        softwareSystem(name = "Email Service") {
             description = "Sends transactional and marketing emails"
             external = true
         }
 
     val smsService =
-        softwareSystem("SMS Notification Service") {
+        softwareSystem(name = "SMS Notification Service") {
             description = "Sends SMS alerts and notifications"
             external = true
         }
 
     // Relationships
-    relationship(customer, mainBanking) {
+    relationship(source = customer, target = mainBanking) {
         description = "Uses"
     }
-    relationship(customer, creditCard) {
+    relationship(source = customer, target = creditCard) {
         description = "Manages credit cards"
     }
-    relationship(customer, loan) {
+    relationship(source = customer, target = loan) {
         description = "Applies for loans"
     }
 
-    relationship(admin, mainBanking) {
+    relationship(source = admin, target = mainBanking) {
         description = "Administers"
     }
-    relationship(admin, creditCard) {
+    relationship(source = admin, target = creditCard) {
         description = "Administers"
     }
 
-    relationship(mainBanking, emailService) {
+    relationship(source = mainBanking, target = emailService) {
         description = "Sends notifications via"
     }
-    relationship(mainBanking, smsService) {
+    relationship(source = mainBanking, target = smsService) {
         description = "Sends alerts via"
     }
 
-    relationship(creditCard, emailService) {
+    relationship(source = creditCard, target = emailService) {
         description = "Sends billing statements via"
     }
 
-    relationship(loan, emailService) {
+    relationship(source = loan, target = emailService) {
         description = "Sends approval letters via"
     }
 
     // System Landscape Diagram — shows all systems and persons
-    systemLandscapeDiagram("Enterprise Banking Landscape") {
+    systemLandscapeDiagram(name = "Enterprise Banking Landscape") {
         description =
             "High-level overview of all systems and users in the banking enterprise"
     }
 
     // Alternative view: exclude external systems
-    systemLandscapeDiagram("Internal Systems Only") {
+    systemLandscapeDiagram(name = "Internal Systems Only") {
         description = "Shows only internal banking systems"
         exclude(emailService, smsService)
     }
 
     // Selective view: only customer view
-    systemLandscapeDiagram("Customer Services") {
+    systemLandscapeDiagram(name = "Customer Services") {
         description = "Services available to customers"
         include(customer, mainBanking, creditCard, loan)
     }

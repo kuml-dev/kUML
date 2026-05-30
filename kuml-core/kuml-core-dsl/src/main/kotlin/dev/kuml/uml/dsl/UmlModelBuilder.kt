@@ -65,20 +65,20 @@ class UmlModelBuilder(
  *
  * ```kotlin
  * // order-domain.kuml.kts
- * umlModel("Order Domain") {
- *     val status = enumOf("OrderStatus") {
- *         literal("DRAFT"); literal("CONFIRMED"); literal("SHIPPED")
+ * umlModel(name = "Order Domain") {
+ *     val status = enumOf(name = "OrderStatus") {
+ *         literal(name = "DRAFT"); literal(name = "CONFIRMED"); literal(name = "SHIPPED")
  *     }
- *     val order = classOf("Order") {
- *         attribute("id", type = "UUID")
- *         attribute("status", type = status)
+ *     val order = classOf(name = "Order") {
+ *         attribute(name = "id", type = "UUID")
+ *         attribute(name = "status", type = status)
  *     }
- *     val item = classOf("OrderItem") {
- *         attribute("quantity", type = "Int")
+ *     val item = classOf(name = "OrderItem") {
+ *         attribute(name = "quantity", type = "Int")
  *     }
  *     association(source = order, target = item) {
  *         aggregation = AggregationKind.COMPOSITE
- *         target { multiplicity("1..*") }
+ *         target { multiplicity(spec = "1..*") }
  *     }
  * }
  * ```

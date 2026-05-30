@@ -11,25 +11,25 @@ class OperationBuilderTest : FunSpec({
 
     test("operation without parameters uses empty parentheses in id") {
         val cls =
-            umlModel("M") {
-                classOf("Order") { operation("confirm") }
+            umlModel(name = "M") {
+                classOf(name = "Order") { operation(name = "confirm") }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.operations[0].id shouldBe "Order::confirm()"
     }
 
     test("operation default visibility is PUBLIC") {
         val cls =
-            umlModel("M") {
-                classOf("Order") { operation("confirm") }
+            umlModel(name = "M") {
+                classOf(name = "Order") { operation(name = "confirm") }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.operations[0].visibility shouldBe Visibility.PUBLIC
     }
 
     test("operation with one parameter includes type in id") {
         val cls =
-            umlModel("M") {
-                classOf("Repo") {
-                    operation("find") { parameter("id", "Long") }
+            umlModel(name = "M") {
+                classOf(name = "Repo") {
+                    operation(name = "find") { parameter(name = "id", type = "Long") }
                 }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.operations[0].id shouldBe "Repo::find(Long)"
@@ -37,11 +37,11 @@ class OperationBuilderTest : FunSpec({
 
     test("operation with multiple parameters joins types with comma in id") {
         val cls =
-            umlModel("M") {
-                classOf("Repo") {
-                    operation("findBy") {
-                        parameter("name", "String")
-                        parameter("active", "Boolean")
+            umlModel(name = "M") {
+                classOf(name = "Repo") {
+                    operation(name = "findBy") {
+                        parameter(name = "name", type = "String")
+                        parameter(name = "active", type = "Boolean")
                     }
                 }
             }.elements.filterIsInstance<UmlClass>().first()
@@ -50,10 +50,10 @@ class OperationBuilderTest : FunSpec({
 
     test("overloaded operations get distinct ids") {
         val cls =
-            umlModel("M") {
-                classOf("Svc") {
-                    operation("process") {}
-                    operation("process") { parameter("input", "String") }
+            umlModel(name = "M") {
+                classOf(name = "Svc") {
+                    operation(name = "process") {}
+                    operation(name = "process") { parameter(name = "input", type = "String") }
                 }
             }.elements.filterIsInstance<UmlClass>().first()
         val ids = cls.operations.map { it.id }
@@ -64,9 +64,9 @@ class OperationBuilderTest : FunSpec({
 
     test("operation returns type is stored") {
         val cls =
-            umlModel("M") {
-                classOf("Repo") {
-                    operation("findAll") { returns("List") }
+            umlModel(name = "M") {
+                classOf(name = "Repo") {
+                    operation(name = "findAll") { returns(typeName = "List") }
                 }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.operations[0].returnType?.name shouldBe "List"
@@ -74,9 +74,9 @@ class OperationBuilderTest : FunSpec({
 
     test("operation isAbstract flag is stored") {
         val cls =
-            umlModel("M") {
-                classOf("Shape") {
-                    operation("area") { isAbstract = true }
+            umlModel(name = "M") {
+                classOf(name = "Shape") {
+                    operation(name = "area") { isAbstract = true }
                 }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.operations[0].isAbstract shouldBe true
@@ -84,9 +84,9 @@ class OperationBuilderTest : FunSpec({
 
     test("operation isStatic flag is stored") {
         val cls =
-            umlModel("M") {
-                classOf("Factory") {
-                    operation("create") { isStatic = true }
+            umlModel(name = "M") {
+                classOf(name = "Factory") {
+                    operation(name = "create") { isStatic = true }
                 }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.operations[0].isStatic shouldBe true
@@ -94,9 +94,9 @@ class OperationBuilderTest : FunSpec({
 
     test("parameter direction defaults to IN") {
         val cls =
-            umlModel("M") {
-                classOf("Svc") {
-                    operation("process") { parameter("input", "String") }
+            umlModel(name = "M") {
+                classOf(name = "Svc") {
+                    operation(name = "process") { parameter(name = "input", type = "String") }
                 }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.operations[0].parameters[0].direction shouldBe ParameterDirection.IN
@@ -104,10 +104,10 @@ class OperationBuilderTest : FunSpec({
 
     test("parameter explicit direction is stored") {
         val cls =
-            umlModel("M") {
-                classOf("Svc") {
-                    operation("update") {
-                        parameter("result", "String", direction = ParameterDirection.OUT)
+            umlModel(name = "M") {
+                classOf(name = "Svc") {
+                    operation(name = "update") {
+                        parameter(name = "result", type = "String", direction = ParameterDirection.OUT)
                     }
                 }
             }.elements.filterIsInstance<UmlClass>().first()
@@ -116,19 +116,19 @@ class OperationBuilderTest : FunSpec({
 
     test("operation on interface uses interface id as prefix") {
         val iface =
-            umlModel("M") {
-                interfaceOf("IRepo") { operation("findAll") }
+            umlModel(name = "M") {
+                interfaceOf(name = "IRepo") { operation(name = "findAll") }
             }.elements.filterIsInstance<dev.kuml.uml.UmlInterface>().first()
         iface.operations[0].id shouldBe "IRepo::findAll()"
     }
 
     test("multiple operations accumulate in declaration order") {
         val cls =
-            umlModel("M") {
-                classOf("Order") {
-                    operation("confirm")
-                    operation("cancel")
-                    operation("ship")
+            umlModel(name = "M") {
+                classOf(name = "Order") {
+                    operation(name = "confirm")
+                    operation(name = "cancel")
+                    operation(name = "ship")
                 }
             }.elements.filterIsInstance<UmlClass>().first()
         cls.operations shouldHaveSize 3

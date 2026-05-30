@@ -17,16 +17,16 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 class ClassDiagramBuilderTest : FunSpec({
 
     test("empty class diagram builds without error") {
-        val d = classDiagram("Empty") {}
+        val d = classDiagram(name = "Empty") {}
         d.name shouldBe "Empty"
         d.elements.shouldHaveSize(0)
     }
 
     test("classDiagram contains added class") {
         val d =
-            classDiagram("My Diagram") {
-                classOf("Order") {
-                    attribute("id", type = "UUID")
+            classDiagram(name = "My Diagram") {
+                classOf(name = "Order") {
+                    attribute(name = "id", type = "UUID")
                 }
             }
         val classes = d.elements.filterIsInstance<UmlClass>()
@@ -36,9 +36,9 @@ class ClassDiagramBuilderTest : FunSpec({
 
     test("classDiagram contains interface and generalization") {
         val d =
-            classDiagram("Hierarchy") {
-                val animal = classOf("Animal") { isAbstract = true }
-                val dog = classOf("Dog") {}
+            classDiagram(name = "Hierarchy") {
+                val animal = classOf(name = "Animal") { isAbstract = true }
+                val dog = classOf(name = "Dog") {}
                 generalization(specific = dog, general = animal)
             }
         d.elements.filterIsInstance<UmlClass>() shouldHaveSize 2
@@ -50,12 +50,12 @@ class ClassDiagramBuilderTest : FunSpec({
 
     test("classDiagram with association between two classes") {
         val d =
-            classDiagram("Association") {
-                val customer = classOf("Customer") {}
-                val order = classOf("Order") {}
+            classDiagram(name = "Association") {
+                val customer = classOf(name = "Customer") {}
+                val order = classOf(name = "Order") {}
                 association(source = customer, target = order) {
-                    source { multiplicity("1") }
-                    target { multiplicity("0..*") }
+                    source { multiplicity(spec = "1") }
+                    target { multiplicity(spec = "0..*") }
                 }
             }
         d.elements.filterIsInstance<UmlAssociation>() shouldHaveSize 1
@@ -89,7 +89,7 @@ class ClassDiagramBuilderTest : FunSpec({
     }
 
     test("diagram type is CLASS") {
-        val d = classDiagram("Test") {}
+        val d = classDiagram(name = "Test") {}
         d.type shouldBe DiagramType.CLASS
     }
 })

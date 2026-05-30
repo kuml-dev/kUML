@@ -1,50 +1,50 @@
 // order-domain.kuml.kts — Beispiel für ein UML-Klassendiagramm in kUML
 // Zeigt: Klassen, Interfaces, Enums, Assoziation (Komposition), Vererbung
 
-classDiagram("Order Domain") {
+classDiagram(name = "Order Domain") {
     showOperations = false
 
-    val status = enumOf("OrderStatus") {
-        literal("DRAFT")
-        literal("CONFIRMED")
-        literal("SHIPPED")
-        literal("CANCELLED")
+    val status = enumOf(name = "OrderStatus") {
+        literal(name = "DRAFT")
+        literal(name = "CONFIRMED")
+        literal(name = "SHIPPED")
+        literal(name = "CANCELLED")
     }
 
-    val payable = interfaceOf("Payable") {
-        operation("pay", returnType = "Boolean")
+    val payable = interfaceOf(name = "Payable") {
+        operation(name = "pay", returnType = "Boolean")
     }
 
-    val customer = classOf("Customer") {
-        attribute("id", type = "UUID")
-        attribute("email", type = "String")
-        attribute("name", type = "String")
+    val customer = classOf(name = "Customer") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "email", type = "String")
+        attribute(name = "name", type = "String")
     }
 
-    val order = classOf("Order") {
-        attribute("id", type = "UUID")
-        attribute("status", type = status)
-        implements(payable)
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "status", type = status)
+        implements(iface = payable)
     }
 
-    val orderItem = classOf("OrderItem") {
-        attribute("quantity", type = "Int")
-        attribute("unitPrice", type = "BigDecimal")
+    val orderItem = classOf(name = "OrderItem") {
+        attribute(name = "quantity", type = "Int")
+        attribute(name = "unitPrice", type = "BigDecimal")
     }
 
-    val subscription = classOf("Subscription") {
-        attribute("renewalDate", type = "LocalDate")
-        extends(order)
+    val subscription = classOf(name = "Subscription") {
+        attribute(name = "renewalDate", type = "LocalDate")
+        extends(general = order)
     }
 
     association(source = customer, target = order) {
-        source { multiplicity("1") }
-        target { multiplicity("0..*"); role = "orders" }
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "0..*"); role = "orders" }
     }
 
     association(source = order, target = orderItem) {
         aggregation = AggregationKind.COMPOSITE
-        source { multiplicity("1") }
-        target { multiplicity("1..*"); role = "items" }
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "1..*"); role = "items" }
     }
 }

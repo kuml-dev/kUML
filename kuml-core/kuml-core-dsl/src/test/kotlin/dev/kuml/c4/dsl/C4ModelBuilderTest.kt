@@ -132,7 +132,7 @@ class C4ModelBuilderTest : FunSpec({
     }
 
     test("DSL: empty c4Model builds without error") {
-        val model = c4Model("Empty Model")
+        val model = c4Model(name = "Empty Model")
         model.name shouldBe "Empty Model"
         model.elements.shouldBeEmpty()
         model.relationships.shouldBeEmpty()
@@ -140,8 +140,8 @@ class C4ModelBuilderTest : FunSpec({
 
     test("DSL: c4Model with person") {
         val model =
-            c4Model("With Person") {
-                person("Alice") {
+            c4Model(name = "With Person") {
+                person(name = "Alice") {
                     description = "A customer"
                     external = true
                     location = "Office"
@@ -157,8 +157,8 @@ class C4ModelBuilderTest : FunSpec({
 
     test("DSL: c4Model with softwareSystem") {
         val model =
-            c4Model("With System") {
-                softwareSystem("Banking System") {
+            c4Model(name = "With System") {
+                softwareSystem(name = "Banking System") {
                     description = "Main banking system"
                     external = false
                 }
@@ -171,13 +171,13 @@ class C4ModelBuilderTest : FunSpec({
 
     test("DSL: softwareSystem contains containers (nesting)") {
         val model =
-            c4Model("Nested System") {
-                softwareSystem("Banking System") {
-                    container("Web Application") {
+            c4Model(name = "Nested System") {
+                softwareSystem(name = "Banking System") {
+                    container(name = "Web Application") {
                         technology = "React"
                         description = "Frontend"
                     }
-                    container("API Server") {
+                    container(name = "API Server") {
                         technology = "Spring Boot"
                     }
                 }
@@ -195,14 +195,14 @@ class C4ModelBuilderTest : FunSpec({
 
     test("DSL: container contains components (nesting)") {
         val model =
-            c4Model("Nested Container") {
-                softwareSystem("System") {
-                    container("Web App") {
-                        component("Auth Service") {
+            c4Model(name = "Nested Container") {
+                softwareSystem(name = "System") {
+                    container(name = "Web App") {
+                        component(name = "Auth Service") {
                             technology = "Spring Security"
                             description = "Handles user authentication"
                         }
-                        component("Payment Service") {
+                        component(name = "Payment Service") {
                             technology = "Stripe"
                         }
                     }
@@ -221,10 +221,10 @@ class C4ModelBuilderTest : FunSpec({
 
     test("DSL: relationship between person and system") {
         val model =
-            c4Model("Relationships") {
-                val customer = person("Customer")
-                val system = softwareSystem("Banking System")
-                relationship(customer, system) {
+            c4Model(name = "Relationships") {
+                val customer = person(name = "Customer")
+                val system = softwareSystem(name = "Banking System")
+                relationship(source = customer, target = system) {
                     technology = "HTTPS"
                 }
             }
@@ -237,10 +237,10 @@ class C4ModelBuilderTest : FunSpec({
 
     test("DSL: bidirectional relationship") {
         val model =
-            c4Model("Bidirectional") {
-                val system1 = softwareSystem("System A")
-                val system2 = softwareSystem("System B")
-                relationship(system1, system2) {
+            c4Model(name = "Bidirectional") {
+                val system1 = softwareSystem(name = "System A")
+                val system2 = softwareSystem(name = "System B")
+                relationship(source = system1, target = system2) {
                     bidirectional = true
                     technology = "REST API"
                 }
@@ -252,11 +252,11 @@ class C4ModelBuilderTest : FunSpec({
 
     test("DSL: deploymentNode with nesting") {
         val model =
-            c4Model("Deployment") {
-                deploymentNode("Production") {
+            c4Model(name = "Deployment") {
+                deploymentNode(name = "Production") {
                     technology = "AWS"
                     instances = 1
-                    node("Kubernetes Cluster") {
+                    node(name = "Kubernetes Cluster") {
                         technology = "K8s"
                         instances = 3
                     }
@@ -272,20 +272,20 @@ class C4ModelBuilderTest : FunSpec({
 
     test("DSL: serialization round-trip") {
         val originalModel =
-            c4Model("Serializable") {
+            c4Model(name = "Serializable") {
                 val customer =
-                    person("Customer") {
+                    person(name = "Customer") {
                         description = "End user"
                         external = true
                     }
                 val system =
-                    softwareSystem("System") {
+                    softwareSystem(name = "System") {
                         description = "Main system"
-                        container("Web") {
+                        container(name = "Web") {
                             technology = "React"
                         }
                     }
-                relationship(customer, system) {
+                relationship(source = customer, target = system) {
                     technology = "HTTPS"
                 }
             }
@@ -305,10 +305,10 @@ class C4ModelBuilderTest : FunSpec({
 
     test("DSL: multiple persons have different IDs") {
         val model =
-            c4Model("Multiple Persons") {
-                person("Alice")
-                person("Bob")
-                person("Charlie")
+            c4Model(name = "Multiple Persons") {
+                person(name = "Alice")
+                person(name = "Bob")
+                person(name = "Charlie")
             }
         val persons = model.elements.filterIsInstance<C4Person>()
         persons.shouldHaveSize(3)
@@ -318,40 +318,40 @@ class C4ModelBuilderTest : FunSpec({
 
     test("DSL: multiple elements across different levels") {
         val model =
-            c4Model("Complex Model") {
+            c4Model(name = "Complex Model") {
                 // Persons
-                val customer = person("Customer")
-                val admin = person("Admin") { external = true }
+                val customer = person(name = "Customer")
+                val admin = person(name = "Admin") { external = true }
 
                 // Systems
                 val bankingSystem =
-                    softwareSystem("Banking System") {
-                        container("Web Application") {
+                    softwareSystem(name = "Banking System") {
+                        container(name = "Web Application") {
                             technology = "Spring Boot"
-                            component("Authentication Module")
-                            component("Payment Module")
+                            component(name = "Authentication Module")
+                            component(name = "Payment Module")
                         }
-                        container("API Server") {
+                        container(name = "API Server") {
                             technology = "Node.js"
-                            component("API Gateway")
+                            component(name = "API Gateway")
                         }
                     }
 
                 val emailSystem =
-                    softwareSystem("Email System") {
+                    softwareSystem(name = "Email System") {
                         external = true
                     }
 
                 // Relationships
-                relationship(customer, bankingSystem) {
+                relationship(source = customer, target = bankingSystem) {
                     technology = "HTTPS"
                 }
-                relationship(bankingSystem, emailSystem) {
+                relationship(source = bankingSystem, target = emailSystem) {
                     technology = "SMTP"
                 }
 
                 // Deployment
-                deploymentNode("Cloud Infrastructure") {
+                deploymentNode(name = "Cloud Infrastructure") {
                     technology = "AWS"
                 }
             }

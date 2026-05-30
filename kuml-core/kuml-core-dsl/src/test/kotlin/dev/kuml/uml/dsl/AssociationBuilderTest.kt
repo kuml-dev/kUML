@@ -108,35 +108,35 @@ class AssociationBuilderTest : FunSpec({
 
     test("source end multiplicity string is parsed correctly") {
         val model =
-            umlModel("M") {
+            umlModel(name = "M") {
                 association(sourceId = "Order", targetId = "Item") {
-                    source { multiplicity("1") }
+                    source { multiplicity(spec = "1") }
                 }
             }
         val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
-        assoc.ends[0].multiplicity shouldBe Multiplicity(1, 1)
+        assoc.ends[0].multiplicity shouldBe Multiplicity(lower = 1, upper = 1)
     }
 
     test("target end multiplicity 1..* is parsed correctly") {
         val model =
-            umlModel("M") {
+            umlModel(name = "M") {
                 association(sourceId = "Order", targetId = "Item") {
-                    target { multiplicity("1..*") }
+                    target { multiplicity(spec = "1..*") }
                 }
             }
         val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
-        assoc.ends[1].multiplicity shouldBe Multiplicity(1, null)
+        assoc.ends[1].multiplicity shouldBe Multiplicity(lower = 1, upper = null)
     }
 
     test("target end multiplicity 0..* is parsed correctly") {
         val model =
-            umlModel("M") {
+            umlModel(name = "M") {
                 association(sourceId = "Customer", targetId = "Order") {
-                    target { multiplicity("0..*") }
+                    target { multiplicity(spec = "0..*") }
                 }
             }
         val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
-        assoc.ends[1].multiplicity shouldBe Multiplicity(0, null)
+        assoc.ends[1].multiplicity shouldBe Multiplicity(lower = 0, upper = null)
     }
 
     // ── Role ──────────────────────────────────────────────────────────────────

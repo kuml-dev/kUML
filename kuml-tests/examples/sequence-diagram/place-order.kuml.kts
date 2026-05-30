@@ -2,42 +2,42 @@
 // Zeigt: Actor + Component-Lifelines, Sync/Async/Reply Messages,
 //        verschachtelte ALT/OPT Fragments
 
-sequenceDiagram("Place Order") {
+sequenceDiagram(name = "Place Order") {
 
     // Teilnehmer
-    val customer = lifeline("Customer") { isActor = true }
-    val ui       = lifeline("Frontend") { represents = typeRef("OrderUI") }
-    val api      = lifeline("OrderAPI") { represents = typeRef("OrderService") }
-    val stock    = lifeline("StockService")
-    val payment  = lifeline("PaymentService")
-    val db       = lifeline("OrderDatabase")
+    val customer = lifeline(name = "Customer") { isActor = true }
+    val ui       = lifeline(name = "Frontend") { represents = typeRef(name = "OrderUI") }
+    val api      = lifeline(name = "OrderAPI") { represents = typeRef(name = "OrderService") }
+    val stock    = lifeline(name = "StockService")
+    val payment  = lifeline(name = "PaymentService")
+    val db       = lifeline(name = "OrderDatabase")
 
     // Hauptablauf
-    message(customer, ui,    "fillCart()")
-    message(customer, ui,    "submitOrder()")
-    message(ui,       api,   "POST /orders")
-    message(api,      stock, "checkAvailability(items)")
-    reply(stock,      api,   "availability")
+    message(source = customer, target = ui,    label = "fillCart()")
+    message(source = customer, target = ui,    label = "submitOrder()")
+    message(source = ui,       target = api,   label = "POST /orders")
+    message(source = api,      target = stock, label = "checkAvailability(items)")
+    reply(source = stock,      target = api,   label = "availability")
 
     alt {
         branch(guard = "[allAvailable]") {
-            message(api,     stock,   "reserve(items)")
-            reply(stock,     api,     "reservationId")
-            message(api,     payment, "charge(total)")
+            message(source = api,     target = stock,   label = "reserve(items)")
+            reply(source = stock,     target = api,     label = "reservationId")
+            message(source = api,     target = payment, label = "charge(total)")
 
             opt(guard = "[customer.hasDiscount]") {
-                message(api, payment, "applyDiscount(code)")
+                message(source = api, target = payment, label = "applyDiscount(code)")
             }
 
-            reply(payment,   api,     "receipt")
-            message(api,     db,      "INSERT order")
-            reply(db,        api,     "orderId")
-            reply(api,       ui,      "201 Created")
-            reply(ui,        customer, "confirmation")
+            reply(source = payment,   target = api,     label = "receipt")
+            message(source = api,     target = db,      label = "INSERT order")
+            reply(source = db,        target = api,     label = "orderId")
+            reply(source = api,       target = ui,      label = "201 Created")
+            reply(source = ui,        target = customer, label = "confirmation")
         }
         branch(guard = "[outOfStock]") {
-            reply(api,       ui,       "409 Conflict")
-            reply(ui,        customer, "items unavailable")
+            reply(source = api,       target = ui,       label = "409 Conflict")
+            reply(source = ui,        target = customer, label = "items unavailable")
         }
     }
 }

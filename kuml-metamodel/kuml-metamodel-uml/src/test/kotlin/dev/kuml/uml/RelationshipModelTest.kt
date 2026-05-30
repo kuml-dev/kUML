@@ -12,8 +12,8 @@ class RelationshipModelTest : FunSpec({
     test("association between two classes stores both ends") {
         val ends =
             listOf(
-                UmlAssociationEnd(typeId = "domain::Order", role = "order", multiplicity = Multiplicity(1, 1)),
-                UmlAssociationEnd(typeId = "domain::OrderItem", role = "items", multiplicity = Multiplicity(1, null)),
+                UmlAssociationEnd(typeId = "domain::Order", role = "order", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                UmlAssociationEnd(typeId = "domain::OrderItem", role = "items", multiplicity = Multiplicity(lower = 1, upper = null)),
             )
         val assoc =
             UmlAssociation(
@@ -62,8 +62,8 @@ class RelationshipModelTest : FunSpec({
                 name = "places",
                 ends =
                     listOf(
-                        UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(1, 1)),
-                        UmlAssociationEnd(typeId = "Order", multiplicity = Multiplicity(0, null)),
+                        UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(lower = 1, upper = 1)),
+                        UmlAssociationEnd(typeId = "Order", multiplicity = Multiplicity(lower = 0, upper = null)),
                     ),
             )
         assoc.name shouldBe "places"
@@ -73,7 +73,7 @@ class RelationshipModelTest : FunSpec({
         val assoc =
             UmlAssociation(
                 id = "x",
-                ends = listOf(UmlAssociationEnd("A"), UmlAssociationEnd("B")),
+                ends = listOf(UmlAssociationEnd(typeId = "A"), UmlAssociationEnd(typeId = "B")),
             )
         assoc.shouldBeInstanceOf<UmlRelationship>()
         assoc.shouldBeInstanceOf<UmlElement>()
