@@ -28,12 +28,13 @@ fun UmlContainerScope.component(
     id: String? = null,
     block: ComponentBuilder.() -> Unit = {},
 ): UmlComponent {
-    val builder = ComponentBuilder(
-        name = name,
-        parentId = containerId,
-        takenIds = takenIds,
-        explicitId = id,
-    )
+    val builder =
+        ComponentBuilder(
+            name = name,
+            parentId = containerId,
+            takenIds = takenIds,
+            explicitId = id,
+        )
     builder.block()
     val component = builder.buildComponent()
     addNamedElement(component)
@@ -56,12 +57,13 @@ fun UmlComponentScope.component(
     id: String? = null,
     block: ComponentBuilder.() -> Unit = {},
 ): UmlComponent {
-    val builder = ComponentBuilder(
-        name = name,
-        parentId = ownerId,
-        takenIds = takenIds,
-        explicitId = id,
-    )
+    val builder =
+        ComponentBuilder(
+            name = name,
+            parentId = ownerId,
+            takenIds = takenIds,
+            explicitId = id,
+        )
     builder.block()
     val component = builder.buildComponent()
     addNestedComponent(component)
@@ -87,20 +89,22 @@ fun UmlComponentScope.port(
     id: String? = null,
     block: PortBuilder.() -> Unit = {},
 ): UmlPort {
-    val resolvedId = id ?: UmlIds.disambiguate(
-        candidate = UmlIds.child(ownerId, name),
-        taken = takenIds,
-    )
+    val resolvedId =
+        id ?: UmlIds.disambiguate(
+            candidate = UmlIds.child(ownerId, name),
+            taken = takenIds,
+        )
     takenIds += resolvedId
     val builder = PortBuilder().apply(block)
-    val port = UmlPort(
-        id = resolvedId,
-        name = name,
-        visibility = visibility,
-        type = type,
-        isConjugated = isConjugated,
-        stereotypes = builder.stereotypes.toList(),
-    )
+    val port =
+        UmlPort(
+            id = resolvedId,
+            name = name,
+            visibility = visibility,
+            type = type,
+            isConjugated = isConjugated,
+            stereotypes = builder.stereotypes.toList(),
+        )
     addPort(port)
     return port
 }
@@ -172,10 +176,11 @@ fun UmlModelScope.connectByIds(
     name: String? = null,
     id: String? = null,
 ): UmlConnector {
-    val relId = id ?: UmlIds.disambiguate(
-        candidate = UmlIds.connector(end1Id, end2Id),
-        taken = takenIds,
-    )
+    val relId =
+        id ?: UmlIds.disambiguate(
+            candidate = UmlIds.connector(end1Id, end2Id),
+            taken = takenIds,
+        )
     takenIds += relId
     val connector = UmlConnector(id = relId, end1Id = end1Id, end2Id = end2Id, name = name)
     addRelationship(connector)

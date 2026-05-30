@@ -24,7 +24,6 @@ import dev.kuml.uml.UmlRelationship
 class ClassDiagramBuilder(
     private val name: String,
 ) : UmlModelScope {
-
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
@@ -63,14 +62,15 @@ class ClassDiagramBuilder(
      *   [dev.kuml.uml.UmlActor], [dev.kuml.uml.UmlUseCase], [dev.kuml.uml.UmlComponent].
      */
     private fun requireClassDiagramElement(element: UmlNamedElement) {
-        val rejected = when (element) {
-            is dev.kuml.uml.UmlStateMachine -> "UmlStateMachine"
-            is dev.kuml.uml.UmlInteraction  -> "UmlInteraction"
-            is dev.kuml.uml.UmlActor        -> "UmlActor (use useCaseDiagram { })"
-            is dev.kuml.uml.UmlUseCase      -> "UmlUseCase (use useCaseDiagram { })"
-            is dev.kuml.uml.UmlComponent    -> "UmlComponent (use componentDiagram { })"
-            else                            -> null
-        }
+        val rejected =
+            when (element) {
+                is dev.kuml.uml.UmlStateMachine -> "UmlStateMachine"
+                is dev.kuml.uml.UmlInteraction -> "UmlInteraction"
+                is dev.kuml.uml.UmlActor -> "UmlActor (use useCaseDiagram { })"
+                is dev.kuml.uml.UmlUseCase -> "UmlUseCase (use useCaseDiagram { })"
+                is dev.kuml.uml.UmlComponent -> "UmlComponent (use componentDiagram { })"
+                else -> null
+            }
         require(rejected == null) {
             "[$name] $rejected is not a valid element for a class diagram."
         }
@@ -85,12 +85,13 @@ class ClassDiagramBuilder(
      *   [dev.kuml.uml.UmlConnector].
      */
     private fun requireClassDiagramRelationship(rel: UmlRelationship) {
-        val rejected = when (rel) {
-            is dev.kuml.uml.UmlInclude   -> "UmlInclude (use useCaseDiagram { })"
-            is dev.kuml.uml.UmlExtend    -> "UmlExtend (use useCaseDiagram { })"
-            is dev.kuml.uml.UmlConnector -> "UmlConnector (use componentDiagram { })"
-            else                         -> null
-        }
+        val rejected =
+            when (rel) {
+                is dev.kuml.uml.UmlInclude -> "UmlInclude (use useCaseDiagram { })"
+                is dev.kuml.uml.UmlExtend -> "UmlExtend (use useCaseDiagram { })"
+                is dev.kuml.uml.UmlConnector -> "UmlConnector (use componentDiagram { })"
+                else -> null
+            }
         require(rejected == null) {
             "[$name] $rejected is not a valid relationship for a class diagram."
         }
@@ -99,16 +100,18 @@ class ClassDiagramBuilder(
     // ── Build ─────────────────────────────────────────────────────────────────
 
     /** Builds the immutable [KumlDiagram] with [ClassDiagramConfig] attached. */
-    fun build(): KumlDiagram = KumlDiagram(
-        name = name,
-        type = DiagramType.CLASS,
-        elements = elements.toList(),
-        config = ClassDiagramConfig(
-            showAttributes = showAttributes,
-            showOperations = showOperations,
-            showVisibility = showVisibility,
-            visibilityFilter = visibilityFilter,
-            showPackageNames = showPackageNames,
-        ),
-    )
+    fun build(): KumlDiagram =
+        KumlDiagram(
+            name = name,
+            type = DiagramType.CLASS,
+            elements = elements.toList(),
+            config =
+                ClassDiagramConfig(
+                    showAttributes = showAttributes,
+                    showOperations = showOperations,
+                    showVisibility = showVisibility,
+                    visibilityFilter = visibilityFilter,
+                    showPackageNames = showPackageNames,
+                ),
+        )
 }

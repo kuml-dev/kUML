@@ -25,7 +25,6 @@ import dev.kuml.uml.Visibility
 class SequenceDiagramBuilder(
     private val name: String,
 ) : UmlInteractionScope {
-
     override val interactionId: String = name
     override val takenIds: MutableSet<String> = mutableSetOf(name)
 
@@ -37,11 +36,20 @@ class SequenceDiagramBuilder(
     private var fragmentCounter = 0
 
     override fun nextSequenceNumber(): Int = ++sequenceCounter
+
     override fun nextFragmentIndex(): Int = ++fragmentCounter
 
-    override fun addLifeline(lifeline: UmlLifeline) { lifelines += lifeline }
-    override fun addMessage(message: UmlMessage) { messages += message }
-    override fun addFragment(fragment: UmlCombinedFragment) { fragments += fragment }
+    override fun addLifeline(lifeline: UmlLifeline) {
+        lifelines += lifeline
+    }
+
+    override fun addMessage(message: UmlMessage) {
+        messages += message
+    }
+
+    override fun addFragment(fragment: UmlCombinedFragment) {
+        fragments += fragment
+    }
 
     // Interaction properties
     var interactionVisibility: Visibility = Visibility.PUBLIC
@@ -54,25 +62,27 @@ class SequenceDiagramBuilder(
     var numberFragmentBranches: Boolean = true
 
     fun build(): KumlDiagram {
-        val interaction = UmlInteraction(
-            id = interactionId,
-            name = name,
-            visibility = interactionVisibility,
-            lifelines = lifelines.toList(),
-            messages = messages.toList(),
-            fragments = fragments.toList(),
-            stereotypes = interactionStereotypes.toList(),
-        )
+        val interaction =
+            UmlInteraction(
+                id = interactionId,
+                name = name,
+                visibility = interactionVisibility,
+                lifelines = lifelines.toList(),
+                messages = messages.toList(),
+                fragments = fragments.toList(),
+                stereotypes = interactionStereotypes.toList(),
+            )
         return KumlDiagram(
             name = name,
             type = DiagramType.SEQUENCE,
             elements = listOf(interaction),
-            config = SequenceDiagramConfig(
-                showActivationBars = showActivationBars,
-                showSequenceNumbers = showSequenceNumbers,
-                showReturnArrows = showReturnArrows,
-                numberFragmentBranches = numberFragmentBranches,
-            ),
+            config =
+                SequenceDiagramConfig(
+                    showActivationBars = showActivationBars,
+                    showSequenceNumbers = showSequenceNumbers,
+                    showReturnArrows = showReturnArrows,
+                    numberFragmentBranches = numberFragmentBranches,
+                ),
         )
     }
 }

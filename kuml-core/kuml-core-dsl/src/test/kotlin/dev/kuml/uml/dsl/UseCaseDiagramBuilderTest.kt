@@ -44,11 +44,12 @@ class UseCaseDiagramBuilderTest : FunSpec({
     }
 
     test("subject contains the listed use cases") {
-        val d = useCaseDiagram("Checkout") {
-            val a = useCase("A")
-            val b = useCase("B")
-            subject("Shop", a, b)
-        }
+        val d =
+            useCaseDiagram("Checkout") {
+                val a = useCase("A")
+                val b = useCase("B")
+                subject("Shop", a, b)
+            }
         val subjects = d.elements.filterIsInstance<UmlUseCaseSubject>()
         subjects shouldHaveSize 1
         val s = subjects.single()
@@ -56,11 +57,12 @@ class UseCaseDiagramBuilderTest : FunSpec({
     }
 
     test("include relationship uses UmlIds-include format") {
-        val d = useCaseDiagram("Checkout") {
-            val a = useCase("Place Order")
-            val b = useCase("Validate Cart")
-            include(base = a, addition = b)
-        }
+        val d =
+            useCaseDiagram("Checkout") {
+                val a = useCase("Place Order")
+                val b = useCase("Validate Cart")
+                include(base = a, addition = b)
+            }
         val rels = d.elements.filterIsInstance<UmlInclude>()
         rels shouldHaveSize 1
         rels.single().id shouldBe "include::Place Order..>Validate Cart"
@@ -69,11 +71,12 @@ class UseCaseDiagramBuilderTest : FunSpec({
     }
 
     test("extend with extensionPoint stores extensionPoint") {
-        val d = useCaseDiagram("Checkout") {
-            val place = useCase("Place Order")
-            val discount = useCase("Apply Discount")
-            extend(base = place, extension = discount, at = "PaymentChosen")
-        }
+        val d =
+            useCaseDiagram("Checkout") {
+                val place = useCase("Place Order")
+                val discount = useCase("Apply Discount")
+                extend(base = place, extension = discount, at = "PaymentChosen")
+            }
         val rels = d.elements.filterIsInstance<UmlExtend>()
         rels shouldHaveSize 1
         rels.single().extensionPoint shouldBe "PaymentChosen"
@@ -82,11 +85,12 @@ class UseCaseDiagramBuilderTest : FunSpec({
     }
 
     test("actor to useCase association is accepted") {
-        val d = useCaseDiagram("Checkout") {
-            val customer = actor("Customer")
-            val place = useCase("Place Order")
-            association(source = customer, target = place)
-        }
+        val d =
+            useCaseDiagram("Checkout") {
+                val customer = actor("Customer")
+                val place = useCase("Place Order")
+                association(source = customer, target = place)
+            }
         d.elements.filterIsInstance<UmlAssociation>() shouldHaveSize 1
     }
 

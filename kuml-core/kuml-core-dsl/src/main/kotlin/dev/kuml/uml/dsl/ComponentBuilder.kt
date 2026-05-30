@@ -19,7 +19,6 @@ class ComponentBuilder internal constructor(
     override val takenIds: MutableSet<String>,
     explicitId: String?,
 ) : UmlComponentScope {
-
     /** The computed or explicitly provided ID for this component. */
     val id: String =
         run {

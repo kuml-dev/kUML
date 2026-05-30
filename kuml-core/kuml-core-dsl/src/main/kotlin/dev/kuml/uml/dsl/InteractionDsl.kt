@@ -29,20 +29,22 @@ fun UmlInteractionScope.lifeline(
     id: String? = null,
     block: LifelineBuilder.() -> Unit = {},
 ): UmlLifeline {
-    val resolvedId = id ?: UmlIds.disambiguate(
-        candidate = UmlIds.lifeline(interactionId, name),
-        taken = takenIds,
-    )
+    val resolvedId =
+        id ?: UmlIds.disambiguate(
+            candidate = UmlIds.lifeline(interactionId, name),
+            taken = takenIds,
+        )
     takenIds += resolvedId
     val builder = LifelineBuilder().apply(block)
-    val ll = UmlLifeline(
-        id = resolvedId,
-        name = name,
-        visibility = builder.visibility,
-        represents = builder.represents,
-        isActor = builder.isActor,
-        stereotypes = builder.stereotypes.toList(),
-    )
+    val ll =
+        UmlLifeline(
+            id = resolvedId,
+            name = name,
+            visibility = builder.visibility,
+            represents = builder.represents,
+            isActor = builder.isActor,
+            stereotypes = builder.stereotypes.toList(),
+        )
     addLifeline(ll)
     return ll
 }
@@ -73,16 +75,17 @@ fun UmlInteractionScope.message(
     label: String,
     sort: MessageSort = MessageSort.SYNC_CALL,
     id: String? = null,
-): UmlMessage = newMessage(
-    interactionId = interactionId,
-    takenIds = takenIds,
-    seq = nextSequenceNumber(),
-    fromLifelineId = from.id,
-    toLifelineId = to.id,
-    label = label,
-    sort = sort,
-    explicitId = id,
-).also { addMessage(it) }
+): UmlMessage =
+    newMessage(
+        interactionId = interactionId,
+        takenIds = takenIds,
+        seq = nextSequenceNumber(),
+        fromLifelineId = from.id,
+        toLifelineId = to.id,
+        label = label,
+        sort = sort,
+        explicitId = id,
+    ).also { addMessage(it) }
 
 fun UmlInteractionOperandScope.message(
     from: UmlLifeline,
@@ -90,16 +93,17 @@ fun UmlInteractionOperandScope.message(
     label: String,
     sort: MessageSort = MessageSort.SYNC_CALL,
     id: String? = null,
-): UmlMessage = newMessage(
-    interactionId = interactionId,
-    takenIds = takenIds,
-    seq = nextSequenceNumber(),
-    fromLifelineId = from.id,
-    toLifelineId = to.id,
-    label = label,
-    sort = sort,
-    explicitId = id,
-).also { addMessage(it) }
+): UmlMessage =
+    newMessage(
+        interactionId = interactionId,
+        takenIds = takenIds,
+        seq = nextSequenceNumber(),
+        fromLifelineId = from.id,
+        toLifelineId = to.id,
+        label = label,
+        sort = sort,
+        explicitId = id,
+    ).also { addMessage(it) }
 
 private fun newMessage(
     interactionId: String,
@@ -111,10 +115,11 @@ private fun newMessage(
     sort: MessageSort,
     explicitId: String?,
 ): UmlMessage {
-    val resolvedId = explicitId ?: UmlIds.disambiguate(
-        candidate = UmlIds.message(interactionId, seq),
-        taken = takenIds,
-    )
+    val resolvedId =
+        explicitId ?: UmlIds.disambiguate(
+            candidate = UmlIds.message(interactionId, seq),
+            taken = takenIds,
+        )
     takenIds += resolvedId
     return UmlMessage(
         id = resolvedId,
@@ -210,19 +215,21 @@ fun UmlInteractionScope.fragment(
     id: String? = null,
     block: FragmentBuilder.() -> Unit,
 ): UmlCombinedFragment {
-    val fragId = id ?: UmlIds.disambiguate(
-        candidate = UmlIds.fragment(interactionId, nextFragmentIndex()),
-        taken = takenIds,
-    )
+    val fragId =
+        id ?: UmlIds.disambiguate(
+            candidate = UmlIds.fragment(interactionId, nextFragmentIndex()),
+            taken = takenIds,
+        )
     takenIds += fragId
-    val builder = FragmentBuilder(
-        interactionId = interactionId,
-        takenIds = takenIds,
-        nextSequenceNumber = ::nextSequenceNumber,
-        nextFragmentIndex = ::nextFragmentIndex,
-        flatAddMessage = ::addMessage,
-        flatAddFragment = ::addFragment,
-    ).apply(block)
+    val builder =
+        FragmentBuilder(
+            interactionId = interactionId,
+            takenIds = takenIds,
+            nextSequenceNumber = ::nextSequenceNumber,
+            nextFragmentIndex = ::nextFragmentIndex,
+            flatAddMessage = ::addMessage,
+            flatAddFragment = ::addFragment,
+        ).apply(block)
     val frag = UmlCombinedFragment(id = fragId, operator = operator, operands = builder.operands.toList())
     addFragment(frag)
     return frag
@@ -243,22 +250,24 @@ fun UmlInteractionOperandScope.fragment(
     id: String? = null,
     block: FragmentBuilder.() -> Unit,
 ): UmlCombinedFragment {
-    val fragId = id ?: UmlIds.disambiguate(
-        candidate = UmlIds.fragment(interactionId, nextFragmentIndex()),
-        taken = takenIds,
-    )
+    val fragId =
+        id ?: UmlIds.disambiguate(
+            candidate = UmlIds.fragment(interactionId, nextFragmentIndex()),
+            taken = takenIds,
+        )
     takenIds += fragId
     // Use flatAddMessage / flatAddFragment so that messages inside nested branches
     // go directly to the interaction-level lists, bypassing this operand's tracking.
     val flatAdd = flatAddFunctions()
-    val builder = FragmentBuilder(
-        interactionId = interactionId,
-        takenIds = takenIds,
-        nextSequenceNumber = ::nextSequenceNumber,
-        nextFragmentIndex = ::nextFragmentIndex,
-        flatAddMessage = flatAdd.first,
-        flatAddFragment = flatAdd.second,
-    ).apply(block)
+    val builder =
+        FragmentBuilder(
+            interactionId = interactionId,
+            takenIds = takenIds,
+            nextSequenceNumber = ::nextSequenceNumber,
+            nextFragmentIndex = ::nextFragmentIndex,
+            flatAddMessage = flatAdd.first,
+            flatAddFragment = flatAdd.second,
+        ).apply(block)
     val frag = UmlCombinedFragment(id = fragId, operator = operator, operands = builder.operands.toList())
     // Register in this operand's fragmentIds AND on the flat interaction list
     addFragment(frag)
@@ -303,20 +312,25 @@ class FragmentBuilder internal constructor(
      *
      * For ALT/PAR call multiple times. For OPT/LOOP/BREAK typically called once.
      */
-    fun branch(guard: String? = null, block: OperandBuilder.() -> Unit) {
-        val operandBuilder = OperandBuilder(
-            interactionId = interactionId,
-            takenIds = takenIds,
-            nextSequenceNumber = nextSequenceNumber,
-            nextFragmentIndex = nextFragmentIndex,
-            rawAddMessage = flatAddMessage,
-            rawAddFragment = flatAddFragment,
-        ).apply(block)
-        operands += UmlInteractionOperand(
-            guard = guard,
-            messageIds = operandBuilder.messageIds.toList(),
-            fragmentIds = operandBuilder.fragmentIds.toList(),
-        )
+    fun branch(
+        guard: String? = null,
+        block: OperandBuilder.() -> Unit,
+    ) {
+        val operandBuilder =
+            OperandBuilder(
+                interactionId = interactionId,
+                takenIds = takenIds,
+                nextSequenceNumber = nextSequenceNumber,
+                nextFragmentIndex = nextFragmentIndex,
+                rawAddMessage = flatAddMessage,
+                rawAddFragment = flatAddFragment,
+            ).apply(block)
+        operands +=
+            UmlInteractionOperand(
+                guard = guard,
+                messageIds = operandBuilder.messageIds.toList(),
+                fragmentIds = operandBuilder.fragmentIds.toList(),
+            )
     }
 }
 
@@ -342,11 +356,11 @@ class OperandBuilder internal constructor(
     /** Goes directly to the flat interaction fragment list. */
     internal val rawAddFragment: (UmlCombinedFragment) -> Unit,
 ) : UmlInteractionOperandScope {
-
     internal val messageIds = mutableListOf<String>()
     internal val fragmentIds = mutableListOf<String>()
 
     override fun nextSequenceNumber(): Int = this.nextSequenceNumber.invoke()
+
     override fun nextFragmentIndex(): Int = this.nextFragmentIndex.invoke()
 
     /**
@@ -368,34 +382,42 @@ class OperandBuilder internal constructor(
 
 // ── Convenience operator wrappers — UmlInteractionScope ──────────────────────
 
-fun UmlInteractionScope.alt(block: FragmentBuilder.() -> Unit) =
-    fragment(InteractionOperator.ALT, block = block)
+fun UmlInteractionScope.alt(block: FragmentBuilder.() -> Unit) = fragment(InteractionOperator.ALT, block = block)
 
-fun UmlInteractionScope.opt(guard: String? = null, block: OperandBuilder.() -> Unit) =
-    fragment(InteractionOperator.OPT) { branch(guard, block) }
+fun UmlInteractionScope.opt(
+    guard: String? = null,
+    block: OperandBuilder.() -> Unit,
+) = fragment(InteractionOperator.OPT) { branch(guard, block) }
 
-fun UmlInteractionScope.loop(guard: String? = null, block: OperandBuilder.() -> Unit) =
-    fragment(InteractionOperator.LOOP) { branch(guard, block) }
+fun UmlInteractionScope.loop(
+    guard: String? = null,
+    block: OperandBuilder.() -> Unit,
+) = fragment(InteractionOperator.LOOP) { branch(guard, block) }
 
-fun UmlInteractionScope.par(block: FragmentBuilder.() -> Unit) =
-    fragment(InteractionOperator.PAR, block = block)
+fun UmlInteractionScope.par(block: FragmentBuilder.() -> Unit) = fragment(InteractionOperator.PAR, block = block)
 
-fun UmlInteractionScope.break_(guard: String? = null, block: OperandBuilder.() -> Unit) =
-    fragment(InteractionOperator.BREAK) { branch(guard, block) }
+fun UmlInteractionScope.break_(
+    guard: String? = null,
+    block: OperandBuilder.() -> Unit,
+) = fragment(InteractionOperator.BREAK) { branch(guard, block) }
 
 // ── Convenience operator wrappers — UmlInteractionOperandScope ────────────────
 
-fun UmlInteractionOperandScope.alt(block: FragmentBuilder.() -> Unit) =
-    fragment(InteractionOperator.ALT, block = block)
+fun UmlInteractionOperandScope.alt(block: FragmentBuilder.() -> Unit) = fragment(InteractionOperator.ALT, block = block)
 
-fun UmlInteractionOperandScope.opt(guard: String? = null, block: OperandBuilder.() -> Unit) =
-    fragment(InteractionOperator.OPT) { branch(guard, block) }
+fun UmlInteractionOperandScope.opt(
+    guard: String? = null,
+    block: OperandBuilder.() -> Unit,
+) = fragment(InteractionOperator.OPT) { branch(guard, block) }
 
-fun UmlInteractionOperandScope.loop(guard: String? = null, block: OperandBuilder.() -> Unit) =
-    fragment(InteractionOperator.LOOP) { branch(guard, block) }
+fun UmlInteractionOperandScope.loop(
+    guard: String? = null,
+    block: OperandBuilder.() -> Unit,
+) = fragment(InteractionOperator.LOOP) { branch(guard, block) }
 
-fun UmlInteractionOperandScope.par(block: FragmentBuilder.() -> Unit) =
-    fragment(InteractionOperator.PAR, block = block)
+fun UmlInteractionOperandScope.par(block: FragmentBuilder.() -> Unit) = fragment(InteractionOperator.PAR, block = block)
 
-fun UmlInteractionOperandScope.break_(guard: String? = null, block: OperandBuilder.() -> Unit) =
-    fragment(InteractionOperator.BREAK) { branch(guard, block) }
+fun UmlInteractionOperandScope.break_(
+    guard: String? = null,
+    block: OperandBuilder.() -> Unit,
+) = fragment(InteractionOperator.BREAK) { branch(guard, block) }

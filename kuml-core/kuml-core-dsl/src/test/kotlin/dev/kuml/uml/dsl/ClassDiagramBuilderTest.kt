@@ -7,7 +7,6 @@ import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
-import dev.kuml.uml.UmlInterface
 import dev.kuml.uml.UmlStateMachine
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
@@ -24,22 +23,24 @@ class ClassDiagramBuilderTest : FunSpec({
     }
 
     test("classDiagram contains added class") {
-        val d = classDiagram("My Diagram") {
-            classOf("Order") {
-                attribute("id", type = "UUID")
+        val d =
+            classDiagram("My Diagram") {
+                classOf("Order") {
+                    attribute("id", type = "UUID")
+                }
             }
-        }
         val classes = d.elements.filterIsInstance<UmlClass>()
         classes shouldHaveSize 1
         classes.first().name shouldBe "Order"
     }
 
     test("classDiagram contains interface and generalization") {
-        val d = classDiagram("Hierarchy") {
-            val animal = classOf("Animal") { isAbstract = true }
-            val dog = classOf("Dog") {}
-            generalization(specific = dog, general = animal)
-        }
+        val d =
+            classDiagram("Hierarchy") {
+                val animal = classOf("Animal") { isAbstract = true }
+                val dog = classOf("Dog") {}
+                generalization(specific = dog, general = animal)
+            }
         d.elements.filterIsInstance<UmlClass>() shouldHaveSize 2
         val gens = d.elements.filterIsInstance<UmlGeneralization>()
         gens shouldHaveSize 1
@@ -48,21 +49,23 @@ class ClassDiagramBuilderTest : FunSpec({
     }
 
     test("classDiagram with association between two classes") {
-        val d = classDiagram("Association") {
-            val customer = classOf("Customer") {}
-            val order = classOf("Order") {}
-            association(source = customer, target = order) {
-                source { multiplicity("1") }
-                target { multiplicity("0..*") }
+        val d =
+            classDiagram("Association") {
+                val customer = classOf("Customer") {}
+                val order = classOf("Order") {}
+                association(source = customer, target = order) {
+                    source { multiplicity("1") }
+                    target { multiplicity("0..*") }
+                }
             }
-        }
         d.elements.filterIsInstance<UmlAssociation>() shouldHaveSize 1
     }
 
     test("showAttributes false is stored in config") {
-        val d = classDiagram("Config Test") {
-            showAttributes = false
-        }
+        val d =
+            classDiagram("Config Test") {
+                showAttributes = false
+            }
         val config = d.config
         config.shouldBeInstanceOf<ClassDiagramConfig>()
         config.showAttributes shouldBe false

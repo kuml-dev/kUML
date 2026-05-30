@@ -23,9 +23,13 @@ class SequenceDiagramBuilderTest : FunSpec({
     }
 
     test("lifeline has deterministic id and stores represents and isActor") {
-        val d = sequenceDiagram("PlaceOrder") {
-            lifeline("Customer") { isActor = true; represents = typeRef("User") }
-        }
+        val d =
+            sequenceDiagram("PlaceOrder") {
+                lifeline("Customer") {
+                    isActor = true
+                    represents = typeRef("User")
+                }
+            }
         val ll = (d.elements.single() as UmlInteraction).lifelines.single()
         ll.id shouldBe "PlaceOrder::ll::Customer"
         ll.isActor shouldBe true
@@ -33,41 +37,49 @@ class SequenceDiagramBuilderTest : FunSpec({
     }
 
     test("messages get sequential 1-based sequence numbers in call order") {
-        val d = sequenceDiagram("X") {
-            val a = lifeline("A"); val b = lifeline("B")
-            message(a, b, "m1")
-            message(b, a, "m2")
-            message(a, b, "m3")
-        }
+        val d =
+            sequenceDiagram("X") {
+                val a = lifeline("A")
+                val b = lifeline("B")
+                message(a, b, "m1")
+                message(b, a, "m2")
+                message(a, b, "m3")
+            }
         val msgs = (d.elements.single() as UmlInteraction).messages
         msgs.map { it.sequence } shouldContainExactly listOf(1, 2, 3)
-        msgs.map { it.id } shouldContainExactly listOf(
-            "X::msg::1", "X::msg::2", "X::msg::3",
-        )
+        msgs.map { it.id } shouldContainExactly
+            listOf(
+                "X::msg::1", "X::msg::2", "X::msg::3",
+            )
     }
 
     test("asyncMessage / reply / create / delete set the correct sort") {
-        val d = sequenceDiagram("X") {
-            val a = lifeline("A"); val b = lifeline("B")
-            asyncMessage(a, b, "fire")
-            reply(b, a, "ok")
-            create(a, b, "«create»")
-            delete(a, b, "«destroy»")
-        }
+        val d =
+            sequenceDiagram("X") {
+                val a = lifeline("A")
+                val b = lifeline("B")
+                asyncMessage(a, b, "fire")
+                reply(b, a, "ok")
+                create(a, b, "«create»")
+                delete(a, b, "«destroy»")
+            }
         val sorts = (d.elements.single() as UmlInteraction).messages.map { it.sort }
-        sorts shouldContainExactly listOf(
-            MessageSort.ASYNC_CALL, MessageSort.REPLY, MessageSort.CREATE, MessageSort.DELETE,
-        )
+        sorts shouldContainExactly
+            listOf(
+                MessageSort.ASYNC_CALL, MessageSort.REPLY, MessageSort.CREATE, MessageSort.DELETE,
+            )
     }
 
     test("alt fragment with two branches stores correct messageIds per operand") {
-        val d = sequenceDiagram("X") {
-            val a = lifeline("A"); val b = lifeline("B")
-            alt {
-                branch(guard = "[ok]") { message(a, b, "yes") }
-                branch(guard = "[no]") { message(a, b, "no") }
+        val d =
+            sequenceDiagram("X") {
+                val a = lifeline("A")
+                val b = lifeline("B")
+                alt {
+                    branch(guard = "[ok]") { message(a, b, "yes") }
+                    branch(guard = "[no]") { message(a, b, "no") }
+                }
             }
-        }
         val i = d.elements.single() as UmlInteraction
         i.messages.map { it.label } shouldContainExactly listOf("yes", "no")
         val frag = i.fragments.single()
@@ -79,12 +91,14 @@ class SequenceDiagramBuilderTest : FunSpec({
     }
 
     test("opt fragment with single operand and guard") {
-        val d = sequenceDiagram("X") {
-            val a = lifeline("A"); val b = lifeline("B")
-            opt(guard = "[condition]") {
-                message(a, b, "optMsg")
+        val d =
+            sequenceDiagram("X") {
+                val a = lifeline("A")
+                val b = lifeline("B")
+                opt(guard = "[condition]") {
+                    message(a, b, "optMsg")
+                }
             }
-        }
         val i = d.elements.single() as UmlInteraction
         i.messages shouldHaveSize 1
         val frag = i.fragments.single()
@@ -95,12 +109,14 @@ class SequenceDiagramBuilderTest : FunSpec({
     }
 
     test("loop fragment with single operand") {
-        val d = sequenceDiagram("X") {
-            val a = lifeline("A"); val b = lifeline("B")
-            loop(guard = "[hasMore]") {
-                message(a, b, "process")
+        val d =
+            sequenceDiagram("X") {
+                val a = lifeline("A")
+                val b = lifeline("B")
+                loop(guard = "[hasMore]") {
+                    message(a, b, "process")
+                }
             }
-        }
         val i = d.elements.single() as UmlInteraction
         val frag = i.fragments.single()
         frag.operator shouldBe InteractionOperator.LOOP
@@ -109,13 +125,16 @@ class SequenceDiagramBuilderTest : FunSpec({
     }
 
     test("par fragment with two branches") {
-        val d = sequenceDiagram("X") {
-            val a = lifeline("A"); val b = lifeline("B"); val c = lifeline("C")
-            par {
-                branch { message(a, b, "task1") }
-                branch { message(a, c, "task2") }
+        val d =
+            sequenceDiagram("X") {
+                val a = lifeline("A")
+                val b = lifeline("B")
+                val c = lifeline("C")
+                par {
+                    branch { message(a, b, "task1") }
+                    branch { message(a, c, "task2") }
+                }
             }
-        }
         val i = d.elements.single() as UmlInteraction
         val frag = i.fragments.single()
         frag.operator shouldBe InteractionOperator.PAR
@@ -125,20 +144,22 @@ class SequenceDiagramBuilderTest : FunSpec({
     }
 
     test("nested fragment ids are recorded in parent operand fragmentIds") {
-        val d = sequenceDiagram("X") {
-            val a = lifeline("A"); val b = lifeline("B")
-            alt {
-                branch(guard = "[outer]") {
-                    message(a, b, "m1")
-                    opt(guard = "[inner]") {
-                        message(a, b, "m2")
+        val d =
+            sequenceDiagram("X") {
+                val a = lifeline("A")
+                val b = lifeline("B")
+                alt {
+                    branch(guard = "[outer]") {
+                        message(a, b, "m1")
+                        opt(guard = "[inner]") {
+                            message(a, b, "m2")
+                        }
                     }
                 }
             }
-        }
         val i = d.elements.single() as UmlInteraction
         i.messages.size shouldBe 2
-        i.fragments.size shouldBe 2                   // outer ALT + nested OPT
+        i.fragments.size shouldBe 2 // outer ALT + nested OPT
         val outerAlt = i.fragments.first { it.operator == InteractionOperator.ALT }
         outerAlt.operands.single().fragmentIds shouldContainExactly listOf("X::frag::2")
         outerAlt.operands.single().messageIds shouldContainExactly listOf("X::msg::1")
@@ -147,14 +168,19 @@ class SequenceDiagramBuilderTest : FunSpec({
     }
 
     test("sequence numbers continue monotonically across fragment boundaries") {
-        val d = sequenceDiagram("X") {
-            val a = lifeline("A"); val b = lifeline("B")
-            message(a, b, "before")
-            alt {
-                branch { message(a, b, "in1"); message(b, a, "in2") }
+        val d =
+            sequenceDiagram("X") {
+                val a = lifeline("A")
+                val b = lifeline("B")
+                message(a, b, "before")
+                alt {
+                    branch {
+                        message(a, b, "in1")
+                        message(b, a, "in2")
+                    }
+                }
+                message(a, b, "after")
             }
-            message(a, b, "after")
-        }
         val msgs = (d.elements.single() as UmlInteraction).messages
         msgs.map { it.sequence } shouldContainExactly listOf(1, 2, 3, 4)
     }
@@ -171,12 +197,14 @@ class SequenceDiagramBuilderTest : FunSpec({
     }
 
     test("break_ fragment has correct operator") {
-        val d = sequenceDiagram("X") {
-            val a = lifeline("A"); val b = lifeline("B")
-            break_(guard = "[errorCondition]") {
-                message(a, b, "abort")
+        val d =
+            sequenceDiagram("X") {
+                val a = lifeline("A")
+                val b = lifeline("B")
+                break_(guard = "[errorCondition]") {
+                    message(a, b, "abort")
+                }
             }
-        }
         val frag = (d.elements.single() as UmlInteraction).fragments.single()
         frag.operator shouldBe InteractionOperator.BREAK
         frag.operands.single().guard shouldBe "[errorCondition]"

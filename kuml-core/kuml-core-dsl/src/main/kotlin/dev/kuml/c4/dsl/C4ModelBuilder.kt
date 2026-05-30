@@ -47,6 +47,24 @@ class C4ModelBuilder(
             description: String?,
             val block: SystemLandscapeDiagramBuilder.() -> Unit,
         ) : DiagramDef(name, description)
+
+        class Component(
+            name: String,
+            description: String?,
+            val block: ComponentDiagramBuilder.() -> Unit,
+        ) : DiagramDef(name, description)
+
+        class Deployment(
+            name: String,
+            description: String?,
+            val block: DeploymentDiagramBuilder.() -> Unit,
+        ) : DiagramDef(name, description)
+
+        class Dynamic(
+            name: String,
+            description: String?,
+            val block: DynamicDiagramBuilder.() -> Unit,
+        ) : DiagramDef(name, description)
     }
 
     private val diagramDefs = mutableListOf<DiagramDef>()
@@ -217,6 +235,59 @@ class C4ModelBuilder(
     }
 
     /**
+     * Creates a Component Diagram (Level 3 of C4).
+     *
+     * Decomposes a single container to show its components and their relationships.
+     *
+     * @param name The diagram name
+     * @param description Optional description
+     * @param block Configuration block for diagram content
+     */
+    fun componentDiagram(
+        name: String,
+        description: String? = null,
+        block: ComponentDiagramBuilder.() -> Unit,
+    ) {
+        diagramDefs.add(DiagramDef.Component(name, description, block))
+    }
+
+    /**
+     * Creates a Deployment Diagram (Level 4 of C4).
+     *
+     * Shows how the software system is deployed across infrastructure nodes
+     * and which containers run on which nodes.
+     *
+     * @param name The diagram name
+     * @param description Optional description
+     * @param block Configuration block for diagram content
+     */
+    fun deploymentDiagram(
+        name: String,
+        description: String? = null,
+        block: DeploymentDiagramBuilder.() -> Unit = {},
+    ) {
+        diagramDefs.add(DiagramDef.Deployment(name, description, block))
+    }
+
+    /**
+     * Creates a Dynamic Diagram (Level 4 of C4).
+     *
+     * Shows how elements interact over time using sequence-like notation.
+     * Captures dynamic behavior and message flows between system components.
+     *
+     * @param name The diagram name
+     * @param description Optional description
+     * @param block Configuration block for diagram content
+     */
+    fun dynamicDiagram(
+        name: String,
+        description: String? = null,
+        block: DynamicDiagramBuilder.() -> Unit = {},
+    ) {
+        diagramDefs.add(DiagramDef.Dynamic(name, description, block))
+    }
+
+    /**
      * Builds the immutable C4Model.
      *
      * @return The constructed C4Model
@@ -257,6 +328,33 @@ class C4ModelBuilder(
                     }
                     is DiagramDef.SystemLandscape -> {
                         SystemLandscapeDiagramBuilderImpl(baseModel)
+                            .apply(def.block)
+                            .build()
+                            .copy(
+                                name = def.name,
+                                description = def.description,
+                            )
+                    }
+                    is DiagramDef.Component -> {
+                        ComponentDiagramBuilderImpl(baseModel)
+                            .apply(def.block)
+                            .build()
+                            .copy(
+                                name = def.name,
+                                description = def.description,
+                            )
+                    }
+                    is DiagramDef.Deployment -> {
+                        DeploymentDiagramBuilderImpl(baseModel)
+                            .apply(def.block)
+                            .build()
+                            .copy(
+                                name = def.name,
+                                description = def.description,
+                            )
+                    }
+                    is DiagramDef.Dynamic -> {
+                        DynamicDiagramBuilderImpl(baseModel)
                             .apply(def.block)
                             .build()
                             .copy(

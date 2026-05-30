@@ -23,7 +23,6 @@ import dev.kuml.uml.Visibility
 class StateDiagramBuilder(
     private val name: String,
 ) : UmlStateMachineScope {
-
     override val stateMachineId: String = name
     override val takenIds: MutableSet<String> = mutableSetOf(name)
 
@@ -49,24 +48,26 @@ class StateDiagramBuilder(
     }
 
     fun build(): KumlDiagram {
-        val sm = UmlStateMachine(
-            id = stateMachineId,
-            name = name,
-            visibility = stateMachineVisibility,
-            vertices = vertices.toList(),
-            transitions = transitions.toList(),
-            stereotypes = stateMachineStereotypes.toList(),
-        )
+        val sm =
+            UmlStateMachine(
+                id = stateMachineId,
+                name = name,
+                visibility = stateMachineVisibility,
+                vertices = vertices.toList(),
+                transitions = transitions.toList(),
+                stereotypes = stateMachineStereotypes.toList(),
+            )
         return KumlDiagram(
             name = name,
             type = DiagramType.STATE,
             elements = listOf(sm),
-            config = StateDiagramConfig(
-                showGuards = showGuards,
-                showEffects = showEffects,
-                showEntryExitActions = showEntryExitActions,
-                orientation = orientation,
-            ),
+            config =
+                StateDiagramConfig(
+                    showGuards = showGuards,
+                    showEffects = showEffects,
+                    showEntryExitActions = showEntryExitActions,
+                    orientation = orientation,
+                ),
         )
     }
 }

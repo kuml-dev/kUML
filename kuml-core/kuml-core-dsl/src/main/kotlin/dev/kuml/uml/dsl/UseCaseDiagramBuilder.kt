@@ -33,7 +33,6 @@ import dev.kuml.uml.UmlUseCaseSubject
 class UseCaseDiagramBuilder(
     private val name: String,
 ) : UmlModelScope {
-
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
@@ -91,13 +90,15 @@ class UseCaseDiagramBuilder(
     // ── Build ─────────────────────────────────────────────────────────────────
 
     /** Builds the immutable [KumlDiagram] with [UseCaseDiagramConfig] attached. */
-    fun build(): KumlDiagram = KumlDiagram(
-        name = name,
-        type = DiagramType.USE_CASE,
-        elements = elements.toList(),
-        config = UseCaseDiagramConfig(
-            showSubjectBox = showSubjectBox,
-            actorStyle = actorStyle,
-        ),
-    )
+    fun build(): KumlDiagram =
+        KumlDiagram(
+            name = name,
+            type = DiagramType.USE_CASE,
+            elements = elements.toList(),
+            config =
+                UseCaseDiagramConfig(
+                    showSubjectBox = showSubjectBox,
+                    actorStyle = actorStyle,
+                ),
+        )
 }

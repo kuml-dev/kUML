@@ -29,18 +29,20 @@ fun UmlContainerScope.actor(
     id: String? = null,
     block: ActorBuilder.() -> Unit = {},
 ): UmlActor {
-    val resolvedId = id ?: UmlIds.disambiguate(
-        candidate = UmlIds.child(containerId, name),
-        taken = takenIds,
-    )
+    val resolvedId =
+        id ?: UmlIds.disambiguate(
+            candidate = UmlIds.child(containerId, name),
+            taken = takenIds,
+        )
     takenIds += resolvedId
     val builder = ActorBuilder().apply(block)
-    val actor = UmlActor(
-        id = resolvedId,
-        name = name,
-        visibility = builder.visibility,
-        stereotypes = builder.stereotypes.toList(),
-    )
+    val actor =
+        UmlActor(
+            id = resolvedId,
+            name = name,
+            visibility = builder.visibility,
+            stereotypes = builder.stereotypes.toList(),
+        )
     addNamedElement(actor)
     return actor
 }
@@ -65,18 +67,20 @@ fun UmlContainerScope.useCase(
     id: String? = null,
     block: UseCaseBuilder.() -> Unit = {},
 ): UmlUseCase {
-    val resolvedId = id ?: UmlIds.disambiguate(
-        candidate = UmlIds.child(containerId, name),
-        taken = takenIds,
-    )
+    val resolvedId =
+        id ?: UmlIds.disambiguate(
+            candidate = UmlIds.child(containerId, name),
+            taken = takenIds,
+        )
     takenIds += resolvedId
     val builder = UseCaseBuilder().apply(block)
-    val useCase = UmlUseCase(
-        id = resolvedId,
-        name = name,
-        visibility = builder.visibility,
-        stereotypes = builder.stereotypes.toList(),
-    )
+    val useCase =
+        UmlUseCase(
+            id = resolvedId,
+            name = name,
+            visibility = builder.visibility,
+            stereotypes = builder.stereotypes.toList(),
+        )
     addNamedElement(useCase)
     return useCase
 }
@@ -106,16 +110,18 @@ fun UmlContainerScope.subject(
     vararg containedUseCases: UmlUseCase,
     id: String? = null,
 ): UmlUseCaseSubject {
-    val resolvedId = id ?: UmlIds.disambiguate(
-        candidate = UmlIds.child(containerId, name),
-        taken = takenIds,
-    )
+    val resolvedId =
+        id ?: UmlIds.disambiguate(
+            candidate = UmlIds.child(containerId, name),
+            taken = takenIds,
+        )
     takenIds += resolvedId
-    val subject = UmlUseCaseSubject(
-        id = resolvedId,
-        name = name,
-        useCaseIds = containedUseCases.map { it.id },
-    )
+    val subject =
+        UmlUseCaseSubject(
+            id = resolvedId,
+            name = name,
+            useCaseIds = containedUseCases.map { it.id },
+        )
     addNamedElement(subject)
     return subject
 }
@@ -157,10 +163,11 @@ fun UmlModelScope.includeById(
     additionId: String,
     id: String? = null,
 ): UmlInclude {
-    val relId = id ?: UmlIds.disambiguate(
-        candidate = UmlIds.include(baseId, additionId),
-        taken = takenIds,
-    )
+    val relId =
+        id ?: UmlIds.disambiguate(
+            candidate = UmlIds.include(baseId, additionId),
+            taken = takenIds,
+        )
     takenIds += relId
     val rel = UmlInclude(id = relId, baseId = baseId, additionId = additionId)
     addRelationship(rel)
@@ -204,10 +211,11 @@ fun UmlModelScope.extendById(
     extensionPoint: String? = null,
     id: String? = null,
 ): UmlExtend {
-    val relId = id ?: UmlIds.disambiguate(
-        candidate = UmlIds.extend(baseId, extensionId),
-        taken = takenIds,
-    )
+    val relId =
+        id ?: UmlIds.disambiguate(
+            candidate = UmlIds.extend(baseId, extensionId),
+            taken = takenIds,
+        )
     takenIds += relId
     val rel = UmlExtend(id = relId, baseId = baseId, extensionId = extensionId, extensionPoint = extensionPoint)
     addRelationship(rel)

@@ -30,7 +30,6 @@ import dev.kuml.uml.UmlRelationship
 class ComponentDiagramBuilder(
     private val name: String,
 ) : UmlModelScope {
-
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
@@ -69,15 +68,17 @@ class ComponentDiagramBuilder(
         }
     }
 
-    fun build(): KumlDiagram = KumlDiagram(
-        name = name,
-        type = DiagramType.COMPONENT,
-        elements = elements.toList(),
-        config = ComponentDiagramConfig(
-            showPortLabels = showPortLabels,
-            showInterfaceContracts = showInterfaceContracts,
-            showNestedComponents = showNestedComponents,
-            showStereotype = showStereotype,
-        ),
-    )
+    fun build(): KumlDiagram =
+        KumlDiagram(
+            name = name,
+            type = DiagramType.COMPONENT,
+            elements = elements.toList(),
+            config =
+                ComponentDiagramConfig(
+                    showPortLabels = showPortLabels,
+                    showInterfaceContracts = showInterfaceContracts,
+                    showNestedComponents = showNestedComponents,
+                    showStereotype = showStereotype,
+                ),
+        )
 }

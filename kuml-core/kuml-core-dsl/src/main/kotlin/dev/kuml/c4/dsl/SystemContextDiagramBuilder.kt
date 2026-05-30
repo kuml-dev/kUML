@@ -5,23 +5,26 @@ import dev.kuml.c4.model.C4Model
 import dev.kuml.c4.model.C4Person
 import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.c4.model.ElementId
-import dev.kuml.c4.model.SystemLandscapeDiagram
+import dev.kuml.c4.model.SystemContextDiagram
 import dev.kuml.core.dsl.KumlDsl
 
 /**
- * Scope for building a System Landscape Diagram.
+ * Scope for building a System Context Diagram.
  *
- * System Landscape Diagrams show all software systems and persons in the enterprise
- * along with their relationships. This is a high-level enterprise overview without
- * decomposing individual systems.
+ * System Context Diagrams show the system in scope and its relationships to users
+ * and external systems. Only persons and software systems are allowed.
  */
 @KumlDsl
-interface SystemLandscapeDiagramBuilder {
+interface SystemContextDiagramBuilder {
     var description: String?
 
-    var includeAllSystems: Boolean
+    var showExternalRelationships: Boolean
 
-    var includeAllPersons: Boolean
+    var showInternalRelationships: Boolean
+
+    fun element(elem: C4Person): C4Person
+
+    fun element(elem: C4SoftwareSystem): C4SoftwareSystem
 
     fun include(vararg elements: C4Element)
 
@@ -33,21 +36,32 @@ interface SystemLandscapeDiagramBuilder {
 }
 
 /**
- * Implementation of SystemLandscapeDiagramBuilder.
+ * Implementation of SystemContextDiagramBuilder.
  *
- * By default, includes all persons and systems in the model. Supports explicit
- * include/exclude for fine-grained control.
+ * Tracks included/excluded elements and validates that only persons and systems are used.
  */
 @KumlDsl
-class SystemLandscapeDiagramBuilderImpl(
+class SystemContextDiagramBuilderImpl(
     private val parentModel: C4Model,
-) : SystemLandscapeDiagramBuilder {
+) : SystemContextDiagramBuilder {
     override var description: String? = null
-    override var includeAllSystems: Boolean = true
-    override var includeAllPersons: Boolean = true
+    override var showExternalRelationships: Boolean = true
+    override var showInternalRelationships: Boolean = true
 
     private val includedElements = mutableSetOf<ElementId>()
     private val excludedElements = mutableSetOf<ElementId>()
+
+    override fun element(elem: C4Person): C4Person {
+        validateElementType(elem)
+        includedElements.add(elem.id)
+        return elem
+    }
+
+    override fun element(elem: C4SoftwareSystem): C4SoftwareSystem {
+        validateElementType(elem)
+        includedElements.add(elem.id)
+        return elem
+    }
 
     override fun include(vararg elements: C4Element) {
         elements.forEach { elem ->
@@ -71,35 +85,17 @@ class SystemLandscapeDiagramBuilderImpl(
     }
 
     /**
-     * Builds the SystemLandscapeDiagram from the current state.
+     * Builds the SystemContextDiagram from the current state.
      *
      * @return The constructed diagram with filtered elements and relationships
      * @throws IllegalArgumentException if invalid element types are included
      */
-    fun build(): SystemLandscapeDiagram {
-        // Determine which elements to include
-        val candidateElements = mutableSetOf<ElementId>()
-
-        // 1. Add auto-included elements based on flags
-        candidateElements.addAll(
-            parentModel.elements
-                .filter { elem ->
-                    val isSystem = elem is C4SoftwareSystem
-                    val isPerson = elem is C4Person
-                    (isSystem && includeAllSystems) || (isPerson && includeAllPersons)
-                }
-                .map { it.id },
-        )
-
-        // 2. Add explicitly included elements (additive)
-        candidateElements.addAll(includedElements)
-
-        // 3. Apply exclusions
-        val elementsToInclude = candidateElements - excludedElements
+    fun build(): SystemContextDiagram {
+        val finalElements = includedElements - excludedElements
 
         // Validate all included elements are persons or systems
         val invalidElements =
-            elementsToInclude
+            finalElements
                 .filter { id ->
                     val elem = parentModel.elements.find { it.id == id }
                     elem != null && elem !is C4Person && elem !is C4SoftwareSystem
@@ -107,7 +103,7 @@ class SystemLandscapeDiagramBuilderImpl(
 
         if (invalidElements.isNotEmpty()) {
             throw IllegalArgumentException(
-                "System Landscape Diagram can only contain persons and software systems, " +
+                "System Context Diagram can only contain persons and software systems, " +
                     "but found invalid element IDs: $invalidElements",
             )
         }
@@ -116,16 +112,16 @@ class SystemLandscapeDiagramBuilderImpl(
         val filteredRelationships =
             parentModel.relationships
                 .filter { rel ->
-                    rel.source in elementsToInclude && rel.target in elementsToInclude
+                    rel.source in finalElements && rel.target in finalElements
                 }
                 .map { it.id }
 
-        return SystemLandscapeDiagram(
+        return SystemContextDiagram(
             id = C4Ids.generateId(),
             name = "",
             // Set by caller via copy()
             description = description,
-            elements = elementsToInclude.toList(),
+            elements = finalElements.toList(),
             relationships = filteredRelationships,
         )
     }
@@ -133,7 +129,7 @@ class SystemLandscapeDiagramBuilderImpl(
     private fun validateElementType(elem: C4Element) {
         if (elem !is C4Person && elem !is C4SoftwareSystem) {
             throw IllegalArgumentException(
-                "System Landscape Diagram can only contain persons and software systems, " +
+                "System Context Diagram can only contain persons and software systems, " +
                     "but received: ${elem::class.simpleName}",
             )
         }

@@ -29,45 +29,50 @@ class ComponentDiagramBuilderTest : FunSpec({
     }
 
     test("port is created with qualified id under its component") {
-        val d = componentDiagram("Arch") {
-            component("OrderService") { port("api") }
-        }
+        val d =
+            componentDiagram("Arch") {
+                component("OrderService") { port("api") }
+            }
         d.elements.filterIsInstance<UmlComponent>().single()
             .ports.single().id shouldBe "OrderService::api"
     }
 
     test("provides stores interface id on component") {
-        val d = componentDiagram("Arch") {
-            val orderApi = interfaceOf("IOrderApi")
-            component("OrderService") { provides(orderApi) }
-        }
+        val d =
+            componentDiagram("Arch") {
+                val orderApi = interfaceOf("IOrderApi")
+                component("OrderService") { provides(orderApi) }
+            }
         val comp = d.elements.filterIsInstance<UmlComponent>().single()
         comp.providedInterfaceIds shouldBe listOf("IOrderApi")
     }
 
     test("requires stores interface id on component") {
-        val d = componentDiagram("Arch") {
-            val eventBus = interfaceOf("IEventBus")
-            component("InvoiceService") { requires(eventBus) }
-        }
+        val d =
+            componentDiagram("Arch") {
+                val eventBus = interfaceOf("IEventBus")
+                component("InvoiceService") { requires(eventBus) }
+            }
         val comp = d.elements.filterIsInstance<UmlComponent>().single()
         comp.requiredInterfaceIds shouldBe listOf("IEventBus")
     }
 
     test("nested component is stored inside parent component") {
-        val d = componentDiagram("Arch") {
-            component("OrderService") { component("OrderRepository") }
-        }
+        val d =
+            componentDiagram("Arch") {
+                component("OrderService") { component("OrderRepository") }
+            }
         val parent = d.elements.filterIsInstance<UmlComponent>().single()
         parent.nestedComponents.single().id shouldBe "OrderService::OrderRepository"
     }
 
     test("connect by component+port-name creates UmlConnector with full port ids") {
-        val d = componentDiagram("Arch") {
-            val a = component("A") { port("out") }
-            val b = component("B") { port("in") }
-            connect(end1 = a, port1 = "out", end2 = b, port2 = "in")
-        }
+        val d =
+            componentDiagram("Arch") {
+                val a = component("A") { port("out") }
+                val b = component("B") { port("in") }
+                connect(end1 = a, port1 = "out", end2 = b, port2 = "in")
+            }
         val c = d.elements.filterIsInstance<UmlConnector>().single()
         c.end1Id shouldBe "A::out"
         c.end2Id shouldBe "B::in"
@@ -86,13 +91,15 @@ class ComponentDiagramBuilderTest : FunSpec({
 
     test("adding UmlAssociation to component diagram throws") {
         val builder = ComponentDiagramBuilder("Bad")
-        val assoc = UmlAssociation(
-            id = "assoc::A-->B",
-            ends = listOf(
-                UmlAssociationEnd(typeId = "A"),
-                UmlAssociationEnd(typeId = "B"),
-            ),
-        )
+        val assoc =
+            UmlAssociation(
+                id = "assoc::A-->B",
+                ends =
+                    listOf(
+                        UmlAssociationEnd(typeId = "A"),
+                        UmlAssociationEnd(typeId = "B"),
+                    ),
+            )
         shouldThrow<IllegalArgumentException> { builder.addRelationship(assoc) }
     }
 
