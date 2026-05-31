@@ -31,10 +31,10 @@ include(
 
 // ── Renderer ─────────────────────────────────────────── Phase 1 ──
 include(
-    "kuml-renderer:kuml-layout-api", // Phase 1 — Engine-agnostische Layout-API ([[ADR-0006]])
-    "kuml-renderer:kuml-kuiver",     // Phase 1 — Kuiver-basiertes SVG-Rendering
-    "kuml-renderer:kuml-layout",     // Phase 1 — ELK-Anbindung + Grid-Layout
-    "kuml-renderer:kuml-themes",     // Phase 1 — Theme-System
+    "kuml-renderer:kuml-layout-api",  // Phase 1 — Engine-agnostische Layout-API ([[ADR-0006]])
+    "kuml-renderer:kuml-kuiver",      // Phase 1 — Kuiver-basiertes SVG-Rendering
+    "kuml-renderer:kuml-layout-elk",  // Phase 1 — ELK-Adapter für die Layout-API ([[ADR-0006]])
+    "kuml-renderer:kuml-themes",      // Phase 1 — Theme-System
 )
 
 // ── I/O ──────────────────────────────────────────────── Phase 2 ──
