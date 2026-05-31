@@ -1,6 +1,8 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.LayoutHintsBuilder
+import dev.kuml.core.dsl.layout.LayoutHintsScope
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInterface
 import dev.kuml.uml.UmlInterfaceRealization
@@ -21,7 +23,9 @@ class InterfaceBuilder internal constructor(
     private val parentId: String?,
     override val takenIds: MutableSet<String>,
     explicitId: String?,
-) : UmlClassifierScope {
+) : UmlClassifierScope, LayoutHintsScope {
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
+
     /** The computed or explicitly provided ID for this interface. */
     val id: String =
         run {
@@ -71,6 +75,7 @@ class InterfaceBuilder internal constructor(
             attributes = attributes.toList(),
             operations = operations.toList(),
             stereotypes = stereotypes.toList(),
+            metadata = layoutHintsBuilder.toMetadata(),
         )
 
     internal fun buildPendingGeneralizations(): List<UmlGeneralization> =

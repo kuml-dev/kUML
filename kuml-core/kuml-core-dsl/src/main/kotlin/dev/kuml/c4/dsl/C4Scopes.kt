@@ -6,6 +6,7 @@ import dev.kuml.c4.model.C4DeploymentNode
 import dev.kuml.c4.model.C4Element
 import dev.kuml.c4.model.C4Relationship
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.LayoutHintsScope
 
 /**
  * Base scope for C4 model builders.
@@ -31,9 +32,16 @@ interface C4ModelScope {
 
 /**
  * Scope for building persons in a C4 model.
+ *
+ * Extends [LayoutHintsScope] so that `layout { … }` is available:
+ * ```kotlin
+ * person("Customer") {
+ *     layout { col = 1; row = 1 }
+ * }
+ * ```
  */
 @KumlDsl
-interface PersonScope {
+interface PersonScope : LayoutHintsScope {
     var description: String?
     var external: Boolean
     var location: String?
@@ -41,9 +49,16 @@ interface PersonScope {
 
 /**
  * Scope for building software systems in a C4 model.
+ *
+ * Extends [LayoutHintsScope] so that `layout { … }` is available:
+ * ```kotlin
+ * softwareSystem("Banking System") {
+ *     layout { col = 2; row = 1 }
+ * }
+ * ```
  */
 @KumlDsl
-interface SoftwareSystemScope : C4ModelScope {
+interface SoftwareSystemScope : C4ModelScope, LayoutHintsScope {
     var description: String?
     var external: Boolean
     var location: String?
@@ -57,9 +72,17 @@ interface SoftwareSystemScope : C4ModelScope {
 
 /**
  * Scope for building containers in a C4 software system.
+ *
+ * Extends [LayoutHintsScope] so that `layout { … }` is available:
+ * ```kotlin
+ * container("Web App") {
+ *     technology = "Spring Boot"
+ *     layout { col = 2; row = 1 }
+ * }
+ * ```
  */
 @KumlDsl
-interface ContainerScope : C4ModelScope {
+interface ContainerScope : C4ModelScope, LayoutHintsScope {
     var description: String?
     var technology: String?
     val containerId: String
@@ -72,9 +95,17 @@ interface ContainerScope : C4ModelScope {
 
 /**
  * Scope for building components in a C4 container.
+ *
+ * Extends [LayoutHintsScope] so that `layout { … }` is available:
+ * ```kotlin
+ * component("Auth Service") {
+ *     technology = "Spring Security"
+ *     layout { col = 1; row = 2 }
+ * }
+ * ```
  */
 @KumlDsl
-interface ComponentScope {
+interface ComponentScope : LayoutHintsScope {
     var description: String?
     var technology: String?
 }

@@ -9,6 +9,7 @@ import dev.kuml.c4.model.C4Person
 import dev.kuml.c4.model.C4Relationship
 import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.LayoutHintsBuilder
 
 /**
  * Builder for a C4 model.
@@ -91,6 +92,7 @@ class C4ModelBuilder(
                 description = scope.description,
                 external = scope.external,
                 location = scope.location,
+                metadata = scope.layoutHintsBuilder.toMetadata(),
             )
         addElement(person)
         return person
@@ -120,6 +122,7 @@ class C4ModelBuilder(
                 external = scope.external,
                 location = scope.location,
                 containers = containerIds,
+                metadata = scope.layoutHintsBuilder.toMetadata(),
             )
         addElement(system)
         return system
@@ -376,6 +379,7 @@ private class PersonScopeImpl : PersonScope {
     override var description: String? = null
     override var external: Boolean = false
     override var location: String? = null
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 }
 
 @KumlDsl
@@ -388,6 +392,7 @@ class SoftwareSystemScopeImpl(
     override var description: String? = null
     override var external: Boolean = false
     override var location: String? = null
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 
     val containers: MutableList<C4Container> = mutableListOf()
 
@@ -408,6 +413,7 @@ class SoftwareSystemScopeImpl(
                 technology = scope.technology,
                 system = systemId,
                 components = componentIds,
+                metadata = scope.layoutHintsBuilder.toMetadata(),
             )
         containers += container
         addElement(container)
@@ -424,6 +430,7 @@ class ContainerScopeImpl(
 ) : ContainerScope {
     override var description: String? = null
     override var technology: String? = null
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 
     val components: MutableList<C4Component> = mutableListOf()
 
@@ -442,6 +449,7 @@ class ContainerScopeImpl(
                 description = scope.description,
                 technology = scope.technology,
                 container = containerId,
+                metadata = scope.layoutHintsBuilder.toMetadata(),
             )
         components += component
         addElement(component)
@@ -453,6 +461,7 @@ class ContainerScopeImpl(
 private class ComponentScopeImpl : ComponentScope {
     override var description: String? = null
     override var technology: String? = null
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 }
 
 @KumlDsl

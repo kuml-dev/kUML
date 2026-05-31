@@ -1,6 +1,8 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.LayoutHintsBuilder
+import dev.kuml.core.dsl.layout.LayoutHintsScope
 import dev.kuml.uml.UmlActor
 import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlInclude
@@ -42,6 +44,7 @@ fun UmlContainerScope.actor(
             name = name,
             visibility = builder.visibility,
             stereotypes = builder.stereotypes.toList(),
+            metadata = builder.layoutHintsBuilder.toMetadata(),
         )
     addNamedElement(actor)
     return actor
@@ -80,6 +83,7 @@ fun UmlContainerScope.useCase(
             name = name,
             visibility = builder.visibility,
             stereotypes = builder.stereotypes.toList(),
+            metadata = builder.layoutHintsBuilder.toMetadata(),
         )
     addNamedElement(useCase)
     return useCase
@@ -226,18 +230,34 @@ fun UmlModelScope.extendById(
 
 /**
  * Builder for inline display options of an [UmlActor].
+ *
+ * Implements [LayoutHintsScope] so that `layout { … }` is available in actor bodies:
+ * ```kotlin
+ * actor("Customer") {
+ *     layout { col = 1; row = 1 }
+ * }
+ * ```
  */
 @KumlDsl
-class ActorBuilder internal constructor() {
+class ActorBuilder internal constructor() : LayoutHintsScope {
     var visibility: Visibility = Visibility.PUBLIC
     val stereotypes: MutableList<String> = mutableListOf()
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 }
 
 /**
  * Builder for inline display options of a [UmlUseCase].
+ *
+ * Implements [LayoutHintsScope] so that `layout { … }` is available in use-case bodies:
+ * ```kotlin
+ * useCase("Place Order") {
+ *     layout { col = 2; row = 1 }
+ * }
+ * ```
  */
 @KumlDsl
-class UseCaseBuilder internal constructor() {
+class UseCaseBuilder internal constructor() : LayoutHintsScope {
     var visibility: Visibility = Visibility.PUBLIC
     val stereotypes: MutableList<String> = mutableListOf()
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 }

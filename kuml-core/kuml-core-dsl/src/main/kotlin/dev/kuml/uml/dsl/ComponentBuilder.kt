@@ -1,6 +1,8 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.LayoutHintsBuilder
+import dev.kuml.core.dsl.layout.LayoutHintsScope
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlPort
 import dev.kuml.uml.Visibility
@@ -18,7 +20,9 @@ class ComponentBuilder internal constructor(
     private val parentId: String?,
     override val takenIds: MutableSet<String>,
     explicitId: String?,
-) : UmlComponentScope {
+) : UmlComponentScope, LayoutHintsScope {
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
+
     /** The computed or explicitly provided ID for this component. */
     val id: String =
         run {
@@ -66,5 +70,6 @@ class ComponentBuilder internal constructor(
             requiredInterfaceIds = requiredInterfaceIds.toList(),
             nestedComponents = nestedComponents.toList(),
             stereotypes = stereotypes.toList(),
+            metadata = layoutHintsBuilder.toMetadata(),
         )
 }

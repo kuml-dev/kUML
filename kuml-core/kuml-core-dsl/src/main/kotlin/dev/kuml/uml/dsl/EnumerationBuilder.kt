@@ -1,6 +1,8 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.LayoutHintsBuilder
+import dev.kuml.core.dsl.layout.LayoutHintsScope
 import dev.kuml.uml.UmlEnumeration
 import dev.kuml.uml.UmlEnumerationLiteral
 import dev.kuml.uml.Visibility
@@ -18,7 +20,9 @@ class EnumerationBuilder internal constructor(
     private val parentId: String?,
     override val takenIds: MutableSet<String>,
     explicitId: String?,
-) : UmlClassifierScope {
+) : UmlClassifierScope, LayoutHintsScope {
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
+
     /** The computed or explicitly provided ID for this enumeration. */
     val id: String =
         run {
@@ -72,6 +76,7 @@ class EnumerationBuilder internal constructor(
             visibility = visibility,
             literals = literals.toList(),
             stereotypes = stereotypes.toList(),
+            metadata = layoutHintsBuilder.toMetadata(),
         )
 }
 

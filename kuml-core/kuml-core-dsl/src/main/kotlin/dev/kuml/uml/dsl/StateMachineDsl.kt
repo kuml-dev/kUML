@@ -1,6 +1,8 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.LayoutHintsBuilder
+import dev.kuml.core.dsl.layout.LayoutHintsScope
 import dev.kuml.uml.PseudostateKind
 import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlPseudostate
@@ -43,6 +45,7 @@ fun UmlStateMachineScope.state(
             exit = body.exit,
             doActivity = body.doActivity,
             stereotypes = body.stereotypes.toList(),
+            metadata = body.layoutHintsBuilder.toMetadata(),
         )
     addVertex(s)
     return s
@@ -68,17 +71,30 @@ fun UmlCompositeStateScope.state(
             exit = body.exit,
             doActivity = body.doActivity,
             stereotypes = body.stereotypes.toList(),
+            metadata = body.layoutHintsBuilder.toMetadata(),
         )
     addSubstate(s)
     return s
 }
 
+/**
+ * Configuration builder for a [UmlState] body.
+ *
+ * Implements [LayoutHintsScope] to allow grid-layout hints:
+ * ```kotlin
+ * state("Draft") {
+ *     entry = "validate()"
+ *     layout { col = 1; row = 2 }
+ * }
+ * ```
+ */
 @KumlDsl
-class StateBodyBuilder internal constructor() {
+class StateBodyBuilder internal constructor() : LayoutHintsScope {
     var entry: String? = null
     var exit: String? = null
     var doActivity: String? = null
     val stereotypes: MutableList<String> = mutableListOf()
+    override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 }
 
 // ── Pseudostate helper (Variante B) ──────────────────────────────────────────
