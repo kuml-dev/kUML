@@ -192,9 +192,21 @@ brew tap kuml-dev/kuml
 brew install kuml
 ----
 
+The Homebrew bottle ships a *self-contained* runtime: the CLI jars plus a
+jlink-built Java 21 runtime under `runtime/`. No system JDK is required —
+the launcher unconditionally points `JAVA_HOME` at the bundled JRE.
+
+Two release artefacts are published on every `v*.*.*` tag:
+
+[cols="1,3"]
+|===
+| `kuml-<version>.zip`         | distZip — needs a Java 21+ on `JAVA_HOME` or `PATH` (smaller, ~80 MB)
+| `kuml-runtime-<version>.zip` | bundled image — extracts as `kuml-<version>/{bin,lib,runtime}` with the bundled JRE under `runtime/` (~117 MB). What `brew install` consumes.
+|===
+
 Library modules are published to Maven Central as `dev.kuml:<module>:<version>`.
-The CLI itself is *not* a Maven artefact — it is distributed as a `.zip` attached
-to every `v*.*.*` GitHub release. See link:../docs/release.md[`docs/release.md`].
+The CLI itself is *not* a Maven artefact. See link:../docs/release.md[`docs/release.md`]
+for the release workflow details.
 
 == Pipeline
 

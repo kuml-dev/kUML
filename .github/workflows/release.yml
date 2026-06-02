@@ -40,8 +40,11 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
         run: ./gradlew publishToMavenCentral --no-configuration-cache
 
-      - name: Build CLI distribution zip
+      - name: Build CLI distZip (needs system JDK at runtime)
         run: ./gradlew :kuml-cli:distZip
+
+      - name: Build bundled jlink runtime zip (self-contained, no JDK needed)
+        run: ./gradlew :kuml-cli:runtimeZip
 
       - name: Generate changelog
         id: changelog
@@ -52,25 +55,30 @@ jobs:
         env:
           OUTPUT: CHANGELOG_RELEASE.md
 
-      - name: Compute SHA-256 of CLI zip
+      - name: Compute SHA-256s for both zips
         id: sha
         run: |
-          ZIP=$(ls kuml-cli/build/distributions/*.zip | head -n1)
-          echo "zip=$ZIP" >> $GITHUB_OUTPUT
-          echo "sha256=$(shasum -a 256 "$ZIP" | cut -d ' ' -f1)" >> $GITHUB_OUTPUT
+          DIST_ZIP=$(ls kuml-cli/build/distributions/kuml-*.zip   | grep -v runtime | head -n1)
+          RUNTIME_ZIP=$(ls kuml-cli/build/distributions/kuml-runtime-*.zip | head -n1)
+          echo "dist_zip=$DIST_ZIP"           >> $GITHUB_OUTPUT
+          echo "runtime_zip=$RUNTIME_ZIP"     >> $GITHUB_OUTPUT
+          echo "dist_sha256=$(shasum -a 256 "$DIST_ZIP"    | cut -d ' ' -f1)" >> $GITHUB_OUTPUT
+          echo "runtime_sha256=$(shasum -a 256 "$RUNTIME_ZIP" | cut -d ' ' -f1)" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release with both zips
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.sha.outputs.zip }}
+          files: |
+            ${{ steps.sha.outputs.dist_zip }}
+            ${{ steps.sha.outputs.runtime_zip }}
           body_path: CHANGELOG_RELEASE.md
           generate_release_notes: false
           fail_on_unmatched_files: true
 
-      - name: Compute release-zip URL
+      - name: Compute runtime-zip URL (Homebrew uses the self-contained bundle)
         id: url
         run: |
-          ZIP_NAME=$(basename "${{ steps.sha.outputs.zip }}")
+          ZIP_NAME=$(basename "${{ steps.sha.outputs.runtime_zip }}")
           echo "url=${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/$ZIP_NAME" >> $GITHUB_OUTPUT
 
       - name: Strip leading 'v' from tag
@@ -90,7 +98,7 @@ jobs:
             {
               "version": "${{ steps.ver.outputs.version }}",
               "url":     "${{ steps.url.outputs.url }}",
-              "sha256":  "${{ steps.sha.outputs.sha256 }}"
+              "sha256":  "${{ steps.sha.outputs.runtime_sha256 }}"
             }
 
       - name: Print Homebrew formula update hint
@@ -98,7 +106,7 @@ jobs:
           echo "### Homebrew update" >> $GITHUB_STEP_SUMMARY
           echo "version = ${{ steps.ver.outputs.version }}"   >> $GITHUB_STEP_SUMMARY
           echo "url     = ${{ steps.url.outputs.url }}"       >> $GITHUB_STEP_SUMMARY
-          echo "sha256  = ${{ steps.sha.outputs.sha256 }}"    >> $GITHUB_STEP_SUMMARY
+          echo "sha256  = ${{ steps.sha.outputs.runtime_sha256 }}" >> $GITHUB_STEP_SUMMARY
           if [ -z "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]; then
             echo "_HOMEBREW_TAP_TOKEN not set — formula not auto-updated. Edit Formula/kuml.rb in kuml-dev/homebrew-kuml manually._" >> $GITHUB_STEP_SUMMARY
           else
