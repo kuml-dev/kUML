@@ -38,6 +38,7 @@ dependencies {
     implementation(project(":kuml-io:kuml-io-png"))
     implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
     implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
+    implementation(project(":kuml-docs:kuml-markdown"))
 
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)

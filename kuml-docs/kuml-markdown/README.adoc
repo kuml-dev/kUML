@@ -1,0 +1,124 @@
+= kuml-markdown
+:toc: macro
+:source-highlighter: rouge
+
+Markdown integration for kUML — replaces ```` ```kuml ```` fenced code blocks
+with rendered SVG (inline or linked) or PNG.
+
+toc::[]
+
+== Overview
+
+`kuml-markdown` ships:
+
+* a small Kotlin library (`MarkdownProcessor`) that takes Markdown +
+  output-mode and returns the substituted Markdown,
+* an extractor (`CodeBlockExtractor`) that recognises ```` ```kuml ````
+  fenced blocks with optional Pandoc-style attribute maps.
+
+The CLI subcommand `kuml markdown` (see `kuml-cli`) wraps the library for
+shell-driven workflows.
+
+== Installation (library)
+
+[source,kotlin]
+----
+dependencies {
+    implementation("dev.kuml:kuml-markdown:0.1.0")
+}
+----
+
+== Programmatic API
+
+[source,kotlin]
+----
+import dev.kuml.markdown.MarkdownOutputMode
+import dev.kuml.markdown.MarkdownProcessor
+import java.io.File
+
+val processor = MarkdownProcessor()
+
+// 1. Inline SVG — best for static site generators
+val inlined = processor.process(
+    input = File("README.md").readText(),
+    mode = MarkdownOutputMode.InlineSvg,
+)
+File("README.rendered.md").writeText(inlined.output)
+
+// 2. Linked SVG — better for editors / git diffs
+val linked = processor.process(
+    input = File("docs/intro.md").readText(),
+    mode = MarkdownOutputMode.LinkedSvg(File("docs/assets")),
+    baseName = "intro",
+)
+File("docs/intro.rendered.md").writeText(linked.output)
+linked.assets.forEach { println("wrote $it") }
+----
+
+== CLI usage
+
+[source,bash]
+----
+# Inline SVG (default)
+kuml markdown --input README.md --output README.rendered.md
+
+# Linked SVG
+kuml markdown --input docs/intro.md \
+              --output docs/intro.out.md \
+              --mode linked-svg \
+              --assets-dir docs/assets
+
+# Linked PNG, custom width
+kuml markdown --input docs/intro.md \
+              --output docs/intro.out.md \
+              --mode linked-png \
+              --assets-dir docs/assets \
+              --width 1200
+----
+
+== Pandoc integration
+
+A standalone Lua filter is shipped under `tools/pandoc/kuml.lua`:
+
+[source,bash]
+----
+pandoc --lua-filter=tools/pandoc/kuml.lua docs/page.md -o docs/page.html
+----
+
+See `tools/pandoc/README.md` for details.
+
+== Block syntax
+
+Supported info-string forms after the opening fence:
+
+----
+```kuml
+```kuml {name="hello" width=800}
+```kuml name=hello width=800
+----
+
+Attributes:
+
+[cols="1,1,3", options="header"]
+|===
+| Attribute | Type   | Effect
+| `name`    | string | File stem for linked SVG/PNG output
+| `width`   | int    | Width in pixels (linked-PNG only; overrides `--width`)
+|===
+
+== Output modes
+
+[cols="1,3", options="header"]
+|===
+| Mode               | What happens
+| `InlineSvg`        | Block replaced with raw `<svg>` element
+| `LinkedSvg(dir)`   | SVG written into `dir`, block replaced by `![]()` link
+| `LinkedPng(dir,w)` | PNG written into `dir`, block replaced by `![]()` link
+|===
+
+== Related modules
+
+* `kuml-core:kuml-core-script` — Kotlin Scripting host (reused)
+* `kuml-renderer:kuml-layout-elk` — ELK layout engine
+* `kuml-io:kuml-io-svg` — SVG renderer
+* `kuml-cli` — `kuml markdown` subcommand

@@ -102,6 +102,12 @@ kuml render order-domain.kuml.kts --format svg
 | `kuml generate`
 | Code generation via plugin (`--plugin kotlin` ships built-in).
 
+| `kuml import`
+| Import a diagram from another format (V1: Structurizr DSL → `*.kuml.kts`).
+
+| `kuml markdown`
+| Render `kuml`-fenced code blocks in a Markdown file to inline SVG, linked SVG, or linked PNG.
+
 | `kuml completion`
 | Emit shell completion scripts for `bash`, `zsh`, or `fish` (Clikt built-in).
 |===
@@ -185,9 +191,23 @@ kuml-llm/
   kuml-llm-anthropic ✅  Claude API backend via JDK HttpClient (no extra deps)
   kuml-llm-bench     ✅  10-task benchmark suite (kUML/PlantUML/Mermaid, DE+EN)
 
-kuml-docs/           📋  Markdown / Pandoc / Obsidian integrations (Phase 2)
+kuml-docs/
+  kuml-markdown     ✅  Markdown ` ```kuml ` block processor (inline/linked SVG/PNG)
 kuml-packaging/      🚧  GraalVM Native Image infrastructure done; full native deferred V1.1 (ADR-0009)
 ----
+
+== Documentation
+
+* link:docs/getting-started.adoc[Getting Started] — install kUML, your first
+  class diagram, your first C4 diagram, watch mode, OCL, codegen, Markdown.
+* link:docs/diagram-types.adoc[Diagram-Type Reference] — every UML and C4
+  diagram type with a runnable snippet.
+* link:docs/benchmark/README.md[LLM Benchmark Guide] — run the 10-task
+  benchmark against the LLM of your choice.
+* link:docs/release.md[Release & Distribution] — Maven Central, Homebrew,
+  release workflow.
+* link:tools/pandoc/README.md[Pandoc filter] — generate HTML/PDF with kuml
+  diagrams via Pandoc.
 
 == License
 

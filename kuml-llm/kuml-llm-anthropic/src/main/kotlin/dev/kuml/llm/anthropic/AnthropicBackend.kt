@@ -4,11 +4,14 @@ import dev.kuml.llm.core.LlmBackend
 import dev.kuml.llm.core.LlmException
 import dev.kuml.llm.core.LlmMessage
 import dev.kuml.llm.core.LlmResponse
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -77,15 +80,24 @@ public class AnthropicBackend(
         messages: List<LlmMessage>,
         systemPrompt: String?,
     ): String {
-        val msgArray = messages.map { mapOf("role" to it.role, "content" to it.content) }
         val body =
-            buildMap {
+            buildJsonObject {
                 put("model", modelId)
                 put("max_tokens", maxTokens)
                 if (systemPrompt != null) put("system", systemPrompt)
-                put("messages", msgArray)
+                put(
+                    "messages",
+                    buildJsonArray {
+                        messages.forEach { msg ->
+                            addJsonObject {
+                                put("role", msg.role)
+                                put("content", msg.content)
+                            }
+                        }
+                    },
+                )
             }
-        return Json.encodeToString(body)
+        return body.toString()
     }
 
     private fun parseResponse(body: String): LlmResponse {
@@ -127,7 +139,7 @@ public class AnthropicBackend(
     }
 
     public companion object {
-        public const val DEFAULT_MODEL: String = "claude-3-5-haiku-20241022"
+        public const val DEFAULT_MODEL: String = "claude-haiku-4-5-20251001"
         private const val API_URL = "https://api.anthropic.com/v1/messages"
         private const val ANTHROPIC_VERSION = "2023-06-01"
     }

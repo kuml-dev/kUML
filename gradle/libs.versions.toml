@@ -14,6 +14,7 @@ assertj                = "3.27.7"
 ktlint-plugin          = "14.2.0"
 clikt                  = "5.1.0"
 graalvm-native         = "0.10.6"
+vanniktech-publish     = "0.30.0"
 
 [libraries]
 # ── Compose / Kuiver ─────────────────────────────────────────────────────────
@@ -70,3 +71,4 @@ compose-multiplatform   = { id = "org.jetbrains.compose",                       
 compose-compiler        = { id = "org.jetbrains.kotlin.plugin.compose",           version.ref = "kotlin" }
 ktlint                  = { id = "org.jlleitschuh.gradle.ktlint",                 version.ref = "ktlint-plugin" }
 graalvm-native          = { id = "org.graalvm.buildtools.native",                 version.ref = "graalvm-native" }
+vanniktech-publish      = { id = "com.vanniktech.maven.publish",                  version.ref = "vanniktech-publish" }
