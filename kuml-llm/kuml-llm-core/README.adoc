@@ -19,20 +19,35 @@ Commit: `fc1a8ba`.
 | Type | Description
 
 | `LlmBackend`
-| Provider-agnostic backend interface: `suspend fun complete(messages: List<LlmMessage>): LlmResponse`.
+| Provider-agnostic backend interface: `fun complete(messages: List<LlmMessage>, systemPrompt: String? = null): LlmResponse`. Synchronous — callers wrap in their own coroutine context if needed.
 
 | `LlmMessage`
-| Role + content pair (`SYSTEM`, `USER`, `ASSISTANT`).
+| `data class LlmMessage(val role: String, val content: String)`. Role is a plain string — by convention `"user"` or `"assistant"`. System prompts are passed *separately* to `complete(...)`, not as a message.
 
 | `LlmResponse`
-| Completion text + optional token-usage metadata.
+| `data class LlmResponse(val content: String, val model: String, val inputTokens: Int, val outputTokens: Int)`.
 
 | `LlmMockBackend`
-| Deterministic mock backend (returns canned responses keyed by prompt prefix) for unit tests and offline benchmark runs.
+| Deterministic mock backend (returns a fixed response) for unit tests and offline benchmark runs.
 
 | `LlmException`
 | Unrecoverable backend error (HTTP failure, malformed response, rate-limit, …).
 |===
+
+== Usage
+
+[source,kotlin]
+----
+val backend: LlmBackend = LlmMockBackend()   // or AnthropicBackend(apiKey = …)
+
+val response = backend.complete(
+    messages = listOf(
+        LlmMessage(role = "user", content = "Generate an Order class with id and status."),
+    ),
+    systemPrompt = "You are a kUML model generator. Respond ONLY with the script.",
+)
+println(response.content)
+----
 
 == Implementations
 
@@ -41,7 +56,8 @@ Commit: `fc1a8ba`.
 
 == Dependencies
 
-* Kotlin stdlib + `kotlinx-coroutines-core` only
+* Kotlin stdlib
+* `kotlinx-serialization-json` (for downstream backends; the interface itself is plain Kotlin)
 
 == License
 

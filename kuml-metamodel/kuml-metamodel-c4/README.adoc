@@ -31,13 +31,20 @@ All C4 builders are available inside `c4Model { }` lambdas (provided by `kuml-co
 
 [source,kotlin]
 ----
-// no imports needed in *.kuml.kts
-c4Model("Internet Banking") {
-    val customer = person("Personal Banking Customer")
-    val banking  = softwareSystem("Internet Banking System")
-    relationship(customer, banking, "Views account balances and makes payments")
+// no imports needed in *.kuml.kts — c4 DSL is in defaultImports (V1.0+)
+c4Model(name = "Internet Banking") {
+    val customer = person(name = "Personal Banking Customer") {
+        description = "A bank customer"
+    }
+    val banking = softwareSystem(name = "Internet Banking System") {
+        description = "Allows customers to view information and make payments"
+    }
 
-    systemContextDiagram("System Context") {
+    relationship(source = customer, target = banking) {
+        technology = "Views account balances and makes payments"
+    }
+
+    systemContextDiagram(name = "System Context") {
         include(customer, banking)
     }
 }

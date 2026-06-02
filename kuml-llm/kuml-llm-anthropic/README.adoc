@@ -18,7 +18,7 @@ Commit: `fc1a8ba`.
 | Setting | Default
 
 | Model
-| `claude-3-5-haiku-20241022`
+| `claude-haiku-4-5-20251001` (V1.0 default — `claude-3-5-haiku-20241022` was retired)
 
 | API endpoint
 | `https://api.anthropic.com/v1/messages`
@@ -28,6 +28,12 @@ Commit: `fc1a8ba`.
 
 | API version header
 | `anthropic-version: 2023-06-01`
+
+| Max tokens (response)
+| `2048` (override via the `maxTokens` ctor parameter)
+
+| Request timeout
+| `60s` (override via the `timeoutSeconds` ctor parameter)
 |===
 
 == Usage
@@ -36,16 +42,17 @@ Commit: `fc1a8ba`.
 ----
 val backend: LlmBackend = AnthropicBackend(
     apiKey  = System.getenv("ANTHROPIC_API_KEY"),
-    modelId = "claude-3-5-haiku-20241022"
+    modelId = AnthropicBackend.DEFAULT_MODEL,   // or any current Claude id
 )
 
+// System prompt is a separate parameter, NOT a LlmMessage with role "system".
 val response = backend.complete(
-    listOf(
-        LlmMessage(LlmRole.SYSTEM, "You are a kUML model generator."),
-        LlmMessage(LlmRole.USER,   "Generate an Order class with id and status.")
-    )
+    messages = listOf(
+        LlmMessage(role = "user", content = "Generate an Order class with id and status.")
+    ),
+    systemPrompt = "You are a kUML model generator. Respond ONLY with the script."
 )
-println(response.text)
+println(response.content)
 ----
 
 == Dependencies

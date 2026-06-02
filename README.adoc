@@ -25,31 +25,31 @@ kUML closes this gap: a real modelling tool, expressed as Kotlin source code, fu
 
 [source,kotlin]
 ----
-// order-domain.kuml.kts
-umlModel("Order Domain") {
-
-    val status = enumOf("OrderStatus") {
-        literal("DRAFT"); literal("CONFIRMED"); literal("SHIPPED"); literal("CANCELLED")
+// order-domain.kuml.kts — no imports needed, kUML scripting host provides them
+classDiagram(name = "Order Domain") {
+    val status = enumOf(name = "OrderStatus") {
+        literal(name = "DRAFT")
+        literal(name = "CONFIRMED")
+        literal(name = "SHIPPED")
+        literal(name = "CANCELLED")
     }
 
-    `package`("domain") {
-        classOf("Order") {
-            attribute("id",     type = "UUID")
-            attribute("status", type = status)
-            operation("confirm")
-            operation("cancel")
-        }
-        classOf("OrderItem") {
-            attribute("quantity",  type = "Int")
-            attribute("unitPrice", type = "BigDecimal")
-        }
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "status", type = status)        // enum val used as attribute type
+        operation(name = "confirm")
+        operation(name = "cancel")
     }
 
-    association(sourceId = "domain::Order", targetId = "domain::OrderItem") {
-        name       = "contains"
+    val orderItem = classOf(name = "OrderItem") {
+        attribute(name = "quantity", type = "Int")
+        attribute(name = "unitPrice", type = "BigDecimal")
+    }
+
+    association(source = order, target = orderItem) {
         aggregation = AggregationKind.COMPOSITE
-        source { multiplicity("1") }
-        target { multiplicity("1..*") }
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "1..*"); role = "items" }
     }
 }
 ----
