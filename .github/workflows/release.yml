@@ -67,9 +67,40 @@ jobs:
           generate_release_notes: false
           fail_on_unmatched_files: true
 
+      - name: Compute release-zip URL
+        id: url
+        run: |
+          ZIP_NAME=$(basename "${{ steps.sha.outputs.zip }}")
+          echo "url=${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/$ZIP_NAME" >> $GITHUB_OUTPUT
+
+      - name: Strip leading 'v' from tag
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Dispatch Homebrew tap update
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: kuml-dev/homebrew-kuml
+          event-type: kuml-release
+          client-payload: |-
+            {
+              "version": "${{ steps.ver.outputs.version }}",
+              "url":     "${{ steps.url.outputs.url }}",
+              "sha256":  "${{ steps.sha.outputs.sha256 }}"
+            }
+
       - name: Print Homebrew formula update hint
         run: |
-          echo "### Homebrew update"            >> $GITHUB_STEP_SUMMARY
-          echo "Update Formula/kuml.rb:"        >> $GITHUB_STEP_SUMMARY
-          echo "  url    = ${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/$(basename ${{ steps.sha.outputs.zip }})" >> $GITHUB_STEP_SUMMARY
-          echo "  sha256 = ${{ steps.sha.outputs.sha256 }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Homebrew update" >> $GITHUB_STEP_SUMMARY
+          echo "version = ${{ steps.ver.outputs.version }}"   >> $GITHUB_STEP_SUMMARY
+          echo "url     = ${{ steps.url.outputs.url }}"       >> $GITHUB_STEP_SUMMARY
+          echo "sha256  = ${{ steps.sha.outputs.sha256 }}"    >> $GITHUB_STEP_SUMMARY
+          if [ -z "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]; then
+            echo "_HOMEBREW_TAP_TOKEN not set — formula not auto-updated. Edit Formula/kuml.rb in kuml-dev/homebrew-kuml manually._" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "_Dispatched to kuml-dev/homebrew-kuml — see its Actions tab for the formula bump._" >> $GITHUB_STEP_SUMMARY
+          fi
