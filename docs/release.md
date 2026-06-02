@@ -57,7 +57,7 @@ The tap [`kuml-dev/homebrew-kuml`](https://github.com/kuml-dev/homebrew-kuml) is
 seeded with the initial formula and its own `update-formula.yml` workflow that
 listens for `repository_dispatch` events of type `kuml-release`.
 
-To wire the main release workflow into it, create a fine-grained PAT with
+To wire the release workflow in this repo into it, create a fine-grained PAT with
 **write access to `kuml-dev/homebrew-kuml`** and store it as a secret in this
 repo:
 
@@ -67,7 +67,7 @@ repo:
 
 Once set, every `v*.*.*` tag here triggers the formula bump in the tap
 automatically — no manual `brew bump-formula-pr` needed. If the secret is
-absent, the main workflow degrades gracefully: it prints the new `url` /
+absent, the workflow degrades gracefully: it prints the new `url` /
 `sha256` in its job summary and leaves the formula edit to a human.
 
 Users then install via:
@@ -86,7 +86,7 @@ git commit -am "release: 0.1.0"
 
 # 2. Tag
 git tag -a v0.1.0 -m "kUML 0.1.0 — first public release"
-git push origin main v0.1.0
+git push origin master v0.1.0
 ```
 
 The `release.yml` workflow then:

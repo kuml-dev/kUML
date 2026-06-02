@@ -192,6 +192,19 @@ kuml/
 
 ---
 
+## Git-/Repository-Konventionen
+
+> [!important] Default-Branch: **`master`** — niemals `main`
+> In **allen** kUML-Repos (`kuml-dev/kuml`, `kuml-dev/homebrew-kuml` und alle künftigen) ist der Default-Branch `master`. Workflows, Doku, Skripte und Examples verwenden ausschließlich `master`.
+>
+> Konkret:
+> - GitHub Actions `on.push.branches` / `on.pull_request.branches` → `[ master ]`
+> - `git push origin master`, `git checkout master` in Doku
+> - Release-Workflows triggern auf Tags (`v*.*.*`) — die Branch-Frage entfällt dort ohnehin
+> - Neue Repos: nach `git init` direkt `git branch -m main master` und `gh repo edit --default-branch master`
+
+---
+
 ## Kotlin-Coding-Konventionen
 
 ### 1. Named Parameters — PFLICHT
