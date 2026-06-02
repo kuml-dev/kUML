@@ -1,0 +1,68 @@
+# kuml-mcp
+
+![kUML](../docs/images/kuml-logo-simple.png)
+
+**Model Context Protocol (MCP) server for kUML.**
+
+A stdio-based JSON-RPC 2.0 server implementing the
+[MCP Protocol 2024-11-05](https://spec.modelcontextprotocol.io/), exposing the
+kUML toolchain to MCP-aware clients (Claude Desktop, Cursor, Continue, …).
+The server shares its model-evaluation pipeline with `kuml-cli` via the public
+`DiagramExtractor` API in `kuml-core-script`.
+
+Commit: `b776341`.
+
+## Tools
+
+| Tool                  | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `kuml.render`         | Render a `*.kuml.kts` model to SVG or PNG (returns base64 for PNG).               |
+| `kuml.validate`       | Run OCL constraints against the model; returns `{violations: [...]}`.             |
+| `kuml.list_elements`  | List every classifier / package / relationship in the model with a stable ID.    |
+| `kuml.describe`       | Return the structured representation of a single element by ID.                   |
+| `kuml.generate`       | Run a `KumlCodeGenerator` plugin (e.g. `kotlin`) and return the generated files.  |
+
+## Build
+
+```bash
+./gradlew :kuml-mcp:installDist
+```
+
+Binary will be installed at:
+
+```
+kuml-mcp/build/install/kuml-mcp/bin/kuml-mcp
+```
+
+## Claude Desktop / Cursor Configuration
+
+Add to your MCP client configuration:
+
+```json
+{
+  "mcpServers": {
+    "kuml": {
+      "command": "/path/to/kuml-mcp/bin/kuml-mcp"
+    }
+  }
+}
+```
+
+## Protocol
+
+* Transport: **stdio**, newline-delimited JSON
+* JSON-RPC 2.0
+* MCP Protocol version: `2024-11-05`
+* Each line on `stdin` is a single JSON request; each line on `stdout` is a single JSON response
+* Logs and diagnostics go to `stderr` (never `stdout` — that channel is reserved for protocol traffic)
+
+## Dependencies
+
+* `kuml-core-script` — model evaluation via `DiagramExtractor`
+* `kuml-core-ocl` — `kuml.validate` tool backend
+* `kuml-io-svg` / `kuml-io-png` — rendering
+* `kuml-codegen-api` + `kuml-gen-kotlin` — `kuml.generate` tool
+
+## License
+
+Apache 2.0 — see [LICENSE](../LICENSE).

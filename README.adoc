@@ -81,6 +81,31 @@ kuml render order-domain.kuml.kts --format svg
 | Object Constraint Language constraints directly on the Kotlin model.
 |===
 
+== CLI Commands
+
+[cols="1,3"]
+|===
+| Command | Description
+
+| `kuml render`
+| Render a `*.kuml.kts` model to SVG or PNG (ELK layout + KumlSvgRenderer / KumlPngRenderer).
+
+| `kuml watch`
+| Re-render on file change; 500 ms polling, never exits on script errors.
+
+| `kuml validate`
+| Evaluate OCL `constraint(name, body)` declarations; `--output text\|json`, exit code `4` on violations.
+
+| `kuml fmt`
+| Idempotent text formatter for `*.kuml.kts`; `--check` mode exits `5` if reformat needed.
+
+| `kuml generate`
+| Code generation via plugin (`--plugin kotlin` ships built-in).
+
+| `kuml completion`
+| Emit shell completion scripts for `bash`, `zsh`, or `fish` (Clikt built-in).
+|===
+
 == Roadmap
 
 [cols="1,4,1"]
@@ -99,10 +124,11 @@ SVG export + PNG export (Batik)
 | ✅ Done
 
 | *Phase 2*
-| CLI (`render` ✅, `watch` ✅, `validate` 🚧, `fmt` 🚧, `import` 📋, `generate` 📋) +
-OCL subset 📋 + Markdown code block 📋 + MCP server 📋 +
-`kuml-gen-kotlin` 📋 + GraalVM Native Image 📋 + Maven Central 📋 + Homebrew 📋
-| 🚧 In Progress
+| CLI (`render` ✅, `watch` ✅, `validate` ✅, `fmt` ✅, `generate` ✅, `completion` ✅, `import` 📋) +
+OCL subset ✅ + Markdown code block 📋 + MCP server ✅ +
+`kuml-gen-kotlin` ✅ + LLM Benchmark ✅ + GraalVM Native Image 🚧 (deferred V1.1, ADR-0009) +
+Maven Central 📋 + Homebrew 📋
+| 🚧 ~85% Complete
 
 | *V1.1*
 | Remaining 9 UML diagram types, profiles, Gradle plugin, AsciiDoc, IDE plugin, `kuml simulate`
@@ -120,8 +146,8 @@ OCL subset 📋 + Markdown code block 📋 + MCP server 📋 +
 kuml-core/
   kuml-core-model    ✅  Sealed Kotlin metamodel base types
   kuml-core-dsl      ✅  DSL builders: UML (5 types) + C4 (6 builders)
-  kuml-core-script   ✅  Kotlin Scripting host + KumlScriptDefinition
-  kuml-core-ocl      📋  OCL subset interpreter (Phase 2)
+  kuml-core-script   ✅  Kotlin Scripting host + KumlScriptDefinition + DiagramExtractor
+  kuml-core-ocl      ✅  OCL subset interpreter (navigation, forAll, exists, implies, …)
 
 kuml-metamodel/
   kuml-metamodel-uml ✅  UML 2.x sealed hierarchy + serialization
@@ -142,15 +168,25 @@ kuml-io/
 kuml-cli/            ✅  Command-line interface
   render             ✅  kuml render model.kuml.kts [--format svg|png]
   watch              ✅  kuml watch model.kuml.kts  (live-reload, 500ms polling)
-  validate           📋  kuml validate model.kuml.kts --output json
-  fmt                📋  kuml fmt model.kuml.kts
+  validate           ✅  kuml validate model.kuml.kts --output text|json
+  fmt                ✅  kuml fmt model.kuml.kts [--check]
+  generate           ✅  kuml generate --plugin kotlin model.kuml.kts
+  completion         ✅  kuml completion bash|zsh|fish
   import             📋  kuml import --format structurizr workspace.dsl
-  generate           📋  kuml generate --plugin kotlin
 
-kuml-mcp/            📋  MCP server (Stdio transport, Phase 2)
+kuml-mcp/            ✅  MCP server — stdio JSON-RPC 2.0, Protocol 2024-11-05, 5 tools
+
+kuml-codegen/
+  kuml-codegen-api   ✅  KumlCodeGenerator plugin interface
+  kuml-gen-kotlin    ✅  Built-in Kotlin code generator (data class / interface / enum)
+
+kuml-llm/
+  kuml-llm-core      ✅  LlmBackend interface + LlmMockBackend
+  kuml-llm-anthropic ✅  Claude API backend via JDK HttpClient (no extra deps)
+  kuml-llm-bench     ✅  10-task benchmark suite (kUML/PlantUML/Mermaid, DE+EN)
+
 kuml-docs/           📋  Markdown / Pandoc / Obsidian integrations (Phase 2)
-kuml-llm/            📋  LLM backend interface + Claude adapter + benchmark (Phase 2)
-kuml-packaging/      📋  GraalVM Native Image + Homebrew formula (Phase 2)
+kuml-packaging/      🚧  GraalVM Native Image infrastructure done; full native deferred V1.1 (ADR-0009)
 ----
 
 == License

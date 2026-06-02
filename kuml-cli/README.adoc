@@ -34,6 +34,56 @@ kuml watch order.kuml.kts --format png -o out.png
 Renders immediately on start, then re-renders on every file change (polls `lastModified` every 500 ms).
 Script and I/O errors are printed with a timestamp but the watch loop continues — it never exits on error.
 
+=== `kuml validate`
+
+[source,bash]
+----
+kuml validate order.kuml.kts                       # text output, exit 4 on violations
+kuml validate order.kuml.kts --output json         # machine-readable JSON
+kuml validate order.kuml.kts -o text
+----
+
+Evaluates all `constraint(name, body)` declarations attached to `UmlClass` / `UmlInterface` against the model.
+Backed by `kuml-core-ocl` (recursive-descent parser, supports navigation, `->size()`, `->forAll`, `->exists`, `->isEmpty`, `->includes`, `implies`, comparison + logic operators).
+
+Exits `4` if any constraint is violated.
+
+=== `kuml fmt`
+
+[source,bash]
+----
+kuml fmt order.kuml.kts                            # rewrite in place (idempotent)
+kuml fmt order.kuml.kts --check                    # exit 5 if formatting would change
+kuml fmt *.kuml.kts
+----
+
+Canonical text formatter. The formatter is idempotent — running it twice yields the same output.
+`--check` makes it CI-friendly: exits `5` when reformatting is required, without touching the file.
+
+=== `kuml generate`
+
+[source,bash]
+----
+kuml generate --plugin kotlin order.kuml.kts                       # → ./generated/
+kuml generate --plugin kotlin --package com.example.domain order.kuml.kts
+kuml generate --plugin kotlin -o build/generated order.kuml.kts
+----
+
+Runs a `KumlCodeGenerator` plugin against the evaluated model. The built-in `kotlin` plugin
+(from `kuml-codegen/kuml-gen-kotlin`) emits `data class` for `UmlClass`, `interface` for
+`UmlInterface`, and `enum class` for `UmlEnumeration`, respecting multiplicity and inheritance.
+
+=== `kuml completion`
+
+[source,bash]
+----
+kuml completion bash > /etc/bash_completion.d/kuml
+kuml completion zsh  > "${fpath[1]}/_kuml"
+kuml completion fish > ~/.config/fish/completions/kuml.fish
+----
+
+Emits a shell-completion script for `bash`, `zsh`, or `fish` (Clikt built-in `CompletionCommand`).
+
 == Options (render + watch)
 
 [cols="1,1,3"]
@@ -74,6 +124,12 @@ Script and I/O errors are printed with a timestamp but the watch loop continues 
 
 | `3`
 | I/O error (`render` only)
+
+| `4`
+| OCL constraint violation (`validate` only)
+
+| `5`
+| Formatting would change file (`fmt --check` only)
 |===
 
 NOTE: `kuml watch` never exits with code 2 or 3 — errors are logged and the loop continues.
