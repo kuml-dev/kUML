@@ -44,17 +44,17 @@ All functions are available inside `diagram { }` and `umlModel { }` lambdas.
 | `` `package`(name) { … } `` / `packageOf(name)`
 | Builds a `UmlPackage`. Contents can be nested packages, classes, interfaces, enumerations.
 
-| `association(sourceId, targetId) { … }`
-| Builds a `UmlAssociation`. Also accepts classifier handles: `association(source = cls, target = iface)`.
+| `association(source, target) { … }`
+| Builds a `UmlAssociation`. Pass classifier `val`-handles (preferred) or a `(sourceId, targetId)` `String` pair.
 
-| `generalization(specificId, generalId)`
-| Builds a `UmlGeneralization` (inheritance arrow).
+| `generalization(specific, general)`
+| Builds a `UmlGeneralization` (inheritance arrow). Same overload shape as `association`.
 
-| `realization(implementingId, interfaceId)`
-| Builds a `UmlInterfaceRealization` (dashed arrow with open triangle).
+| `realization(implementing, iface)`
+| Builds a `UmlInterfaceRealization` (dashed arrow with open triangle). Same overload shape.
 
-| `dependency(clientId, supplierId)`
-| Builds a `UmlDependency` (dashed open arrow).
+| `dependency(client, supplier)`
+| Builds a `UmlDependency` (dashed open arrow). Same overload shape.
 |===
 
 Inside `classOf { }` and `interfaceOf { }`:
@@ -63,52 +63,81 @@ Inside `classOf { }` and `interfaceOf { }`:
 |===
 | Function | Description
 
-| `attribute(name, type)`
-| Adds a `UmlProperty`. Type accepts a `String` name or a classifier handle.
+| `attribute(name = "…", type = "…")`
+| Adds a `UmlProperty`. `type` accepts a `String` name *or* a classifier handle (e.g. an `enumOf` val).
 
-| `operation(name) { parameter(…) }`
-| Adds a `UmlOperation`. Parameters drive overload disambiguation in the element ID.
+| `operation(name = "…") { … }`
+| Adds a `UmlOperation`. Inside the body: `parameter(name = "…", type = "…")` drives overload disambiguation in the element ID. Set the return type with `returns(typeName = "…")`.
 
-| `extends(generalId)` / `extends(handle)`
-| Records an inline generalization (propagated to diagram/model scope).
+| `extends(general = parentVal)`
+| Records an inline generalization (propagated to the diagram/model scope).
 
-| `implements(interfaceId)` / `implements(handle)`
+| `implements(iface = interfaceVal)`
 | Records an inline interface realization.
+
+| `isAbstract = true`
+| Marks the class as abstract. Property assignment inside the body, not a constructor argument.
 |===
 
 == Usage
 
+The kUML DSL convention (see `CLAUDE.md`) is *named parameters everywhere* —
+classifier references are first-class `val` values, not `"namespace::Id"` strings.
+
 [source,kotlin]
 ----
 // order-domain.kuml.kts — no imports needed (KumlScriptDefinition provides them)
-umlModel("Order Domain") {
+umlModel(name = "Order Domain") {
 
-    val status = enumOf("OrderStatus") {
-        literal("DRAFT"); literal("CONFIRMED"); literal("SHIPPED")
+    val status = enumOf(name = "OrderStatus") {
+        literal(name = "DRAFT")
+        literal(name = "CONFIRMED")
+        literal(name = "SHIPPED")
     }
 
-    `package`("domain") {
-        classOf("Order") {
-            attribute("id",     type = "UUID")
-            attribute("status", type = status)   // handle — sets referencedId automatically
-            operation("confirm")
-            operation("find") { parameter("id", "Long"); returns("Order") }
-        }
-        interfaceOf("IOrderRepo") {
-            operation("findById") { parameter("id", "Long") }
+    val orderRepoIface = interfaceOf(name = "IOrderRepo") {
+        operation(name = "findById") {
+            parameter(name = "id", type = "Long")
+            returns(typeName = "Order")
         }
     }
 
-    association(sourceId = "domain::Order", targetId = "domain::OrderItem") {
-        name        = "contains"
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "status", type = status)             // enum val used as attribute type
+        operation(name = "confirm")
+        operation(name = "find") {
+            parameter(name = "id", type = "Long")
+            returns(typeName = "Order")
+        }
+    }
+
+    val orderItem = classOf(name = "OrderItem") {
+        attribute(name = "quantity", type = "Int")
+        attribute(name = "unitPrice", type = "BigDecimal")
+    }
+
+    classOf(name = "OrderRepo") {
+        implements(iface = orderRepoIface)                    // realization without strings
+    }
+
+    association(source = order, target = orderItem) {
         aggregation = AggregationKind.COMPOSITE
-        source { multiplicity("1") }
-        target { multiplicity("1..*") }
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "1..*"); role = "items" }
     }
-
-    realization(implementingId = "domain::OrderRepo", interfaceId = "domain::IOrderRepo")
 }
 ----
+
+NOTE: Relationships (`association`, `generalization`, `realization`, `dependency`)
+live on `UmlModelScope` — call them at the top level of `umlModel { … }` or
+`classDiagram { … }`, *not* inside a `\`package\`(…) { }` block. If you nest
+classes inside packages, pass the classifier `val`s back out by capturing them
+above the package block (or use the `sourceId`/`targetId` `String` overloads).
+
+NOTE: `umlModel { … }` returns a `KumlModel`. Use it for multi-diagram model
+files. For a single-diagram script intended for `kuml render`, use
+`classDiagram(name = "…") { … }` instead — it returns a `KumlDiagram` directly.
 
 == DSL Scope Safety
 
@@ -117,9 +146,9 @@ This prevents accidentally calling an outer-scope builder inside an inner lambda
 
 [source,kotlin]
 ----
-diagram(name = "Test") {
-    classOf("A") {
-        classOf("B") { }  // ← compile error: @DslMarker prevents implicit outer scope call
+classDiagram(name = "Scope demo") {
+    classOf(name = "A") {
+        classOf(name = "B") { }  // ← compile error: @DslMarker prevents implicit outer scope call
     }
 }
 ----

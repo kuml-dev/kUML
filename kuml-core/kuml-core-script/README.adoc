@@ -13,13 +13,15 @@ Kotlin Scripting host for `*.kuml.kts` files. Provides `KumlScriptDefinition`
 the following default imports, so no explicit `import` statements are needed
 in script files:
 
-* `dev.kuml.core.model.*` — `KumlModel`, `DiagramType`, `ModelLevel`, `KumlMetaValue`, …
+* `dev.kuml.core.model.*` — `KumlModel`, `KumlDiagram`, `DiagramType`, `ModelLevel`, …
 * `dev.kuml.core.model.DiagramType.*` — enum constants
 * `dev.kuml.core.dsl.*` — `diagram(…)` entry point
-* `dev.kuml.uml.dsl.*` — `umlModel`, `classOf`, `interfaceOf`, `enumOf`, `` `package` ``, `association`, …
+* `dev.kuml.uml.dsl.*` — `umlModel`, `classDiagram`, `classOf`, `interfaceOf`, `enumOf`, `` `package` ``, `association`, …
 * `dev.kuml.uml.*` — `UmlClass`, `UmlInterface`, `Visibility`, `AggregationKind`, …
 * `dev.kuml.uml.Visibility.*` — visibility enum constants
 * `dev.kuml.uml.AggregationKind.*` — aggregation enum constants
+* `dev.kuml.c4.dsl.*` *(V1.0+)* — `c4Model`, `person`, `softwareSystem`, `container`, `relationship`, `systemContextDiagram`, …
+* `dev.kuml.c4.model.*` *(V1.0+)* — `C4Person`, `C4SoftwareSystem`, `C4Model`, …
 
 `KumlScriptHost` wraps `BasicJvmScriptingHost` and exposes two `eval` overloads
 — one for files, one for inline strings.
@@ -28,21 +30,37 @@ in script files:
 
 === Script file (`hello.kuml.kts`)
 
+The project convention (see `CLAUDE.md`) is *named parameters everywhere* and
+classifier references as first-class `val`s — not `"namespace::Id"` strings.
+
 [source,kotlin]
 ----
 // No imports needed — everything is in scope via KumlScriptDefinition
-umlModel("Order Domain") {
-    val status = enumOf("OrderStatus") {
-        literal("DRAFT")
-        literal("CONFIRMED")
+classDiagram(name = "Order Domain") {
+    val status = enumOf(name = "OrderStatus") {
+        literal(name = "DRAFT")
+        literal(name = "CONFIRMED")
     }
-    classOf("Order") {
-        attribute("id", type = "UUID")
-        attribute("status", type = status)
-        operation("confirm")
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "status", type = status)
+        operation(name = "confirm")
+    }
+    val orderItem = classOf(name = "OrderItem") {
+        attribute(name = "quantity", type = "Int")
+    }
+    association(source = order, target = orderItem) {
+        aggregation = AggregationKind.COMPOSITE
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "1..*") }
     }
 }
 ----
+
+NOTE: Ending the script with `classDiagram { … }` returns a `KumlDiagram`,
+which `kuml render` and `DiagramExtractor.extract` can consume directly.
+Multi-diagram model files use `umlModel(name = "…") { … }` (returns a
+`KumlModel`) or `c4Model(name = "…") { … }` (returns a `C4Model`).
 
 === Evaluating from Kotlin
 
@@ -62,9 +80,10 @@ check(errors.isEmpty()) { errors.joinToString("\n") }
 
 `KumlScriptHost` uses `dependenciesFromCurrentContext(wholeClasspath = true)`.
 This means the JVM classpath at evaluation time is passed to the script compiler.
-`kuml-core-model`, `kuml-core-dsl`, and `kuml-metamodel-uml` must therefore be on
-the calling application's classpath — which is guaranteed when depending on this
-module, since all three are declared as `api` dependencies transitively.
+`kuml-core-model`, `kuml-core-dsl`, `kuml-metamodel-uml`, and `kuml-metamodel-c4`
+must therefore be on the calling application's classpath — which is guaranteed
+when depending on this module, since all four are declared as `api`
+dependencies transitively.
 
 == Installation
 
@@ -72,7 +91,8 @@ module, since all three are declared as `api` dependencies transitively.
 ----
 dependencies {
     implementation("dev.kuml:kuml-core-script:0.1.0")
-    // kuml-core-model, kuml-core-dsl, and kuml-metamodel-uml are exposed transitively via api()
+    // kuml-core-model, kuml-core-dsl, kuml-metamodel-uml, and kuml-metamodel-c4
+    // are exposed transitively via api()
 }
 ----
 
