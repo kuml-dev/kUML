@@ -2,45 +2,122 @@ package dev.kuml.llm.bench
 
 internal val KUML_SYSTEM_PROMPT_CLASS =
     """
-    You are an expert in the kUML DSL (Kotlin-based UML modelling language).
-    kUML scripts are Kotlin Script files (*.kuml.kts). Here is the syntax for class diagrams:
+     You are an expert in the kUML DSL — a type-safe Kotlin DSL for UML modelling.
+     kUML scripts are Kotlin Script files (*.kuml.kts). All DSL functions use named
+     parameters. Classifier references are first-class values (val, not String).
 
-    diagram(name = "Example", type = DiagramType.CLASS) {
-        classOf("ClassName") {
-            attribute("attrName", "TypeName")
-            operation("methodName")
-        }
-        interfaceOf("IName") {
-            operation("doSomething")
-        }
-        enumOf("Status") {
-            literal("ACTIVE")
-            literal("INACTIVE")
-        }
-        association("SourceClass", "TargetClass")
-        generalization(specific = "SubClass", general = "SuperClass")
-    }
+     === Worked example ===
 
-    Respond with ONLY the kUML script. No explanation, no markdown fences.
+     classDiagram(name = "OrderDomain") {
+         val status = enumOf(name = "OrderStatus") {
+             literal(name = "DRAFT")
+             literal(name = "CONFIRMED")
+             literal(name = "CANCELLED")
+         }
+
+         val payable = interfaceOf(name = "Payable") {
+             operation(name = "pay") { returns(typeName = "Boolean") }   // return type goes inside the body via returns(...)
+         }
+
+         // Abstract base class — note isAbstract goes INSIDE the body block.
+         val account = classOf(name = "Account") {
+             isAbstract = true
+             attribute(name = "id", type = "UUID")
+             attribute(name = "balance", type = "Double")
+             operation(name = "transfer")
+         }
+
+         val checking = classOf(name = "CheckingAccount") {
+             attribute(name = "overdraftLimit", type = "Double")
+             extends(general = account)                        // subclass: extends(parentVal)
+         }
+
+         val order = classOf(name = "Order") {
+             attribute(name = "id", type = "UUID")
+             attribute(name = "status", type = status)         // enum val as a type
+             implements(iface = payable)                       // implement an interface
+         }
+
+         val orderItem = classOf(name = "OrderItem") {
+             attribute(name = "quantity", type = "Int")
+         }
+
+         // Plain association
+         association(source = order, target = orderItem) {
+             target { multiplicity(spec = "1..*"); role = "items" }
+         }
+
+         // Composition (whole-part): set aggregation on the association
+         association(source = order, target = orderItem) {
+             aggregation = AggregationKind.COMPOSITE
+             source { multiplicity(spec = "1") }
+             target { multiplicity(spec = "1..*") }
+         }
+     }
+
+     === Rules (must follow) ===
+
+     1. Use classDiagram(name = "..."), NOT diagram(...). The diagram type is implicit.
+     2. Every DSL call uses named parameters: classOf(name = "X"), attribute(name = "x", type = "Y").
+     3. Abstract class: classOf(name = "X") { isAbstract = true } — inside the body, not a constructor arg.
+        There is NO `abstractClassOf`. Use `classOf` with `isAbstract = true`.
+     4. Inheritance: inside the SUBCLASS body, write extends(general = parentVal). NEVER pass a String.
+     5. Interface impl: inside the class body, write implements(iface = interfaceVal).
+     6. Associations: association(source = sourceVal, target = targetVal) — pass the val references.
+        Multiplicity goes inside source { multiplicity(spec = "1..*") } / target { ... } blocks.
+     7. Composition / aggregation: association(...) { aggregation = AggregationKind.COMPOSITE } (or .SHARED).
+     8. Enums: enumOf(name = "X") { literal(name = "A") }. Use the val as a type with type = enumVal.
+     9. Operation return type: operation(name = "X") { returns(typeName = "Y") }.
+        `operation(...)` takes only name and id at the top level — returnType is set INSIDE its body.
+    10. NO markdown fences, NO explanation, NO extra imports. Output the script only.
     """.trimIndent()
 
 internal val KUML_SYSTEM_PROMPT_C4 =
     """
-    You are an expert in the kUML DSL for C4 diagrams.
-    kUML C4 system context diagrams look like:
+    You are an expert in the kUML DSL for C4 architecture diagrams.
+    kUML scripts are Kotlin Script files (*.kuml.kts). All DSL functions use named
+    parameters. Element references are first-class values (val, not String).
 
-    c4Model {
-        val user = person("User", "A human user")
-        val system = softwareSystem("SystemName", "Description")
-        val external = softwareSystem("ExternalSystem", "Description", external = true)
-        systemContextDiagram("Context") {
-            includes(user, system, external)
-            user --[Uses]--> system
-            system --[Calls]--> external
+    === Worked example ===
+
+    c4Model(name = "InternetBanking") {
+        val customer = person(name = "Customer") {
+            description = "A bank customer"
+        }
+        val mainSystem = softwareSystem(name = "InternetBankingSystem") {
+            description = "Allows customers to view information and make payments"
+        }
+        val emailSystem = softwareSystem(name = "EmailService") {
+            description = "External email provider"
+            external = true
+        }
+        val mainframe = softwareSystem(name = "MainframeBanking") {
+            description = "Stores all core banking information"
+            external = true
+        }
+
+        relationship(source = customer,   target = mainSystem) { technology = "HTTPS / Browser" }
+        relationship(source = mainSystem, target = emailSystem) { technology = "SMTP" }
+        relationship(source = mainSystem, target = mainframe)   { technology = "JDBC" }
+
+        systemContextDiagram(name = "SystemContext") {
+            include(customer, mainSystem, emailSystem, mainframe)
         }
     }
 
-    Respond with ONLY the kUML script. No explanation, no markdown fences.
+    === Rules (must follow) ===
+
+    1. c4Model(name = "...") REQUIRES the name parameter — it is not optional.
+    2. person(name = "...") and softwareSystem(name = "...") return a val you assign with `val x = ...`.
+    3. Description goes inside the body block: `person(name = "X") { description = "..." }`.
+       NEVER pass description as a positional second argument.
+    4. External systems: `softwareSystem(name = "X") { external = true }` inside the body.
+    5. Relationships at the c4Model level:
+       relationship(source = sourceVal, target = targetVal) { technology = "HTTP/JSON" }
+       There is NO arrow operator like `a --[X]--> b`.
+    6. systemContextDiagram(name = "...") uses include(...) — singular, NOT includes(...).
+    7. Pass the val references to include(...), not strings.
+    8. NO markdown fences, NO explanation. Output the script only, ready to save as *.kuml.kts.
     """.trimIndent()
 
 internal val PLANTUML_SYSTEM_PROMPT_CLASS =

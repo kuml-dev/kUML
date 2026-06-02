@@ -25,30 +25,47 @@ runner, validators and tasks load and execute.
 ## Live reports
 
 Each live run lives in this directory as
-`benchmark-report-<backend>-<YYYYMMDD>.md`. So far:
+`benchmark-report-<backend>-<YYYYMMDD>[-vN].md`. So far:
 
-| Date       | Model                         | Tool success                          | Overall |
-|------------|-------------------------------|---------------------------------------|---------|
-| 2026-06-02 | `claude-haiku-4-5-20251001`   | kuml 33 % · PlantUML 100 % · Mermaid 100 % | 60 % |
+| Date       | Model                         | Tool success                                | Overall |
+|------------|-------------------------------|---------------------------------------------|---------|
+| 2026-06-02 | `claude-haiku-4-5-20251001` (v2) | kuml 100 % · PlantUML 100 % · Mermaid 100 % | **100 %** |
+| 2026-06-02 | `claude-haiku-4-5-20251001` (v1) | kuml 33 % · PlantUML 100 % · Mermaid 100 %  | 60 % |
 
-→ [`benchmark-report-claude-haiku-4-5-20260602.md`](./benchmark-report-claude-haiku-4-5-20260602.md)
+→ [`benchmark-report-claude-haiku-4-5-20260602-v2.md`](./benchmark-report-claude-haiku-4-5-20260602-v2.md)
+→ [`benchmark-report-claude-haiku-4-5-20260602.md`](./benchmark-report-claude-haiku-4-5-20260602.md) (initial v1)
 
-### Interpretation of the first run
+### From 33 % to 100 % on kUML — what changed
 
-Haiku 4.5 handles the established DSLs (PlantUML, Mermaid) without a hitch
-but stumbles on kUML in two ways:
+The v1 run exposed two real product issues that the original prompts were
+hiding:
 
-1. **Type confusion in extended class diagrams** — passes a `String` where
-   the DSL expects a `UmlClassifier` (e.g. `extends("Order")` instead of
-   `extends(order)`).
-2. **Wrong / missing C4 entrypoints** — emits unqualified calls such as
-   `c4Model { … }` against the wrong scope, or invents pseudo-DSL verbs
-   like `softwareSystem.includes(…)`.
+1. **The kUML system prompts taught a phantom DSL** — they showed
+   `diagram(name=…, type=DiagramType.CLASS)`, `association("Src","Tgt")`,
+   `c4Model {…}` without a `name`, and `a --[X]--> b` arrow operators that
+   simply don't exist. The LLM faithfully reproduced them and the validator
+   correctly rejected the output as uncompilable.
+2. **The script host's `defaultImports` excluded the C4 DSL.** Every C4
+   script was forced to add `import dev.kuml.c4.dsl.*` manually — and the
+   LLM never thought to.
 
-Both failure modes point at the system prompt rather than the model: kUML's
-DSL is new to the training data, so a few-shot prompt with a worked example
-is likely to lift the rate substantially. The benchmark is doing its job —
-this is exactly the signal it was built to produce.
+Both were fixed in V1.0:
+
+- `kuml-core-script` now imports `dev.kuml.c4.dsl.*` and `dev.kuml.c4.model.*`
+  by default. C4 scripts work out of the box.
+- The benchmark system prompts (`KUML_SYSTEM_PROMPT_CLASS` /
+  `KUML_SYSTEM_PROMPT_C4`) now show the real DSL — named parameters
+  everywhere, `isAbstract = true` inside the body, `extends(general = parentVal)`,
+  `aggregation = AggregationKind.COMPOSITE`, `operation(name=…) { returns(typeName=…) }`,
+  `relationship(source=…, target=…) { technology=… }`, `include(…)` not
+  `includes(…)`.
+
+Net effect: the same Haiku-4.5 model went from **33 % → 100 %** on kuml
+without changing the model, the temperature, or the user prompts.
+
+> **Lesson learned:** the v1 result wasn't a failure of the LLM, it was a
+> failure of the prompt being honest about the API. Always benchmark with
+> the same examples you give to humans in `docs/`.
 
 ### Running it yourself
 
