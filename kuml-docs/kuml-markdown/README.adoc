@@ -85,7 +85,7 @@ A standalone Lua filter is shipped under `tools/pandoc/kuml.lua`:
 pandoc --lua-filter=tools/pandoc/kuml.lua docs/page.md -o docs/page.html
 ----
 
-See `tools/pandoc/README.md` for details.
+See `tools/pandoc/README.adoc` for details.
 
 == Block syntax
 

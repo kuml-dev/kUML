@@ -1,0 +1,103 @@
+= kUML LLM Benchmark
+:toc:
+:source-highlighter: rouge
+
+The benchmark suite measures how reliably an LLM emits *valid* modelling DSL
+for three target languages — kuml, PlantUML, and Mermaid — across 10 tasks in
+German and English.
+
+== What it measures
+
+* *Valid syntax* (script compiles / fences match)
+* *Schema fidelity* (required diagram elements present)
+* *Per-tool success rate* (head-to-head: kuml vs. PlantUML vs. Mermaid)
+
+== Mock report (in-repo)
+
+A mock run shipped at link:./benchmark-report-mock.md[`benchmark-report-mock.md`]
+uses `LlmMockBackend` to validate the harness itself. It is *not* a benchmark
+of any real LLM — it's a reproducible smoke test that the runner, validators
+and tasks load and execute.
+
+[NOTE]
+The mock backend returns the canonical reference solution for each kuml task
+and a deliberately broken stub for PlantUML / Mermaid tasks, so the mock
+result shows kUML at 100 % and the others at 0 %. *This is the harness
+verifying itself, not the LLM.*
+
+== Live reports
+
+Each live run lives in this directory as
+`benchmark-report-<backend>-<YYYYMMDD>[-vN].md`. So far:
+
+[cols="1,2,3,1", options="header"]
+|===
+| Date       | Model                            | Tool success                                | Overall
+
+| 2026-06-02 | `claude-haiku-4-5-20251001` (v2) | kuml 100 % · PlantUML 100 % · Mermaid 100 % | *100 %*
+| 2026-06-02 | `claude-haiku-4-5-20251001` (v1) | kuml 33 % · PlantUML 100 % · Mermaid 100 %  | 60 %
+|===
+
+→ link:./benchmark-report-claude-haiku-4-5-20260602-v2.md[`benchmark-report-claude-haiku-4-5-20260602-v2.md`]
+
+→ link:./benchmark-report-claude-haiku-4-5-20260602.md[`benchmark-report-claude-haiku-4-5-20260602.md`] (initial v1)
+
+=== From 33 % to 100 % on kUML — what changed
+
+The v1 run exposed two real product issues that the original prompts were
+hiding:
+
+. *The kUML system prompts taught a phantom DSL* — they showed
+  `diagram(name=…, type=DiagramType.CLASS)`, `association("Src","Tgt")`,
+  `c4Model {…}` without a `name`, and `a --[X]--> b` arrow operators that
+  simply don't exist. The LLM faithfully reproduced them and the validator
+  correctly rejected the output as uncompilable.
+. *The script host's `defaultImports` excluded the C4 DSL.* Every C4 script
+  was forced to add `import dev.kuml.c4.dsl.*` manually — and the LLM never
+  thought to.
+
+Both were fixed in V1.0:
+
+* `kuml-core-script` now imports `dev.kuml.c4.dsl.*` and `dev.kuml.c4.model.*`
+  by default. C4 scripts work out of the box.
+* The benchmark system prompts (`KUML_SYSTEM_PROMPT_CLASS` /
+  `KUML_SYSTEM_PROMPT_C4`) now show the real DSL — named parameters
+  everywhere, `isAbstract = true` inside the body, `extends(general = parentVal)`,
+  `aggregation = AggregationKind.COMPOSITE`, `operation(name=…) { returns(typeName=…) }`,
+  `relationship(source=…, target=…) { technology=… }`, `include(…)` not
+  `includes(…)`.
+
+Net effect: the same Haiku-4.5 model went from *33 % → 100 %* on kuml
+without changing the model, the temperature, or the user prompts.
+
+[TIP]
+*Lesson learned:* the v1 result wasn't a failure of the LLM, it was a failure
+of the prompt being honest about the API. Always benchmark with the same
+examples you give to humans in `docs/`.
+
+=== Running it yourself
+
+[source,bash]
+----
+export ANTHROPIC_API_KEY=sk-...
+./gradlew :kuml-llm:kuml-llm-bench:run
+cp kuml-llm/kuml-llm-bench/benchmark-report.md \
+   docs/benchmark/benchmark-report-<model>-$(date +%Y%m%d).md
+----
+
+== Adding your own backend
+
+`kuml-llm-core` exposes the `LlmBackend` interface. Implement it for OpenAI,
+Gemini, Ollama, etc., then plug it into `BenchmarkRunner.run(...)`. See
+link:../../kuml-llm/kuml-llm-anthropic[`kuml-llm-anthropic`] for a ~100-LOC
+reference implementation.
+
+== Tasks
+
+The current task set lives in
+link:../../kuml-llm/kuml-llm-bench/src/main/kotlin/dev/kuml/llm/bench/BenchmarkTasks.kt[`BenchmarkTasks.kt`].
+Each task carries a natural-language prompt and a validator that asserts the
+emitted DSL parses and contains required elements.
+
+Submit new tasks via PR — keep prompts under 100 words and validators
+deterministic.

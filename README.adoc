@@ -202,11 +202,11 @@ kuml-packaging/      🚧  GraalVM Native Image infrastructure done; full native
   class diagram, your first C4 diagram, watch mode, OCL, codegen, Markdown.
 * link:docs/diagram-types.adoc[Diagram-Type Reference] — every UML and C4
   diagram type with a runnable snippet.
-* link:docs/benchmark/README.md[LLM Benchmark Guide] — run the 10-task
+* link:docs/benchmark/README.adoc[LLM Benchmark Guide] — run the 10-task
   benchmark against the LLM of your choice.
 * link:docs/release.md[Release & Distribution] — Maven Central, Homebrew,
   release workflow.
-* link:tools/pandoc/README.md[Pandoc filter] — generate HTML/PDF with kuml
+* link:tools/pandoc/README.adoc[Pandoc filter] — generate HTML/PDF with kuml
   diagrams via Pandoc.
 
 == License
