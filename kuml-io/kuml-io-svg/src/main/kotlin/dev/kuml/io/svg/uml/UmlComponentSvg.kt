@@ -75,5 +75,5 @@ internal fun renderUmlComponent(
 
 private fun fmt(v: Float): String {
     val i = v.toInt()
-    return if (v == i.toFloat()) "$i" else "%.2f".format(v)
+    return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
 }
