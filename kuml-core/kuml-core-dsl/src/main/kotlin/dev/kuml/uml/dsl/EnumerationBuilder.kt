@@ -55,6 +55,9 @@ class EnumerationBuilder internal constructor(
         interfaceId: String,
     ) = Unit
 
+    // Enumerations do not own constraints — silently ignore
+    override fun addConstraint(constraint: dev.kuml.uml.UmlConstraint) = Unit
+
     /**
      * Adds a literal value to this enumeration.
      *

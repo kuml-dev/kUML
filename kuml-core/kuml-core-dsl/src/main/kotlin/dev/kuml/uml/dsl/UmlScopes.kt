@@ -215,4 +215,7 @@ interface UmlClassifierScope {
         implementingId: String,
         interfaceId: String,
     )
+
+    /** Internal: called by [constraint] to register an OCL constraint. */
+    fun addConstraint(constraint: dev.kuml.uml.UmlConstraint)
 }

@@ -15,6 +15,8 @@ application {
 
 dependencies {
     implementation(libs.clikt)
+    implementation(project(":kuml-core:kuml-core-ocl"))
+    implementation(libs.kotlinx.serialization.json)
 
     // Full pipeline dependencies
     implementation(project(":kuml-core:kuml-core-script"))

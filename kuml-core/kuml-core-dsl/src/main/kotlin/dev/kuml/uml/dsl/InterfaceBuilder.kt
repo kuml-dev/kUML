@@ -3,6 +3,7 @@ package dev.kuml.uml.dsl
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.dsl.layout.LayoutHintsBuilder
 import dev.kuml.core.dsl.layout.LayoutHintsScope
+import dev.kuml.uml.UmlConstraint
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInterface
 import dev.kuml.uml.UmlInterfaceRealization
@@ -43,6 +44,7 @@ class InterfaceBuilder internal constructor(
 
     private val attributes = mutableListOf<UmlProperty>()
     private val operations = mutableListOf<UmlOperation>()
+    private val constraints = mutableListOf<UmlConstraint>()
     private val pendingGeneralizations = mutableListOf<Pair<String, String>>()
     private val pendingRealizations = mutableListOf<Pair<String, String>>()
 
@@ -68,6 +70,10 @@ class InterfaceBuilder internal constructor(
         pendingRealizations += Pair(implementingId, interfaceId)
     }
 
+    override fun addConstraint(constraint: UmlConstraint) {
+        constraints += constraint
+    }
+
     internal fun buildInterface(): UmlInterface =
         UmlInterface(
             id = id,
@@ -75,6 +81,7 @@ class InterfaceBuilder internal constructor(
             visibility = visibility,
             attributes = attributes.toList(),
             operations = operations.toList(),
+            constraints = constraints.toList(),
             stereotypes = stereotypes.toList(),
             metadata = layoutHintsBuilder.toMetadata(),
         )
