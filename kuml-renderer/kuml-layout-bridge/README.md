@@ -1,10 +1,38 @@
 # kuml-layout-bridge
 
-Translates kUML models (UML and C4 hierarchies) with `kuml.layout.*` metadata into a
-[`LayoutGraph`](../kuml-layout-api/src/main/kotlin/dev/kuml/layout/LayoutGraph.kt) from
-`kuml-layout-api`. This closes the loop: DSL → Bridge → ELK-Adapter → `LayoutResult`.
+Translates kUML model elements (UML and C4) into a `LayoutGraph` for `kuml-layout-api`.
 
-Entry points: `UmlLayoutBridge.toLayoutGraph(diagram, sizeProvider)` and
-`C4LayoutBridge.toLayoutGraph(diagram, model, sizeProvider)`.
+Bridges the DSL output side to the layout engine input side:
+`KumlDiagram` / `C4Diagram` + `kuml.layout.*` metadata → `LayoutGraph`.
 
-Spec: Phase 1 — Layout-Bridge (Designentwurf), Sign-off 2026-05-31.
+## Entry Points
+
+| Function | Description |
+|---|---|
+| `UmlLayoutBridge.toLayoutGraph(diagram)` | Converts a `KumlDiagram` (UML) to `LayoutGraph` |
+| `C4LayoutBridge.toLayoutGraph(diagram, model)` | Converts a `C4Diagram` + `C4Model` to `LayoutGraph` |
+
+Both functions respect `kuml.layout.*` metadata keys set via the DSL `layout { }` block
+(column, row, `rightOf`, `below`, etc.).
+
+## Position in the pipeline
+
+```
+diagram { }         ← kuml-core-dsl
+    ↓
+KumlDiagram
+    ↓
+UmlLayoutBridge     ← kuml-layout-bridge   (this module)
+    ↓
+LayoutGraph
+    ↓
+ElkLayoutEngine     ← kuml-layout-elk
+    ↓
+LayoutResult
+    ↓
+KumlSvgRenderer     ← kuml-io-svg
+```
+
+## License
+
+Apache 2.0 — see [LICENSE](../../LICENSE)

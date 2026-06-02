@@ -1,0 +1,44 @@
+= kuml-io-svg
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-io-svg*
+
+Direct SVG writer for kUML.
+Converts a `KumlDiagram` + `LayoutResult` + `KumlTheme` to a standalone SVG string
+or file — without Skiko, Compose, or AWT. GraalVM Native Image compatible.
+
+== Features
+
+* Semantic SVG output (`<rect>`, `<text>`, `<path>`, `<line>`) with `<defs>/<style>`
+* All 11 V1 element types (UML + C4) and 8 edge types
+* Edge routing: `Direct`, `OrthogonalRounded`, `Bezier`
+* Theme-driven CSS classes for easy styling
+* `<?xml ...?>` declaration optional via `SvgRenderOptions`
+* Full XML escape: `&`, `<`, `>`, `"`, `'` in both text nodes and attributes
+
+== Usage
+
+[source,kotlin]
+----
+val layoutResult = ElkLayoutEngine().layout(UmlLayoutBridge.toLayoutGraph(diagram), LayoutHints.DEFAULT)
+val theme        = PlainTheme()
+
+// To string
+val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme)
+
+// To file
+KumlSvgRenderer.toSvgFile(diagram, layoutResult, outputPath, theme)
+----
+
+== Installation
+
+[source,kotlin]
+----
+dependencies {
+    implementation("dev.kuml:kuml-io-svg:0.1.0")
+}
+----
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]

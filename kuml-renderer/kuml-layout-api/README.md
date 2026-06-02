@@ -1,7 +1,34 @@
 # kuml-layout-api
 
-Engine-agnostische Layout-API für kUML. Dieses Modul definiert den Vertrag zwischen
-dem Diagramm-Renderer und beliebigen Layout-Engines (ELK, Grid, u.a.) — ohne
-Abhängigkeit auf eine konkrete Implementierung.
+Engine-agnostic layout contract for kUML.
 
-Vollständige Spec und Sign-off (2026-05-31): `03 Bereiche/kUML/Plan/Phase 1 — Layout-API (Designentwurf).md` · ADR-0006
+Defines the interfaces and data types that sit between a kUML diagram model and any
+concrete layout engine (ELK, future grid engine, etc.) — with no dependency on any
+specific implementation.
+
+## Key Types
+
+| Type | Description |
+|---|---|
+| `KumlLayoutEngine` | Interface: `layout(LayoutGraph, LayoutHints): LayoutResult` |
+| `KumlEdgeRouter` | Interface: route edges after node placement |
+| `LayoutGraph` | Input: nodes (with optional size hints) + edges |
+| `LayoutResult` | Output: positioned nodes + routed edges (serializable) |
+| `EdgeRoute` | Sealed: `Direct`, `OrthogonalRounded`, `TreeRounded`, `Bezier` |
+| `LayoutHints` | Preferred direction, spacing, padding, node-size defaults |
+
+## Usage
+
+```kotlin
+val engine: KumlLayoutEngine = ElkLayoutEngine()           // from kuml-layout-elk
+val graph   = UmlLayoutBridge.toLayoutGraph(diagram)       // from kuml-layout-bridge
+val result  = engine.layout(graph, LayoutHints.DEFAULT)    // → LayoutResult
+```
+
+## ADR
+
+Design rationale: `ADR-0006 Eigene Grid-Layout-Engine neben ELK` (in `docs/adr/`).
+
+## License
+
+Apache 2.0 — see [LICENSE](../../LICENSE)

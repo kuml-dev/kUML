@@ -1,15 +1,35 @@
 # kuml-layout-elk
 
-ELK-Adapter für kUML — implementiert `KumlLayoutEngine` aus `kuml-layout-api` auf Basis von
-[Eclipse Layout Kernel](https://www.eclipse.org/elk/) (`elk.layered`, Sugiyama-Algorithmus).
-Das Modul übersetzt einen `LayoutGraph` in einen ELK-Graphen, führt das Layout aus und liefert
-ein serialisierbares `LayoutResult` zurück. Es ist die V1-Standard-Engine für alle
-Box-und-Kante-Diagrammtypen (UML-Klassen, -Komponenten, -UseCase, -Zustand sowie alle C4-Varianten
-und Generic). ELK-Typen verlassen das Modul nicht — alle öffentlichen Signaturen sind ELK-frei.
+ELK 0.11.0 adapter for kUML.
 
-**Designentwurf:** `03 Bereiche/kUML/Plan/Phase 1 — ELK-Adapter (Designentwurf).md`
+Implements `KumlLayoutEngine` from `kuml-layout-api` using
+[Eclipse Layout Kernel](https://www.eclipse.org/elk/) — specifically the
+`elk.layered` algorithm (Sugiyama / hierarchical layout).
 
-> **Native-Image-Reflection-Config folgt in `kuml-packaging`.**
-> ELK benötigt Reflection für seinen Algorithmus-Service-Mechanismus. Die entsprechende
-> `reflect-config.json` und Initialisierungsstrategie werden im Modul `kuml-packaging/kuml-native`
-> ergänzt — dieses Modul ist für JVM-Laufzeit konfiguriert und getestet.
+## What it does
+
+1. Translates a `LayoutGraph` (from `kuml-layout-bridge`) into an ELK graph
+2. Runs `elk.layered` layout
+3. Translates ELK node positions + edge bend-points back into `LayoutResult`
+
+ELK types never leave this module — all public API surfaces are ELK-free.
+
+## Dependency note
+
+ELK 0.11.0's POM does not declare `org.eclipse.xtext:org.eclipse.xtext.xbase.lib`
+as a runtime dependency, even though `LayeredMetaDataProvider` requires it.
+This module adds it explicitly:
+
+```kotlin
+// build.gradle.kts
+implementation(libs.xtext.xbase.lib)   // "2.43.0" — ELK 0.11.0 runtime fix
+```
+
+## GraalVM Native Image
+
+Reflection configuration for ELK's service-loader mechanism will be added in
+`kuml-packaging/kuml-native`. This module is JVM-only in V1.
+
+## License
+
+Apache 2.0 — see [LICENSE](../../LICENSE)

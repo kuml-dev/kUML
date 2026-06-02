@@ -1,0 +1,57 @@
+= kuml-metamodel-c4
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-metamodel-c4*
+
+Pure Kotlin sealed-class hierarchy for the C4 model (Simon Brown) — the metamodel
+that backs all V1 C4 diagram types.
+
+All types are `@Serializable` via `kotlinx.serialization`.
+
+== Element Hierarchy
+
+[source]
+----
+C4Element (sealed)
+├── C4Person
+├── C4SoftwareSystem
+├── C4Container
+├── C4Component
+├── C4CodeElement
+└── C4Relationship
+
+C4Model            top-level container: people, systems, relationships
+C4Diagram          a single rendered view (type + selected elements)
+C4DiagramType      SYSTEM_CONTEXT, CONTAINER, COMPONENT, DYNAMIC, DEPLOYMENT, LANDSCAPE
+----
+
+== DSL Entry Points
+
+All C4 builders are available inside `c4Model { }` lambdas (provided by `kuml-core-dsl`):
+
+[source,kotlin]
+----
+// no imports needed in *.kuml.kts
+c4Model("Internet Banking") {
+    val customer = person("Personal Banking Customer")
+    val banking  = softwareSystem("Internet Banking System")
+    relationship(customer, banking, "Views account balances and makes payments")
+
+    systemContextDiagram("System Context") {
+        include(customer, banking)
+    }
+}
+----
+
+== Installation
+
+[source,kotlin]
+----
+dependencies {
+    implementation("dev.kuml:kuml-metamodel-c4:0.1.0")
+}
+----
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]
