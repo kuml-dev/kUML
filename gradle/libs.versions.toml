@@ -1,5 +1,7 @@
 [versions]
-kotlin                 = "2.1.21"
+kotlin                 = "2.3.21"
+compose-multiplatform  = "1.9.0"
+kuiver                 = "0.3.0"
 elk                    = "0.10.0"
 kotlinx-serialization  = "1.7.3"
 kotlinx-coroutines     = "1.9.0"
@@ -10,6 +12,13 @@ assertj                = "3.27.3"
 ktlint-plugin          = "12.2.0"
 
 [libraries]
+# ── Compose / Kuiver ─────────────────────────────────────────────────────────
+kuiver                          = { module = "io.github.justdeko:kuiver",                              version.ref = "kuiver" }
+compose-runtime                 = { module = "org.jetbrains.compose.runtime:runtime",                 version.ref = "compose-multiplatform" }
+compose-foundation               = { module = "org.jetbrains.compose.foundation:foundation",           version.ref = "compose-multiplatform" }
+compose-ui                       = { module = "org.jetbrains.compose.ui:ui",                          version.ref = "compose-multiplatform" }
+compose-material3                = { module = "org.jetbrains.compose.material3:material3",            version.ref = "compose-multiplatform" }
+
 # ── Kotlin ──────────────────────────────────────────────────────────────────
 # ── Eclipse Layout Kernel ────────────────────────────────────────────────────
 elk-core                        = { module = "org.eclipse.elk:org.eclipse.elk.core",                version.ref = "elk" }
@@ -44,6 +53,9 @@ junit-jupiter                   = { module = "org.junit.jupiter:junit-jupiter", 
 assertj-core                    = { module = "org.assertj:assertj-core",                           version.ref = "assertj" }
 
 [plugins]
-kotlin-jvm          = { id = "org.jetbrains.kotlin.jvm",                      version.ref = "kotlin" }
-kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization",    version.ref = "kotlin" }
-ktlint              = { id = "org.jlleitschuh.gradle.ktlint",                 version.ref = "ktlint-plugin" }
+kotlin-jvm              = { id = "org.jetbrains.kotlin.jvm",                      version.ref = "kotlin" }
+kotlin-multiplatform    = { id = "org.jetbrains.kotlin.multiplatform",            version.ref = "kotlin" }
+kotlin-serialization    = { id = "org.jetbrains.kotlin.plugin.serialization",     version.ref = "kotlin" }
+compose-multiplatform   = { id = "org.jetbrains.compose",                         version.ref = "compose-multiplatform" }
+compose-compiler        = { id = "org.jetbrains.kotlin.plugin.compose",           version.ref = "kotlin" }
+ktlint                  = { id = "org.jlleitschuh.gradle.ktlint",                 version.ref = "ktlint-plugin" }

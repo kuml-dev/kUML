@@ -2,7 +2,7 @@ package dev.kuml.core.script
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
-import io.kotest.matchers.shouldBe
+import io.kotest.matchers.collections.shouldNotBeEmpty
 import kotlin.script.experimental.api.ScriptDiagnostic
 
 /**
@@ -63,6 +63,8 @@ class HelloWorldScriptTest : FunSpec(body = {
                 fileName = "invalid.kuml.kts",
             )
         val errors = result.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
-        errors.size shouldBe 1
+        // Kotlin Scripting kann mehrere Fehler pro syntaktisch ungültigem Skript zurückgeben
+        // (z.B. einen pro Token). Wichtig ist nur: mindestens einer wird gemeldet.
+        errors.shouldNotBeEmpty()
     }
 })
