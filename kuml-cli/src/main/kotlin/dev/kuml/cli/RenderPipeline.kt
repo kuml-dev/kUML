@@ -1,12 +1,17 @@
 package dev.kuml.cli
 
+import dev.kuml.core.script.DiagramExtractor
+import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.layout.LayoutHints
+import dev.kuml.layout.LayoutResult
+import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngine
+import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import java.io.File
 import java.io.IOException
@@ -16,6 +21,9 @@ import kotlin.script.experimental.api.ScriptDiagnostic
 
 /**
  * Orchestrates the kUML render pipeline: Script → Layout → Renderer → File.
+ *
+ * Branches on UML vs C4 at the extraction step. The downstream stages
+ * (layout, renderer, file write) are dispatched on [ExtractedDiagram].
  *
  * This object is the internal glue between all pipeline stages. It is not part
  * of the public API; all user-facing interaction goes through [RenderCommand].
@@ -51,35 +59,21 @@ internal object RenderPipeline {
             throw ScriptEvaluationException("Script evaluation failed:\n$message")
         }
 
-        // 2. Extract KumlDiagram from the evaluation result
+        // 2. Extract diagram — UML or C4
         val successResult =
             evalResult as? ResultWithDiagnostics.Success
                 ?: throw ScriptEvaluationException("Script evaluation did not produce a result")
 
-        val diagram = DiagramExtractor.extract(successResult.value.returnValue, input)
+        val extracted = DiagramExtractor.extractAny(successResult.value.returnValue, input)
 
-        // 3. Build layout graph (V1: UML path only; C4 requires a C4Model, not in scope for
-        //    scripts that use the diagram() DSL)
-        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
-
-        // 4. Compute layout
-        val layoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
-
-        // 5. Theme
+        // 3. Theme (shared)
         val theme = PlainTheme()
 
-        // 6. Render and write output
+        // 4–6. Branch on diagram kind: layout → render → write
         try {
-            when (format) {
-                "svg" -> KumlSvgRenderer.toSvgFile(diagram, layoutResult, output, theme)
-                "png" -> {
-                    val options = PngRenderOptions(widthPx = width)
-                    val pngBytes = KumlPngRenderer.toPng(diagram, layoutResult, theme, options)
-                    val file = output.toFile()
-                    file.parentFile?.mkdirs()
-                    file.writeBytes(pngBytes)
-                }
-                else -> throw ScriptEvaluationException("Unsupported format: $format")
+            when (extracted) {
+                is ExtractedDiagram.Uml -> renderUml(extracted, output, format, width, theme)
+                is ExtractedDiagram.C4 -> renderC4(extracted, output, format, width, theme)
             }
         } catch (e: IOException) {
             throw e
@@ -87,5 +81,75 @@ internal object RenderPipeline {
             if (e is ScriptEvaluationException) throw e
             throw IOException("Failed to write output file: ${e.message}", e)
         }
+    }
+
+    private fun renderUml(
+        extracted: ExtractedDiagram.Uml,
+        output: Path,
+        format: String,
+        width: Int,
+        theme: KumlTheme,
+    ) {
+        val diagram = extracted.diagram
+        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
+        val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+        when (format) {
+            "svg" -> KumlSvgRenderer.toSvgFile(diagram, layoutResult, output, theme)
+            "png" -> {
+                val pngBytes =
+                    KumlPngRenderer.toPng(diagram, layoutResult, theme, PngRenderOptions(widthPx = width))
+                writeBinary(output, pngBytes)
+            }
+            else -> throw ScriptEvaluationException("Unsupported format: $format")
+        }
+    }
+
+    private fun renderC4(
+        extracted: ExtractedDiagram.C4,
+        output: Path,
+        format: String,
+        width: Int,
+        theme: KumlTheme,
+    ) {
+        val diagram = extracted.diagram
+        val model = extracted.model
+        val layoutGraph = C4LayoutBridge.toLayoutGraph(diagram, model)
+        val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+        when (format) {
+            "svg" -> {
+                val svg = KumlSvgRenderer.toSvg(diagram, model, layoutResult, theme)
+                writeText(output, svg)
+            }
+            "png" -> {
+                val pngBytes =
+                    KumlPngRenderer.toPng(
+                        diagram,
+                        model,
+                        layoutResult,
+                        theme,
+                        PngRenderOptions(widthPx = width),
+                    )
+                writeBinary(output, pngBytes)
+            }
+            else -> throw ScriptEvaluationException("Unsupported format: $format")
+        }
+    }
+
+    private fun writeBinary(
+        out: Path,
+        bytes: ByteArray,
+    ) {
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeBytes(bytes)
+    }
+
+    private fun writeText(
+        out: Path,
+        text: String,
+    ) {
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(text, Charsets.UTF_8)
     }
 }
