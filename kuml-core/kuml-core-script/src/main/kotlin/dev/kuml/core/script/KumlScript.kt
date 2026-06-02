@@ -49,5 +49,13 @@ object KumlScriptCompilationConfiguration : ScriptCompilationConfiguration({
         "dev.kuml.uml.*",
         "dev.kuml.uml.Visibility.*",
         "dev.kuml.uml.AggregationKind.*",
+        // C4 DSL builders (c4Model, person, softwareSystem, container, component,
+        //   systemContextDiagram, containerDiagram, componentDiagram,
+        //   dynamicDiagram, deploymentDiagram, systemLandscapeDiagram, relationship).
+        // No name collisions with UML DSL — C4 uses dedicated verbs.
+        // Added in V1.0 so C4 scripts no longer need an explicit `import dev.kuml.c4.dsl.*`.
+        "dev.kuml.c4.dsl.*",
+        // C4 metamodel types
+        "dev.kuml.c4.model.*",
     )
 })

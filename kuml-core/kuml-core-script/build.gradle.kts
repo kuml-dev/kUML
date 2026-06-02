@@ -8,9 +8,13 @@ kotlin {
 
 dependencies {
     // kuml-core-model and kuml-core-dsl must be on the script classpath
-    // so that defaultImports (io.kuml.core.model.*, io.kuml.core.dsl.*) resolve.
+    // so that defaultImports (dev.kuml.core.model.*, dev.kuml.core.dsl.*) resolve.
+    // UML + C4 metamodels added (V1.0) so c4Model { … } and the UML enums work
+    // without explicit `import dev.kuml.c4.dsl.*` in *.kuml.kts scripts.
     api(project(":kuml-core:kuml-core-model"))
     api(project(":kuml-core:kuml-core-dsl"))
+    api(project(":kuml-metamodel:kuml-metamodel-uml"))
+    api(project(":kuml-metamodel:kuml-metamodel-c4"))
 
     implementation(libs.kotlin.scripting.common)
     implementation(libs.kotlin.scripting.jvm)
