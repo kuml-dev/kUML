@@ -119,3 +119,8 @@ gradle-app.setting
 # End of https://www.toptal.com/developers/gitignore/api/intellij+all,gradle
 
 **/.kotlin
+
+# Local environment variables (API Keys, Secrets — niemals committen!)
+.env
+.env.local
+*.env
