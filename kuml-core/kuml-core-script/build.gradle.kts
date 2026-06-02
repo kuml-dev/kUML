@@ -15,6 +15,8 @@ dependencies {
     implementation(libs.kotlin.scripting.common)
     implementation(libs.kotlin.scripting.jvm)
     implementation(libs.kotlin.scripting.jvm.host)
+    // kotlin-reflect required by DiagramExtractor (script instance property scanning)
+    implementation(libs.kotlin.reflect)
 
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
