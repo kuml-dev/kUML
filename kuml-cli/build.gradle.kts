@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     application
+    alias(libs.plugins.graalvm.native)
 }
 
 kotlin {
@@ -46,4 +47,43 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     // Script compilation is memory-intensive
     jvmArgs("-Xmx512m")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GraalVM Native Image configuration (Phase 2 — `kuml-packaging/kuml-native`)
+//
+// Status: EXPERIMENTAL. Full native compilation is blocked by Kotlin Scripting,
+// which uses the embedded Kotlin compiler at runtime (incompatible with the
+// closed-world assumption of GraalVM Native Image). See ADR-0007.
+//
+// Attempting a build: `./gradlew :kuml-cli:nativeCompile` (requires GraalVM 21+
+// on PATH or via toolchain). Expected to fail in V1.0 — the configuration is
+// provided so the path-forward work for V1.1 has a starting point.
+// ─────────────────────────────────────────────────────────────────────────────
+graalvmNative {
+    binaries {
+        named("main") {
+            imageName.set("kuml")
+            mainClass.set("dev.kuml.cli.MainKt")
+            useFatJar.set(true)
+
+            buildArgs.addAll(
+                "--no-fallback",
+                "-H:+ReportExceptionStackTraces",
+                "-H:+UnlockExperimentalVMOptions",
+                // Kotlin Scripting requires runtime class generation — these
+                // classes cannot be initialised at build time.
+                "--initialize-at-run-time=kotlin.script.experimental",
+                "--initialize-at-run-time=org.jetbrains.kotlin.scripting",
+                "--initialize-at-run-time=org.jetbrains.kotlin.cli",
+                "--initialize-at-run-time=kotlin.reflect.jvm.internal",
+                // Kotlinx serialization uses static initialisers that touch
+                // reflection — defer initialisation.
+                "--initialize-at-run-time=kotlinx.serialization.internal",
+            )
+        }
+    }
+    // Toolchain detection — looks for GraalVM 21 on PATH.
+    // If not found, a downloadable toolchain can be added explicitly.
+    toolchainDetection.set(true)
 }
