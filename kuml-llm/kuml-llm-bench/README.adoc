@@ -9,8 +9,6 @@ Measures how reliably an LLM can produce valid diagrams in different
 text-based modelling languages. Runs a fixed task corpus against any
 `LlmBackend` and emits a Markdown report.
 
-Commit: `fc1a8ba`.
-
 == Task Corpus
 
 10 tasks total, balanced across notation and natural language:

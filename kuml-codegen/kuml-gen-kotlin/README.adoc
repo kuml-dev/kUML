@@ -9,8 +9,6 @@ Translates `UmlModel` classifiers into idiomatic Kotlin source.
 Used by `kuml-cli`'s `kuml generate --plugin kotlin` and by `kuml-mcp`'s
 `kuml.generate` tool.
 
-Commit: `0df0891`.
-
 == Mapping
 
 [cols="1,2"]

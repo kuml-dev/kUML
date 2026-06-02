@@ -9,8 +9,6 @@ Implements `LlmBackend` using the JDK 11+ `java.net.http.HttpClient` — no
 extra dependencies (no Retrofit, no OkHttp, no Anthropic SDK). Keeps the
 classpath small and GraalVM-friendly.
 
-Commit: `fc1a8ba`.
-
 == Configuration
 
 [cols="1,3"]

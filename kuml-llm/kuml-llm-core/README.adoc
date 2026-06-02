@@ -10,8 +10,6 @@ kUML feature that needs to call a large-language model. Pure Kotlin, no
 third-party HTTP or vendor SDK dependencies — concrete backends live in
 sibling modules.
 
-Commit: `fc1a8ba`.
-
 == Key Types
 
 [cols="1,3"]
