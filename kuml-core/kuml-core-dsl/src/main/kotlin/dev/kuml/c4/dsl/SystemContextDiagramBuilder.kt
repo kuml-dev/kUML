@@ -113,8 +113,7 @@ class SystemContextDiagramBuilderImpl(
             parentModel.relationships
                 .filter { rel ->
                     rel.source in finalElements && rel.target in finalElements
-                }
-                .map { it.id }
+                }.map { it.id }
 
         return SystemContextDiagram(
             id = C4Ids.generateId(),

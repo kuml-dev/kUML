@@ -79,8 +79,7 @@ class ComponentDiagramBuilderImpl(
                     val isInContainer = component.container == targetContainer.id
                     val notExcluded = component.id !in excludedComponents
                     isInContainer && notExcluded
-                }
-                .map { it.id }
+                }.map { it.id }
 
         // 2. Sammle externe Container (falls showExternalReferences = true)
         val externalContainers = findExternalContainers(targetContainer.id, containerComponents)
@@ -100,8 +99,7 @@ class ComponentDiagramBuilderImpl(
                         val fromIncluded = rel.source in allElements
                         val toIncluded = rel.target in allElements
                         fromIncluded && toIncluded
-                    }
-                    .map { it.id }
+                    }.map { it.id }
             } else {
                 emptyList()
             }

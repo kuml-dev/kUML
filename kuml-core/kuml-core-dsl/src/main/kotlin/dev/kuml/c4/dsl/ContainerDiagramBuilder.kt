@@ -79,8 +79,7 @@ class ContainerDiagramBuilderImpl(
                     val isInSystem = container.system == targetSystem.id
                     val notExcluded = container.id !in excludedContainers
                     isInSystem && notExcluded
-                }
-                .map { it.id }
+                }.map { it.id }
 
         // 2. Sammle externe Systeme (falls showExternalSystems = true)
         val externalSystems = findExternalSystems(targetSystem.id, systemContainers)
@@ -100,8 +99,7 @@ class ContainerDiagramBuilderImpl(
                         val fromIncluded = rel.source in allElements
                         val toIncluded = rel.target in allElements
                         fromIncluded && toIncluded
-                    }
-                    .map { it.id }
+                    }.map { it.id }
             } else {
                 emptyList()
             }

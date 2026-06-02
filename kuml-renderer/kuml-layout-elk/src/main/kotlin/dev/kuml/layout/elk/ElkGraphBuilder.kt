@@ -16,7 +16,9 @@ import org.eclipse.elk.graph.util.ElkGraphUtil
  * Jede Instanz ist für genau einen Layout-Lauf gedacht (Reinheitsprinzip — Z6 aus dem Designentwurf).
  * Keine ELK-Typen verlassen diese Klasse.
  */
-internal class ElkGraphBuilder(private val graph: LayoutGraph) {
+internal class ElkGraphBuilder(
+    private val graph: LayoutGraph,
+) {
     /** Mapping von kUML-NodeId → ELK-Knoten für spätere Ergebnis-Rückübersetzung. */
     val nodeMap: MutableMap<NodeId, ElkNode> = mutableMapOf()
 

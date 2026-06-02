@@ -144,8 +144,7 @@ class DynamicDiagramBuilderImpl(
             parentModel.relationships
                 .filter { rel ->
                     rel.source in elementIds && rel.target in elementIds
-                }
-                .map { it.id }
+                }.map { it.id }
 
         return DynamicDiagram(
             id = C4Ids.generateId(),

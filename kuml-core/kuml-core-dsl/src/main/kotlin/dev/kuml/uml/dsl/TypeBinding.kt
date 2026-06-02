@@ -49,8 +49,8 @@ fun typeRef(classifier: UmlClassifier): UmlTypeRef = UmlTypeRef(name = classifie
  *
  * @throws IllegalArgumentException if the format is not recognised.
  */
-fun parseMultiplicity(spec: String): Multiplicity {
-    return when (val s = spec.trim()) {
+fun parseMultiplicity(spec: String): Multiplicity =
+    when (val s = spec.trim()) {
         "1" -> Multiplicity(lower = 1, upper = 1)
         "0..1" -> Multiplicity(lower = 0, upper = 1)
         "0..*", "*" -> Multiplicity(lower = 0, upper = null)
@@ -80,4 +80,3 @@ fun parseMultiplicity(spec: String): Multiplicity {
             }
         }
     }
-}

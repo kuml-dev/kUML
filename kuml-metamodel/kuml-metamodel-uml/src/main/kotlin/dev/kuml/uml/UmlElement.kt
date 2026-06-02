@@ -25,7 +25,9 @@ sealed interface UmlElement : KumlElement
  * (`KumlStereotypeApplication`) is deferred to V1.1.
  */
 @Serializable
-sealed interface UmlNamedElement : UmlElement, KumlNamespaceMember {
+sealed interface UmlNamedElement :
+    UmlElement,
+    KumlNamespaceMember {
     override val name: String
     val visibility: Visibility
     val stereotypes: List<String>

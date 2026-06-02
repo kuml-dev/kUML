@@ -12,7 +12,9 @@ internal sealed interface RelativeConstraintDsl {
     /** Materialisiert diesen Constraint als [KumlMetaValue.Entries]-Eintrag. */
     fun toMeta(): KumlMetaValue
 
-    data class Above(val otherId: String) : RelativeConstraintDsl {
+    data class Above(
+        val otherId: String,
+    ) : RelativeConstraintDsl {
         override fun toMeta(): KumlMetaValue =
             KumlMetaValue.Entries(
                 mapOf(
@@ -22,7 +24,9 @@ internal sealed interface RelativeConstraintDsl {
             )
     }
 
-    data class Below(val otherId: String) : RelativeConstraintDsl {
+    data class Below(
+        val otherId: String,
+    ) : RelativeConstraintDsl {
         override fun toMeta(): KumlMetaValue =
             KumlMetaValue.Entries(
                 mapOf(
@@ -32,7 +36,9 @@ internal sealed interface RelativeConstraintDsl {
             )
     }
 
-    data class LeftOf(val otherId: String) : RelativeConstraintDsl {
+    data class LeftOf(
+        val otherId: String,
+    ) : RelativeConstraintDsl {
         override fun toMeta(): KumlMetaValue =
             KumlMetaValue.Entries(
                 mapOf(
@@ -42,7 +48,9 @@ internal sealed interface RelativeConstraintDsl {
             )
     }
 
-    data class RightOf(val otherId: String) : RelativeConstraintDsl {
+    data class RightOf(
+        val otherId: String,
+    ) : RelativeConstraintDsl {
         override fun toMeta(): KumlMetaValue =
             KumlMetaValue.Entries(
                 mapOf(
@@ -52,7 +60,9 @@ internal sealed interface RelativeConstraintDsl {
             )
     }
 
-    data class SameRowAs(val otherId: String) : RelativeConstraintDsl {
+    data class SameRowAs(
+        val otherId: String,
+    ) : RelativeConstraintDsl {
         override fun toMeta(): KumlMetaValue =
             KumlMetaValue.Entries(
                 mapOf(
@@ -62,7 +72,9 @@ internal sealed interface RelativeConstraintDsl {
             )
     }
 
-    data class SameColAs(val otherId: String) : RelativeConstraintDsl {
+    data class SameColAs(
+        val otherId: String,
+    ) : RelativeConstraintDsl {
         override fun toMeta(): KumlMetaValue =
             KumlMetaValue.Entries(
                 mapOf(

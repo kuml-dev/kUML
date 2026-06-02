@@ -87,8 +87,7 @@ class SystemLandscapeDiagramBuilderImpl(
                     val isSystem = elem is C4SoftwareSystem
                     val isPerson = elem is C4Person
                     (isSystem && includeAllSystems) || (isPerson && includeAllPersons)
-                }
-                .map { it.id },
+                }.map { it.id },
         )
 
         // 2. Add explicitly included elements (additive)
@@ -117,8 +116,7 @@ class SystemLandscapeDiagramBuilderImpl(
             parentModel.relationships
                 .filter { rel ->
                     rel.source in elementsToInclude && rel.target in elementsToInclude
-                }
-                .map { it.id }
+                }.map { it.id }
 
         return SystemLandscapeDiagram(
             id = C4Ids.generateId(),

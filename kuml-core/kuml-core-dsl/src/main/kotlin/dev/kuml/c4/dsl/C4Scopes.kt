@@ -58,7 +58,9 @@ interface PersonScope : LayoutHintsScope {
  * ```
  */
 @KumlDsl
-interface SoftwareSystemScope : C4ModelScope, LayoutHintsScope {
+interface SoftwareSystemScope :
+    C4ModelScope,
+    LayoutHintsScope {
     var description: String?
     var external: Boolean
     var location: String?
@@ -82,7 +84,9 @@ interface SoftwareSystemScope : C4ModelScope, LayoutHintsScope {
  * ```
  */
 @KumlDsl
-interface ContainerScope : C4ModelScope, LayoutHintsScope {
+interface ContainerScope :
+    C4ModelScope,
+    LayoutHintsScope {
     var description: String?
     var technology: String?
     val containerId: String

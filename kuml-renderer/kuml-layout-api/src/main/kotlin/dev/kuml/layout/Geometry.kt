@@ -8,7 +8,10 @@ import kotlinx.serialization.Serializable
  * Koordinaten sind in abstrakten Pixeln; der Renderer bestimmt den Maßstab.
  */
 @Serializable
-public data class Point(val x: Float, val y: Float)
+public data class Point(
+    val x: Float,
+    val y: Float,
+)
 
 /**
  * Breite und Höhe eines Rechtecks.
@@ -17,7 +20,10 @@ public data class Point(val x: Float, val y: Float)
  * für das Gesamt-Canvas in [LayoutResult.canvas] verwendet.
  */
 @Serializable
-public data class Size(val width: Float, val height: Float)
+public data class Size(
+    val width: Float,
+    val height: Float,
+)
 
 /**
  * Achsenparalleles Rechteck mit Ursprungspunkt und Ausdehnung.
@@ -25,7 +31,10 @@ public data class Size(val width: Float, val height: Float)
  * Repräsentiert die berechneten Bounds eines Knotens oder einer Gruppe nach dem Layout.
  */
 @Serializable
-public data class Rect(val origin: Point, val size: Size)
+public data class Rect(
+    val origin: Point,
+    val size: Size,
+)
 
 /**
  * Innenabstände an allen vier Seiten eines Containers.

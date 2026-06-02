@@ -10,7 +10,9 @@ import kotlinx.serialization.Serializable
  */
 @JvmInline
 @Serializable
-public value class NodeId(public val value: String)
+public value class NodeId(
+    public val value: String,
+)
 
 /**
  * Stabile, typsichere ID einer Kante im Layout-Graphen.
@@ -19,7 +21,9 @@ public value class NodeId(public val value: String)
  */
 @JvmInline
 @Serializable
-public value class EdgeId(public val value: String)
+public value class EdgeId(
+    public val value: String,
+)
 
 /**
  * Stabile, typsichere ID einer Gruppe (Container, Paket, Subgraph) im Layout-Graphen.
@@ -28,7 +32,9 @@ public value class EdgeId(public val value: String)
  */
 @JvmInline
 @Serializable
-public value class GroupId(public val value: String)
+public value class GroupId(
+    public val value: String,
+)
 
 /**
  * Stabile, typsichere ID eines Ports an einem Knoten.
@@ -38,7 +44,9 @@ public value class GroupId(public val value: String)
  */
 @JvmInline
 @Serializable
-public value class PortId(public val value: String)
+public value class PortId(
+    public val value: String,
+)
 
 /**
  * Stabile, maschinenlesbare ID einer Layout-Engine, z.B. `"elk.layered"` oder `"kuml.grid"`.
@@ -48,4 +56,6 @@ public value class PortId(public val value: String)
  */
 @JvmInline
 @Serializable
-public value class LayoutEngineId(public val value: String)
+public value class LayoutEngineId(
+    public val value: String,
+)

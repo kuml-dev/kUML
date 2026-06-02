@@ -20,7 +20,8 @@ class ComponentBuilder internal constructor(
     private val parentId: String?,
     override val takenIds: MutableSet<String>,
     explicitId: String?,
-) : UmlComponentScope, LayoutHintsScope {
+) : UmlComponentScope,
+    LayoutHintsScope {
     override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 
     /** The computed or explicitly provided ID for this component. */

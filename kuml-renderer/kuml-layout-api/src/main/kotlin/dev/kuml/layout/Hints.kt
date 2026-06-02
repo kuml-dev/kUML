@@ -84,25 +84,37 @@ public data class EdgeHints(
 public sealed interface RelativeConstraint {
     /** Dieser Knoten soll oberhalb von [other] platziert werden. */
     @Serializable
-    public data class Above(val other: NodeId) : RelativeConstraint
+    public data class Above(
+        val other: NodeId,
+    ) : RelativeConstraint
 
     /** Dieser Knoten soll unterhalb von [other] platziert werden. */
     @Serializable
-    public data class Below(val other: NodeId) : RelativeConstraint
+    public data class Below(
+        val other: NodeId,
+    ) : RelativeConstraint
 
     /** Dieser Knoten soll links von [other] platziert werden. */
     @Serializable
-    public data class LeftOf(val other: NodeId) : RelativeConstraint
+    public data class LeftOf(
+        val other: NodeId,
+    ) : RelativeConstraint
 
     /** Dieser Knoten soll rechts von [other] platziert werden. */
     @Serializable
-    public data class RightOf(val other: NodeId) : RelativeConstraint
+    public data class RightOf(
+        val other: NodeId,
+    ) : RelativeConstraint
 
     /** Dieser Knoten soll in derselben Zeile wie [other] platziert werden. */
     @Serializable
-    public data class SameRowAs(val other: NodeId) : RelativeConstraint
+    public data class SameRowAs(
+        val other: NodeId,
+    ) : RelativeConstraint
 
     /** Dieser Knoten soll in derselben Spalte wie [other] platziert werden. */
     @Serializable
-    public data class SameColAs(val other: NodeId) : RelativeConstraint
+    public data class SameColAs(
+        val other: NodeId,
+    ) : RelativeConstraint
 }

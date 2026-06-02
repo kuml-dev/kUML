@@ -27,25 +27,37 @@ sealed interface KumlMetaValue {
      * sealed-interface polymorphism.
      */
     @Serializable
-    data class Text(val value: String) : KumlMetaValue
+    data class Text(
+        val value: String,
+    ) : KumlMetaValue
 
     /** A 64-bit integer value. */
     @Serializable
-    data class Integer(val value: Long) : KumlMetaValue
+    data class Integer(
+        val value: Long,
+    ) : KumlMetaValue
 
     /** A 64-bit floating-point value. */
     @Serializable
-    data class Decimal(val value: Double) : KumlMetaValue
+    data class Decimal(
+        val value: Double,
+    ) : KumlMetaValue
 
     /** A boolean value. */
     @Serializable
-    data class Flag(val value: Boolean) : KumlMetaValue
+    data class Flag(
+        val value: Boolean,
+    ) : KumlMetaValue
 
     /** An ordered list of metadata values. */
     @Serializable
-    data class Items(val value: List<KumlMetaValue>) : KumlMetaValue
+    data class Items(
+        val value: List<KumlMetaValue>,
+    ) : KumlMetaValue
 
     /** A string-keyed map of metadata values. */
     @Serializable
-    data class Entries(val value: Map<String, KumlMetaValue>) : KumlMetaValue
+    data class Entries(
+        val value: Map<String, KumlMetaValue>,
+    ) : KumlMetaValue
 }
