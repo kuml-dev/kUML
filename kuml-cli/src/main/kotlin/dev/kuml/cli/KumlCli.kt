@@ -12,7 +12,7 @@ import com.github.ajalt.clikt.core.subcommands
  */
 internal class KumlCli : CliktCommand(name = "kuml") {
     init {
-        subcommands(RenderCommand())
+        subcommands(RenderCommand(), WatchCommand())
     }
 
     override fun help(context: Context): String = "Compiles kUML scripts to UML/C4 diagrams."
