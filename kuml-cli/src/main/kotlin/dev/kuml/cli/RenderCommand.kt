@@ -41,7 +41,7 @@ internal class RenderCommand : CliktCommand(name = "render") {
         .choice("plain")
         .default("plain")
 
-    override fun help(context: Context): String = "Render a kUML script to SVG or PNG."
+    override fun help(context: Context): String = "Render a kUML script (UML or C4) to SVG or PNG."
 
     override fun run() {
         try {
