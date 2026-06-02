@@ -130,11 +130,12 @@ SVG export + PNG export (Batik)
 | ✅ Done
 
 | *Phase 2*
-| CLI (`render` ✅, `watch` ✅, `validate` ✅, `fmt` ✅, `generate` ✅, `completion` ✅, `import` 📋) +
-OCL subset ✅ + Markdown code block 📋 + MCP server ✅ +
-`kuml-gen-kotlin` ✅ + LLM Benchmark ✅ + GraalVM Native Image 🚧 (deferred V1.1, ADR-0009) +
-Maven Central 📋 + Homebrew 📋
-| 🚧 ~85% Complete
+| CLI (`render` ✅, `watch` ✅, `validate` ✅, `fmt` ✅, `generate` ✅, `completion` ✅, `import` ✅, `markdown` ✅) +
+OCL subset ✅ + Markdown code block ✅ + MCP server ✅ +
+`kuml-gen-kotlin` ✅ + LLM Benchmark ✅ (100 % vs. Haiku 4.5) +
+GraalVM Native Image 🚧 (deferred V1.1, ADR-0009) +
+Maven Central ✅ infra + Homebrew ✅ tap live
+| ✅ Done
 
 | *V1.1*
 | Remaining 9 UML diagram types, profiles, Gradle plugin, AsciiDoc, IDE plugin, `kuml simulate`
@@ -178,7 +179,8 @@ kuml-cli/            ✅  Command-line interface
   fmt                ✅  kuml fmt model.kuml.kts [--check]
   generate           ✅  kuml generate --plugin kotlin model.kuml.kts
   completion         ✅  kuml completion bash|zsh|fish
-  import             📋  kuml import --format structurizr workspace.dsl
+  import             ✅  kuml import --format structurizr workspace.dsl
+  markdown           ✅  kuml markdown --input in.md --output out.md --mode inline|linked-svg|linked-png
 
 kuml-mcp/            ✅  MCP server — stdio JSON-RPC 2.0, Protocol 2024-11-05, 5 tools
 

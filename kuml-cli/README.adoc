@@ -73,6 +73,40 @@ Runs a `KumlCodeGenerator` plugin against the evaluated model. The built-in `kot
 (from `kuml-codegen/kuml-gen-kotlin`) emits `data class` for `UmlClass`, `interface` for
 `UmlInterface`, and `enum class` for `UmlEnumeration`, respecting multiplicity and inheritance.
 
+=== `kuml import`
+
+[source,bash]
+----
+kuml import workspace.dsl                          # → workspace.kuml.kts
+kuml import workspace.dsl --format structurizr
+kuml import workspace.dsl -o src/main/kuml/banking.kuml.kts
+----
+
+Parses a diagram file in an external format and emits an equivalent `*.kuml.kts`
+script. V1 supports Structurizr DSL only (`--format structurizr`, also the default).
+
+=== `kuml markdown`
+
+[source,bash]
+----
+# Inline SVG (default) — best for static site generators
+kuml markdown --input README.md --output README.rendered.md
+
+# Linked SVG — write SVGs to disk, reference them via ![](…)
+kuml markdown --input docs/intro.md --output docs/intro.out.md \
+              --mode linked-svg --assets-dir docs/assets
+
+# Linked PNG with custom width
+kuml markdown --input docs/intro.md --output docs/intro.out.md \
+              --mode linked-png --assets-dir docs/assets --width 1200
+----
+
+Replaces every ```` ```kuml ```` fenced code block in the input Markdown with
+a rendered diagram. Three modes: inline SVG, linked SVG asset, or linked PNG
+asset. Backed by the `kuml-docs/kuml-markdown` library. See
+link:../tools/pandoc/README.adoc[`tools/pandoc/README.adoc`] for a Pandoc
+filter alternative.
+
 === `kuml completion`
 
 [source,bash]
@@ -144,7 +178,18 @@ export PATH="$PWD/kuml-cli/build/install/kuml/bin:$PATH"
 kuml render --help
 ----
 
-Homebrew tap and Maven Central distribution are planned for V1.
+For end users, the official channels are:
+
+[source,bash]
+----
+# Homebrew (macOS / Linux) — tap kuml-dev/kuml ships kuml.rb
+brew tap kuml-dev/kuml
+brew install kuml
+----
+
+Library modules are published to Maven Central as `dev.kuml:<module>:<version>`.
+The CLI itself is *not* a Maven artefact — it is distributed as a `.zip` attached
+to every `v*.*.*` GitHub release. See link:../docs/release.md[`docs/release.md`].
 
 == Pipeline
 
