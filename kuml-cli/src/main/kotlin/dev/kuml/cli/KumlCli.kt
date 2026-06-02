@@ -17,6 +17,7 @@ internal class KumlCli : CliktCommand(name = "kuml") {
             WatchCommand(),
             ValidateCommand(),
             FmtCommand(),
+            GenerateCommand(),
             CompletionCommand(name = "completion"),
         )
     }

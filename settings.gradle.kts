@@ -40,6 +40,12 @@ include(
     "kuml-renderer:kuml-themes-core",    // Phase 1 — Framework-neutrale Theme-Daten (ADR-0006)
 )
 
+// ── Codegen ──────────────────────────────────────────── Phase 1 ──
+include(
+    "kuml-codegen:kuml-codegen-api",  // Phase 1 — Generator Plugin API
+    "kuml-codegen:kuml-gen-kotlin",   // Phase 1 — Built-in Kotlin code generator
+)
+
 // ── I/O ──────────────────────────────────────────────── Phase 2 ──
 include(
     "kuml-io:kuml-io-svg",          // Phase 2 — SVG/PNG-Export

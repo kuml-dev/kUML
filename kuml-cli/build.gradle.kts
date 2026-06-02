@@ -15,6 +15,8 @@ application {
 
 dependencies {
     implementation(libs.clikt)
+    implementation(project(":kuml-codegen:kuml-codegen-api"))
+    implementation(project(":kuml-codegen:kuml-gen-kotlin"))
     implementation(project(":kuml-core:kuml-core-ocl"))
     implementation(libs.kotlinx.serialization.json)
 

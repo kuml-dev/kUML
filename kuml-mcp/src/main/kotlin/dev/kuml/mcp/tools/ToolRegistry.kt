@@ -11,6 +11,7 @@ internal object ToolRegistry {
             ValidateTool,
             ListElementsTool,
             DescribeTool,
+            GenerateTool,
         )
 
     internal val descriptors: List<McpToolDescriptor> get() = tools.map { it.descriptor }
