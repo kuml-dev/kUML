@@ -94,3 +94,157 @@ graalvmNative {
     // If not found, a downloadable toolchain can be added explicitly.
     toolchainDetection.set(true)
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// jlink runtime image (V1.0.1 Patch 2)
+//
+// Bundles a custom JRE with kuml-cli — eliminates the `depends_on "openjdk@21"`
+// from the Homebrew formula. End users get a single self-contained tarball.
+//
+// Implemented by hand (jlink + install-dist patch) rather than via
+// badass-runtime-plugin: the latest plugin release (1.13.1, Feb 2024) still
+// uses `project.exec()` which Gradle 9 deprecated. A hand-rolled set of three
+// tasks is ~30 lines and gives us control over module list + launcher.
+//
+// Tasks:
+//   :kuml-cli:jlinkRuntime  → build/jlink/ (the stripped JRE)
+//   :kuml-cli:bundledImage  → build/image/kuml/ (installDist + runtime + patched launcher)
+//   :kuml-cli:runtimeZip    → build/distributions/kuml-runtime-<version>.zip
+//
+// Run locally: kuml-cli/build/image/kuml/bin/kuml --help
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Module list — kept explicit so the runtime is reproducible across JDK
+// vendors. Derived empirically from `jdeps --print-module-deps` on the
+// kuml-cli fat-jar.
+val jlinkModules =
+    listOf(
+        "java.base",
+        "java.scripting", // Kotlin Scripting host
+        "java.xml", // ELK + Batik
+        "java.desktop", // Batik AWT
+        "java.management", // Kotlin compiler diagnostics + JNA
+        "java.logging", // ELK, Batik
+        "java.naming", // Apache XML parser
+        "java.net.http", // forward-compat for embedded LlmBackend
+        "java.sql", // Batik
+        "jdk.unsupported", // Kotlin compiler sun.misc.Unsafe
+        "jdk.zipfs", // Kotlin scripting JAR classpath access
+        "jdk.crypto.ec", // TLS for any HTTPS callers
+    )
+
+val jlinkOutputDir = layout.buildDirectory.dir("jlink")
+val imageDir = layout.buildDirectory.dir("image/kuml")
+
+tasks.register<Exec>("jlinkRuntime") {
+    group = "distribution"
+    description = "Builds a stripped JRE for the kuml CLI via jlink."
+    outputs.dir(jlinkOutputDir)
+    val javaHome = providers.systemProperty("java.home").get()
+    executable = "$javaHome/bin/jlink"
+    val outDir = jlinkOutputDir.get().asFile
+    doFirst { outDir.deleteRecursively() }
+    args =
+        listOf(
+            "--strip-debug",
+            // zip-6: 56 MB runtime image. Tested zip-0 (uncompressed, 88 MB)
+            // and it actually rendered ~0.8s slower — Apple SSDs are fast
+            // enough that decompression beats reading the bigger image.
+            "--compress=zip-6",
+            "--no-header-files",
+            "--no-man-pages",
+            "--add-modules",
+            jlinkModules.joinToString(","),
+            "--output",
+            outDir.absolutePath,
+        )
+}
+
+// Step A: copy installDist into the image tree.
+val bundleInstallDist =
+    tasks.register<Sync>("bundleInstallDist") {
+        group = "distribution"
+        description = "Copies the installDist tree into the runtime-image staging dir."
+        dependsOn("installDist")
+        from(layout.buildDirectory.dir("install/kuml"))
+        into(imageDir)
+    }
+
+// Step B: copy the jlink JRE under runtime/.
+val bundleJlinkRuntime =
+    tasks.register<Sync>("bundleJlinkRuntime") {
+        group = "distribution"
+        description = "Copies the stripped JRE into the runtime-image runtime/ subdir."
+        dependsOn("jlinkRuntime", bundleInstallDist)
+        from(jlinkOutputDir)
+        into(imageDir.map { it.dir("runtime") })
+    }
+
+// Step C: rewrite the launcher's JAVA_HOME so it points at the bundled JRE.
+// To stay configuration-cache compatible we capture only an explicit String
+// path into the doLast lambda — no Provider, no Project, no script object
+// (Gradle 9's cache serialiser otherwise complains about "Gradle script
+// object references").
+tasks.register("bundledImage") {
+    group = "distribution"
+    description =
+        "Assembles a self-contained kuml runtime image: installDist + jlink JRE + patched launcher."
+    dependsOn("bundleInstallDist", "bundleJlinkRuntime")
+
+    val launcherPath: String =
+        imageDir
+            .get()
+            .asFile
+            .resolve("bin/kuml")
+            .absolutePath
+    outputs.file(launcherPath)
+
+    doLast(
+        object : Action<Task> {
+            override fun execute(task: Task) {
+                val launcher = File(launcherPath)
+                require(launcher.isFile) { "Expected installDist launcher at $launcher" }
+
+                // The Gradle-9 installDist launcher detects Java in this order:
+                //   1. $JAVA_HOME/bin/java (if JAVA_HOME is set and valid)
+                //   2. `java` on $PATH
+                // We inject a JAVA_HOME override pointing at the bundled JRE so
+                // that (a) the launcher works on a system without any system Java
+                // and (b) users who have a different JDK installed still get the
+                // exact runtime we shipped.
+                val source = launcher.readText()
+                val marker = "# Determine the Java command to use to start the JVM."
+                require(source.contains(marker)) {
+                    "Launcher format unexpected — could not find Java-detection marker. " +
+                        "Inspect $launcher and adjust patcher."
+                }
+                val patched =
+                    source.replace(
+                        marker,
+                        """
+                        |# kUML bundled runtime: always use the JRE shipped under runtime/
+                        |# next to this launcher, regardless of the user's JAVA_HOME / PATH.
+                        |JAVA_HOME="${'$'}APP_HOME/runtime"
+                        |export JAVA_HOME
+                        |
+                        |$marker
+                        """.trimMargin(),
+                    )
+                launcher.writeText(patched)
+                launcher.setExecutable(true)
+            }
+        },
+    )
+}
+
+tasks.register<Zip>("runtimeZip") {
+    group = "distribution"
+    description = "Zips the bundled kuml runtime image for release distribution."
+    dependsOn("bundledImage")
+    archiveBaseName.set("kuml-runtime")
+    archiveVersion.set(project.version.toString())
+    from(imageDir) {
+        into("kuml-${project.version}")
+    }
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+}
