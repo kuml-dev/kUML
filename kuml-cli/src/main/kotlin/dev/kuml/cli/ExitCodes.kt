@@ -10,4 +10,7 @@ internal object ExitCodes {
 
     /** One or more OCL constraint violations were found. */
     internal const val VALIDATION_VIOLATIONS: Int = 4
+
+    /** `--check` mode found files that need formatting. */
+    internal const val FMT_CHECK_FAILED: Int = 5
 }
