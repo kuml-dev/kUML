@@ -12,6 +12,12 @@ kotlin {
 application {
     mainClass.set("dev.kuml.cli.MainKt")
     applicationName = "kuml"
+    // Cold-start tuning: Kotlin Scripting's embedded compiler dominates `kuml render`
+    // startup (~4-5s on JDK 21). TieredStopAtLevel=1 caps JIT at C1, shaving
+    // ~700ms off cold-start at no measurable cost for typical single-shot CLI usage
+    // (the dominant runtime cost is the script compile, not loop-body hot code).
+    // See V1.0.1 jlink plan + ADR-0007 for the longer-term path.
+    applicationDefaultJvmArgs = listOf("-XX:TieredStopAtLevel=1")
 }
 
 dependencies {
