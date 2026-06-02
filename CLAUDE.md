@@ -203,6 +203,12 @@ kuml/
 > - Release-Workflows triggern auf Tags (`v*.*.*`) — die Branch-Frage entfällt dort ohnehin
 > - Neue Repos: nach `git init` direkt `git branch -m main master` und `gh repo edit --default-branch master`
 
+> [!important] Keine Commit-SHAs in READMEs
+> READMEs nennen **niemals** einen Commit-SHA als „Aktualitätsstempel" (`Commit: \`fc1a8ba\`.`). Solche Stempel sind ab der nächsten Änderung am Modul falsch und vermitteln eine Aktualität, die die Datei nicht garantieren kann.
+>
+> - Quelle der Wahrheit für Modul-Stand: `git log <pfad>` und das Inhaltsverzeichnis der `.adoc`-Datei.
+> - Wenn ein Modul-README einen Bezug zu einem bestimmten Commit braucht (z. B. „ADR-konform seit …"), nenne stattdessen das **Datum** oder den **Versions-Tag** (`Seit v0.1.0`), nicht den SHA.
+
 ---
 
 ## Kotlin-Coding-Konventionen

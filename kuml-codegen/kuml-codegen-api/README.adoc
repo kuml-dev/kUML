@@ -9,8 +9,6 @@ Defines the stable contract that every code-generation plugin must implement.
 Pure Kotlin, no third-party dependencies — safe to depend on from any kUML
 module without pulling in target-language tooling.
 
-Commit: `0df0891`.
-
 == Key Types
 
 [cols="1,3"]
