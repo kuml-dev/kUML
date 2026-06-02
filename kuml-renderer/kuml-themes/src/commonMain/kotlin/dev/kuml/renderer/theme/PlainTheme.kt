@@ -8,23 +8,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Built-in black-and-white theme — the V1 default for all kUML renderers.
+ * Built-in black-and-white Compose theme — the V1 default for all kUML renderers.
  *
- * Uses the platform's default system font at classic UML diagram sizes.
- * No additional font resources are required.
+ * This is the Compose-adapter variant of the framework-neutral
+ * [dev.kuml.renderer.theme.core.PlainTheme]. Existing imports of
+ * `dev.kuml.renderer.theme.PlainTheme` remain unchanged.
  *
  * Example:
  * ```kotlin
  * KumlKuiverRenderer.Render(diagram, layoutResult, theme = PlainTheme)
  * ```
  *
- * @see KumlTheme
+ * @see ComposeKumlTheme
  */
-public object PlainTheme : KumlTheme {
+public object PlainTheme : ComposeKumlTheme {
 
     override val name: String = "Plain"
 
-    override val colors: KumlColors = KumlColors(
+    override val colors: ComposeKumlColors = ComposeKumlColors(
         background = Color.White,
         foreground = Color.Black,
         border = Color.Black,
@@ -34,7 +35,7 @@ public object PlainTheme : KumlTheme {
         edgeMuted = Color(0xFF999999),
     )
 
-    override val typography: KumlTypography = KumlTypography(
+    override val typography: ComposeKumlTypography = ComposeKumlTypography(
         title = TextStyle(
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
@@ -58,7 +59,7 @@ public object PlainTheme : KumlTheme {
         ),
     )
 
-    override val borders: KumlBorders = KumlBorders(
+    override val borders: ComposeKumlBorders = ComposeKumlBorders(
         thin = 1.dp,
         regular = 1.5.dp,
         thick = 2.dp,

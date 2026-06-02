@@ -16,6 +16,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            api(project(":kuml-renderer:kuml-themes-core"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
