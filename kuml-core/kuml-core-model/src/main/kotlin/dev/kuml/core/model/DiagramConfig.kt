@@ -94,3 +94,18 @@ data class SequenceDiagramConfig(
     val showReturnArrows: Boolean = true,
     val numberFragmentBranches: Boolean = true,
 ) : DiagramConfig
+
+/**
+ * Display options for a UML object diagram (V1.1).
+ *
+ * @property showClassifierType Render the `: ClassifierName` after each instance name.
+ * @property showSlotCompartment Include the slot/value compartment under the header.
+ * @property showNullSlots Render slots whose value is [UmlInstanceValue.Null]. When
+ *   `false`, those slots are silently omitted.
+ */
+@Serializable
+data class ObjectDiagramConfig(
+    val showClassifierType: Boolean = true,
+    val showSlotCompartment: Boolean = true,
+    val showNullSlots: Boolean = true,
+) : DiagramConfig
