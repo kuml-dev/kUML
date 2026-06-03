@@ -7,6 +7,7 @@ import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
+import dev.kuml.uml.UmlLink
 import dev.kuml.uml.UmlRelationship
 
 /**
@@ -37,5 +38,6 @@ internal object EndpointResolver {
             is UmlConnector -> relationship.end1Id to relationship.end2Id
             is UmlInclude -> relationship.baseId to relationship.additionId
             is UmlExtend -> relationship.baseId to relationship.extensionId
+            is UmlLink -> relationship.sourceInstanceId to relationship.targetInstanceId
         }
 }

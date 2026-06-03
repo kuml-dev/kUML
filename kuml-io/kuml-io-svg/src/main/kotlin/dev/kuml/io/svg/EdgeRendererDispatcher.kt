@@ -10,6 +10,7 @@ import dev.kuml.io.svg.uml.renderUmlExtend
 import dev.kuml.io.svg.uml.renderUmlGeneralization
 import dev.kuml.io.svg.uml.renderUmlInclude
 import dev.kuml.io.svg.uml.renderUmlInterfaceRealization
+import dev.kuml.io.svg.uml.renderUmlLink
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.UmlAssociation
@@ -19,6 +20,7 @@ import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
+import dev.kuml.uml.UmlLink
 
 /**
  * Leitet eine Relationship an den passenden Edge-SVG-Builder weiter.
@@ -49,6 +51,7 @@ internal object EdgeRendererDispatcher {
             is UmlConnector -> renderUmlConnector(relationship, route, theme, builder)
             is UmlInclude -> renderUmlInclude(relationship, route, theme, builder)
             is UmlExtend -> renderUmlExtend(relationship, route, theme, builder)
+            is UmlLink -> renderUmlLink(relationship, route, theme, builder)
             is C4Relationship -> renderC4Relationship(relationship, route, theme, builder)
             else -> renderFallbackEdge(route, builder)
         }

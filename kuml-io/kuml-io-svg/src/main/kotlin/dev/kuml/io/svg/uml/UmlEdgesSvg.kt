@@ -12,6 +12,7 @@ import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
+import dev.kuml.uml.UmlLink
 
 // ── UML Edge Renderer ─────────────────────────────────────────────────────────
 
@@ -149,6 +150,51 @@ private fun renderEdgeLabel(
         ),
     ) {
         text(xmlEscapeText(label))
+    }
+}
+
+/**
+ * UML Link — solid line, no arrowhead. Object-diagram instances of an
+ * association. Optional `sourceRole` / `targetRole` labels appear near the
+ * respective endpoints. If neither role is set, the link is unlabelled.
+ */
+internal fun renderUmlLink(
+    rel: UmlLink,
+    route: EdgeRoute,
+    theme: KumlTheme,
+    builder: SvgBuilder,
+) {
+    val (tag, attrs) = EdgePathBuilder.build(route)
+    builder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
+
+    rel.sourceRoleName?.let { label ->
+        // Place the source-role label one-quarter of the way from source to target.
+        val qx = route.source.x + (route.target.x - route.source.x) * 0.25f
+        val qy = route.source.y + (route.target.y - route.source.y) * 0.25f - 4f
+        builder.tag(
+            "text",
+            mapOf(
+                "class" to "kuml-small",
+                "x" to fmt(qx),
+                "y" to fmt(qy),
+                "text-anchor" to "middle",
+            ),
+        ) { text(xmlEscapeText(label)) }
+    }
+
+    rel.targetRoleName?.let { label ->
+        // Three-quarters of the way from source to target.
+        val qx = route.source.x + (route.target.x - route.source.x) * 0.75f
+        val qy = route.source.y + (route.target.y - route.source.y) * 0.75f - 4f
+        builder.tag(
+            "text",
+            mapOf(
+                "class" to "kuml-small",
+                "x" to fmt(qx),
+                "y" to fmt(qy),
+                "text-anchor" to "middle",
+            ),
+        ) { text(xmlEscapeText(label)) }
     }
 }
 

@@ -13,6 +13,7 @@ import dev.kuml.io.svg.uml.renderUmlActor
 import dev.kuml.io.svg.uml.renderUmlClass
 import dev.kuml.io.svg.uml.renderUmlComponent
 import dev.kuml.io.svg.uml.renderUmlEnum
+import dev.kuml.io.svg.uml.renderUmlInstance
 import dev.kuml.io.svg.uml.renderUmlInterface
 import dev.kuml.io.svg.uml.renderUmlState
 import dev.kuml.io.svg.uml.renderUmlUseCase
@@ -22,6 +23,7 @@ import dev.kuml.uml.UmlActor
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlEnumeration
+import dev.kuml.uml.UmlInstanceSpecification
 import dev.kuml.uml.UmlInterface
 import dev.kuml.uml.UmlState
 import dev.kuml.uml.UmlUseCase
@@ -59,6 +61,7 @@ internal object NodeRendererDispatcher {
             is UmlActor -> renderUmlActor(element, layout, theme, builder)
             is UmlUseCase -> renderUmlUseCase(element, layout, theme, builder)
             is UmlState -> renderUmlState(element, layout, theme, builder)
+            is UmlInstanceSpecification -> renderUmlInstance(element, layout, theme, builder)
             is C4Person -> renderC4Person(element, layout, theme, builder)
             is C4SoftwareSystem -> renderC4SoftwareSystem(element, layout, theme, builder)
             is C4Container -> renderC4Container(element, layout, theme, builder)
