@@ -110,6 +110,45 @@ componentDiagram(name = "Architecture") {
 
 Full example: link:../kuml-tests/examples/component-diagram/architecture.kuml.kts[`architecture.kuml.kts`]
 
+=== Object diagram (V1.1)
+
+Structural snapshot: instances of classifiers with their slot values, connected
+by links. Useful for illustrating a specific configuration the class diagram
+permits, or for capturing test fixtures pictorially.
+
+[source,kotlin]
+----
+// Build classifiers directly (or capture them from a surrounding class diagram).
+val customer = UmlClass(
+    id = "Customer", name = "Customer",
+    attributes = listOf(
+        UmlProperty(id = "Customer::name", name = "name", type = UmlTypeRef("String")),
+    ),
+)
+
+objectDiagram(name = "Order #42 snapshot") {
+    val alice = instanceOf(classifier = customer, name = "alice") {
+        slot(feature = "name", value = literal("\"Alice\""))
+    }
+    val bob = instanceOf(classifier = customer, name = "bob") {
+        slot(feature = "name", value = literal("\"Bob\""))
+    }
+    link(from = alice, to = bob, targetRole = "friend")
+}
+----
+
+Rendered notation:
+
+* Instance header `name : Classifier` — underlined per UML 2.x convention.
+* Anonymous instances render as `: Classifier`.
+* Slot compartment lists `feature = value` per slot.
+* Slot values use the helpers `literal(text)`, `ref(otherInstance)`, or
+  `nullValue` for explicit absence.
+* Links are plain lines (no arrowhead) with optional `sourceRole` / `targetRole`
+  labels at the quarter / three-quarter points.
+
+Full example: link:../kuml-tests/examples/object-diagram/order-snapshot.kuml.kts[`order-snapshot.kuml.kts`]
+
 == C4 diagrams
 
 The C4 metamodel ships in full — five C4 levels plus the dynamic-flow view.

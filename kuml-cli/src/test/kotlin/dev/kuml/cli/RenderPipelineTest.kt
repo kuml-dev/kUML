@@ -58,6 +58,32 @@ class RenderPipelineTest :
             outputDir.toFile().delete()
         }
 
+        test("RenderPipeline writes SVG file from UML 2.x object-diagram script (V1.1)") {
+            val fixture = File("src/test/resources/minimal-object.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-obj-test")
+            val outputFile = outputDir.resolve("minimal-object.svg")
+
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "svg",
+                width = 1024,
+                themeName = "plain",
+            )
+
+            val content = outputFile.toFile().readText()
+            content shouldStartWith "<?xml"
+            // Instance rectangles get the `kuml-instance` class; the UML
+            // underline lives on the header text via text-decoration="underline".
+            content shouldContain "class=\"kuml-instance\""
+            content shouldContain "text-decoration=\"underline\""
+            // Locale regression guard from V1.0.1 still in effect here.
+            content shouldNotContain Regex("""translate\(\s*-?\d+,\s*-?\d+,\s*-?\d+""").pattern
+
+            outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
         test("RenderPipeline writes PNG file from C4 system-context script") {
             val fixture = File("src/test/resources/minimal-c4.kuml.kts")
             val outputDir = Files.createTempDirectory("kuml-c4-png-test")
