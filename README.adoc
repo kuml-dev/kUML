@@ -137,9 +137,18 @@ GraalVM Native Image 🚧 (deferred V1.1, ADR-0009) +
 Maven Central ✅ infra + Homebrew ✅ tap live
 | ✅ Done
 
+| *V1.0.1*
+| `kuml render` for C4 scripts + SVG Locale-fix +
+jlink runtime bundle (self-contained, no JDK dep) +
+cleanup: stale Commit-SHAs out of READMEs, DSL-README named-param sweep
+| ✅ Done (`v0.1.1`)
+
 | *V1.1*
-| Remaining 9 UML diagram types, profiles, Gradle plugin, AsciiDoc, IDE plugin, `kuml simulate`
-| 📋 Planned
+| All 9 remaining UML 2.x diagram types (object ✅, package ✅, composite-structure ✅,
+deployment ✅, profile ✅, activity ✅, communication ✅, timing ✅, interaction-overview ✅) +
+profiles, Grid-Layout engine, more themes, more codegen, Structurizr export,
+Gradle plugin, AsciiDoc, IDE plugin, `kuml simulate`
+| 🚧 In progress — all 9 diagram types shipped
 
 | *V2*
 | SysML 2 + KerML, M2M transformations, reverse engineering, XMI, Web UI, Compose Desktop
@@ -152,12 +161,12 @@ Maven Central ✅ infra + Homebrew ✅ tap live
 ----
 kuml-core/
   kuml-core-model    ✅  Sealed Kotlin metamodel base types
-  kuml-core-dsl      ✅  DSL builders: UML (5 types) + C4 (6 builders)
+  kuml-core-dsl      ✅  DSL builders: UML (14 diagram types in V1.1) + C4 (6 builders)
   kuml-core-script   ✅  Kotlin Scripting host + KumlScriptDefinition + DiagramExtractor
   kuml-core-ocl      ✅  OCL subset interpreter (navigation, forAll, exists, implies, …)
 
 kuml-metamodel/
-  kuml-metamodel-uml ✅  UML 2.x sealed hierarchy + serialization
+  kuml-metamodel-uml ✅  UML 2.x sealed hierarchy + serialization (all V1.1 element types)
   kuml-metamodel-c4  ✅  C4 sealed hierarchy + C4Model
 
 kuml-renderer/

@@ -149,6 +149,168 @@ Rendered notation:
 
 Full example: link:../kuml-tests/examples/object-diagram/order-snapshot.kuml.kts[`order-snapshot.kuml.kts`]
 
+=== Package diagram (V1.1)
+
+Groups model elements into named folders with `«import»` / `«merge»` /
+`«access»` dependencies between them.
+
+[source,kotlin]
+----
+packageDiagram(name = "Three-Layer Architecture") {
+    val web = packageOf(name = "web")
+    val service = packageOf(name = "service")
+    val repository = packageOf(name = "repository")
+    packageImport(client = web, supplier = service)
+    packageImport(client = service, supplier = repository)
+}
+----
+
+Full example: link:../kuml-tests/examples/package/three-layers.kuml.kts[`three-layers.kuml.kts`]
+
+=== Composite-structure diagram (V1.1)
+
+Shows the internal wiring of a classifier — ports, parts and the connectors
+between them.
+
+[source,kotlin]
+----
+compositeStructureDiagram(name = "OrderService — internal structure") {
+    val placeOrder = interfaceOf(name = "IPlaceOrder")
+    val orderSvc = component(name = "OrderService") {
+        port(name = "api"); provides(iface = placeOrder)
+    }
+    // … additional components + connect(end1, port1, end2, port2)
+}
+----
+
+Full example: link:../kuml-tests/examples/composite-structure/order-service.kuml.kts[`order-service.kuml.kts`]
+
+=== Deployment diagram (V1.1)
+
+Runtime topology: nodes (hardware, devices, execution environments) hosting
+artifacts, linked by communication paths.
+
+[source,kotlin]
+----
+deploymentDiagram(name = "AWS — production") {
+    val vpc = executionEnvironment(name = "VPC eu-central-1") {
+        node(name = "EKS Cluster") {
+            artifact(name = "kuml-web.jar")
+            artifact(name = "kuml-mcp.jar")
+        }
+    }
+    val db = device(name = "RDS PostgreSQL")
+    communicationPath(end1 = vpc, end2 = db)
+}
+----
+
+Notation: nodes render as 3D cubes with `«executionEnvironment»` /
+`«device»` stereotypes where set, artifacts as rectangles with a
+dog-eared corner.
+
+Full example: link:../kuml-tests/examples/deployment/aws-eks.kuml.kts[`aws-eks.kuml.kts`]
+
+=== Profile diagram (V1.1)
+
+Declares stereotypes with tagged-value definitions and `«extension»`
+dependencies to metaclass placeholders.
+
+[source,kotlin]
+----
+profileDiagram(name = "Java EE profile") {
+    val entity = stereotype(name = "Entity", metaclasses = listOf("Class")) {
+        tag(name = "tableName", type = "String")
+    }
+    val cls = metaclass(name = "Class")
+    extension(stereotype = entity, metaclass = cls)
+}
+----
+
+Full example: link:../kuml-tests/examples/profile/javaee.kuml.kts[`javaee.kuml.kts`]
+
+=== Activity diagram (V1.1)
+
+Control-flow + object-flow graph. Initial / final, actions, decisions,
+forks/joins, and guarded edges.
+
+[source,kotlin]
+----
+activityDiagram(name = "Order checkout") {
+    val start = initialNode()
+    val validate = action(name = "Validate cart")
+    val ok = decision(name = "valid?")
+    val charge = action(name = "Charge card")
+    val end = finalNode()
+    edge(from = start, to = validate)
+    edge(from = validate, to = ok)
+    edge(from = ok, to = charge, guard = "valid")
+    edge(from = charge, to = end)
+}
+----
+
+Edges use `guard = "…"` for labelled branches and `objectFlow = true` for
+dashed object flow lines.
+
+Full example: link:../kuml-tests/examples/activity/order-checkout.kuml.kts[`order-checkout.kuml.kts`]
+
+=== Communication diagram (V1.1)
+
+The same scenario as a sequence diagram but laid out spatially. Each
+`message(from, to, label)` call gets an auto-assigned sequence number.
+
+[source,kotlin]
+----
+communicationDiagram(name = "Place Order — communication view") {
+    val ui = role(classifierName = "UI", roleName = "ui")
+    val api = role(classifierName = "OrderApi", roleName = "api")
+    val db = role(classifierName = "Database", roleName = "db")
+    message(from = ui, to = api, label = "POST /orders")
+    message(from = api, to = db, label = "INSERT")
+    message(from = api, to = ui, label = "201 Created")
+}
+----
+
+Full example: link:../kuml-tests/examples/communication/place-order.kuml.kts[`place-order.kuml.kts`]
+
+=== Timing diagram (V1.1)
+
+State of one or more lifelines over discrete time. Each `tick(t, state)`
+records a state transition; the renderer joins ticks with a step-line.
+
+[source,kotlin]
+----
+timingDiagram(name = "TCP three-way handshake") {
+    lifeline(name = "client", states = listOf("CLOSED", "SYN_SENT", "ESTABLISHED")) {
+        tick(t = 0, state = "CLOSED")
+        tick(t = 1, state = "SYN_SENT")
+        tick(t = 4, state = "ESTABLISHED")
+    }
+    // … server lifeline
+}
+----
+
+Full example: link:../kuml-tests/examples/timing/tcp-handshake.kuml.kts[`tcp-handshake.kuml.kts`]
+
+=== Interaction-overview diagram (V1.1)
+
+Activity-style control flow over `ref InteractionName` frames that point
+at full sequence / communication diagrams elsewhere.
+
+[source,kotlin]
+----
+interactionOverviewDiagram(name = "Order overview") {
+    val init = initial()
+    val login = interactionRef(name = "Login")
+    val checkout = interactionRef(name = "Checkout")
+    val end = final()
+    edge(from = init, to = login)
+    edge(from = login, to = checkout)
+    edge(from = checkout, to = end)
+}
+----
+
+Full example: link:../kuml-tests/examples/interaction-overview/order-overview.kuml.kts[`order-overview.kuml.kts`]
+
 == C4 diagrams
 
 The C4 metamodel ships in full — five C4 levels plus the dynamic-flow view.

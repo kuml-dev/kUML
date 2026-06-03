@@ -14,7 +14,7 @@ and the complete set of UML element builders (`classOf`, `interfaceOf`, `enumOf`
 | Function | Description
 
 | `diagram(name, type, block)`
-| Creates a `KumlDiagram`.
+| Creates a generic `KumlDiagram`.
   Default type: `DiagramType.CLASS`.
   Full UML element builders available in the lambda.
 
@@ -22,6 +22,51 @@ and the complete set of UML element builders (`classOf`, `interfaceOf`, `enumOf`
 | Creates a `KumlModel` with `language = UML`.
   Use for model files without a fixed diagram type.
   Full UML element builders available in the lambda.
+
+| `classDiagram(name, block)`
+| Creates a class diagram (V1).
+
+| `sequenceDiagram(name, block)`
+| Creates a sequence diagram (V1).
+
+| `stateDiagram(name, block)`
+| Creates a state-machine diagram (V1).
+
+| `componentDiagram(name, block)`
+| Creates a component diagram (V1).
+
+| `useCaseDiagram(name, block)`
+| Creates a use-case diagram (V1).
+
+| `objectDiagram(name, block)`
+| *V1.1* — instance snapshot with slots + links.
+
+| `packageDiagram(name, block)`
+| *V1.1* — package tree with `«import»` / `«merge»` / `«access»` dependencies.
+
+| `compositeStructureDiagram(name, block)`
+| *V1.1* — classes + ports + connectors for internal wiring.
+
+| `deploymentDiagram(name, block)`
+| *V1.1* — nodes (hardware / execution environment / device), artifacts,
+  `deploy(artifact, node)`, `communicationPath(end1, end2)`.
+
+| `profileDiagram(name, block)`
+| *V1.1* — stereotype declarations with tagged-value definitions and
+  `«extension»` dependencies.
+
+| `activityDiagram(name, block)`
+| *V1.1* — initial / final / action / decision / fork / join, control flow
+  with optional `guard` and object flow.
+
+| `communicationDiagram(name, block)`
+| *V1.1* — roles + auto-numbered messages.
+
+| `timingDiagram(name, block)`
+| *V1.1* — lifelines + discrete state-change ticks.
+
+| `interactionOverviewDiagram(name, block)`
+| *V1.1* — activity-style control flow over `ref Interaction` frames.
 |===
 
 == UML Builder Functions
