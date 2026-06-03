@@ -96,6 +96,49 @@ fun useCaseDiagram(
 ): KumlDiagram = UseCaseDiagramBuilder(name = name).apply(block).build()
 
 /**
+ * Creates a UML 2.x object diagram (V1.1).
+ *
+ * An object diagram is a snapshot — instances of classifiers with their slot
+ * values, connected by links. Useful for documenting a specific configuration
+ * the class diagram is meant to permit, or for capturing test fixtures
+ * pictorially.
+ *
+ * Available builders inside the [block]:
+ * - [dev.kuml.uml.dsl.ObjectDiagramBuilder.instanceOf] — create an instance of a classifier
+ * - [dev.kuml.uml.dsl.ObjectDiagramBuilder.link] — connect two instances
+ * - inside `instanceOf { … }`:
+ *   `slot(feature, value)`, with value helpers
+ *   [dev.kuml.uml.dsl.literal], [dev.kuml.uml.dsl.ref], [dev.kuml.uml.dsl.nullValue]
+ *
+ * ```kotlin
+ * val customer = classOf("Customer") { attribute("name", type = "String") }
+ * val order    = classOf("Order")    { attribute("amount", type = "BigDecimal") }
+ *
+ * objectDiagram("Order #42 snapshot") {
+ *     val alice = instanceOf(customer, name = "alice") {
+ *         slot(feature = "name", value = literal("Alice"))
+ *     }
+ *     val ord = instanceOf(order, name = "order42") {
+ *         slot(feature = "amount", value = literal("19.95"))
+ *     }
+ *     link(from = alice, to = ord)
+ * }
+ * ```
+ *
+ * @param name Human-readable diagram name.
+ * @param block Builder lambda.
+ * @return The built [KumlDiagram] with [dev.kuml.core.model.ObjectDiagramConfig] attached.
+ */
+public fun objectDiagram(
+    name: String,
+    block: dev.kuml.uml.dsl.ObjectDiagramBuilder.() -> Unit = {},
+): KumlDiagram =
+    dev.kuml.uml.dsl
+        .ObjectDiagramBuilder(name = name)
+        .apply(block)
+        .build()
+
+/**
  * Creates a UML component diagram.
  *
  * Available builders in the [block]:
