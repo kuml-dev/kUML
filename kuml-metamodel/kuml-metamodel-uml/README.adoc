@@ -40,7 +40,14 @@ UmlElement (sealed)
 │   │   └── UmlFinalState
 │   ├── UmlTransition
 │   ├── UmlInteraction
-│   └── UmlUseCaseSubject
+│   ├── UmlUseCaseSubject
+│   ├── UmlInstanceSpecification          ← V1.1 (object diagram)
+│   ├── UmlNode                            ← V1.1 (deployment)
+│   ├── UmlArtifact                        ← V1.1 (deployment)
+│   ├── UmlStereotype                      ← V1.1 (profile)
+│   ├── UmlActivityNode                    ← V1.1 (activity, enum-kinded)
+│   ├── UmlTimingLifeline                  ← V1.1 (timing)
+│   └── UmlInteractionOverviewFrame        ← V1.1 (interaction overview)
 └── UmlRelationship (sealed)
     ├── UmlAssociation
     ├── UmlGeneralization
@@ -48,7 +55,9 @@ UmlElement (sealed)
     ├── UmlDependency
     ├── UmlInclude
     ├── UmlExtend
-    └── UmlConnector
+    ├── UmlConnector
+    ├── UmlLink                              ← V1.1 (object diagram, communication)
+    └── UmlActivityEdge                      ← V1.1 (activity, interaction overview)
 ----
 
 == ID Strategy
