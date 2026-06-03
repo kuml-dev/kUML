@@ -14,6 +14,10 @@ dependencyResolutionManagement {
 
 rootProject.name = "kUML"
 
+// ── Profiles ─────────────────────────────────────────── V1.1 ──
+include(":kuml-profile")
+include(":kuml-profile:kuml-profile-api")
+
 // ── Core ─────────────────────────────────────────────── Phase 0 ──
 include(
     "kuml-core:kuml-core-model",    // Phase 0 — Kotlin Metamodell-Basis

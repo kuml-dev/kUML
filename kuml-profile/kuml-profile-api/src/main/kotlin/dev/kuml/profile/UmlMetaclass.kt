@@ -1,0 +1,31 @@
+package dev.kuml.profile
+
+/** The set of UML metaclasses that can be extended by stereotypes in V1.1. */
+public enum class UmlMetaclass {
+    Class,
+    Interface,
+    Enumeration,
+    DataType,
+    Component,
+    Package,
+    Operation,
+    Property,
+    Parameter,
+    Association,
+    Dependency,
+    Generalization,
+    Realization,
+    Actor,
+    UseCase,
+    Port,
+    Connector,
+    Collaboration,
+    StateMachine,
+    State,
+    Transition,
+    Activity,
+    Action,
+    Node,
+    Artifact,
+    InstanceSpecification,
+}

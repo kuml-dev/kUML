@@ -23,7 +23,9 @@ data class UmlStateMachine(
     val transitions: List<UmlTransition> = emptyList(),
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlNamedElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlNamedElement,
+    Stereotypable
 
 // ── Vertex ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +56,9 @@ data class UmlState(
     val substates: List<UmlVertex> = emptyList(),
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlVertex
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlVertex,
+    Stereotypable
 
 /** The kind of a [UmlPseudostate]. */
 enum class PseudostateKind {
@@ -118,4 +122,6 @@ data class UmlTransition(
     val guard: String? = null,
     val effect: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlElement,
+    Stereotypable

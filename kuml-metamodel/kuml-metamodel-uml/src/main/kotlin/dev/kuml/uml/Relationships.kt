@@ -33,7 +33,9 @@ data class UmlAssociation(
     val ends: List<UmlAssociationEnd>,
     val aggregation: AggregationKind = AggregationKind.NONE,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlRelationship
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlRelationship,
+    Stereotypable
 
 /**
  * One end of a [UmlAssociation].
@@ -65,7 +67,9 @@ data class UmlGeneralization(
     val specificId: String,
     val generalId: String,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlRelationship
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlRelationship,
+    Stereotypable
 
 // ── Interface Realization ─────────────────────────────────────────────────────
 
@@ -81,7 +85,9 @@ data class UmlInterfaceRealization(
     val implementingId: String,
     val interfaceId: String,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlRelationship
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlRelationship,
+    Stereotypable
 
 // ── Dependency ────────────────────────────────────────────────────────────────
 
@@ -99,4 +105,6 @@ data class UmlDependency(
     val supplierId: String,
     val name: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlRelationship
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlRelationship,
+    Stereotypable

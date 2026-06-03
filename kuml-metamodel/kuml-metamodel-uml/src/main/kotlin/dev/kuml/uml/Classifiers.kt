@@ -34,7 +34,9 @@ data class UmlClass(
     val constraints: List<UmlConstraint> = emptyList(),
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlClassifier
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlClassifier,
+    Stereotypable
 
 // ── Interface ─────────────────────────────────────────────────────────────────
 
@@ -54,7 +56,9 @@ data class UmlInterface(
     val constraints: List<UmlConstraint> = emptyList(),
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlClassifier
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlClassifier,
+    Stereotypable
 
 // ── Enumeration ───────────────────────────────────────────────────────────────
 
@@ -67,7 +71,9 @@ data class UmlEnumeration(
     val literals: List<UmlEnumerationLiteral> = emptyList(),
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlClassifier
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlClassifier,
+    Stereotypable
 
 /** A single literal value of a [UmlEnumeration]. */
 @Serializable
@@ -94,4 +100,6 @@ data class UmlPackage(
     val members: List<UmlNamedElement> = emptyList(),
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlNamedElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlNamedElement,
+    Stereotypable

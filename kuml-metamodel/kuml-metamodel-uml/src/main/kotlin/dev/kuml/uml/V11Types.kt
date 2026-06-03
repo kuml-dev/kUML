@@ -33,7 +33,9 @@ data class UmlNode(
     val artifacts: List<UmlArtifact> = emptyList(),
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlNamedElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlNamedElement,
+    Stereotypable
 
 /**
  * A UML 2.x artifact — a physical piece of information that can be deployed
@@ -47,7 +49,9 @@ data class UmlArtifact(
     val fileName: String? = null,
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlNamedElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlNamedElement,
+    Stereotypable
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
@@ -114,7 +118,9 @@ data class UmlActivityNode(
     override val visibility: Visibility = Visibility.PUBLIC,
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlNamedElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlNamedElement,
+    Stereotypable
 
 /**
  * A UML 2.x activity edge — control flow or object flow between two activity
@@ -147,7 +153,9 @@ data class UmlTimingLifeline(
     override val visibility: Visibility = Visibility.PUBLIC,
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlNamedElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlNamedElement,
+    Stereotypable
 
 /**
  * A point on a [UmlTimingLifeline]'s timeline. Each tick records the

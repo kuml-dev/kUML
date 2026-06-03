@@ -28,7 +28,9 @@ data class UmlProperty(
     val isReadOnly: Boolean = false,
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlNamedElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlNamedElement,
+    Stereotypable
 
 // ── Operation ─────────────────────────────────────────────────────────────────
 
@@ -53,7 +55,9 @@ data class UmlOperation(
     val isStatic: Boolean = false,
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlNamedElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlNamedElement,
+    Stereotypable
 
 // ── Parameter ─────────────────────────────────────────────────────────────────
 
@@ -77,7 +81,9 @@ data class UmlParameter(
     val defaultValue: String? = null,
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlNamedElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlNamedElement,
+    Stereotypable
 
 // ── Constraint ────────────────────────────────────────────────────────────────
 

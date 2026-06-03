@@ -18,7 +18,9 @@ data class UmlActor(
     override val visibility: Visibility = Visibility.PUBLIC,
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlClassifier
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlClassifier,
+    Stereotypable
 
 // ── Use Case ──────────────────────────────────────────────────────────────────
 
@@ -35,7 +37,9 @@ data class UmlUseCase(
     val constraints: List<UmlConstraint> = emptyList(),
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlClassifier
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlClassifier,
+    Stereotypable
 
 // ── Subject ───────────────────────────────────────────────────────────────────
 

@@ -28,7 +28,9 @@ data class UmlComponent(
     val nestedComponents: List<UmlComponent> = emptyList(),
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlClassifier
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlClassifier,
+    Stereotypable
 
 // ── Port ──────────────────────────────────────────────────────────────────────
 
@@ -48,7 +50,9 @@ data class UmlPort(
     val isConjugated: Boolean = false,
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlNamedElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlNamedElement,
+    Stereotypable
 
 // ── Connector ─────────────────────────────────────────────────────────────────
 
@@ -66,4 +70,6 @@ data class UmlConnector(
     val end2Id: String,
     val name: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlRelationship
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlRelationship,
+    Stereotypable

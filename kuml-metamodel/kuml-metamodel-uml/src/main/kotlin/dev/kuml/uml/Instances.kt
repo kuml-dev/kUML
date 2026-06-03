@@ -40,7 +40,9 @@ data class UmlInstanceSpecification(
     val slots: List<UmlSlot> = emptyList(),
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
-) : UmlNamedElement
+    override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
+) : UmlNamedElement,
+    Stereotypable
 
 /**
  * A UML 2.x `Slot` — value(s) assigned to a defining feature of an instance.
