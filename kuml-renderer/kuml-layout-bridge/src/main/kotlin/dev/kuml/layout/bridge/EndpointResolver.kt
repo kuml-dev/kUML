@@ -1,5 +1,6 @@
 package dev.kuml.layout.bridge
 
+import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -39,5 +40,6 @@ internal object EndpointResolver {
             is UmlInclude -> relationship.baseId to relationship.additionId
             is UmlExtend -> relationship.baseId to relationship.extensionId
             is UmlLink -> relationship.sourceInstanceId to relationship.targetInstanceId
+            is UmlActivityEdge -> relationship.sourceId to relationship.targetId
         }
 }

@@ -109,3 +109,58 @@ data class ObjectDiagramConfig(
     val showSlotCompartment: Boolean = true,
     val showNullSlots: Boolean = true,
 ) : DiagramConfig
+
+/** Display options for a UML package diagram (V1.1). */
+@Serializable
+data class PackageDiagramConfig(
+    val showStereotypes: Boolean = true,
+    val showFolderTabs: Boolean = true,
+) : DiagramConfig
+
+/** Display options for a UML composite-structure diagram (V1.1). */
+@Serializable
+data class CompositeStructureDiagramConfig(
+    val showPortLabels: Boolean = true,
+    val showRoleNames: Boolean = true,
+) : DiagramConfig
+
+/** Display options for a UML deployment diagram (V1.1). */
+@Serializable
+data class DeploymentDiagramConfig(
+    val showHardwareStereotype: Boolean = true,
+    val showArtifactStereotype: Boolean = true,
+) : DiagramConfig
+
+/** Display options for a UML profile diagram (V1.1). */
+@Serializable
+data class ProfileDiagramConfig(
+    val showMetaclassStereotype: Boolean = true,
+) : DiagramConfig
+
+/** Display options for a UML activity diagram (V1.1). */
+@Serializable
+data class ActivityDiagramConfig(
+    val showGuardLabels: Boolean = true,
+    val orientation: ActivityOrientation = ActivityOrientation.TOP_DOWN,
+) : DiagramConfig
+
+@Serializable
+enum class ActivityOrientation { TOP_DOWN, LEFT_RIGHT }
+
+/** Display options for a UML communication diagram (V1.1). */
+@Serializable
+data class CommunicationDiagramConfig(
+    val showSequenceNumbers: Boolean = true,
+) : DiagramConfig
+
+/** Display options for a UML timing diagram (V1.1). */
+@Serializable
+data class TimingDiagramConfig(
+    val showTickLabels: Boolean = true,
+) : DiagramConfig
+
+/** Display options for a UML interaction-overview diagram (V1.1). */
+@Serializable
+data class InteractionOverviewDiagramConfig(
+    val showFrameLabels: Boolean = true,
+) : DiagramConfig
