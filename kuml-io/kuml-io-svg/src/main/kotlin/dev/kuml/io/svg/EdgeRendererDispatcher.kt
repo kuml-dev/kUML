@@ -3,6 +3,7 @@ package dev.kuml.io.svg
 import dev.kuml.c4.model.C4Relationship
 import dev.kuml.core.model.KumlElement
 import dev.kuml.io.svg.c4.renderC4Relationship
+import dev.kuml.io.svg.uml.renderUmlActivityEdge
 import dev.kuml.io.svg.uml.renderUmlAssociation
 import dev.kuml.io.svg.uml.renderUmlConnector
 import dev.kuml.io.svg.uml.renderUmlDependency
@@ -13,6 +14,7 @@ import dev.kuml.io.svg.uml.renderUmlInterfaceRealization
 import dev.kuml.io.svg.uml.renderUmlLink
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -52,6 +54,7 @@ internal object EdgeRendererDispatcher {
             is UmlInclude -> renderUmlInclude(relationship, route, theme, builder)
             is UmlExtend -> renderUmlExtend(relationship, route, theme, builder)
             is UmlLink -> renderUmlLink(relationship, route, theme, builder)
+            is UmlActivityEdge -> renderUmlActivityEdge(relationship, route, theme, builder)
             is C4Relationship -> renderC4Relationship(relationship, route, theme, builder)
             else -> renderFallbackEdge(route, builder)
         }
