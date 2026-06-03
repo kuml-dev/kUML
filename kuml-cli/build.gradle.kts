@@ -243,8 +243,32 @@ tasks.register<Zip>("runtimeZip") {
     dependsOn("bundledImage")
     archiveBaseName.set("kuml-runtime")
     archiveVersion.set(project.version.toString())
+
+    // Gradle's Zip task stores every file as 0644 by default. Without an
+    // override the launcher and every JRE binary in the runtime image end
+    // up non-executable inside the zip, so `brew install kuml` produces a
+    // broken install (the Homebrew log says "kuml: command not found"
+    // because $HOMEBREW_PREFIX/bin/kuml symlinks at a non-executable file).
+    //
+    // The image dir itself has correct 0755 permissions on these paths —
+    // the `bundleInstallDist` / `bundleJlinkRuntime` Sync tasks preserve
+    // them. We just need to tell the Zip writer to keep that for the
+    // known executables, then write everything else as 0644.
     from(imageDir) {
         into("kuml-${project.version}")
+        eachFile {
+            val p = relativePath.pathString
+            val isExecutable =
+                // CLI launcher (the shell variant; .bat stays 0644).
+                p.endsWith("/bin/kuml") ||
+                    // All JDK binaries shipped with the bundled runtime.
+                    p.contains("/runtime/bin/") ||
+                    // jlink's helper executable, lives outside runtime/bin.
+                    p.endsWith("/runtime/lib/jspawnhelper")
+            permissions {
+                unix(if (isExecutable) "0755" else "0644")
+            }
+        }
     }
     destinationDirectory.set(layout.buildDirectory.dir("distributions"))
 }

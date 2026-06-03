@@ -14,8 +14,16 @@ class Kuml < Formula
   # a jlink-built Java 21 runtime. No external JDK dependency.
 
   def install
-    # The zip extracts as kuml-<version>/{bin,lib,runtime}/ — strip that prefix.
-    libexec.install Dir["kuml-#{version}/*"]
+    # The zip extracts as kuml-<version>/{bin,lib,runtime}/, but Homebrew's
+    # extract step already CDs into that single top-level directory before
+    # running this method — so the bin/lib/runtime tree is right here in `.`.
+    libexec.install Dir["*"]
+    # Defensive chmod: pre-v0.2.0 release artefacts shipped without exec
+    # bits inside the zip. Newer builds set 0755 on bin/kuml and the
+    # runtime/bin/* binaries already, so this is a no-op for them.
+    chmod 0755, libexec/"bin/kuml"
+    Dir[libexec/"runtime/bin/*"].each { |f| chmod 0755, f }
+    chmod 0755, libexec/"runtime/lib/jspawnhelper" if File.exist?(libexec/"runtime/lib/jspawnhelper")
     bin.install_symlink libexec/"bin/kuml"
   end
 
