@@ -1,6 +1,10 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.profile.KumlProfile
+import dev.kuml.profile.KumlStereotypeApplication
+import dev.kuml.profile.UmlMetaclass
+import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.Visibility
@@ -24,7 +28,10 @@ class PackageBuilder internal constructor(
     parentId: String?,
     override val takenIds: MutableSet<String>,
     explicitId: String?,
-) : UmlContainerScope {
+    /** The enclosing container scope — used to look up applied profiles. */
+    private val parentScope: UmlContainerScope? = null,
+) : UmlContainerScope,
+    UmlElementScope {
     /** The computed or explicitly provided ID for this package. */
     override val containerId: String =
         run {
@@ -34,13 +41,36 @@ class PackageBuilder internal constructor(
             resolved
         }
 
+    override val metaclass: UmlMetaclass = UmlMetaclass.Package
+
+    override val container: UmlContainerScope
+        get() =
+            parentScope
+                ?: error("PackageBuilder has no parent container — stereotype() cannot resolve applied profiles.")
+
     var visibility: Visibility = Visibility.PUBLIC
     val stereotypes: MutableList<String> = mutableListOf()
 
     private val members = mutableListOf<UmlNamedElement>()
+    private val stereotypeApplications = mutableListOf<KumlStereotypeApplication>()
 
     override fun addNamedElement(element: UmlNamedElement) {
         members += element
+    }
+
+    /**
+     * Packages do not support [applyProfile] — call it at diagram or model scope.
+     * Throws [UnsupportedOperationException] if called.
+     */
+    override fun addAppliedProfile(profile: KumlProfile) {
+        error("applyProfile() must be called at diagram/model root, not inside a package.")
+    }
+
+    /** Delegates to the parent scope for applied-profile resolution. */
+    override fun appliedProfiles(): List<KumlProfile> = parentScope?.appliedProfiles() ?: emptyList()
+
+    override fun addStereotype(app: KumlStereotypeApplication) {
+        stereotypeApplications += app
     }
 
     internal fun build(): UmlPackage =
@@ -50,6 +80,7 @@ class PackageBuilder internal constructor(
             visibility = visibility,
             members = members.toList(),
             stereotypes = stereotypes.toList(),
+            appliedStereotypes = stereotypeApplications.toList<AppliedStereotype>(),
         )
 }
 
@@ -89,6 +120,7 @@ fun UmlContainerScope.`package`(
             parentId = containerId,
             takenIds = takenIds,
             explicitId = id,
+            parentScope = this,
         )
     builder.block()
     val pkg = builder.build()

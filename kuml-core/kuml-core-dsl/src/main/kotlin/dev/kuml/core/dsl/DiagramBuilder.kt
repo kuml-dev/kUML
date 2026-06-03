@@ -3,6 +3,7 @@ package dev.kuml.core.dsl
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlRelationship
 import dev.kuml.uml.dsl.UmlModelScope
@@ -25,6 +26,7 @@ class DiagramBuilder(
     override val takenIds: MutableSet<String> = mutableSetOf()
 
     private val elements = mutableListOf<KumlElement>()
+    private val appliedProfilesList = mutableListOf<KumlProfile>()
 
     override fun addNamedElement(element: UmlNamedElement) {
         elements += element
@@ -35,6 +37,12 @@ class DiagramBuilder(
         elements += relationship
         takenIds += relationship.id
     }
+
+    override fun addAppliedProfile(profile: KumlProfile) {
+        appliedProfilesList += profile
+    }
+
+    override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
     /** Builds the immutable [KumlDiagram]. */
     fun build(): KumlDiagram =

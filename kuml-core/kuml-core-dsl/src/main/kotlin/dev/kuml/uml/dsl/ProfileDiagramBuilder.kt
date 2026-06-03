@@ -4,6 +4,7 @@ import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.ProfileDiagramConfig
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlElement
@@ -32,6 +33,7 @@ public class ProfileDiagramBuilder(
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
+    private val appliedProfilesList = mutableListOf<KumlProfile>()
     private val elements = mutableListOf<UmlElement>()
 
     public var showMetaclassStereotype: Boolean = true
@@ -102,6 +104,12 @@ public class ProfileDiagramBuilder(
         addRelationship(d)
         return d
     }
+
+    override fun addAppliedProfile(profile: KumlProfile) {
+        appliedProfilesList += profile
+    }
+
+    override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
     public fun build(): KumlDiagram =
         KumlDiagram(

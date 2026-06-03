@@ -4,6 +4,7 @@ import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.model.CompositeStructureDiagramConfig
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
@@ -30,6 +31,7 @@ public class CompositeStructureDiagramBuilder(
     override val takenIds: MutableSet<String> = mutableSetOf()
 
     private val elements = mutableListOf<UmlElement>()
+    private val appliedProfilesList = mutableListOf<KumlProfile>()
 
     public var showPortLabels: Boolean = true
     public var showRoleNames: Boolean = true
@@ -57,6 +59,12 @@ public class CompositeStructureDiagramBuilder(
         elements += relationship
         takenIds += relationship.id
     }
+
+    override fun addAppliedProfile(profile: KumlProfile) {
+        appliedProfilesList += profile
+    }
+
+    override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
     public fun build(): KumlDiagram =
         KumlDiagram(

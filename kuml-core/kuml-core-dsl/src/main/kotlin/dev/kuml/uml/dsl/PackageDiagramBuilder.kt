@@ -4,6 +4,7 @@ import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.PackageDiagramConfig
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlElement
@@ -38,6 +39,7 @@ public class PackageDiagramBuilder(
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
+    private val appliedProfilesList = mutableListOf<KumlProfile>()
     private val elements = mutableListOf<UmlElement>()
 
     public var showStereotypes: Boolean = true
@@ -131,6 +133,12 @@ public class PackageDiagramBuilder(
             "[$name] $rejected is not a valid relationship for a package diagram."
         }
     }
+
+    override fun addAppliedProfile(profile: KumlProfile) {
+        appliedProfilesList += profile
+    }
+
+    override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
     public fun build(): KumlDiagram =
         KumlDiagram(

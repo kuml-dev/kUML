@@ -4,6 +4,7 @@ import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.TimingDiagramConfig
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlElement
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlRelationship
@@ -26,6 +27,7 @@ public class TimingDiagramBuilder(
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
+    private val appliedProfilesList = mutableListOf<KumlProfile>()
     private val elements = mutableListOf<UmlElement>()
 
     public var showTickLabels: Boolean = true
@@ -62,6 +64,12 @@ public class TimingDiagramBuilder(
         addNamedElement(l)
         return l
     }
+
+    override fun addAppliedProfile(profile: KumlProfile) {
+        appliedProfilesList += profile
+    }
+
+    override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
     public fun build(): KumlDiagram =
         KumlDiagram(

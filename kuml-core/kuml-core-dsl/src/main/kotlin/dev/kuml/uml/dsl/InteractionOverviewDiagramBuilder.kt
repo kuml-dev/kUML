@@ -4,6 +4,7 @@ import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.InteractionOverviewDiagramConfig
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlElement
 import dev.kuml.uml.UmlInteractionFrameKind
@@ -29,6 +30,7 @@ public class InteractionOverviewDiagramBuilder(
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
+    private val appliedProfilesList = mutableListOf<KumlProfile>()
     private val elements = mutableListOf<UmlElement>()
 
     public var showFrameLabels: Boolean = true
@@ -102,6 +104,12 @@ public class InteractionOverviewDiagramBuilder(
         addNamedElement(f)
         return f
     }
+
+    override fun addAppliedProfile(profile: KumlProfile) {
+        appliedProfilesList += profile
+    }
+
+    override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
     public fun build(): KumlDiagram =
         KumlDiagram(

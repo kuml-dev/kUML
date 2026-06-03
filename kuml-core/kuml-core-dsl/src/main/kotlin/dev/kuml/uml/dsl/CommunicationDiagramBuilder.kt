@@ -4,6 +4,7 @@ import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.model.CommunicationDiagramConfig
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlElement
 import dev.kuml.uml.UmlInstanceSpecification
 import dev.kuml.uml.UmlInstanceValue
@@ -32,6 +33,7 @@ public class CommunicationDiagramBuilder(
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
+    private val appliedProfilesList = mutableListOf<KumlProfile>()
     private val elements = mutableListOf<UmlElement>()
     private val messages = mutableListOf<CommunicationMessage>()
 
@@ -146,6 +148,12 @@ public class CommunicationDiagramBuilder(
         addRelationship(link)
         return link
     }
+
+    override fun addAppliedProfile(profile: KumlProfile) {
+        appliedProfilesList += profile
+    }
+
+    override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
     public fun build(): KumlDiagram =
         KumlDiagram(

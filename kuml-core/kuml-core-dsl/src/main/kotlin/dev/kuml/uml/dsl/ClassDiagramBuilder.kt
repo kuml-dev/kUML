@@ -5,6 +5,7 @@ import dev.kuml.core.model.ClassDiagramConfig
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.VisibilityFilter
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlRelationship
 
@@ -27,6 +28,7 @@ class ClassDiagramBuilder(
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
+    private val appliedProfilesList = mutableListOf<KumlProfile>()
     private val elements = mutableListOf<dev.kuml.uml.UmlElement>()
 
     // ── Display options ───────────────────────────────────────────────────────
@@ -100,6 +102,12 @@ class ClassDiagramBuilder(
     // ── Build ─────────────────────────────────────────────────────────────────
 
     /** Builds the immutable [KumlDiagram] with [ClassDiagramConfig] attached. */
+    override fun addAppliedProfile(profile: KumlProfile) {
+        appliedProfilesList += profile
+    }
+
+    override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
+
     fun build(): KumlDiagram =
         KumlDiagram(
             name = name,

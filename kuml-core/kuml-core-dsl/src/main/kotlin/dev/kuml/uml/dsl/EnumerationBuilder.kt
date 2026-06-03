@@ -3,6 +3,9 @@ package dev.kuml.uml.dsl
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.dsl.layout.LayoutHintsBuilder
 import dev.kuml.core.dsl.layout.LayoutHintsScope
+import dev.kuml.profile.KumlStereotypeApplication
+import dev.kuml.profile.UmlMetaclass
+import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlEnumeration
 import dev.kuml.uml.UmlEnumerationLiteral
 import dev.kuml.uml.Visibility
@@ -20,7 +23,9 @@ class EnumerationBuilder internal constructor(
     private val parentId: String?,
     override val takenIds: MutableSet<String>,
     explicitId: String?,
+    override val container: UmlContainerScope,
 ) : UmlClassifierScope,
+    UmlElementScope,
     LayoutHintsScope {
     override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 
@@ -34,8 +39,10 @@ class EnumerationBuilder internal constructor(
         }
 
     override val ownerId: String get() = id
+    override val metaclass: UmlMetaclass = UmlMetaclass.Enumeration
 
     private val literals = mutableListOf<UmlEnumerationLiteral>()
+    private val stereotypeApplications = mutableListOf<KumlStereotypeApplication>()
 
     var visibility: Visibility = Visibility.PUBLIC
     val stereotypes: MutableList<String> = mutableListOf()
@@ -57,6 +64,10 @@ class EnumerationBuilder internal constructor(
 
     // Enumerations do not own constraints — silently ignore
     override fun addConstraint(constraint: dev.kuml.uml.UmlConstraint) = Unit
+
+    override fun addStereotype(app: KumlStereotypeApplication) {
+        stereotypeApplications += app
+    }
 
     /**
      * Adds a literal value to this enumeration.
@@ -81,6 +92,7 @@ class EnumerationBuilder internal constructor(
             literals = literals.toList(),
             stereotypes = stereotypes.toList(),
             metadata = layoutHintsBuilder.toMetadata(),
+            appliedStereotypes = stereotypeApplications.toList<AppliedStereotype>(),
         )
 }
 
@@ -113,6 +125,7 @@ fun UmlContainerScope.enumOf(
             parentId = containerId,
             takenIds = takenIds,
             explicitId = id,
+            container = this,
         )
     builder.block()
     val enum = builder.build()

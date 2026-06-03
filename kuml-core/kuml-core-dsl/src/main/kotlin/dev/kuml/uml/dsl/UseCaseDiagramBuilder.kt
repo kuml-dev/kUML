@@ -5,6 +5,7 @@ import dev.kuml.core.model.ActorStyle
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.UseCaseDiagramConfig
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlActor
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlElement
@@ -36,6 +37,7 @@ class UseCaseDiagramBuilder(
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
+    private val appliedProfilesList = mutableListOf<KumlProfile>()
     private val elements = mutableListOf<UmlElement>()
 
     // ── Display options ───────────────────────────────────────────────────────
@@ -90,6 +92,12 @@ class UseCaseDiagramBuilder(
     // ── Build ─────────────────────────────────────────────────────────────────
 
     /** Builds the immutable [KumlDiagram] with [UseCaseDiagramConfig] attached. */
+    override fun addAppliedProfile(profile: KumlProfile) {
+        appliedProfilesList += profile
+    }
+
+    override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
+
     fun build(): KumlDiagram =
         KumlDiagram(
             name = name,

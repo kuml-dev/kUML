@@ -3,6 +3,9 @@ package dev.kuml.uml.dsl
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.dsl.layout.LayoutHintsBuilder
 import dev.kuml.core.dsl.layout.LayoutHintsScope
+import dev.kuml.profile.KumlStereotypeApplication
+import dev.kuml.profile.UmlMetaclass
+import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlActor
 import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlInclude
@@ -37,7 +40,7 @@ fun UmlContainerScope.actor(
             taken = takenIds,
         )
     takenIds += resolvedId
-    val builder = ActorBuilder().apply(block)
+    val builder = ActorBuilder(parentContainer = this).apply(block)
     val actor =
         UmlActor(
             id = resolvedId,
@@ -45,6 +48,7 @@ fun UmlContainerScope.actor(
             visibility = builder.visibility,
             stereotypes = builder.stereotypes.toList(),
             metadata = builder.layoutHintsBuilder.toMetadata(),
+            appliedStereotypes = builder.stereotypeApplications.toList<AppliedStereotype>(),
         )
     addNamedElement(actor)
     return actor
@@ -76,7 +80,7 @@ fun UmlContainerScope.useCase(
             taken = takenIds,
         )
     takenIds += resolvedId
-    val builder = UseCaseBuilder().apply(block)
+    val builder = UseCaseBuilder(parentContainer = this).apply(block)
     val useCase =
         UmlUseCase(
             id = resolvedId,
@@ -84,6 +88,7 @@ fun UmlContainerScope.useCase(
             visibility = builder.visibility,
             stereotypes = builder.stereotypes.toList(),
             metadata = builder.layoutHintsBuilder.toMetadata(),
+            appliedStereotypes = builder.stereotypeApplications.toList<AppliedStereotype>(),
         )
     addNamedElement(useCase)
     return useCase
@@ -239,10 +244,25 @@ fun UmlModelScope.extendById(
  * ```
  */
 @KumlDsl
-class ActorBuilder internal constructor() : LayoutHintsScope {
+class ActorBuilder internal constructor(
+    private val parentContainer: UmlContainerScope? = null,
+) : UmlElementScope,
+    LayoutHintsScope {
+    override val metaclass: UmlMetaclass = UmlMetaclass.Actor
+
+    override val container: UmlContainerScope
+        get() =
+            parentContainer
+                ?: error("ActorBuilder has no container reference — stereotype() cannot resolve applied profiles.")
+
     var visibility: Visibility = Visibility.PUBLIC
     val stereotypes: MutableList<String> = mutableListOf()
+    internal val stereotypeApplications = mutableListOf<KumlStereotypeApplication>()
     override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
+
+    override fun addStereotype(app: KumlStereotypeApplication) {
+        stereotypeApplications += app
+    }
 }
 
 /**
@@ -256,8 +276,23 @@ class ActorBuilder internal constructor() : LayoutHintsScope {
  * ```
  */
 @KumlDsl
-class UseCaseBuilder internal constructor() : LayoutHintsScope {
+class UseCaseBuilder internal constructor(
+    private val parentContainer: UmlContainerScope? = null,
+) : UmlElementScope,
+    LayoutHintsScope {
+    override val metaclass: UmlMetaclass = UmlMetaclass.UseCase
+
+    override val container: UmlContainerScope
+        get() =
+            parentContainer
+                ?: error("UseCaseBuilder has no container reference — stereotype() cannot resolve applied profiles.")
+
     var visibility: Visibility = Visibility.PUBLIC
     val stereotypes: MutableList<String> = mutableListOf()
+    internal val stereotypeApplications = mutableListOf<KumlStereotypeApplication>()
     override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
+
+    override fun addStereotype(app: KumlStereotypeApplication) {
+        stereotypeApplications += app
+    }
 }

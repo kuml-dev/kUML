@@ -3,6 +3,9 @@ package dev.kuml.uml.dsl
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.dsl.layout.LayoutHintsBuilder
 import dev.kuml.core.dsl.layout.LayoutHintsScope
+import dev.kuml.profile.KumlStereotypeApplication
+import dev.kuml.profile.UmlMetaclass
+import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlPort
 import dev.kuml.uml.Visibility
@@ -20,7 +23,9 @@ class ComponentBuilder internal constructor(
     private val parentId: String?,
     override val takenIds: MutableSet<String>,
     explicitId: String?,
+    override val container: UmlContainerScope,
 ) : UmlComponentScope,
+    UmlElementScope,
     LayoutHintsScope {
     override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 
@@ -34,6 +39,7 @@ class ComponentBuilder internal constructor(
         }
 
     override val ownerId: String get() = id
+    override val metaclass: UmlMetaclass = UmlMetaclass.Component
 
     var visibility: Visibility = Visibility.PUBLIC
     var isAbstract: Boolean = false
@@ -43,6 +49,7 @@ class ComponentBuilder internal constructor(
     private val nestedComponents = mutableListOf<UmlComponent>()
     private val providedInterfaceIds = mutableListOf<String>()
     private val requiredInterfaceIds = mutableListOf<String>()
+    private val stereotypeApplications = mutableListOf<KumlStereotypeApplication>()
 
     override fun addPort(port: UmlPort) {
         ports += port
@@ -60,6 +67,10 @@ class ComponentBuilder internal constructor(
         requiredInterfaceIds += interfaceId
     }
 
+    override fun addStereotype(app: KumlStereotypeApplication) {
+        stereotypeApplications += app
+    }
+
     internal fun buildComponent(): UmlComponent =
         UmlComponent(
             id = id,
@@ -72,5 +83,6 @@ class ComponentBuilder internal constructor(
             nestedComponents = nestedComponents.toList(),
             stereotypes = stereotypes.toList(),
             metadata = layoutHintsBuilder.toMetadata(),
+            appliedStereotypes = stereotypeApplications.toList<AppliedStereotype>(),
         )
 }

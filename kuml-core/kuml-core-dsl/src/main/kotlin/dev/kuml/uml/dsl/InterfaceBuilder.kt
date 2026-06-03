@@ -3,6 +3,9 @@ package dev.kuml.uml.dsl
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.dsl.layout.LayoutHintsBuilder
 import dev.kuml.core.dsl.layout.LayoutHintsScope
+import dev.kuml.profile.KumlStereotypeApplication
+import dev.kuml.profile.UmlMetaclass
+import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlConstraint
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInterface
@@ -24,7 +27,9 @@ class InterfaceBuilder internal constructor(
     private val parentId: String?,
     override val takenIds: MutableSet<String>,
     explicitId: String?,
+    override val container: UmlContainerScope,
 ) : UmlClassifierScope,
+    UmlElementScope,
     LayoutHintsScope {
     override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
 
@@ -38,6 +43,7 @@ class InterfaceBuilder internal constructor(
         }
 
     override val ownerId: String get() = id
+    override val metaclass: UmlMetaclass = UmlMetaclass.Interface
 
     var visibility: Visibility = Visibility.PUBLIC
     val stereotypes: MutableList<String> = mutableListOf()
@@ -47,6 +53,7 @@ class InterfaceBuilder internal constructor(
     private val constraints = mutableListOf<UmlConstraint>()
     private val pendingGeneralizations = mutableListOf<Pair<String, String>>()
     private val pendingRealizations = mutableListOf<Pair<String, String>>()
+    private val stereotypeApplications = mutableListOf<KumlStereotypeApplication>()
 
     override fun addAttribute(property: UmlProperty) {
         attributes += property
@@ -74,6 +81,10 @@ class InterfaceBuilder internal constructor(
         constraints += constraint
     }
 
+    override fun addStereotype(app: KumlStereotypeApplication) {
+        stereotypeApplications += app
+    }
+
     internal fun buildInterface(): UmlInterface =
         UmlInterface(
             id = id,
@@ -84,6 +95,7 @@ class InterfaceBuilder internal constructor(
             constraints = constraints.toList(),
             stereotypes = stereotypes.toList(),
             metadata = layoutHintsBuilder.toMetadata(),
+            appliedStereotypes = stereotypeApplications.toList<AppliedStereotype>(),
         )
 
     internal fun buildPendingGeneralizations(): List<UmlGeneralization> =
@@ -129,6 +141,7 @@ fun UmlContainerScope.interfaceOf(
             parentId = containerId,
             takenIds = takenIds,
             explicitId = id,
+            container = this,
         )
     builder.block()
     val iface = builder.buildInterface()
@@ -157,6 +170,7 @@ fun UmlModelScope.interfaceOf(
             parentId = containerId,
             takenIds = takenIds,
             explicitId = id,
+            container = this,
         )
     builder.block()
     val iface = builder.buildInterface()

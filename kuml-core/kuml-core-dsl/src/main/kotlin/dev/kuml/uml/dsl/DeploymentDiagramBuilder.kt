@@ -4,6 +4,7 @@ import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.model.DeploymentDiagramConfig
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlArtifact
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlElement
@@ -28,6 +29,7 @@ public class DeploymentDiagramBuilder(
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
+    private val appliedProfilesList = mutableListOf<KumlProfile>()
     private val elements = mutableListOf<UmlElement>()
 
     public var showHardwareStereotype: Boolean = true
@@ -121,6 +123,12 @@ public class DeploymentDiagramBuilder(
         addRelationship(d)
         return d
     }
+
+    override fun addAppliedProfile(profile: KumlProfile) {
+        appliedProfilesList += profile
+    }
+
+    override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
     public fun build(): KumlDiagram =
         KumlDiagram(

@@ -1,6 +1,9 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.profile.KumlStereotypeApplication
+import dev.kuml.profile.UmlMetaclass
+import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlInterface
@@ -34,6 +37,7 @@ fun UmlContainerScope.component(
             parentId = containerId,
             takenIds = takenIds,
             explicitId = id,
+            container = this,
         )
     builder.block()
     val component = builder.buildComponent()
@@ -57,12 +61,17 @@ fun UmlComponentScope.component(
     id: String? = null,
     block: ComponentBuilder.() -> Unit = {},
 ): UmlComponent {
+    // Resolve the enclosing container for profile lookup (ComponentBuilder implements UmlElementScope).
+    val parentContainer =
+        (this as? UmlElementScope)?.container
+            ?: error("Nested component() must be called inside a ComponentBuilder that has a container reference.")
     val builder =
         ComponentBuilder(
             name = name,
             parentId = ownerId,
             takenIds = takenIds,
             explicitId = id,
+            container = parentContainer,
         )
     builder.block()
     val component = builder.buildComponent()
@@ -95,7 +104,8 @@ fun UmlComponentScope.port(
             taken = takenIds,
         )
     takenIds += resolvedId
-    val builder = PortBuilder().apply(block)
+    val parentContainer = (this as? UmlElementScope)?.container
+    val builder = PortBuilder(parentContainer = parentContainer).apply(block)
     val port =
         UmlPort(
             id = resolvedId,
@@ -104,14 +114,30 @@ fun UmlComponentScope.port(
             type = type,
             isConjugated = isConjugated,
             stereotypes = builder.stereotypes.toList(),
+            appliedStereotypes = builder.stereotypeApplications.toList<AppliedStereotype>(),
         )
     addPort(port)
     return port
 }
 
 @KumlDsl
-class PortBuilder internal constructor() {
+class PortBuilder internal constructor(
+    /** The enclosing container scope — used to look up applied profiles. */
+    private val parentContainer: UmlContainerScope? = null,
+) : UmlElementScope {
+    override val metaclass: UmlMetaclass = UmlMetaclass.Port
+
+    override val container: UmlContainerScope
+        get() =
+            parentContainer
+                ?: error("PortBuilder has no container reference — stereotype() cannot resolve applied profiles.")
+
     val stereotypes: MutableList<String> = mutableListOf()
+    internal val stereotypeApplications = mutableListOf<KumlStereotypeApplication>()
+
+    override fun addStereotype(app: KumlStereotypeApplication) {
+        stereotypeApplications += app
+    }
 }
 
 // ── provides / requires inside a component body ──────────────────────────────

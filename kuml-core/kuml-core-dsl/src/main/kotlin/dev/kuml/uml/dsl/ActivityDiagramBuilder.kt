@@ -5,6 +5,7 @@ import dev.kuml.core.model.ActivityDiagramConfig
 import dev.kuml.core.model.ActivityOrientation
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlActivityNode
 import dev.kuml.uml.UmlActivityNodeKind
@@ -31,6 +32,7 @@ public class ActivityDiagramBuilder(
     override val containerId: String? = null
     override val takenIds: MutableSet<String> = mutableSetOf()
 
+    private val appliedProfilesList = mutableListOf<KumlProfile>()
     private val elements = mutableListOf<UmlElement>()
 
     public var showGuardLabels: Boolean = true
@@ -98,6 +100,12 @@ public class ActivityDiagramBuilder(
         addNamedElement(n)
         return n
     }
+
+    override fun addAppliedProfile(profile: KumlProfile) {
+        appliedProfilesList += profile
+    }
+
+    override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
     public fun build(): KumlDiagram =
         KumlDiagram(

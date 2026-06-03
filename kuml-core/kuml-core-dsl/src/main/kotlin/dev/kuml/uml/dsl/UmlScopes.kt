@@ -1,6 +1,9 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.profile.KumlProfile
+import dev.kuml.profile.KumlStereotypeApplication
+import dev.kuml.profile.UmlMetaclass
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlRelationship
 
@@ -25,6 +28,31 @@ interface UmlContainerScope {
 
     /** Adds a named element (classifier, package) to this container. */
     fun addNamedElement(element: UmlNamedElement)
+
+    /** Records that a profile is applied to this container scope. */
+    fun addAppliedProfile(profile: KumlProfile)
+
+    /** Returns the list of profiles currently applied to this container scope. */
+    fun appliedProfiles(): List<KumlProfile>
+}
+
+/**
+ * Marker for element builders that can accept stereotype applications.
+ *
+ * Implemented by [ClassBuilder], [InterfaceBuilder], [EnumerationBuilder],
+ * [ComponentBuilder], [PackageBuilder], [ActorBuilder], [UseCaseBuilder],
+ * and related builders.
+ */
+@KumlDsl
+interface UmlElementScope {
+    /** The UML metaclass of the element being built. */
+    val metaclass: UmlMetaclass
+
+    /** Records a stereotype application on the element under construction. */
+    fun addStereotype(app: KumlStereotypeApplication)
+
+    /** The enclosing container — used to look up applied profiles. */
+    val container: UmlContainerScope
 }
 
 /**
