@@ -239,3 +239,88 @@ fun sequenceDiagram(
     name: String,
     block: SequenceDiagramBuilder.() -> Unit = {},
 ): KumlDiagram = SequenceDiagramBuilder(name = name).apply(block).build()
+
+// ─────────────────────────────────────────────────────────────────────────────
+// V1.1 — remaining UML 2.x diagram types (object diagram lives above next to
+// classDiagram).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Creates a UML 2.x package diagram (V1.1). */
+public fun packageDiagram(
+    name: String,
+    block: dev.kuml.uml.dsl.PackageDiagramBuilder.() -> Unit = {},
+): KumlDiagram =
+    dev.kuml.uml.dsl
+        .PackageDiagramBuilder(name = name)
+        .apply(block)
+        .build()
+
+/** Creates a UML 2.x composite-structure diagram (V1.1). */
+public fun compositeStructureDiagram(
+    name: String,
+    block: dev.kuml.uml.dsl.CompositeStructureDiagramBuilder.() -> Unit = {},
+): KumlDiagram =
+    dev.kuml.uml.dsl
+        .CompositeStructureDiagramBuilder(name = name)
+        .apply(block)
+        .build()
+
+/** Creates a UML 2.x deployment diagram (V1.1). */
+public fun deploymentDiagram(
+    name: String,
+    block: dev.kuml.uml.dsl.DeploymentDiagramBuilder.() -> Unit = {},
+): KumlDiagram =
+    dev.kuml.uml.dsl
+        .DeploymentDiagramBuilder(name = name)
+        .apply(block)
+        .build()
+
+/** Creates a UML 2.x profile diagram (V1.1). */
+public fun profileDiagram(
+    name: String,
+    block: dev.kuml.uml.dsl.ProfileDiagramBuilder.() -> Unit = {},
+): KumlDiagram =
+    dev.kuml.uml.dsl
+        .ProfileDiagramBuilder(name = name)
+        .apply(block)
+        .build()
+
+/** Creates a UML 2.x activity diagram (V1.1). */
+public fun activityDiagram(
+    name: String,
+    block: dev.kuml.uml.dsl.ActivityDiagramBuilder.() -> Unit = {},
+): KumlDiagram =
+    dev.kuml.uml.dsl
+        .ActivityDiagramBuilder(name = name)
+        .apply(block)
+        .build()
+
+/** Creates a UML 2.x communication diagram (V1.1). */
+public fun communicationDiagram(
+    name: String,
+    block: dev.kuml.uml.dsl.CommunicationDiagramBuilder.() -> Unit = {},
+): KumlDiagram =
+    dev.kuml.uml.dsl
+        .CommunicationDiagramBuilder(name = name)
+        .apply(block)
+        .build()
+
+/** Creates a UML 2.x timing diagram (V1.1). */
+public fun timingDiagram(
+    name: String,
+    block: dev.kuml.uml.dsl.TimingDiagramBuilder.() -> Unit = {},
+): KumlDiagram =
+    dev.kuml.uml.dsl
+        .TimingDiagramBuilder(name = name)
+        .apply(block)
+        .build()
+
+/** Creates a UML 2.x interaction-overview diagram (V1.1). */
+public fun interactionOverviewDiagram(
+    name: String,
+    block: dev.kuml.uml.dsl.InteractionOverviewDiagramBuilder.() -> Unit = {},
+): KumlDiagram =
+    dev.kuml.uml.dsl
+        .InteractionOverviewDiagramBuilder(name = name)
+        .apply(block)
+        .build()
