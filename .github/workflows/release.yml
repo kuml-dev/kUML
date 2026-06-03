@@ -10,10 +10,18 @@ permissions:
   contents: write   # required to create GitHub Releases & upload assets
 
 jobs:
-  release:
-    name: Build, publish and release
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 1: build the platform-independent artefacts (Maven Central + dist
+  # zip) and create the GitHub Release shell with the changelog. Runs once
+  # on Linux because (a) JARs are platform-agnostic and (b) Maven Central
+  # publish only needs to happen once per release.
+  # ─────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build, publish JARs, create release
     runs-on: ubuntu-latest
-
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      release_url_base: ${{ steps.url_base.outputs.url }}
     steps:
       - name: Checkout (full history for changelog)
         uses: actions/checkout@v4
@@ -43,8 +51,11 @@ jobs:
       - name: Build CLI distZip (needs system JDK at runtime)
         run: ./gradlew :kuml-cli:distZip
 
-      - name: Build bundled jlink runtime zip (self-contained, no JDK needed)
-        run: ./gradlew :kuml-cli:runtimeZip
+      - name: Locate distZip
+        id: dist
+        run: |
+          DIST_ZIP=$(ls kuml-cli/build/distributions/kuml-*.zip | grep -v runtime | head -n1)
+          echo "dist_zip=$DIST_ZIP" >> $GITHUB_OUTPUT
 
       - name: Generate changelog
         id: changelog
@@ -55,35 +66,147 @@ jobs:
         env:
           OUTPUT: CHANGELOG_RELEASE.md
 
-      - name: Compute SHA-256s for both zips
-        id: sha
-        run: |
-          DIST_ZIP=$(ls kuml-cli/build/distributions/kuml-*.zip   | grep -v runtime | head -n1)
-          RUNTIME_ZIP=$(ls kuml-cli/build/distributions/kuml-runtime-*.zip | head -n1)
-          echo "dist_zip=$DIST_ZIP"           >> $GITHUB_OUTPUT
-          echo "runtime_zip=$RUNTIME_ZIP"     >> $GITHUB_OUTPUT
-          echo "dist_sha256=$(shasum -a 256 "$DIST_ZIP"    | cut -d ' ' -f1)" >> $GITHUB_OUTPUT
-          echo "runtime_sha256=$(shasum -a 256 "$RUNTIME_ZIP" | cut -d ' ' -f1)" >> $GITHUB_OUTPUT
-
-      - name: Create GitHub Release with both zips
+      - name: Create GitHub Release (with distZip only — runtime zips added by matrix jobs)
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            ${{ steps.sha.outputs.dist_zip }}
-            ${{ steps.sha.outputs.runtime_zip }}
+          files: ${{ steps.dist.outputs.dist_zip }}
           body_path: CHANGELOG_RELEASE.md
           generate_release_notes: false
           fail_on_unmatched_files: true
 
-      - name: Compute runtime-zip URL (Homebrew uses the self-contained bundle)
-        id: url
-        run: |
-          ZIP_NAME=$(basename "${{ steps.sha.outputs.runtime_zip }}")
-          echo "url=${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}/$ZIP_NAME" >> $GITHUB_OUTPUT
-
       - name: Strip leading 'v' from tag
         id: ver
         run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Compute release URL base
+        id: url_base
+        run: |
+          echo "url=${{ github.server_url }}/${{ github.repository }}/releases/download/${{ github.ref_name }}" >> $GITHUB_OUTPUT
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 2: build the bundled jlink runtime on each target OS/arch. jlink
+  # produces a JRE for the HOST platform, so we must run it on each
+  # OS/arch we want to support. Each matrix leg uploads its runtime zip
+  # to the release with a platform-suffixed name and emits the SHA-256 as
+  # a job artefact for the dispatch job to consume.
+  #
+  # Targets:
+  #   - macos-13       → darwin-x86_64  (Intel Macs)
+  #   - macos-14       → darwin-arm64   (Apple Silicon)
+  #   - ubuntu-latest  → linux-x86_64   (Linuxbrew + bare Linux installs)
+  # ─────────────────────────────────────────────────────────────────────────
+  package-runtime:
+    name: Package runtime (${{ matrix.target }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-13
+            target: darwin-x86_64
+          - os: macos-14
+            target: darwin-arm64
+          - os: ubuntu-latest
+            target: linux-x86_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build bundled jlink runtime zip
+        run: ./gradlew :kuml-cli:runtimeZip
+
+      - name: Rename runtime zip with target suffix and compute SHA-256
+        id: pack
+        shell: bash
+        run: |
+          ORIG=$(ls kuml-cli/build/distributions/kuml-runtime-*.zip | head -n1)
+          VER='${{ needs.build.outputs.version }}'
+          OUT="kuml-cli/build/distributions/kuml-runtime-${VER}-${{ matrix.target }}.zip"
+          mv "$ORIG" "$OUT"
+          SHA=$(shasum -a 256 "$OUT" | cut -d ' ' -f1)
+          echo "zip=$OUT"   >> $GITHUB_OUTPUT
+          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+          echo "name=$(basename "$OUT")" >> $GITHUB_OUTPUT
+
+      - name: Upload runtime zip to existing GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pack.outputs.zip }}
+          fail_on_unmatched_files: true
+
+      - name: Stash sha+url for dispatch job
+        shell: bash
+        run: |
+          mkdir -p sha-payload
+          {
+            echo "target=${{ matrix.target }}"
+            echo "url=${{ needs.build.outputs.release_url_base }}/${{ steps.pack.outputs.name }}"
+            echo "sha256=${{ steps.pack.outputs.sha256 }}"
+          } > "sha-payload/${{ matrix.target }}.env"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-sha-${{ matrix.target }}
+          path: sha-payload/${{ matrix.target }}.env
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 3: collect the per-platform SHAs from the matrix legs and dispatch
+  # a single repository_dispatch event to the Homebrew tap so it can
+  # rewrite the formula with platform-conditional url/sha blocks.
+  # ─────────────────────────────────────────────────────────────────────────
+  dispatch-tap:
+    name: Dispatch Homebrew tap update
+    needs: [build, package-runtime]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: sha-artifacts
+          pattern: runtime-sha-*
+          merge-multiple: true
+
+      - name: Assemble per-platform payload
+        id: payload
+        shell: bash
+        run: |
+          # Read each <target>.env, build a JSON object with one entry per target.
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os, pathlib
+
+          out = {}
+          for p in sorted(pathlib.Path("sha-artifacts").glob("*.env")):
+              kv = dict(line.strip().split("=", 1) for line in p.read_text().splitlines() if line.strip())
+              out[kv["target"]] = {"url": kv["url"], "sha256": kv["sha256"]}
+
+          missing = {"darwin-x86_64", "darwin-arm64", "linux-x86_64"} - out.keys()
+          if missing:
+              raise SystemExit(f"missing runtime artefacts for: {sorted(missing)}")
+
+          print(f"platforms={json.dumps(out)}")
+          PY
+
+      - name: Print Homebrew formula update hint
+        run: |
+          echo "### Homebrew update" >> $GITHUB_STEP_SUMMARY
+          echo "version = ${{ needs.build.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.payload.outputs.platforms }}' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if [ -z "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]; then
+            echo "_HOMEBREW_TAP_TOKEN not set — formula not auto-updated. Edit Formula/kuml.rb in kuml-dev/homebrew-kuml manually._" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "_Dispatched to kuml-dev/homebrew-kuml — see its Actions tab for the formula bump._" >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Dispatch Homebrew tap update
         if: env.HOMEBREW_TAP_TOKEN != ''
@@ -96,19 +219,6 @@ jobs:
           event-type: kuml-release
           client-payload: |-
             {
-              "version": "${{ steps.ver.outputs.version }}",
-              "url":     "${{ steps.url.outputs.url }}",
-              "sha256":  "${{ steps.sha.outputs.runtime_sha256 }}"
+              "version":   "${{ needs.build.outputs.version }}",
+              "platforms": ${{ steps.payload.outputs.platforms }}
             }
-
-      - name: Print Homebrew formula update hint
-        run: |
-          echo "### Homebrew update" >> $GITHUB_STEP_SUMMARY
-          echo "version = ${{ steps.ver.outputs.version }}"   >> $GITHUB_STEP_SUMMARY
-          echo "url     = ${{ steps.url.outputs.url }}"       >> $GITHUB_STEP_SUMMARY
-          echo "sha256  = ${{ steps.sha.outputs.runtime_sha256 }}" >> $GITHUB_STEP_SUMMARY
-          if [ -z "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]; then
-            echo "_HOMEBREW_TAP_TOKEN not set — formula not auto-updated. Edit Formula/kuml.rb in kuml-dev/homebrew-kuml manually._" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "_Dispatched to kuml-dev/homebrew-kuml — see its Actions tab for the formula bump._" >> $GITHUB_STEP_SUMMARY
-          fi
