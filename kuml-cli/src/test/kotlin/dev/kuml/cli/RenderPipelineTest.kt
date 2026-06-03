@@ -84,6 +84,42 @@ class RenderPipelineTest :
             outputDir.toFile().delete()
         }
 
+        test("RenderPipeline renders V1.1 activity-diagram script") {
+            val fixture = File("src/test/resources/minimal-activity.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-activity-test")
+            val outputFile = outputDir.resolve("minimal-activity.svg")
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "svg",
+                width = 1024,
+                themeName = "plain",
+            )
+            val content = outputFile.toFile().readText()
+            content shouldStartWith "<?xml"
+            content shouldContain "class=\"kuml-action\""
+            outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
+        test("RenderPipeline renders V1.1 deployment-diagram script") {
+            val fixture = File("src/test/resources/minimal-deployment.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-deploy-test")
+            val outputFile = outputDir.resolve("minimal-deploy.svg")
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "svg",
+                width = 1024,
+                themeName = "plain",
+            )
+            val content = outputFile.toFile().readText()
+            content shouldStartWith "<?xml"
+            content shouldContain "class=\"kuml-node\""
+            outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
         test("RenderPipeline writes PNG file from C4 system-context script") {
             val fixture = File("src/test/resources/minimal-c4.kuml.kts")
             val outputDir = Files.createTempDirectory("kuml-c4-png-test")
