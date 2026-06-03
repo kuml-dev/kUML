@@ -9,23 +9,35 @@ import dev.kuml.io.svg.c4.renderC4Component
 import dev.kuml.io.svg.c4.renderC4Container
 import dev.kuml.io.svg.c4.renderC4Person
 import dev.kuml.io.svg.c4.renderC4SoftwareSystem
+import dev.kuml.io.svg.uml.renderUmlActivityNode
 import dev.kuml.io.svg.uml.renderUmlActor
+import dev.kuml.io.svg.uml.renderUmlArtifact
 import dev.kuml.io.svg.uml.renderUmlClass
 import dev.kuml.io.svg.uml.renderUmlComponent
 import dev.kuml.io.svg.uml.renderUmlEnum
 import dev.kuml.io.svg.uml.renderUmlInstance
+import dev.kuml.io.svg.uml.renderUmlInteractionOverviewFrame
 import dev.kuml.io.svg.uml.renderUmlInterface
+import dev.kuml.io.svg.uml.renderUmlNode
 import dev.kuml.io.svg.uml.renderUmlState
+import dev.kuml.io.svg.uml.renderUmlStereotype
+import dev.kuml.io.svg.uml.renderUmlTimingLifeline
 import dev.kuml.io.svg.uml.renderUmlUseCase
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.uml.UmlActivityNode
 import dev.kuml.uml.UmlActor
+import dev.kuml.uml.UmlArtifact
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlEnumeration
 import dev.kuml.uml.UmlInstanceSpecification
+import dev.kuml.uml.UmlInteractionOverviewFrame
 import dev.kuml.uml.UmlInterface
+import dev.kuml.uml.UmlNode
 import dev.kuml.uml.UmlState
+import dev.kuml.uml.UmlStereotype
+import dev.kuml.uml.UmlTimingLifeline
 import dev.kuml.uml.UmlUseCase
 
 /**
@@ -62,6 +74,12 @@ internal object NodeRendererDispatcher {
             is UmlUseCase -> renderUmlUseCase(element, layout, theme, builder)
             is UmlState -> renderUmlState(element, layout, theme, builder)
             is UmlInstanceSpecification -> renderUmlInstance(element, layout, theme, builder)
+            is UmlNode -> renderUmlNode(element, layout, theme, builder)
+            is UmlArtifact -> renderUmlArtifact(element, layout, theme, builder)
+            is UmlStereotype -> renderUmlStereotype(element, layout, theme, builder)
+            is UmlActivityNode -> renderUmlActivityNode(element, layout, theme, builder)
+            is UmlTimingLifeline -> renderUmlTimingLifeline(element, layout, theme, builder)
+            is UmlInteractionOverviewFrame -> renderUmlInteractionOverviewFrame(element, layout, theme, builder)
             is C4Person -> renderC4Person(element, layout, theme, builder)
             is C4SoftwareSystem -> renderC4SoftwareSystem(element, layout, theme, builder)
             is C4Container -> renderC4Container(element, layout, theme, builder)

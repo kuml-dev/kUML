@@ -5,6 +5,7 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -195,6 +196,24 @@ internal fun renderUmlLink(
                 "text-anchor" to "middle",
             ),
         ) { text(xmlEscapeText(label)) }
+    }
+}
+
+/**
+ * UML Activity edge — solid line with optional `[guard]` label (V1.1).
+ * Dashed for object flow.
+ */
+internal fun renderUmlActivityEdge(
+    rel: UmlActivityEdge,
+    route: EdgeRoute,
+    theme: KumlTheme,
+    builder: SvgBuilder,
+) {
+    val (tag, attrs) = EdgePathBuilder.build(route)
+    val cls = if (rel.isObjectFlow) "kuml-edge kuml-edge-dashed" else "kuml-edge"
+    builder.tag(tag, attrs + mapOf("class" to cls, "marker-end" to "url(#arrow-open)"))
+    rel.guard?.let { guard ->
+        renderEdgeLabel("[$guard]", route, theme, builder)
     }
 }
 
