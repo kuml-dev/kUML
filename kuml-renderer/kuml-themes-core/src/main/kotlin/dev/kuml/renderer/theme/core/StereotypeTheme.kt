@@ -22,6 +22,9 @@ import kotlinx.serialization.Serializable
  * @property joinSeparator Trennzeichen zwischen mehreren Stereotyp-Namen. Default: `", "`.
  * @property headerFontSize Schriftgröße der Stereotyp-Headerzeile in pt. Default: `10` (kleiner als Klassenname).
  * @property taggedValueFontSize Schriftgröße der Tagged-Value-Zeilen in pt. Default: `9`.
+ * @property showFeatureStereotypes `«Stereotype»`-Präfix vor Operations-/Attribut-Zeilen einblenden. Default: `true`.
+ *   Analoger Toggle zu [showTaggedValues]. Kann via `PlainTheme().copy(stereotypes = ...)` deaktiviert werden.
+ * @property featureStereotypeFontSize Schriftgröße des kursiven Feature-Stereotyp-Präfixes in pt. Default: `9`.
  */
 @Serializable
 public data class StereotypeTheme(
@@ -31,6 +34,8 @@ public data class StereotypeTheme(
     public val joinSeparator: String = ", ",
     public val headerFontSize: Float = 10f,
     public val taggedValueFontSize: Float = 9f,
+    public val showFeatureStereotypes: Boolean = true,
+    public val featureStereotypeFontSize: Float = 9f,
 ) {
     public companion object {
         /** Standard-Konfiguration: keine Tagged Values, Komma als Trenner. */
