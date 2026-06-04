@@ -14,6 +14,7 @@ import dev.kuml.uml.dsl.applyProfile
 import dev.kuml.uml.dsl.attribute
 import dev.kuml.uml.dsl.classOf
 import dev.kuml.uml.dsl.collaboration
+import dev.kuml.uml.dsl.component
 import dev.kuml.uml.dsl.stereotype
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.ints.shouldBeGreaterThanOrEqual
@@ -27,8 +28,8 @@ import io.kotest.matchers.string.shouldContain
  * that the SVG output contains all required SoaML stereotype labels.
  *
  * The diagram structure mirrors what soaml-order-processing.kuml.kts would produce:
- * - OrderService (Participant, Class)
- * - PaymentService (Participant, Class)
+ * - OrderService (Participant, Component) — V1.1.1: Component instead of Class
+ * - PaymentService (Participant, Component) — V1.1.1: Component instead of Class
  * - OrderMessage (MessageType, Class)
  * - OrderPaymentContract (ServiceContract, Collaboration) with two roles
  */
@@ -42,12 +43,12 @@ class SoamlRenderTest :
                 applyProfile(soamlProfile)
 
                 val orderService =
-                    classOf("OrderService") {
+                    component("OrderService") {
                         stereotype("Participant")
                     }
 
                 val paymentService =
-                    classOf("PaymentService") {
+                    component("PaymentService") {
                         stereotype("Participant")
                     }
 
@@ -151,7 +152,7 @@ class SoamlRenderTest :
 
         // ── Test 6: Diagram has expected element count ─────────────────────────────
 
-        test("Order Processing SOA diagram has 4 elements (3 classes + 1 collaboration)") {
+        test("Order Processing SOA diagram has 4 elements (2 components + 1 class + 1 collaboration)") {
             diagram.elements.size shouldBe 4
         }
     })

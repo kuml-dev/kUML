@@ -6,6 +6,7 @@ import dev.kuml.uml.dsl.applyProfile
 import dev.kuml.uml.dsl.attribute
 import dev.kuml.uml.dsl.classOf
 import dev.kuml.uml.dsl.collaboration
+import dev.kuml.uml.dsl.component
 import dev.kuml.uml.dsl.stereotype
 
 /**
@@ -15,7 +16,11 @@ import dev.kuml.uml.dsl.stereotype
  * order-processing scenario with two Participants, a ServiceContract,
  * and a shared MessageType.
  *
- * Diagram type: Class Diagram (hosts both UmlClass and UmlCollaboration)
+ * Diagram type: Class Diagram (hosts both UmlComponent and UmlCollaboration).
+ * componentDiagram() was evaluated but rejected because it does not accept
+ * UmlCollaboration — required for ServiceContract. classDiagram() was relaxed
+ * to accept UmlComponent for SoaML «Participant» in mixed diagrams (V1.1.1).
+ *
  * Profile: SoaML (kuml-profile-soaml)
  */
 classDiagram("Order Processing SOA") {
@@ -24,12 +29,12 @@ classDiagram("Order Processing SOA") {
     // ── Participants ──────────────────────────────────────────────────────────────
 
     val orderService =
-        classOf("OrderService") {
+        component("OrderService") {
             stereotype("Participant")
         }
 
     val paymentService =
-        classOf("PaymentService") {
+        component("PaymentService") {
             stereotype("Participant")
         }
 

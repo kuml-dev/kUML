@@ -41,10 +41,10 @@ class SoamlProfileTest :
 
         // ── Test 2: Target metaclass checks ───────────────────────────────────────
 
-        test("Participant stereotype targets UmlMetaclass.Class") {
+        test("Participant stereotype targets UmlMetaclass.Component") {
             val s = soamlProfile.stereotype("Participant")
             s shouldNotBe null
-            s!!.targetMetaclass shouldBe UmlMetaclass.Class
+            s!!.targetMetaclass shouldBe UmlMetaclass.Component
         }
 
         test("ServiceInterface stereotype targets UmlMetaclass.Interface") {

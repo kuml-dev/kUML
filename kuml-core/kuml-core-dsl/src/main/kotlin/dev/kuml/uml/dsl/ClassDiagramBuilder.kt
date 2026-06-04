@@ -59,9 +59,11 @@ class ClassDiagramBuilder(
      * Rejects element types that do not belong in a class diagram.
      *
      * Accepted: [dev.kuml.uml.UmlClass], [dev.kuml.uml.UmlInterface],
-     *   [dev.kuml.uml.UmlEnumeration], [dev.kuml.uml.UmlPackage].
+     *   [dev.kuml.uml.UmlEnumeration], [dev.kuml.uml.UmlPackage],
+     *   [dev.kuml.uml.UmlComponent] (permitted for SoaML «Participant» in mixed diagrams),
+     *   [dev.kuml.uml.UmlCollaboration].
      * Rejected: [dev.kuml.uml.UmlStateMachine], [dev.kuml.uml.UmlInteraction],
-     *   [dev.kuml.uml.UmlActor], [dev.kuml.uml.UmlUseCase], [dev.kuml.uml.UmlComponent].
+     *   [dev.kuml.uml.UmlActor], [dev.kuml.uml.UmlUseCase].
      */
     private fun requireClassDiagramElement(element: UmlNamedElement) {
         val rejected =
@@ -70,7 +72,6 @@ class ClassDiagramBuilder(
                 is dev.kuml.uml.UmlInteraction -> "UmlInteraction"
                 is dev.kuml.uml.UmlActor -> "UmlActor (use useCaseDiagram { })"
                 is dev.kuml.uml.UmlUseCase -> "UmlUseCase (use useCaseDiagram { })"
-                is dev.kuml.uml.UmlComponent -> "UmlComponent (use componentDiagram { })"
                 else -> null
             }
         require(rejected == null) {

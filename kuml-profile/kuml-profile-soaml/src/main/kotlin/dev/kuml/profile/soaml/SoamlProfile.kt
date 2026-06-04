@@ -22,7 +22,7 @@ public val soamlProfile: KumlProfile =
         // ── Participants and interfaces ───────────────────────────────────────────
 
         stereotype("Participant") {
-            extends(UmlMetaclass.Class)
+            extends(UmlMetaclass.Component)
             constraint("participant-has-port") {
                 ocl("self.ownedPort->notEmpty()")
             }
