@@ -226,6 +226,15 @@ interface UmlClassifierScope {
     /** Shared mutable ID registry — same instance as the enclosing container. */
     val takenIds: MutableSet<String>
 
+    /**
+     * The enclosing container scope — used by feature builders ([AttributeBuilder],
+     * [OperationBuilder]) to look up applied profiles for stereotype resolution.
+     *
+     * Implemented by [ClassBuilder] and [InterfaceBuilder], both of which already
+     * carry a [UmlContainerScope] reference passed down from [classOf]/[interfaceOf].
+     */
+    val container: UmlContainerScope
+
     /** Internal: called by [attribute] to register a property. */
     fun addAttribute(property: dev.kuml.uml.UmlProperty)
 
