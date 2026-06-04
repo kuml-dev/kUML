@@ -6,6 +6,7 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlClass
+import dev.kuml.uml.UmlCollaboration
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -38,7 +39,7 @@ public class CompositeStructureDiagramBuilder(
 
     override fun addNamedElement(element: UmlNamedElement) {
         when (element) {
-            is UmlClass, is UmlInterface, is UmlComponent, is UmlPort -> { /* ✓ */ }
+            is UmlClass, is UmlInterface, is UmlComponent, is UmlPort, is UmlCollaboration -> { /* ✓ */ }
             else ->
                 require(false) {
                     "[$name] ${element::class.simpleName} is not a valid element for a composite-structure diagram."
