@@ -28,4 +28,5 @@ public data class KumlTheme(
     public val colors: KumlColors,
     public val typography: KumlTypography,
     public val borders: KumlBorders,
+    public val stereotypes: StereotypeTheme = StereotypeTheme.Default,
 )
