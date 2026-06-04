@@ -20,6 +20,31 @@ public object OclValidator {
         return KumlValidationResult(valid = violations.isEmpty(), violations = violations)
     }
 
+    /**
+     * Validates a single element against a list of OCL constraint expressions.
+     *
+     * This overload is used by profile-level constraint tests (V1.1 AP-4.4) where
+     * the constraints live in a [KumlStereotype] rather than on the element itself.
+     *
+     * @param self The element to validate (used as OCL `self`).
+     * @param elementId Stable identifier for violation messages.
+     * @param elementName Display name for violation messages.
+     * @param constraintBodies Map of constraint name to OCL expression body.
+     */
+    public fun validateWithExpressions(
+        self: Any,
+        elementId: String,
+        elementName: String,
+        constraintBodies: Map<String, String>,
+    ): KumlValidationResult {
+        val constraints =
+            constraintBodies.map { (name, body) ->
+                UmlConstraint(id = "$elementId::$name", name = name, body = body)
+            }
+        val violations = validateClassifier(self, elementId, elementName, constraints)
+        return KumlValidationResult(valid = violations.isEmpty(), violations = violations)
+    }
+
     private fun validateClassifier(
         self: Any,
         classifierId: String,

@@ -1,6 +1,8 @@
 package dev.kuml.core.ocl
 
 import dev.kuml.uml.UmlClass
+import dev.kuml.uml.UmlCollaboration
+import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlEnumeration
 import dev.kuml.uml.UmlEnumerationLiteral
 import dev.kuml.uml.UmlInterface
@@ -34,6 +36,15 @@ internal object UmlPropertyAccessor {
             self is UmlOperation && prop == "parameters" -> self.parameters
             self is UmlEnumerationLiteral && prop == "name" -> self.name
             self is UmlParameter && prop == "name" -> self.name
+            // ── SoaML / V1.1 additions ──────────────────────────────────────────
+            // UmlComponent.ports exposed as "ownedPort" (SoaML Participant constraint)
+            self is UmlComponent && prop == "ownedPort" -> self.ports
+            self is UmlComponent && prop == "ports" -> self.ports
+            self is UmlComponent && prop == "name" -> self.name
+            // UmlCollaboration.roles exposed as both "role" and "roles" (SoaML ServiceContract)
+            self is UmlCollaboration && prop == "role" -> self.roles
+            self is UmlCollaboration && prop == "roles" -> self.roles
+            self is UmlCollaboration && prop == "name" -> self.name
             else -> throw OclEvaluationException(
                 "Cannot navigate property '$prop' on ${self::class.simpleName}",
             )
