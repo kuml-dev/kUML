@@ -19,6 +19,9 @@ import dev.kuml.uml.UmlLink
 
 /**
  * UML Association — durchgezogene Linie mit offenem Pfeilkopf.
+ *
+ * In V1.1: Wenn [UmlAssociation.appliedStereotypes] gesetzt sind, wird ein
+ * `«stereotype»`-Label am Mittelpunkt der Kante gerendert.
  */
 internal fun renderUmlAssociation(
     rel: UmlAssociation,
@@ -28,13 +31,21 @@ internal fun renderUmlAssociation(
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(tag, attrs + mapOf("class" to "kuml-edge", "marker-end" to "url(#arrow-open)"))
+    // Stereotype label takes precedence over association name; name is appended below it
+    val mx = (route.source.x + route.target.x) / 2f
+    val my = (route.source.y + route.target.y) / 2f - 4f
+    val hadStereo = StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
+    val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else my
     rel.name?.let { label ->
-        renderEdgeLabel(label, route, theme, builder)
+        renderEdgeLabel(label, route, theme, builder, overrideY = if (hadStereo) labelY else null)
     }
 }
 
 /**
  * UML Generalization — durchgezogene Linie mit hohlem Dreieck-Pfeilkopf.
+ *
+ * In V1.1: Wenn [UmlGeneralization.appliedStereotypes] gesetzt sind, wird ein
+ * `«stereotype»`-Label am Mittelpunkt gerendert.
  */
 internal fun renderUmlGeneralization(
     rel: UmlGeneralization,
@@ -44,10 +55,16 @@ internal fun renderUmlGeneralization(
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(tag, attrs + mapOf("class" to "kuml-edge", "marker-end" to "url(#arrow-triangle)"))
+    val mx = (route.source.x + route.target.x) / 2f
+    val my = (route.source.y + route.target.y) / 2f - 4f
+    StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
 }
 
 /**
  * UML InterfaceRealization — gestrichelte Linie mit hohlem Dreieck-Pfeilkopf.
+ *
+ * In V1.1: Wenn [UmlInterfaceRealization.appliedStereotypes] gesetzt sind, wird ein
+ * `«stereotype»`-Label am Mittelpunkt gerendert.
  */
 internal fun renderUmlInterfaceRealization(
     rel: UmlInterfaceRealization,
@@ -60,10 +77,16 @@ internal fun renderUmlInterfaceRealization(
         tag,
         attrs + mapOf("class" to "kuml-edge-dashed", "marker-end" to "url(#arrow-triangle-muted)"),
     )
+    val mx = (route.source.x + route.target.x) / 2f
+    val my = (route.source.y + route.target.y) / 2f - 4f
+    StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
 }
 
 /**
  * UML Dependency — gestrichelte Linie mit offenem Pfeilkopf.
+ *
+ * In V1.1: Wenn [UmlDependency.appliedStereotypes] gesetzt sind, wird ein
+ * `«stereotype»`-Label am Mittelpunkt gerendert (über dem Namen, falls vorhanden).
  */
 internal fun renderUmlDependency(
     rel: UmlDependency,
@@ -76,13 +99,20 @@ internal fun renderUmlDependency(
         tag,
         attrs + mapOf("class" to "kuml-edge-dashed", "marker-end" to "url(#arrow-open-muted)"),
     )
+    val mx = (route.source.x + route.target.x) / 2f
+    val my = (route.source.y + route.target.y) / 2f - 4f
+    val hadStereo = StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
+    val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else null
     rel.name?.let { label ->
-        renderEdgeLabel(label, route, theme, builder)
+        renderEdgeLabel(label, route, theme, builder, overrideY = labelY)
     }
 }
 
 /**
  * UML Connector — durchgezogene Linie ohne Pfeilkopf.
+ *
+ * In V1.1: Wenn [UmlConnector.appliedStereotypes] gesetzt sind, wird ein
+ * `«stereotype»`-Label am Mittelpunkt gerendert.
  */
 internal fun renderUmlConnector(
     rel: UmlConnector,
@@ -92,8 +122,12 @@ internal fun renderUmlConnector(
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
+    val mx = (route.source.x + route.target.x) / 2f
+    val my = (route.source.y + route.target.y) / 2f - 4f
+    val hadStereo = StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
+    val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else null
     rel.name?.let { label ->
-        renderEdgeLabel(label, route, theme, builder)
+        renderEdgeLabel(label, route, theme, builder, overrideY = labelY)
     }
 }
 
@@ -133,14 +167,21 @@ internal fun renderUmlExtend(
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Rendert ein Edge-Label am Mittelpunkt der Kante.
+ *
+ * [overrideY] erlaubt es dem Aufrufer, die Y-Position zu überschreiben — z.B.
+ * wenn ein Stereotyp-Label bereits direkt über dem Namen gerendert wurde.
+ */
 private fun renderEdgeLabel(
     label: String,
     route: EdgeRoute,
     theme: KumlTheme,
     builder: SvgBuilder,
+    overrideY: Float? = null,
 ) {
     val mx = (route.source.x + route.target.x) / 2f
-    val my = (route.source.y + route.target.y) / 2f - 4f
+    val my = overrideY ?: ((route.source.y + route.target.y) / 2f - 4f)
     builder.tag(
         "text",
         mapOf(

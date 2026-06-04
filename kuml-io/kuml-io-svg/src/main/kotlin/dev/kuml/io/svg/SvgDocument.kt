@@ -123,6 +123,11 @@ internal object SvgDocument {
                 append(".kuml-stereotype { font-family: ${ty.stereotype.family};")
                 append(" font-size: ${ty.stereotype.sizePt}px; font-style: italic;")
                 append(" fill: ${c.muted.toHex()}; }\n")
+                // V1.1: tagged-value compartment text — slightly smaller than body, italic
+                val tvFontSize = theme.stereotypes.taggedValueFontSize
+                append(".kuml-tagged-value { font-family: ${ty.body.family};")
+                append(" font-size: ${tvFontSize}px; font-style: italic;")
+                append(" fill: ${c.muted.toHex()}; }\n")
                 append(".kuml-edge { stroke: ${c.edge.toHex()}; stroke-width: ${bo.regularPx}; fill: none; }\n")
                 append(
                     ".kuml-edge-dashed { stroke: ${c.edgeMuted.toHex()}; stroke-width: ${bo.regularPx};" +

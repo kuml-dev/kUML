@@ -9,6 +9,10 @@ import dev.kuml.uml.UmlInterface
 
 /**
  * Rendert eine [UmlInterface] — wie UmlClass, aber mit `«interface»`-Stereotyp-Header.
+ *
+ * In V1.1: Wenn [UmlInterface.appliedStereotypes] gesetzt sind, werden diese als
+ * zusätzliche `«…»`-Zeile vor dem `«interface»`-Keyword gerendert.
+ * Das `«interface»`-Keyword bleibt immer erhalten.
  */
 internal fun renderUmlInterface(
     element: UmlInterface,
@@ -28,6 +32,12 @@ internal fun renderUmlInterface(
         tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-interface"))
 
         var cy = 18f
+
+        // Applied stereotypes header (V1.1) — prepended before «interface»
+        val stereoAdv = StereotypeHelper.renderHeader(element, theme, this, w / 2f, cy)
+        cy += stereoAdv
+
+        // Fixed «interface» keyword always present
         tag(
             "text",
             mapOf(
@@ -49,6 +59,10 @@ internal fun renderUmlInterface(
             ),
         ) { text(xmlEscapeText(element.name)) }
         cy += 6f
+
+        // Tagged-value compartment (V1.1, opt-in)
+        val tvAdv = StereotypeHelper.renderTaggedValues(element, theme, this, w, cy)
+        cy += tvAdv
 
         if (element.attributes.isNotEmpty() || element.operations.isNotEmpty()) {
             tag(

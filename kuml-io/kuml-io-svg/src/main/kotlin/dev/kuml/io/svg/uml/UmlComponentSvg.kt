@@ -10,6 +10,9 @@ import dev.kuml.uml.UmlComponent
 /**
  * Rendert eine [UmlComponent] — Rechteck mit zwei kleinen Rechteck-Glyphen
  * rechts oben (UML-Komponenten-Symbol) und dem Klassennamen.
+ *
+ * In V1.1: Wenn [UmlComponent.appliedStereotypes] gesetzt sind, werden diese als
+ * zusätzliche `«…»`-Zeile vor dem `«component»`-Keyword gerendert.
  */
 internal fun renderUmlComponent(
     element: UmlComponent,
@@ -21,6 +24,7 @@ internal fun renderUmlComponent(
     val y = layout.bounds.origin.y
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
+    val cx = (w - 20f) / 2f
 
     builder.tag(
         "g",
@@ -51,22 +55,30 @@ internal fun renderUmlComponent(
             ),
         )
 
+        var cy = 20f
+
+        // Applied stereotypes header (V1.1) — prepended before «component»
+        val stereoAdv = StereotypeHelper.renderHeader(element, theme, this, cx, cy)
+        cy += stereoAdv
+
+        // Fixed «component» keyword always present
         tag(
             "text",
             mapOf(
                 "class" to "kuml-stereotype",
-                "x" to fmt((w - 20f) / 2f),
-                "y" to "20",
+                "x" to fmt(cx),
+                "y" to fmt(cy),
                 "text-anchor" to "middle",
             ),
         ) { text("«component»") }
+        cy += 15f
 
         tag(
             "text",
             mapOf(
                 "class" to "kuml-title",
-                "x" to fmt((w - 20f) / 2f),
-                "y" to "35",
+                "x" to fmt(cx),
+                "y" to fmt(cy),
                 "text-anchor" to "middle",
             ),
         ) { text(xmlEscapeText(element.name)) }

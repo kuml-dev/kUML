@@ -10,6 +10,9 @@ import dev.kuml.uml.UmlEnumeration
 /**
  * Rendert eine [UmlEnumeration] — wie UmlClass, aber mit `«enumeration»`-Stereotyp-Header
  * und Literals-Liste.
+ *
+ * In V1.1: Wenn [UmlEnumeration.appliedStereotypes] gesetzt sind, werden diese als
+ * zusätzliche `«…»`-Zeile vor dem `«enumeration»`-Keyword gerendert.
  */
 internal fun renderUmlEnum(
     element: UmlEnumeration,
@@ -29,6 +32,12 @@ internal fun renderUmlEnum(
         tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-enum"))
 
         var cy = 18f
+
+        // Applied stereotypes header (V1.1) — prepended before «enumeration»
+        val stereoAdv = StereotypeHelper.renderHeader(element, theme, this, w / 2f, cy)
+        cy += stereoAdv
+
+        // Fixed «enumeration» keyword always present
         tag(
             "text",
             mapOf(

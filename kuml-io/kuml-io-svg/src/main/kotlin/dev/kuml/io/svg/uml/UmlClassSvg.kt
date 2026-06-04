@@ -9,7 +9,8 @@ import dev.kuml.uml.UmlClass
 
 /**
  * Rendert eine [UmlClass] als drei-Sektions-Rechteck:
- * - Header: optionaler Stereotyp + Klassenname (fett)
+ * - Header: `«appliedStereotypes»` (wenn vorhanden) + `«abstract»` + Klassenname (fett)
+ * - Optional: Tagged-Value-Compartment (wenn `theme.stereotypes.showTaggedValues = true`)
  * - Mitte: Attribute
  * - Unten: Operationen
  */
@@ -32,7 +33,13 @@ internal fun renderUmlClass(
         tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-class"))
 
         var cy = 18f
-        if (element.isAbstract) {
+
+        // Applied stereotypes header (V1.1) — overrides the legacy «abstract» when present
+        val stereoAdv = StereotypeHelper.renderHeader(element, theme, this, w / 2f, cy)
+        if (stereoAdv > 0f) {
+            cy += stereoAdv
+        } else if (element.isAbstract) {
+            // Legacy «abstract» fallback when no appliedStereotypes
             tag(
                 "text",
                 mapOf(
@@ -55,6 +62,10 @@ internal fun renderUmlClass(
             ),
         ) { text(xmlEscapeText(element.name)) }
         cy += 6f
+
+        // Tagged-value compartment (V1.1, opt-in)
+        val tvAdv = StereotypeHelper.renderTaggedValues(element, theme, this, w, cy)
+        cy += tvAdv
 
         if (element.attributes.isNotEmpty() || element.operations.isNotEmpty()) {
             tag(

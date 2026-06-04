@@ -16,6 +16,8 @@ dependencies {
 
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
+    // V1.1: stereotype render tests use KumlStereotypeApplication from kuml-profile-api
+    testImplementation(project(":kuml-profile:kuml-profile-api"))
 }
 
 tasks.withType<Test>().configureEach { useJUnitPlatform() }
