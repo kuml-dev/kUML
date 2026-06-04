@@ -17,6 +17,7 @@ rootProject.name = "kUML"
 // ── Profiles ─────────────────────────────────────────── V1.1 ──
 include(":kuml-profile")
 include(":kuml-profile:kuml-profile-api")
+include(":kuml-profile:kuml-profile-soaml")
 
 // ── Core ─────────────────────────────────────────────── Phase 0 ──
 include(
