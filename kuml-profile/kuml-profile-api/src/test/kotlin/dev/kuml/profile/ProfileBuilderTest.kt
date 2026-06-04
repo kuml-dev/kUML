@@ -135,6 +135,21 @@ class ProfileBuilderTest :
             p.stereotype("Unknown") shouldBe null
         }
 
+        // ── V1.1 AP-3.5.1: UmlMetaclass.Collaboration smoke-test ─────────────────
+
+        "UmlMetaclass.Collaboration is a valid extends target for a profile stereotype" {
+            val p =
+                profile("SoaML") {
+                    namespace = "dev.soaml.test"
+                    stereotype("ServiceContract") {
+                        extends(UmlMetaclass.Collaboration)
+                    }
+                }
+            val s = p.stereotype("ServiceContract")!!
+            s.targetMetaclass shouldBe UmlMetaclass.Collaboration
+            s.name shouldBe "ServiceContract"
+        }
+
         "profile with multiple stereotypes on different metaclasses" {
             val p =
                 profile("Multi") {
