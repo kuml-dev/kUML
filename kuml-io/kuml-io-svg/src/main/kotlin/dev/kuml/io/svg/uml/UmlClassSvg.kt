@@ -82,10 +82,11 @@ internal fun renderUmlClass(
         }
 
         for (attr in element.attributes) {
+            val stereoPrefix = StereotypeHelper.featureStereotypeTspan(attr, theme)
             tag(
                 "text",
                 mapOf("class" to "kuml-body", "x" to fmt(bo.thinPx + 4f), "y" to fmt(cy)),
-            ) { text(xmlEscapeText(attr.format())) }
+            ) { rawXml(stereoPrefix + xmlEscapeText(attr.format())) }
             cy += 13f
         }
 
@@ -104,10 +105,11 @@ internal fun renderUmlClass(
         }
 
         for (op in element.operations) {
+            val stereoPrefix = StereotypeHelper.featureStereotypeTspan(op, theme)
             tag(
                 "text",
                 mapOf("class" to "kuml-body", "x" to fmt(bo.thinPx + 4f), "y" to fmt(cy)),
-            ) { text(xmlEscapeText(op.format())) }
+            ) { rawXml(stereoPrefix + xmlEscapeText(op.format())) }
             cy += 13f
         }
     }

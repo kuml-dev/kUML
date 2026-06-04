@@ -47,6 +47,20 @@ internal class SvgBuilder(
         appendLine(escapeText(content))
     }
 
+    /**
+     * Fügt Raw-XML-Markup unverändert in den Builder ein.
+     *
+     * Der Aufrufer ist verantwortlich dafür, dass [markup] wohlgeformtes XML ist.
+     * Wird für Mixed-Content wie `<tspan>…</tspan> plaintext` benötigt, das nicht
+     * über [text] (escaped) oder [tag] (strukturiert) abgebildet werden kann.
+     *
+     * Typischer Use-Case: Stereotyp-Präfix als kursiver `<tspan>` vor dem
+     * Feature-Namen in einer `<text>`-Zeile.
+     */
+    fun rawXml(markup: String) {
+        appendLine(markup)
+    }
+
     /** Fügt einen XML-Kommentar hinzu. */
     fun comment(text: String) {
         appendLine("<!-- ${text.replace("--", "- -")} -->")

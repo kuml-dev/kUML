@@ -135,6 +135,38 @@ internal object StereotypeHelper {
         return true
     }
 
+    // ── Feature-level stereotype prefix ───────────────────────────────────────
+
+    /**
+     * Gibt den Stereotyp-Präfix als kursives `<tspan>` zurück, oder den leeren
+     * String wenn keine Stereotypen gesetzt sind oder der Theme-Toggle
+     * [dev.kuml.renderer.theme.core.StereotypeTheme.showFeatureStereotypes] deaktiviert ist.
+     *
+     * Der trailing Space hinter dem schließenden `</tspan>` ist Teil des Strings,
+     * damit der nachfolgende Feature-Name visuell vom Präfix getrennt ist.
+     *
+     * Beispiel-Output für `stereotype("PersistenceContext")`:
+     * ```
+     * <tspan class="kuml-feature-stereotype" font-style="italic" font-size="9">«PersistenceContext»</tspan>
+     * ```
+     *
+     * Der Aufrufer muss das Ergebnis via [SvgBuilder.rawXml] in einen `<text>`-Block
+     * einfügen — **nicht** via [SvgBuilder.text], da [text] den Tspan-Markup escaped.
+     */
+    fun featureStereotypeTspan(
+        element: Stereotypable,
+        theme: KumlTheme,
+    ): String {
+        if (!theme.stereotypes.showFeatureStereotypes) return ""
+        if (element.appliedStereotypes.isEmpty()) return ""
+        val joined =
+            element.appliedStereotypes
+                .joinToString(theme.stereotypes.joinSeparator) { it.stereotypeName }
+        val fontSize = theme.stereotypes.featureStereotypeFontSize.toInt()
+        val label = xmlEscapeText("«$joined»")
+        return """<tspan class="kuml-feature-stereotype" font-style="italic" font-size="$fontSize">$label</tspan> """
+    }
+
     // ── Tagged-value formatting ────────────────────────────────────────────────
 
     /**
