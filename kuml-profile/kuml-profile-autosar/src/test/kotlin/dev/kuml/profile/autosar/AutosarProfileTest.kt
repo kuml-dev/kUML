@@ -1,23 +1,31 @@
 package dev.kuml.profile.autosar
 
+import dev.kuml.core.dsl.classDiagram
 import dev.kuml.profile.ProfileRegistry
 import dev.kuml.profile.UmlMetaclass
+import dev.kuml.uml.UmlClass
+import dev.kuml.uml.dsl.applyProfile
+import dev.kuml.uml.dsl.classOf
+import dev.kuml.uml.dsl.operation
+import dev.kuml.uml.dsl.stereotype
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 
 /**
- * AP-5b.2 profile tests for the AUTOSAR profile.
+ * AP-5b.2 profile tests for the AUTOSAR profile (V1.1.2 updated).
  *
  * Covers:
- * 1. Whitelist — exactly 3 stereotypes (SoftwareComponent, ComInterface, AutosarPort)
+ * 1. Whitelist — exactly 5 stereotypes (V1.1.2: +Runnable, +BehaviorSpec)
  * 2. SoftwareComponent has Enum property kind with default Application  ← Enum-Property-Test
  * 3. AutosarPort has Enum property direction with default Provided       ← Enum-Property-Test
  * 4. Each stereotype targets correct UmlMetaclass
  * 5. ServiceLoader discovery
  * 6. Profile metadata
  * 7. ComInterface has version and isService properties
+ * 8. V1.1.2: Runnable stereotype tests
+ * 9. V1.1.2: BehaviorSpec stereotype tests
  */
 class AutosarProfileTest :
     FunSpec({
@@ -25,12 +33,13 @@ class AutosarProfileTest :
         beforeEach { ProfileRegistry.clear() }
         afterEach { ProfileRegistry.clear() }
 
-        // ── Test 1: Whitelist — exactly 3 stereotypes ────────────────────────────
+        // ── Test 1: Whitelist — exactly 5 stereotypes (V1.1.2: +Runnable, +BehaviorSpec) ─
 
-        test("autosarProfile has exactly 3 stereotypes (SoftwareComponent, ComInterface, AutosarPort)") {
+        test("autosarProfile has exactly 5 stereotypes") {
             val names = autosarProfile.stereotypes.map { it.name }.toSet()
-            names shouldContainExactlyInAnyOrder setOf("SoftwareComponent", "ComInterface", "AutosarPort")
-            autosarProfile.stereotypes.size shouldBe 3
+            names shouldContainExactlyInAnyOrder
+                setOf("SoftwareComponent", "ComInterface", "AutosarPort", "Runnable", "BehaviorSpec")
+            autosarProfile.stereotypes.size shouldBe 5
         }
 
         // ── Test 2: SoftwareComponent has Enum property kind with default Application ──
@@ -85,6 +94,8 @@ class AutosarProfileTest :
             found.stereotype("SoftwareComponent") shouldNotBe null
             found.stereotype("ComInterface") shouldNotBe null
             found.stereotype("AutosarPort") shouldNotBe null
+            found.stereotype("Runnable") shouldNotBe null
+            found.stereotype("BehaviorSpec") shouldNotBe null
         }
 
         // ── Test 6: Profile metadata ──────────────────────────────────────────────
@@ -109,5 +120,71 @@ class AutosarProfileTest :
             val isService = comIf.properties.first { it.name == "isService" }
             isService.required shouldBe false
             isService.default shouldBe false
+        }
+
+        // ── Test 8 (V1.1.2): Runnable targets UmlMetaclass.Operation ─────────────
+
+        test("Runnable targets UmlMetaclass.Operation") {
+            val runnable = autosarProfile.stereotype("Runnable")
+            runnable shouldNotBe null
+            runnable!!.targetMetaclass shouldBe UmlMetaclass.Operation
+        }
+
+        // ── Test 9 (V1.1.2): Runnable has kind and periodMs properties ───────────
+
+        test("Runnable has kind (default EventTriggered) and periodMs (default 0)") {
+            val runnable = autosarProfile.stereotype("Runnable")
+            runnable shouldNotBe null
+            runnable!!.properties.size shouldBe 2
+
+            val kind = runnable.properties.first { it.name == "kind" }
+            kind.required shouldBe false
+            kind.default shouldBe AutosarBehaviorKind.EventTriggered
+            kind.type shouldBe AutosarBehaviorKind::class
+
+            val periodMs = runnable.properties.first { it.name == "periodMs" }
+            periodMs.required shouldBe false
+            periodMs.default shouldBe 0L
+        }
+
+        // ── Test 10 (V1.1.2): BehaviorSpec targets UmlMetaclass.StateMachine ──────
+
+        test("BehaviorSpec targets UmlMetaclass.StateMachine") {
+            val bs = autosarProfile.stereotype("BehaviorSpec")
+            bs shouldNotBe null
+            bs!!.targetMetaclass shouldBe UmlMetaclass.StateMachine
+        }
+
+        // ── Test 11 (V1.1.2): BehaviorSpec has specName property ─────────────────
+
+        test("BehaviorSpec has specName property with default empty string") {
+            val bs = autosarProfile.stereotype("BehaviorSpec")
+            bs shouldNotBe null
+            bs!!.properties.size shouldBe 1
+
+            val specName = bs.properties.first { it.name == "specName" }
+            specName.required shouldBe false
+            specName.default shouldBe ""
+        }
+
+        // ── Test 12 (V1.1.2): Runnable DSL stores appliedStereotype ──────────────
+
+        test("Runnable applied via DSL stores entry in operation appliedStereotypes") {
+            val diagram =
+                classDiagram("Runnable Test") {
+                    applyProfile(autosarProfile)
+                    classOf("BrakeController") {
+                        operation("onCycle") {
+                            stereotype("Runnable") {
+                                "kind" to AutosarBehaviorKind.Periodic
+                                "periodMs" to 10L
+                            }
+                        }
+                    }
+                }
+            val cls = diagram.elements.filterIsInstance<UmlClass>().first()
+            val op = cls.operations.first()
+            op.appliedStereotypes.size shouldBe 1
+            op.appliedStereotypes.first().stereotypeName shouldBe "Runnable"
         }
     })
