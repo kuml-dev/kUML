@@ -1,7 +1,13 @@
 package dev.kuml.profile.javaee
 
+import dev.kuml.core.dsl.classDiagram
 import dev.kuml.profile.ProfileRegistry
 import dev.kuml.profile.UmlMetaclass
+import dev.kuml.uml.UmlClass
+import dev.kuml.uml.dsl.applyProfile
+import dev.kuml.uml.dsl.attribute
+import dev.kuml.uml.dsl.classOf
+import dev.kuml.uml.dsl.stereotype
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.shouldBe
@@ -23,19 +29,22 @@ class JavaEeProfileTest :
         beforeEach { ProfileRegistry.clear() }
         afterEach { ProfileRegistry.clear() }
 
-        // ── Test 1: Whitelist — exactly 4 stereotypes ────────────────────────────
+        // ── Test 1: Whitelist — exactly 5 stereotypes (V1.1.2: +PersistenceContext) ─
 
-        test("javaEeProfile has exactly 4 stereotypes") {
+        test("javaEeProfile has exactly 5 stereotypes") {
             val names = javaEeProfile.stereotypes.map { it.name }.toSet()
-            names shouldContainExactlyInAnyOrder setOf("Entity", "Repository", "Service", "Controller")
-            javaEeProfile.stereotypes.size shouldBe 4
+            names shouldContainExactlyInAnyOrder
+                setOf("Entity", "Repository", "Service", "Controller", "PersistenceContext")
+            javaEeProfile.stereotypes.size shouldBe 5
         }
 
-        // ── Test 2: All stereotypes target UmlMetaclass.Class ────────────────────
+        // ── Test 2: Class-level stereotypes target UmlMetaclass.Class ────────────
 
-        test("all JavaEE stereotypes target UmlMetaclass.Class") {
-            for (s in javaEeProfile.stereotypes) {
-                s.targetMetaclass shouldBe UmlMetaclass.Class
+        test("Entity, Repository, Service, Controller target UmlMetaclass.Class") {
+            for (name in listOf("Entity", "Repository", "Service", "Controller")) {
+                val s = javaEeProfile.stereotype(name)
+                s shouldNotBe null
+                s!!.targetMetaclass shouldBe UmlMetaclass.Class
             }
         }
 
@@ -106,6 +115,7 @@ class JavaEeProfileTest :
             found.stereotype("Repository") shouldNotBe null
             found.stereotype("Service") shouldNotBe null
             found.stereotype("Controller") shouldNotBe null
+            found.stereotype("PersistenceContext") shouldNotBe null
         }
 
         // ── Test 8: Profile metadata ──────────────────────────────────────────────
@@ -114,5 +124,49 @@ class JavaEeProfileTest :
             javaEeProfile.namespace shouldBe "dev.kuml.profiles.javaee"
             javaEeProfile.version shouldBe "1.0.0"
             javaEeProfile.extendsProfiles shouldBe emptyList()
+        }
+
+        // ── Test 9 (V1.1.2): PersistenceContext targets UmlMetaclass.Property ─────
+
+        test("PersistenceContext targets UmlMetaclass.Property") {
+            val pc = javaEeProfile.stereotype("PersistenceContext")
+            pc shouldNotBe null
+            pc!!.targetMetaclass shouldBe UmlMetaclass.Property
+        }
+
+        // ── Test 10 (V1.1.2): PersistenceContext has unitName and type properties ──
+
+        test("PersistenceContext has unitName (default 'default') and type (default 'TRANSACTION')") {
+            val pc = javaEeProfile.stereotype("PersistenceContext")
+            pc shouldNotBe null
+            pc!!.properties.size shouldBe 2
+
+            val unitName = pc.properties.first { it.name == "unitName" }
+            unitName.required shouldBe false
+            unitName.default shouldBe "default"
+
+            val type = pc.properties.first { it.name == "type" }
+            type.required shouldBe false
+            type.default shouldBe "TRANSACTION"
+        }
+
+        // ── Test 11 (V1.1.2): PersistenceContext DSL stores appliedStereotype ──────
+
+        test("PersistenceContext applied via DSL stores entry in appliedStereotypes") {
+            val diagram =
+                classDiagram("PC Test") {
+                    applyProfile(javaEeProfile)
+                    classOf("UserService") {
+                        attribute("em", "EntityManager") {
+                            stereotype("PersistenceContext") {
+                                "unitName" to "myPU"
+                            }
+                        }
+                    }
+                }
+            val cls = diagram.elements.filterIsInstance<UmlClass>().first()
+            val attr = cls.attributes.first()
+            attr.appliedStereotypes.size shouldBe 1
+            attr.appliedStereotypes.first().stereotypeName shouldBe "PersistenceContext"
         }
     })

@@ -5,10 +5,11 @@ import dev.kuml.profile.UmlMetaclass
 import dev.kuml.profile.builder.profile
 
 /**
- * Java Enterprise Edition / Jakarta EE core profile — four class-level stereotypes.
+ * Java Enterprise Edition / Jakarta EE core profile — five stereotypes (V1.1.2).
  *
  * Provides the persistence, service-layer and web stereotypes for V1.1.
  * First real application of tagged-value Properties (D11) with typed defaults.
+ * V1.1.2 adds [PersistenceContext] on Property-level (field injection annotation).
  *
  * Reference: Jakarta EE Platform Specification 10 / JPA 3.1 / JAX-RS 3.1
  */
@@ -30,6 +31,14 @@ public val javaEeProfile: KumlProfile =
         stereotype("Repository") {
             extends(UmlMetaclass.Class)
             property<String>("dataSource") { default = "default" }
+        }
+
+        // ── Property-Level: JPA EntityManager injection (V1.1.2) ─────────────────
+
+        stereotype("PersistenceContext") {
+            extends(UmlMetaclass.Property)
+            property<String>("unitName") { default = "default" }
+            property<String>("type") { default = "TRANSACTION" } // TRANSACTION | EXTENDED
         }
 
         // ── Service Layer ─────────────────────────────────────────────────────────
