@@ -102,6 +102,6 @@ class ProfileCommandTest :
             val stereotypes =
                 json.jsonObject["stereotypes"]?.jsonArray
                     ?: error("Expected 'stereotypes' array in JSON output")
-            stereotypes.size shouldBe 4
+            stereotypes.size shouldBe 5 // V1.1.2: +PersistenceContext
         }
     })
