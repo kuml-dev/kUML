@@ -20,6 +20,8 @@ include(":kuml-profile:kuml-profile-api")
 include(":kuml-profile:kuml-profile-soaml")
 include(":kuml-profile:kuml-profile-javaee")
 include(":kuml-profile:kuml-profile-spring")
+include(":kuml-profile:kuml-profile-openapi")
+include(":kuml-profile:kuml-profile-autosar")
 
 // ── Core ─────────────────────────────────────────────── Phase 0 ──
 include(
