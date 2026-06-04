@@ -6,6 +6,18 @@ import dev.kuml.uml.UmlConstraint
 import dev.kuml.uml.UmlInterface
 
 public object OclValidator {
+    /**
+     * Parse an OCL expression string for syntax errors without evaluating it.
+     *
+     * Throws [OclEvaluationException] if the expression has a syntax error.
+     * Used by `kuml profile validate` to check profile constraint bodies at
+     * profile-self-check time.
+     */
+    public fun parseOclSyntax(expression: String) {
+        val tokens = OclLexer.tokenize(expression)
+        OclParser(tokens).parse()
+    }
+
     public fun validate(diagram: KumlDiagram): KumlValidationResult {
         val violations = mutableListOf<KumlViolation>()
         for (element in diagram.elements) {
