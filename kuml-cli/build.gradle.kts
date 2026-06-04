@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     application
     alias(libs.plugins.graalvm.native)
 }
@@ -25,6 +26,12 @@ dependencies {
     implementation(project(":kuml-codegen:kuml-codegen-api"))
     implementation(project(":kuml-codegen:kuml-gen-kotlin"))
     implementation(project(":kuml-core:kuml-core-ocl"))
+    implementation(project(":kuml-profile:kuml-profile-api"))
+    implementation(project(":kuml-profile:kuml-profile-soaml"))
+    implementation(project(":kuml-profile:kuml-profile-javaee"))
+    implementation(project(":kuml-profile:kuml-profile-spring"))
+    implementation(project(":kuml-profile:kuml-profile-openapi"))
+    implementation(project(":kuml-profile:kuml-profile-autosar"))
     implementation(libs.kotlinx.serialization.json)
 
     // Full pipeline dependencies
