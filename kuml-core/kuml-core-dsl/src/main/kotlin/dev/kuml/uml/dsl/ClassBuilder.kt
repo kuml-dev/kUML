@@ -19,6 +19,58 @@ import dev.kuml.uml.UmlTypeRef
 import dev.kuml.uml.Visibility
 import dev.kuml.uml.ids.UmlIds
 
+// ── AttributeBuilder ──────────────────────────────────────────────────────────
+
+/**
+ * Builder for a single [UmlProperty] (attribute) inside a classifier body.
+ *
+ * Do not instantiate directly — use the block form of [attribute] on a
+ * [UmlClassifierScope].
+ */
+@KumlDsl
+class AttributeBuilder internal constructor(
+    private val name: String,
+    private val type: UmlTypeRef,
+    private val ownerId: String,
+    private val takenIds: MutableSet<String>,
+    override val container: UmlContainerScope,
+    private val explicitId: String?,
+) : UmlElementScope {
+    override val metaclass: UmlMetaclass = UmlMetaclass.Property
+
+    var visibility: Visibility = Visibility.PRIVATE
+    var multiplicity: Multiplicity = Multiplicity()
+    var defaultValue: String? = null
+    var isStatic: Boolean = false
+    var isReadOnly: Boolean = false
+
+    private val appliedStereotypes = mutableListOf<KumlStereotypeApplication>()
+
+    override fun addStereotype(app: KumlStereotypeApplication) {
+        appliedStereotypes += app
+    }
+
+    internal fun build(): UmlProperty {
+        val propId =
+            explicitId ?: UmlIds.disambiguate(
+                candidate = UmlIds.child(ownerId, name),
+                taken = takenIds,
+            )
+        takenIds += propId
+        return UmlProperty(
+            id = propId,
+            name = name,
+            visibility = visibility,
+            type = type,
+            multiplicity = multiplicity,
+            defaultValue = defaultValue,
+            isStatic = isStatic,
+            isReadOnly = isReadOnly,
+            appliedStereotypes = appliedStereotypes.toList<AppliedStereotype>(),
+        )
+    }
+}
+
 /**
  * Builder for a [UmlClass].
  *
@@ -197,6 +249,52 @@ fun UmlClassifierScope.attribute(
     isReadOnly: Boolean = false,
     id: String? = null,
 ): UmlProperty = attribute(name, typeRef(type), visibility, multiplicity, defaultValue, isStatic, isReadOnly, id)
+
+// ── Block-based attribute() overloads (stereotype support, D1/D2) ─────────────
+
+/**
+ * Adds a property with a builder block — enables [stereotype] calls inside.
+ *
+ * ```kotlin
+ * classOf("UserRepository") {
+ *     attribute("connection", "DataSource") {
+ *         stereotype("PersistenceContext")
+ *     }
+ * }
+ * ```
+ *
+ * @param name Attribute name.
+ * @param type Type reference.
+ * @param id Optional explicit ID override.
+ */
+fun UmlClassifierScope.attribute(
+    name: String,
+    type: UmlTypeRef,
+    id: String? = null,
+    block: AttributeBuilder.() -> Unit,
+): UmlProperty {
+    val builder = AttributeBuilder(name, type, ownerId, takenIds, container, id)
+    builder.block()
+    val prop = builder.build()
+    addAttribute(prop)
+    return prop
+}
+
+/** Block overload — type by name string. */
+fun UmlClassifierScope.attribute(
+    name: String,
+    type: String,
+    id: String? = null,
+    block: AttributeBuilder.() -> Unit,
+): UmlProperty = attribute(name, typeRef(type), id, block)
+
+/** Block overload — type by classifier handle. */
+fun UmlClassifierScope.attribute(
+    name: String,
+    type: UmlClassifier,
+    id: String? = null,
+    block: AttributeBuilder.() -> Unit,
+): UmlProperty = attribute(name, typeRef(type), id, block)
 
 /**
  * Declares that this class extends (inherits from) [generalId].
