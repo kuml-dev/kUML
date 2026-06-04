@@ -5,3 +5,8 @@ plugins {
 kotlin {
     jvmToolchain(21)
 }
+
+dependencies {
+    implementation(project(":kuml-profile:kuml-profile-soaml"))
+    implementation(project(":kuml-core:kuml-core-dsl"))
+}
