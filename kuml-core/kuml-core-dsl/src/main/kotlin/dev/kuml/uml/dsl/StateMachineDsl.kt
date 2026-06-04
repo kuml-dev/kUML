@@ -3,6 +3,9 @@ package dev.kuml.uml.dsl
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.dsl.layout.LayoutHintsBuilder
 import dev.kuml.core.dsl.layout.LayoutHintsScope
+import dev.kuml.profile.KumlStereotypeApplication
+import dev.kuml.profile.UmlMetaclass
+import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.PseudostateKind
 import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlPseudostate
@@ -36,7 +39,8 @@ fun UmlStateMachineScope.state(
             taken = takenIds,
         )
     takenIds += resolvedId
-    val body = StateBodyBuilder().apply(block)
+    val containerScope = this as? UmlContainerScope
+    val body = StateBodyBuilder(containerScope = containerScope).apply(block)
     val s =
         UmlState(
             id = resolvedId,
@@ -46,6 +50,7 @@ fun UmlStateMachineScope.state(
             doActivity = body.doActivity,
             stereotypes = body.stereotypes.toList(),
             metadata = body.layoutHintsBuilder.toMetadata(),
+            appliedStereotypes = body.appliedStereotypeList.toList<AppliedStereotype>(),
         )
     addVertex(s)
     return s
@@ -62,7 +67,8 @@ fun UmlCompositeStateScope.state(
             taken = takenIds,
         )
     takenIds += resolvedId
-    val body = StateBodyBuilder().apply(block)
+    // CompositeStateScope has no UmlContainerScope — stereotype() not available in sub-states
+    val body = StateBodyBuilder(containerScope = null).apply(block)
     val s =
         UmlState(
             id = resolvedId,
@@ -72,6 +78,7 @@ fun UmlCompositeStateScope.state(
             doActivity = body.doActivity,
             stereotypes = body.stereotypes.toList(),
             metadata = body.layoutHintsBuilder.toMetadata(),
+            appliedStereotypes = body.appliedStereotypeList.toList<AppliedStereotype>(),
         )
     addSubstate(s)
     return s
@@ -80,21 +87,51 @@ fun UmlCompositeStateScope.state(
 /**
  * Configuration builder for a [UmlState] body.
  *
- * Implements [LayoutHintsScope] to allow grid-layout hints:
+ * Implements [LayoutHintsScope] to allow grid-layout hints and [UmlElementScope]
+ * to enable [stereotype] calls (when the enclosing [UmlStateMachineScope] also
+ * implements [UmlContainerScope], i.e. [StateDiagramBuilder]).
+ *
  * ```kotlin
  * state("Draft") {
  *     entry = "validate()"
  *     layout { col = 1; row = 2 }
+ *     stereotype("InitialState")
  * }
  * ```
  */
 @KumlDsl
-class StateBodyBuilder internal constructor() : LayoutHintsScope {
+class StateBodyBuilder internal constructor(
+    private val containerScope: UmlContainerScope?,
+) : LayoutHintsScope,
+    UmlElementScope {
     var entry: String? = null
     var exit: String? = null
     var doActivity: String? = null
     val stereotypes: MutableList<String> = mutableListOf()
     override val layoutHintsBuilder: LayoutHintsBuilder = LayoutHintsBuilder()
+
+    override val metaclass: UmlMetaclass = UmlMetaclass.State
+
+    internal val appliedStereotypeList = mutableListOf<KumlStereotypeApplication>()
+
+    override fun addStereotype(app: KumlStereotypeApplication) {
+        appliedStereotypeList += app
+    }
+
+    /**
+     * The enclosing container — required for stereotype resolution.
+     *
+     * If [stereotype] is called inside a sub-state (where no [UmlContainerScope]
+     * is available), this throws [IllegalStateException] with a clear message.
+     */
+    override val container: UmlContainerScope
+        get() =
+            containerScope
+                ?: error(
+                    "stereotype() cannot be used inside a sub-state — " +
+                        "no UmlContainerScope is available at this nesting level. " +
+                        "Apply the profile and call stereotype() at the top-level stateDiagram scope instead.",
+                )
 }
 
 // ── Pseudostate helper (Variante B) ──────────────────────────────────────────
@@ -299,7 +336,8 @@ fun UmlStateMachineScope.transitionByIds(
     val baseId = UmlIds.transition(stateMachineId, sourceName, targetName)
     val resolvedId = explicitId ?: UmlIds.disambiguate(baseId, takenIds)
     takenIds += resolvedId
-    val body = TransitionBuilder().apply(block)
+    val containerScope = this as? UmlContainerScope
+    val body = TransitionBuilder(containerScope = containerScope).apply(block)
     val t =
         UmlTransition(
             id = resolvedId,
@@ -308,16 +346,35 @@ fun UmlStateMachineScope.transitionByIds(
             trigger = body.trigger,
             guard = body.guard,
             effect = body.effect,
+            appliedStereotypes = body.appliedStereotypeList.toList<AppliedStereotype>(),
         )
     addTransition(t)
     return t
 }
 
 @KumlDsl
-class TransitionBuilder internal constructor() {
+class TransitionBuilder internal constructor(
+    private val containerScope: UmlContainerScope? = null,
+) : UmlElementScope {
     var trigger: String? = null
     var guard: String? = null
     var effect: String? = null
+
+    override val metaclass: UmlMetaclass = UmlMetaclass.Transition
+
+    internal val appliedStereotypeList = mutableListOf<KumlStereotypeApplication>()
+
+    override fun addStereotype(app: KumlStereotypeApplication) {
+        appliedStereotypeList += app
+    }
+
+    override val container: UmlContainerScope
+        get() =
+            containerScope
+                ?: error(
+                    "stereotype() cannot be used on a transition without an enclosing " +
+                        "UmlContainerScope. Call applyProfile() at the stateDiagram level first.",
+                )
 }
 
 // ── compositeState() ─────────────────────────────────────────────────────────
@@ -402,6 +459,7 @@ class CompositeStateBuilder internal constructor(
     val stereotypes: MutableList<String> = mutableListOf()
 
     internal val substates = mutableListOf<UmlVertex>()
+    internal val appliedStereotypeList = mutableListOf<KumlStereotypeApplication>()
 
     override fun addSubstate(vertex: UmlVertex) {
         substates += vertex
