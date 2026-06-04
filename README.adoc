@@ -14,12 +14,22 @@ image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/ci.yml
 
 == Why kUML?
 
+[.lead]
+Every feature in kUML exists in _some_ tool on the market. The specific combination does not exist anywhere else: *type-safe Kotlin DSL · UML 2.x + SysML 2 + C4 as first-class peers · executable behaviour runtime · LLM-first design · Apache 2.0.*
+
 Existing UML tools fall into two categories:
 
 * *Graphical CASE tools* (Enterprise Architect, MagicDraw) — proper modelling, but expensive and not Git-friendly.
 * *Text-based diagram tools* (PlantUML, Mermaid) — versionable, but drawing tools only with weak UML support.
 
 kUML closes this gap: a real modelling tool, expressed as Kotlin source code, fully versionable in Git, and built from the ground up for LLM-assisted workflows.
+
+=== The two empty spaces nobody is filling
+
+There are dozens of UML, SysML and architecture tools. None of them fill these two quadrants:
+
+. *No serious modelling tool runs on a typed host language.* There are Python diagram libraries, Java APIs around EMF, custom text grammars by the dozen. There is no mature tool that treats the model as ordinary code in a modern, statically-typed language with IDE refactoring, compile-time checking, and natural build-system integration. kUML uses Kotlin's type-safe builders because they are the cleanest fit available — the principle, not the language choice, is the point.
+. *No tool is designed for the LLM era.* PlantUML and Mermaid happen to be LLM-friendly because they have enormous training footprints. That is luck, not design. kUML is built for AI-assisted modelling on purpose: type-safe output that compiles or fails fast, consistent named parameters, an MCP server for agent introspection, a `kuml ai` subcommand, and a benchmark that measures how often LLM-generated models actually validate.
 
 == Quick Start
 
@@ -80,6 +90,53 @@ kuml render order-domain.kuml.kts --format svg
 | *OCL subset*
 | Object Constraint Language constraints directly on the Kotlin model.
 |===
+
+== How kUML compares
+
+[cols="3,^1,^1,^1,^1,^1,^1,^1,^1", options="header"]
+|===
+| Feature
+| kUML
+| PlantUML
+| Mermaid
+| D2
+| Structurizr
+| MagicDraw
+| Modelio
+| Diagrams (Py)
+
+| UML 2.x (all diagram types)  | ✅ | ⚠️ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌
+| SysML 2 first-class          | ✅ | ⚠️ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌
+| C4 first-class               | ✅ | ⚠️ | ⚠️ | ❌ | ✅ | ❌ | ❌ | ⚠️
+| Type-safe DSL                | ✅ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ⚠️
+| Real metamodel               | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌
+| OCL constraints              | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌
+| Code generation (M2T)        | ✅ | ❌ | ❌ | ❌ | ⚠️ | ✅ | ✅ | ❌
+| MDA transforms (M2M)         | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ⚠️ | ❌
+| Executable behaviour         | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌
+| Git-native                   | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ⚠️ | ✅
+| Open source                  | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ | ✅
+| LLM-first design             | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌
+| CLI + Gradle + IDE + Web     | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ✅ | ✅ | ⚠️
+| Beautiful auto-layouts       | ✅ | ❌ | ⚠️ | ✅ | ✅ | ⚠️ | ⚠️ | ✅
+|===
+
+✅ present · ⚠️ limited or partial · ❌ absent
+
+=== Where kUML wins
+
+* *Modelling depth, Git-versionability and LLM friendliness in one tool.* Nobody else combines all three.
+* *Type-safe DSL as the model substrate* — structurally superior for toolchain integration and AI-assisted generation.
+* *UML, SysML and C4 as equal first-class languages.* Every other tool forces you to pick one.
+* *Apache 2.0 with a modern stack* (Kotlin, GraalVM Native Image, Compose). No Eclipse legacy.
+* *Designed for the LLM era from day one* — structural, not accidental, fitness for AI-assisted modelling.
+
+=== Where we acknowledge the competition
+
+* *PlantUML's ecosystem is enormous* — wikis, IDEs, AsciiDoc tooling, CI plugins. kUML builds bridges (AsciiDoc extension, Gradle plugin, IDE plugins) rather than fighting on volume.
+* *Structurizr owns C4 emotionally.* kUML offers Structurizr DSL round-trip — interoperate, don't compete.
+* *Mermaid has GitHub-native rendering* — the lowest possible barrier. kUML targets value from step two onward.
+* *MagicDraw and Cameo dominate enterprise automotive.* kUML's AUTOSAR and SoaML profiles (v1.1) are the first bridgehead.
 
 == CLI Commands
 
