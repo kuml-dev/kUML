@@ -1,0 +1,4 @@
+dev.kuml.renderer.theme.core.PlainThemeProvider
+dev.kuml.renderer.theme.core.KumlBrandThemeProvider
+dev.kuml.renderer.theme.core.ElegantThemeProvider
+dev.kuml.renderer.theme.core.PlayfulThemeProvider

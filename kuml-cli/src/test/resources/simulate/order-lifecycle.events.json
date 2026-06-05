@@ -1,0 +1,7 @@
+{
+    "schema": "kuml.events.v1",
+    "events": [
+        { "name": "confirm" },
+        { "name": "deliver" }
+    ]
+}

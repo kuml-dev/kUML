@@ -1,5 +1,6 @@
 package dev.kuml.core.ocl
 
+import dev.kuml.core.model.KumlEvalContext
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlCollaboration
 import dev.kuml.uml.UmlComponent
@@ -16,6 +17,18 @@ internal object UmlPropertyAccessor {
         prop: String,
     ): Any? =
         when {
+            // ── V1.1.5 — Runtime context navigation ─────────────────────────────
+            // KumlEvalContext exposes the runtime state needed by state-machine
+            // guards. Implemented by StateMachineInstance.
+            self is KumlEvalContext && prop == "variables" -> self.variables
+            self is KumlEvalContext && prop == "vars" -> self.variables
+            self is KumlEvalContext && prop == "currentVertexIds" -> self.currentVertexIds
+            self is KumlEvalContext && prop == "isTerminated" -> self.isTerminated
+            // Generic Map navigation — used for `event.<key>` lookups when the
+            // receiver is a Map (e.g. the event-payload view).
+            self is Map<*, *> ->
+                @Suppress("UNCHECKED_CAST")
+                (self as Map<Any?, Any?>)[prop]
             self is UmlClass && prop == "name" -> self.name
             self is UmlClass && prop == "isAbstract" -> self.isAbstract
             self is UmlClass && prop == "attributes" -> self.attributes

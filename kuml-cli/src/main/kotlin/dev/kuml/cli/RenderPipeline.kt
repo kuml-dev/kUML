@@ -1,5 +1,6 @@
 package dev.kuml.cli
 
+import dev.kuml.core.config.KumlConfig
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
@@ -12,7 +13,7 @@ import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
-import dev.kuml.renderer.theme.core.PlainTheme
+import dev.kuml.renderer.theme.core.ThemeRegistry
 import java.io.File
 import java.io.IOException
 import java.nio.file.Path
@@ -38,7 +39,8 @@ internal object RenderPipeline {
      * @param output Destination path for the rendered output file.
      * @param format Output format: `"svg"` or `"png"`.
      * @param width Width in pixels (used only for PNG output).
-     * @param themeName Theme name; currently only `"plain"` is supported.
+     * @param themeName Optional theme name from CLI; takes precedence over config.
+     * @param config Loaded `kuml.config.kts` configuration (or [KumlConfig.DEFAULT]).
      * @throws ScriptEvaluationException if the script fails to compile or evaluate.
      * @throws IOException if the output file cannot be written.
      */
@@ -47,7 +49,8 @@ internal object RenderPipeline {
         output: Path,
         format: String,
         width: Int,
-        @Suppress("UNUSED_PARAMETER") themeName: String,
+        themeName: String?,
+        config: KumlConfig = KumlConfig.DEFAULT,
     ) {
         // 1. Evaluate script
         val evalResult = KumlScriptHost.eval(input)
@@ -66,8 +69,24 @@ internal object RenderPipeline {
 
         val extracted = DiagramExtractor.extractAny(successResult.value.returnValue, input)
 
-        // 3. Theme (shared)
-        val theme = PlainTheme()
+        // 3. Theme — layering: CLI flag > config file > built-in default "plain"
+        if (ThemeRegistry.names().isEmpty()) {
+            ThemeRegistry.loadFromClasspath()
+        }
+        val resolvedThemeName =
+            themeName
+                ?: config.render.themeName
+                ?: "plain"
+        val baseTheme: KumlTheme =
+            ThemeRegistry.get(resolvedThemeName)
+                ?: throw ScriptEvaluationException(
+                    "Unknown theme: '$resolvedThemeName'. " +
+                        "Registered themes: ${ThemeRegistry.names()}",
+                )
+        val theme: KumlTheme =
+            config.render.stereotypeOverrides
+                ?.let { patch -> baseTheme.copy(stereotypes = patch.applyTo(baseTheme.stereotypes)) }
+                ?: baseTheme
 
         // 4–6. Branch on diagram kind: layout → render → write
         try {

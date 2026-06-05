@@ -82,6 +82,58 @@ internal fun renderUmlComponent(
                 "text-anchor" to "middle",
             ),
         ) { text(xmlEscapeText(element.name)) }
+
+        // V1.1.3 — feature compartments (attributes/operations) when present.
+        // Backward-compat: feature-free components render exactly as before
+        // (no extra dividers, no extra lines).
+        val hasFeatures = element.attributes.isNotEmpty() || element.operations.isNotEmpty()
+        if (hasFeatures) {
+            cy += 6f
+
+            tag(
+                "line",
+                mapOf(
+                    "x1" to "0",
+                    "y1" to fmt(cy),
+                    "x2" to fmt(w),
+                    "y2" to fmt(cy),
+                    "class" to "kuml-divider",
+                ),
+            )
+            cy += 12f
+
+            for (attr in element.attributes) {
+                val stereoPrefix = StereotypeHelper.featureStereotypeTspan(attr, theme)
+                tag(
+                    "text",
+                    mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
+                ) { rawXml(stereoPrefix + xmlEscapeText(attr.format())) }
+                cy += 13f
+            }
+
+            if (element.attributes.isNotEmpty() && element.operations.isNotEmpty()) {
+                tag(
+                    "line",
+                    mapOf(
+                        "x1" to "0",
+                        "y1" to fmt(cy),
+                        "x2" to fmt(w),
+                        "y2" to fmt(cy),
+                        "class" to "kuml-divider",
+                    ),
+                )
+                cy += 12f
+            }
+
+            for (op in element.operations) {
+                val stereoPrefix = StereotypeHelper.featureStereotypeTspan(op, theme)
+                tag(
+                    "text",
+                    mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
+                ) { rawXml(stereoPrefix + xmlEscapeText(op.format(theme))) }
+                cy += 13f
+            }
+        }
     }
 }
 

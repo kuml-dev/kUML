@@ -28,6 +28,7 @@ include(
     "kuml-core:kuml-core-model",    // Phase 0 — Kotlin Metamodell-Basis
     "kuml-core:kuml-core-dsl",      // Phase 0 — DSL-Builder-Infrastruktur
     "kuml-core:kuml-core-script",   // Phase 0 — Kotlin Scripting Host
+    "kuml-core:kuml-core-config",   // V1.1.3 — kuml.config.kts DSL + Script Host
     "kuml-core:kuml-core-ocl",      // Phase 2 — OCL-Subset-Interpreter (skeleton)
 )
 
@@ -53,6 +54,13 @@ include(
 include(
     "kuml-codegen:kuml-codegen-api",  // Phase 1 — Generator Plugin API
     "kuml-codegen:kuml-gen-kotlin",   // Phase 1 — Built-in Kotlin code generator
+    "kuml-codegen:kuml-gen-java",     // V1.1.4 — Java POJO/Records/Lombok generator
+    "kuml-codegen:kuml-gen-sql",      // V1.1.4 — SQL DDL generator (Postgres/MySQL/H2/SQLite)
+)
+
+// ── Runtime ──────────────────────────────────────────── V1.1.5 ──
+include(
+    "kuml-runtime:kuml-runtime-core", // V1.1.5 — State-Machine-Headless-Simulator (kuml simulate)
 )
 
 // ── I/O ──────────────────────────────────────────────── Phase 2 ──
@@ -83,7 +91,7 @@ include("kuml-cli")                 // Phase 2 — Kommandozeilen-Interface
 // ── Docs Integration ─────────────────────────────────── Phase 2 ──
 include(
     "kuml-docs:kuml-markdown",      // Phase 2 — Markdown kuml-Codeblock → SVG
-    // "kuml-docs:kuml-asciidoc",   // V1.1 — Asciidoctor Extension
+    "kuml-docs:kuml-asciidoc",      // V1.1.8 — AsciiDoc + Antora preprocessor
 )
 
 // ── Packaging ────────────────────────────────────────── Phase 2 ──

@@ -7,7 +7,9 @@ import dev.kuml.profile.KumlStereotypeApplication
 import dev.kuml.profile.UmlMetaclass
 import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlComponent
+import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlPort
+import dev.kuml.uml.UmlProperty
 import dev.kuml.uml.Visibility
 import dev.kuml.uml.ids.UmlIds
 
@@ -49,6 +51,8 @@ class ComponentBuilder internal constructor(
     private val nestedComponents = mutableListOf<UmlComponent>()
     private val providedInterfaceIds = mutableListOf<String>()
     private val requiredInterfaceIds = mutableListOf<String>()
+    private val attributes = mutableListOf<UmlProperty>()
+    private val operations = mutableListOf<UmlOperation>()
     private val stereotypeApplications = mutableListOf<KumlStereotypeApplication>()
 
     override fun addPort(port: UmlPort) {
@@ -71,6 +75,16 @@ class ComponentBuilder internal constructor(
         stereotypeApplications += app
     }
 
+    /** V1.1.3 — registers an attribute on this component (`attribute("name", "Type") { ... }`). */
+    internal fun addAttribute(property: UmlProperty) {
+        attributes += property
+    }
+
+    /** V1.1.3 — registers an operation on this component (`operation("name") { ... }`). */
+    internal fun addOperation(op: UmlOperation) {
+        operations += op
+    }
+
     internal fun buildComponent(): UmlComponent =
         UmlComponent(
             id = id,
@@ -81,6 +95,8 @@ class ComponentBuilder internal constructor(
             providedInterfaceIds = providedInterfaceIds.toList(),
             requiredInterfaceIds = requiredInterfaceIds.toList(),
             nestedComponents = nestedComponents.toList(),
+            attributes = attributes.toList(),
+            operations = operations.toList(),
             stereotypes = stereotypes.toList(),
             metadata = layoutHintsBuilder.toMetadata(),
             appliedStereotypes = stereotypeApplications.toList<AppliedStereotype>(),

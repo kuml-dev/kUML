@@ -109,7 +109,7 @@ internal fun renderUmlClass(
             tag(
                 "text",
                 mapOf("class" to "kuml-body", "x" to fmt(bo.thinPx + 4f), "y" to fmt(cy)),
-            ) { rawXml(stereoPrefix + xmlEscapeText(op.format())) }
+            ) { rawXml(stereoPrefix + xmlEscapeText(op.format(theme))) }
             cy += 13f
         }
     }

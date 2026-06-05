@@ -6,10 +6,9 @@ import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
-import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.path
-import dev.kuml.codegen.kotlin.KotlinCodeGenerator
+import dev.kuml.codegen.api.CodeGenRegistry
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.KumlScriptHost
 import java.io.IOException
@@ -35,11 +34,15 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
         .path()
         .required()
 
-    private val plugin by option("--plugin", help = "Code generator plugin")
-        .choice("kotlin")
+    private val plugin by option("--plugin", help = "Code generator plugin (e.g. kotlin, java, sql)")
         .default("kotlin")
 
     private val packageName by option("--package", help = "Kotlin package name (e.g. com.example.domain)")
+
+    private val rawOptions by option(
+        "--options",
+        help = "Plugin-specific options as comma-separated key=value pairs (e.g. java-style=records,sql-dialect=mysql)",
+    )
 
     override fun help(context: Context): String = "Generate code from a kUML script using the selected plugin."
 
@@ -66,10 +69,30 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
 
-        val generator = KotlinCodeGenerator()
+        if (CodeGenRegistry.names().isEmpty()) {
+            CodeGenRegistry.loadFromClasspath()
+        }
+        val generator =
+            CodeGenRegistry.get(plugin)
+                ?: run {
+                    System.err.println(
+                        "Unknown codegen plugin: '$plugin'. " +
+                            "Registered plugins: ${CodeGenRegistry.names()}",
+                    )
+                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                }
         val options =
             buildMap<String, String> {
                 packageName?.let { put("package", it) }
+                rawOptions?.split(",")?.forEach { pair ->
+                    val trimmed = pair.trim()
+                    if (trimmed.isEmpty()) return@forEach
+                    val (k, v) =
+                        trimmed
+                            .split("=", limit = 2)
+                            .let { if (it.size == 2) it[0].trim() to it[1].trim() else it[0].trim() to "" }
+                    put(k, v)
+                }
             }
 
         val outputDir = output.toFile()

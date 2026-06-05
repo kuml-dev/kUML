@@ -4,10 +4,13 @@ import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.profile.KumlStereotypeApplication
 import dev.kuml.profile.UmlMetaclass
 import dev.kuml.uml.AppliedStereotype
+import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlInterface
+import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlPort
+import dev.kuml.uml.UmlProperty
 import dev.kuml.uml.UmlTypeRef
 import dev.kuml.uml.Visibility
 import dev.kuml.uml.ids.UmlIds
@@ -211,4 +214,129 @@ fun UmlModelScope.connectByIds(
     val connector = UmlConnector(id = relId, end1Id = end1Id, end2Id = end2Id, name = name)
     addRelationship(connector)
     return connector
+}
+
+// ── V1.1.3 — attribute() and operation() on UmlComponentScope ─────────────────
+//
+// Components in V1.1.3 may carry attributes and operations — needed e.g. for
+// AUTOSAR SoftwareComponents that own Runnables. We deliberately do NOT make
+// ComponentBuilder implement the full `UmlClassifierScope` interface; instead
+// we mirror the feature-owner subset (addAttribute / addOperation) directly.
+// Generalization/Realization between components and OCL constraints on
+// components are V1.1.4+ topics — see ticket T4-A.
+
+/** V1.1.3 — attribute() inside a component body, type as [UmlTypeRef]. */
+fun UmlComponentScope.attribute(
+    name: String,
+    type: UmlTypeRef,
+    visibility: Visibility = Visibility.PRIVATE,
+    multiplicity: Multiplicity = Multiplicity(),
+    defaultValue: String? = null,
+    isStatic: Boolean = false,
+    isReadOnly: Boolean = false,
+    id: String? = null,
+): UmlProperty {
+    val builder =
+        this as? ComponentBuilder
+            ?: error("attribute() inside a component requires a ComponentBuilder scope.")
+    val propId =
+        id ?: UmlIds.disambiguate(
+            candidate = UmlIds.child(ownerId, name),
+            taken = takenIds,
+        )
+    takenIds += propId
+    val prop =
+        UmlProperty(
+            id = propId,
+            name = name,
+            visibility = visibility,
+            type = type,
+            multiplicity = multiplicity,
+            defaultValue = defaultValue,
+            isStatic = isStatic,
+            isReadOnly = isReadOnly,
+        )
+    builder.addAttribute(prop)
+    return prop
+}
+
+/** V1.1.3 — attribute() inside a component body, type by string name. */
+fun UmlComponentScope.attribute(
+    name: String,
+    type: String,
+    visibility: Visibility = Visibility.PRIVATE,
+    multiplicity: Multiplicity = Multiplicity(),
+    defaultValue: String? = null,
+    isStatic: Boolean = false,
+    isReadOnly: Boolean = false,
+    id: String? = null,
+): UmlProperty = attribute(name, typeRef(type), visibility, multiplicity, defaultValue, isStatic, isReadOnly, id)
+
+/**
+ * V1.1.3 — attribute() with builder block on a component, enabling stereotype calls.
+ *
+ * ```kotlin
+ * component("SteeringControlSWC") {
+ *     attribute("connection", "DataSource") {
+ *         stereotype("InPort")
+ *     }
+ * }
+ * ```
+ */
+fun UmlComponentScope.attribute(
+    name: String,
+    type: UmlTypeRef,
+    id: String? = null,
+    block: AttributeBuilder.() -> Unit,
+): UmlProperty {
+    val builder =
+        this as? ComponentBuilder
+            ?: error("attribute() inside a component requires a ComponentBuilder scope.")
+    val attrBuilder = AttributeBuilder(name, type, ownerId, takenIds, builder.container, id)
+    attrBuilder.block()
+    val prop = attrBuilder.build()
+    builder.addAttribute(prop)
+    return prop
+}
+
+/** V1.1.3 — attribute() block overload with type-by-name. */
+fun UmlComponentScope.attribute(
+    name: String,
+    type: String,
+    id: String? = null,
+    block: AttributeBuilder.() -> Unit,
+): UmlProperty = attribute(name, typeRef(type), id, block)
+
+/**
+ * V1.1.3 — operation() inside a component body.
+ *
+ * ```kotlin
+ * component("SteeringControlSWC") {
+ *     operation("computeSteeringAngle") {
+ *         stereotype("Runnable") { "period_ms" to 10 }
+ *         parameter("rawInput", "Double") { stereotype("InPort") }
+ *     }
+ * }
+ * ```
+ */
+fun UmlComponentScope.operation(
+    name: String,
+    id: String? = null,
+    block: OperationBuilder.() -> Unit = {},
+): UmlOperation {
+    val builder =
+        this as? ComponentBuilder
+            ?: error("operation() inside a component requires a ComponentBuilder scope.")
+    val opBuilder =
+        OperationBuilder(
+            name = name,
+            ownerId = ownerId,
+            takenIds = takenIds,
+            explicitId = id,
+            container = builder.container,
+        )
+    opBuilder.block()
+    val op = opBuilder.build()
+    builder.addOperation(op)
+    return op
 }

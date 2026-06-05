@@ -6,6 +6,9 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.StateDiagramConfig
 import dev.kuml.core.model.StateDiagramOrientation
 import dev.kuml.profile.KumlProfile
+import dev.kuml.profile.KumlStereotypeApplication
+import dev.kuml.profile.UmlMetaclass
+import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlStateMachine
 import dev.kuml.uml.UmlTransition
@@ -28,16 +31,22 @@ import dev.kuml.uml.Visibility
 class StateDiagramBuilder(
     private val name: String,
 ) : UmlStateMachineScope,
-    UmlContainerScope {
+    UmlContainerScope,
+    UmlElementScope {
     override val stateMachineId: String = name
     override val takenIds: MutableSet<String> = mutableSetOf(name)
 
     // UmlContainerScope
     override val containerId: String? = null
 
+    // UmlElementScope — allows stereotype("BehaviorSpec") on the state-machine root
+    override val metaclass: UmlMetaclass = UmlMetaclass.StateMachine
+    override val container: UmlContainerScope get() = this
+
     private val vertices = mutableListOf<UmlVertex>()
     private val transitions = mutableListOf<UmlTransition>()
     private val appliedProfilesList = mutableListOf<KumlProfile>()
+    private val stateMachineAppliedStereotypes = mutableListOf<KumlStereotypeApplication>()
 
     // State machine properties
     var stateMachineVisibility: Visibility = Visibility.PUBLIC
@@ -55,6 +64,11 @@ class StateDiagramBuilder(
 
     override fun addTransition(transition: UmlTransition) {
         transitions += transition
+    }
+
+    // UmlElementScope — accept stereotype applications on the state-machine root
+    override fun addStereotype(app: KumlStereotypeApplication) {
+        stateMachineAppliedStereotypes += app
     }
 
     // UmlContainerScope — profiles for stereotype resolution inside state/transition bodies
@@ -76,6 +90,7 @@ class StateDiagramBuilder(
                 vertices = vertices.toList(),
                 transitions = transitions.toList(),
                 stereotypes = stateMachineStereotypes.toList(),
+                appliedStereotypes = stateMachineAppliedStereotypes.toList<AppliedStereotype>(),
             )
         return KumlDiagram(
             name = name,

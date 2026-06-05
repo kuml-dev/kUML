@@ -18,6 +18,8 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(project(":kuml-codegen:kuml-codegen-api"))
     implementation(project(":kuml-codegen:kuml-gen-kotlin"))
+    implementation(project(":kuml-codegen:kuml-gen-java"))
+    implementation(project(":kuml-codegen:kuml-gen-sql"))
 
     implementation(project(":kuml-core:kuml-core-script"))
     implementation(libs.kotlin.scripting.common)

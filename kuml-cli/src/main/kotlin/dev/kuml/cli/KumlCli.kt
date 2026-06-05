@@ -19,8 +19,10 @@ internal class KumlCli : CliktCommand(name = "kuml") {
             FmtCommand(),
             GenerateCommand(),
             ImportCommand(),
+            ExportCommand(),
             MarkdownCommand(),
             ProfileCommand(),
+            SimulateCommand(),
             CompletionCommand(name = "completion"),
         )
     }

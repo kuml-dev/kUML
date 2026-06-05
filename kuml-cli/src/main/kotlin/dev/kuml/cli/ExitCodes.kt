@@ -13,4 +13,7 @@ internal object ExitCodes {
 
     /** `--check` mode found files that need formatting. */
     internal const val FMT_CHECK_FAILED: Int = 5
+
+    /** `kuml simulate --expected` produced a trace that differs from the goldfile. */
+    internal const val TRACE_DIFF: Int = 6
 }

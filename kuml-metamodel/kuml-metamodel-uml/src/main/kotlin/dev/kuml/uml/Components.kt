@@ -26,6 +26,8 @@ data class UmlComponent(
     val providedInterfaceIds: List<String> = emptyList(),
     val requiredInterfaceIds: List<String> = emptyList(),
     val nestedComponents: List<UmlComponent> = emptyList(),
+    val attributes: List<UmlProperty> = emptyList(),
+    val operations: List<UmlOperation> = emptyList(),
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
     override val appliedStereotypes: List<AppliedStereotype> = emptyList(),

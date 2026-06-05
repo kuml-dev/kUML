@@ -10,6 +10,7 @@ import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
+import dev.kuml.core.config.KumlConfig
 import java.io.IOException
 
 /**
@@ -37,9 +38,10 @@ internal class RenderCommand : CliktCommand(name = "render") {
         .int()
         .default(1024)
 
-    private val themeName by option("--theme", help = "Theme name")
-        .choice("plain")
-        .default("plain")
+    private val themeName by option("--theme", help = "Theme name (e.g. plain, kuml); overrides config file")
+
+    private val configFile by option("--config", help = "Path to kuml.config.kts")
+        .file(mustExist = true, canBeDir = false)
 
     override fun help(context: Context): String = "Render a kUML script (UML or C4) to SVG or PNG."
 
@@ -47,7 +49,8 @@ internal class RenderCommand : CliktCommand(name = "render") {
         try {
             val resolvedFormat = FormatResolver.resolve(format, output, input)
             val resolvedOutput = output ?: FormatResolver.defaultOutput(input, resolvedFormat)
-            RenderPipeline.run(input, resolvedOutput, resolvedFormat, width, themeName)
+            val config: KumlConfig = ConfigLoader.load(configFile)
+            RenderPipeline.run(input, resolvedOutput, resolvedFormat, width, themeName, config)
             echo("Wrote $resolvedOutput")
         } catch (e: ScriptEvaluationException) {
             System.err.println("Script error: ${e.message}")

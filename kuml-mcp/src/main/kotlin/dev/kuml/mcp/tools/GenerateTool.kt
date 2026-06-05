@@ -1,6 +1,6 @@
 package dev.kuml.mcp.tools
 
-import dev.kuml.codegen.kotlin.KotlinCodeGenerator
+import dev.kuml.codegen.api.CodeGenRegistry
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.core.script.ScriptEvaluationException
@@ -37,8 +37,10 @@ internal object GenerateTool : McpTool {
                         }
                         putJsonObject("plugin") {
                             put("type", "string")
-                            putJsonArray("enum") { add(JsonPrimitive("kotlin")) }
-                            put("description", "Code generator plugin. Default: kotlin")
+                            put(
+                                "description",
+                                "Code generator plugin id (e.g. kotlin, java, sql). Default: kotlin",
+                            )
                         }
                         putJsonObject("package") {
                             put("type", "string")
@@ -53,6 +55,7 @@ internal object GenerateTool : McpTool {
         val script =
             arguments["script"]?.jsonPrimitive?.content
                 ?: throw IllegalArgumentException("Missing required argument: script")
+        val pluginId = arguments["plugin"]?.jsonPrimitive?.content ?: "kotlin"
         val packageName = arguments["package"]?.jsonPrimitive?.content
 
         val scriptFile = Files.createTempFile("kuml-mcp-generate-", ".kuml.kts").toFile()
@@ -73,7 +76,15 @@ internal object GenerateTool : McpTool {
 
             val diagram = DiagramExtractor.extract(success.value.returnValue, scriptFile)
 
-            val generator = KotlinCodeGenerator()
+            if (CodeGenRegistry.names().isEmpty()) {
+                CodeGenRegistry.loadFromClasspath()
+            }
+            val generator =
+                CodeGenRegistry.get(pluginId)
+                    ?: throw IllegalArgumentException(
+                        "Unknown codegen plugin: '$pluginId'. " +
+                            "Registered plugins: ${CodeGenRegistry.names()}",
+                    )
             val options =
                 buildMap<String, String> {
                     packageName?.let { put("package", it) }

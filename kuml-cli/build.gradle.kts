@@ -25,6 +25,9 @@ dependencies {
     implementation(libs.clikt)
     implementation(project(":kuml-codegen:kuml-codegen-api"))
     implementation(project(":kuml-codegen:kuml-gen-kotlin"))
+    implementation(project(":kuml-codegen:kuml-gen-java"))
+    implementation(project(":kuml-codegen:kuml-gen-sql"))
+    implementation(project(":kuml-runtime:kuml-runtime-core"))
     implementation(project(":kuml-core:kuml-core-ocl"))
     implementation(project(":kuml-profile:kuml-profile-api"))
     implementation(project(":kuml-profile:kuml-profile-soaml"))
@@ -36,6 +39,7 @@ dependencies {
 
     // Full pipeline dependencies
     implementation(project(":kuml-core:kuml-core-script"))
+    implementation(project(":kuml-core:kuml-core-config"))
     // Scripting API needed to access ResultWithDiagnostics / ResultValue
     implementation(libs.kotlin.scripting.common)
     implementation(libs.kotlin.scripting.jvm)
