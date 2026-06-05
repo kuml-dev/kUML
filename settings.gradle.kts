@@ -88,6 +88,9 @@ include("kuml-mcp")                 // Phase 2 — MCP-Server (Ktor, Stdio + SSE
 // ── CLI ──────────────────────────────────────────────── Phase 2 ──
 include("kuml-cli")                 // Phase 2 — Kommandozeilen-Interface
 
+// ── Gradle Plugin ───────────────────────────────────── V1.1.9 ──
+include("kuml-gradle:kuml-gradle-plugin")  // V1.1.9 — dev.kuml Gradle plugin (kumlRender/Generate/Validate)
+
 // ── Docs Integration ─────────────────────────────────── Phase 2 ──
 include(
     "kuml-docs:kuml-markdown",      // Phase 2 — Markdown kuml-Codeblock → SVG
