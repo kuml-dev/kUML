@@ -1,0 +1,233 @@
+= kUML — Diagram-Type Reference
+:toc: macro
+:toclevels: 2
+:source-highlighter: rouge
+
+One-page tour of every diagram type supported in V1.0. Each section links to
+a full working example under `kuml-tests/examples/`.
+
+toc::[]
+
+== UML diagrams
+
+V1 supports the five most-used UML diagram types.
+
+=== Class diagram
+
+Structural diagram: classes, interfaces, enums, attributes, operations,
+relationships (association, generalization, composition, aggregation,
+realization).
+
+[source,kotlin]
+----
+classDiagram(name = "Order Domain") {
+    val customer = classOf(name = "Customer") {
+        attribute(name = "id", type = "UUID")
+    }
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+    }
+    association(source = customer, target = order) {
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "0..*"); role = "orders" }
+    }
+}
+----
+
+Full example: link:../kuml-tests/examples/class-diagram/order-domain.kuml.kts[`order-domain.kuml.kts`]
+
+=== Sequence diagram
+
+Behavioural: lifelines + messages + return arrows.
+
+[source,kotlin]
+----
+sequenceDiagram(name = "Place Order") {
+    val user = participant(name = "User")
+    val api = participant(name = "Order API")
+    val db = participant(name = "Database")
+    user.sendsTo(api, message = "POST /orders")
+    api.sendsTo(db, message = "INSERT")
+    db.returnsTo(api, message = "id")
+    api.returnsTo(user, message = "201 Created")
+}
+----
+
+Full example: link:../kuml-tests/examples/sequence-diagram/place-order.kuml.kts[`place-order.kuml.kts`]
+
+=== State diagram
+
+Behavioural: state machines with initial / final states and transitions.
+
+[source,kotlin]
+----
+stateDiagram(name = "Order Lifecycle") {
+    val draft = state(name = "Draft")
+    val placed = state(name = "Placed")
+    val shipped = state(name = "Shipped")
+    initial() goesTo draft
+    draft goesTo placed on "submit"
+    placed goesTo shipped on "ship"
+    shipped goesTo final()
+}
+----
+
+Full example: link:../kuml-tests/examples/state-diagram/order-lifecycle.kuml.kts[`order-lifecycle.kuml.kts`]
+
+=== Use-case diagram
+
+Behavioural: actors + use cases + associations (include/extend).
+
+[source,kotlin]
+----
+useCaseDiagram(name = "Checkout") {
+    val customer = actor(name = "Customer")
+    val browse = useCase(name = "Browse Catalog")
+    val checkout = useCase(name = "Place Order")
+    val pay = useCase(name = "Pay")
+    customer associates browse
+    customer associates checkout
+    checkout includes pay
+}
+----
+
+Full example: link:../kuml-tests/examples/use-case-diagram/checkout.kuml.kts[`checkout.kuml.kts`]
+
+=== Component diagram
+
+Structural: components + provided/required interfaces + dependencies.
+
+[source,kotlin]
+----
+componentDiagram(name = "Architecture") {
+    val web = component(name = "Web UI")
+    val api = component(name = "API Gateway")
+    val orders = component(name = "Orders Service")
+    web dependsOn api
+    api dependsOn orders
+}
+----
+
+Full example: link:../kuml-tests/examples/component-diagram/architecture.kuml.kts[`architecture.kuml.kts`]
+
+== C4 diagrams
+
+The C4 metamodel ships in full — five C4 levels plus the dynamic-flow view.
+
+=== System Context (Level 1)
+
+[source,kotlin]
+----
+c4Model(name = "Banking") {
+    val customer = person(name = "Customer")
+    val system = softwareSystem(name = "Online Banking")
+    relationship(source = customer, target = system) { technology = "HTTPS" }
+    systemContextDiagram(name = "Context") {
+        include(customer, system)
+    }
+}
+----
+
+Full example: link:../kuml-tests/examples/c4/system-context/internet-banking.kuml.kts[`internet-banking.kuml.kts`]
+
+=== Container (Level 2)
+
+Shows the containers (apps, databases) inside a software system.
+
+[source,kotlin]
+----
+c4Model(name = "Banking") {
+    val customer = person(name = "Customer")
+    val system = softwareSystem(name = "Online Banking") {
+        val web = container(name = "Web Application", technology = "Kotlin/Ktor")
+        val db = container(name = "Database", technology = "PostgreSQL")
+        web.uses(db, technology = "JDBC")
+    }
+    containerDiagram(name = "Banking — Containers") {
+        include(customer, system)
+    }
+}
+----
+
+Full example: link:../kuml-tests/examples/c4/core/internet-banking.kuml.kts[`internet-banking.kuml.kts`]
+
+=== Component (Level 3)
+
+Drills into a single container.
+
+[source,kotlin]
+----
+c4Model(name = "API") {
+    val api = softwareSystem(name = "API") {
+        val auth = container(name = "Auth Service") {
+            component(name = "TokenService", technology = "Kotlin")
+            component(name = "UserRepo", technology = "Exposed")
+        }
+    }
+    componentDiagram(name = "Auth — Components") { /* … */ }
+}
+----
+
+Full example: link:../kuml-tests/examples/c4/component/api-components.kuml.kts[`api-components.kuml.kts`]
+
+=== System Landscape
+
+Broad overview across multiple software systems.
+
+[source,kotlin]
+----
+c4Model(name = "Enterprise") {
+    val crm = softwareSystem(name = "CRM")
+    val erp = softwareSystem(name = "ERP")
+    val mail = softwareSystem(name = "Email") { external = true }
+    relationship(source = crm, target = erp)
+    relationship(source = crm, target = mail)
+    systemLandscapeDiagram(name = "Landscape") { include(crm, erp, mail) }
+}
+----
+
+=== Deployment
+
+Maps containers to infrastructure (nodes, regions).
+
+[source,kotlin]
+----
+c4Model(name = "Banking") {
+    deploymentDiagram(name = "Production") {
+        deploymentNode(name = "AWS eu-central-1") {
+            deploymentNode(name = "EKS Cluster") {
+                containerInstance(name = "web-app")
+            }
+        }
+    }
+}
+----
+
+Full example: link:../kuml-tests/examples/c4/deployment/kubernetes-deployment.kuml.kts[`kubernetes-deployment.kuml.kts`]
+
+=== Dynamic
+
+Sequence-like view of interactions between elements.
+
+[source,kotlin]
+----
+c4Model(name = "Order Flow") {
+    val user = person(name = "User")
+    val web = softwareSystem(name = "Web")
+    val db = softwareSystem(name = "Database")
+    dynamicDiagram(name = "Checkout") {
+        interaction(description = "POST /order", from = user, to = web)
+        interaction(description = "INSERT",       from = web,  to = db)
+        response(description = "id",              from = db,   to = web)
+        response(description = "201",             from = web,  to = user)
+    }
+}
+----
+
+Full example: link:../kuml-tests/examples/c4/dynamic/order-processing.kuml.kts[`order-processing.kuml.kts`]
+
+== See also
+
+* link:./getting-started.adoc[Getting-Started guide]
+* link:../kuml-core/kuml-core-dsl/README.adoc[DSL reference]
+* link:../kuml-renderer/kuml-layout-elk/README.adoc[Layout engine notes]

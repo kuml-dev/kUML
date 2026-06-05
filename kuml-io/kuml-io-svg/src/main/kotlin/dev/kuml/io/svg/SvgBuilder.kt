@@ -1,0 +1,103 @@
+package dev.kuml.io.svg
+
+/**
+ * Mini-DSL für die Konstruktion von SVG-Markup.
+ *
+ * Erzeugt wohlgeformtes XML mit optionalem Pretty-Print. Alle Text-Inhalte
+ * werden automatisch XML-escaped (`<`, `>`, `&`, `"`, `'`).
+ *
+ * Beispiel:
+ * ```kotlin
+ * val builder = SvgBuilder(pretty = true)
+ * builder.tag("rect", mapOf("width" to "100", "height" to "50"))
+ * println(builder.toString()) // <rect width="100" height="50"/>
+ * ```
+ */
+internal class SvgBuilder(
+    private val pretty: Boolean,
+    private val indent: Int = 0,
+) {
+    private val sb = StringBuilder()
+
+    /** Öffnet ein XML-Tag mit optionalen Attributen und einem optionalen Inhalt-Block. */
+    fun tag(
+        name: String,
+        attrs: Map<String, String> = emptyMap(),
+        block: (SvgBuilder.() -> Unit)? = null,
+    ) {
+        val attrStr =
+            if (attrs.isEmpty()) {
+                ""
+            } else {
+                " " + attrs.entries.joinToString(" ") { (k, v) -> """$k="${escapeAttr(v)}"""" }
+            }
+        if (block == null) {
+            appendLine("<$name$attrStr/>")
+        } else {
+            appendLine("<$name$attrStr>")
+            val child = SvgBuilder(pretty, indent + 2)
+            child.block()
+            sb.append(child.toString())
+            appendLine("</$name>")
+        }
+    }
+
+    /** Fügt XML-Text-Inhalt hinzu (wird XML-escaped). */
+    fun text(content: String) {
+        appendLine(escapeText(content))
+    }
+
+    /** Fügt einen XML-Kommentar hinzu. */
+    fun comment(text: String) {
+        appendLine("<!-- ${text.replace("--", "- -")} -->")
+    }
+
+    /** Gibt den bisher gebauten SVG-String zurück. */
+    override fun toString(): String = sb.toString()
+
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private fun appendLine(line: String) {
+        if (pretty) {
+            sb.append(" ".repeat(indent))
+        }
+        sb.append(line)
+        if (pretty) {
+            sb.append("\n")
+        }
+    }
+
+    private fun escapeText(s: String): String =
+        s
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;")
+
+    private fun escapeAttr(s: String): String =
+        s
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&apos;")
+}
+
+/** XML-escaped einen String für die Verwendung in Attributwerten. */
+internal fun xmlEscapeAttr(s: String): String =
+    s
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&apos;")
+
+/** XML-escaped einen String für die Verwendung als Textinhalt. */
+internal fun xmlEscapeText(s: String): String =
+    s
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&apos;")

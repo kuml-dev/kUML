@@ -1,0 +1,45 @@
+= kuml-io-png
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-io-png*
+
+SVG → PNG converter for kUML via Apache Batik 1.19.
+
+Wraps `KumlSvgRenderer` output with a `PNGTranscoder` to produce raster PNG bytes.
+
+WARNING: Fat-JAR only — not GraalVM Native Image compatible in V1.
+Use `kuml-io-svg` for a Native-Image-safe output path.
+
+== Features
+
+* `widthPx` scaling (deterministic, no DPI floating point)
+* Optional `backgroundColor` (default: white)
+* Optional `transparent` flag (alpha-channel PNG)
+
+== Usage
+
+[source,kotlin]
+----
+val layoutResult = ElkLayoutEngine().layout(UmlLayoutBridge.toLayoutGraph(diagram), LayoutHints.DEFAULT)
+val theme        = PlainTheme()
+val options      = PngRenderOptions(widthPx = 1920)
+
+// To ByteArray
+val pngBytes = KumlPngRenderer.toPng(diagram, layoutResult, theme, options)
+
+// To file
+KumlPngRenderer.toPngFile(KumlSvgRenderer.toSvg(diagram, layoutResult, theme), outputPath, options)
+----
+
+== Installation
+
+[source,kotlin]
+----
+dependencies {
+    implementation("dev.kuml:kuml-io-png:0.1.0")
+}
+----
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]

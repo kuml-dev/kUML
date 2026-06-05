@@ -1,0 +1,54 @@
+= kuml-themes-core
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-themes-core*
+
+Framework-neutral theme data for kUML renderers.
+Defines `KumlColor`, `KumlFont`, `KumlTypography`, `KumlBorders`, and `KumlTheme`
+as pure Kotlin `@Serializable` data classes — no Compose, no AWT, no rendering dependency.
+
+The `PlainTheme` is the V1 default: white background, black text, system-ui font.
+
+== Key Types
+
+[cols="1,3"]
+|===
+| Type | Description
+
+| `KumlColor`
+| `data class KumlColor(val rgb: Int)` with `toHex()`. Constants: `KumlColor.Black`, `KumlColor.White`.
+
+| `KumlTheme`
+| Top-level theme holder: `colors`, `typography`, `borders`.
+
+| `PlainTheme`
+| `fun PlainTheme(): KumlTheme` — clean black-and-white default. Used by `kuml-io-svg`, `kuml-io-png`, and `kuml-cli`.
+|===
+
+== Usage
+
+[source,kotlin]
+----
+val theme = PlainTheme()
+val bg    = theme.colors.background.toHex()  // "#FFFFFF"
+val fg    = theme.colors.onSurface.toHex()   // "#000000"
+----
+
+Compose renderers bridge via the `ThemeAdapter` in `kuml-themes`:
+[source,kotlin]
+----
+val composeTheme = PlainTheme().toCompose()
+----
+
+== Installation
+
+[source,kotlin]
+----
+dependencies {
+    implementation("dev.kuml:kuml-themes-core:0.1.0")
+}
+----
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]

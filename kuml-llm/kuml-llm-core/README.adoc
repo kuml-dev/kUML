@@ -1,0 +1,64 @@
+= kuml-llm-core
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-llm-core*
+
+LLM backend abstraction for kUML.
+
+Defines the provider-agnostic contract used by `kuml-llm-bench` and any other
+kUML feature that needs to call a large-language model. Pure Kotlin, no
+third-party HTTP or vendor SDK dependencies — concrete backends live in
+sibling modules.
+
+Commit: `fc1a8ba`.
+
+== Key Types
+
+[cols="1,3"]
+|===
+| Type | Description
+
+| `LlmBackend`
+| Provider-agnostic backend interface: `fun complete(messages: List<LlmMessage>, systemPrompt: String? = null): LlmResponse`. Synchronous — callers wrap in their own coroutine context if needed.
+
+| `LlmMessage`
+| `data class LlmMessage(val role: String, val content: String)`. Role is a plain string — by convention `"user"` or `"assistant"`. System prompts are passed *separately* to `complete(...)`, not as a message.
+
+| `LlmResponse`
+| `data class LlmResponse(val content: String, val model: String, val inputTokens: Int, val outputTokens: Int)`.
+
+| `LlmMockBackend`
+| Deterministic mock backend (returns a fixed response) for unit tests and offline benchmark runs.
+
+| `LlmException`
+| Unrecoverable backend error (HTTP failure, malformed response, rate-limit, …).
+|===
+
+== Usage
+
+[source,kotlin]
+----
+val backend: LlmBackend = LlmMockBackend()   // or AnthropicBackend(apiKey = …)
+
+val response = backend.complete(
+    messages = listOf(
+        LlmMessage(role = "user", content = "Generate an Order class with id and status."),
+    ),
+    systemPrompt = "You are a kUML model generator. Respond ONLY with the script.",
+)
+println(response.content)
+----
+
+== Implementations
+
+* link:../kuml-llm-anthropic[`kuml-llm-anthropic`] — Anthropic Claude API
+* V1.1 planned: OpenAI, Ollama, local llama.cpp
+
+== Dependencies
+
+* Kotlin stdlib
+* `kotlinx-serialization-json` (for downstream backends; the interface itself is plain Kotlin)
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]

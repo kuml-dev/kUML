@@ -1,0 +1,42 @@
+[
+  {
+    "name": "dev.kuml.core.ocl.KumlValidationResult",
+    "allDeclaredFields": true,
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "dev.kuml.core.ocl.KumlViolation",
+    "allDeclaredFields": true,
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "dev.kuml.core.ocl.KumlValidationResult$Companion",
+    "allDeclaredMethods": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "dev.kuml.core.ocl.KumlViolation$Companion",
+    "allDeclaredMethods": true,
+    "allPublicMethods": true
+  },
+  {
+    "name": "dev.kuml.core.ocl.KumlValidationResult$$serializer",
+    "allDeclaredFields": true,
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "fields": [{"name": "INSTANCE"}]
+  },
+  {
+    "name": "dev.kuml.core.ocl.KumlViolation$$serializer",
+    "allDeclaredFields": true,
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allPublicMethods": true,
+    "fields": [{"name": "INSTANCE"}]
+  }
+]

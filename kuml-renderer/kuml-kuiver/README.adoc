@@ -1,0 +1,55 @@
+= kuml-kuiver
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-kuiver*
+
+Compose Multiplatform rendering backend for kUML.
+Adapts a `LayoutResult` (from `kuml-layout-api`) into a Kuiver directed-graph
+and draws all 11 V1 element types (UML + C4) as composable functions.
+
+NOTE: JVM-only in V1. iOS / Wasm targets are commented out pending Native download
+resolution in CI.
+
+== What it renders
+
+[cols="1,2"]
+|===
+| Language | Elements
+
+| UML
+| `UmlClass`, `UmlInterface`, `UmlEnumeration`, `UmlActor`, `UmlUseCase`,
+  `UmlComponent`, `UmlState`, `UmlPseudostate`, `UmlFinalState`, `UmlLifeline`
+
+| C4
+| `C4Person`, `C4SoftwareSystem`, `C4Container`, `C4Component`
+
+| Edges
+| `UmlAssociation`, `UmlGeneralization`, `UmlDependency`, `UmlInterfaceRealization`,
+  `UmlInclude`, `UmlExtend`, `UmlConnector`, `C4Relationship`
+|===
+
+== Usage
+
+[source,kotlin]
+----
+val layoutResult = ElkLayoutEngine().layout(graph, LayoutHints.DEFAULT)
+val theme        = PlainTheme().toCompose()
+KumlKuiverRenderer.render(diagram, layoutResult, theme)
+----
+
+NOTE: For CLI and direct SVG/PNG output, `kuml-io-svg` and `kuml-io-png` write
+directly from `LayoutResult` without going through Compose.
+`kuml-kuiver` is the rendering backend for future interactive / desktop use cases.
+
+== Installation
+
+[source,kotlin]
+----
+dependencies {
+    implementation("dev.kuml:kuml-kuiver:0.1.0")
+}
+----
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]

@@ -1,0 +1,74 @@
+[versions]
+kotlin                 = "2.3.21"
+batik                  = "1.19"
+compose-multiplatform  = "1.9.0"
+kuiver                 = "0.3.0"
+elk                    = "0.11.0"
+xtext-xbase-lib        = "2.43.0"
+kotlinx-serialization  = "1.11.0"
+kotlinx-coroutines     = "1.11.0"
+ktor                   = "3.5.0"
+kotest                 = "6.1.11"
+junit                  = "6.1.0"
+assertj                = "3.27.7"
+ktlint-plugin          = "14.2.0"
+clikt                  = "5.1.0"
+graalvm-native         = "0.10.6"
+vanniktech-publish     = "0.30.0"
+
+[libraries]
+# ── Compose / Kuiver ─────────────────────────────────────────────────────────
+kuiver                          = { module = "io.github.justdeko:kuiver",                              version.ref = "kuiver" }
+compose-runtime                 = { module = "org.jetbrains.compose.runtime:runtime",                 version.ref = "compose-multiplatform" }
+compose-foundation               = { module = "org.jetbrains.compose.foundation:foundation",           version.ref = "compose-multiplatform" }
+compose-ui                       = { module = "org.jetbrains.compose.ui:ui",                          version.ref = "compose-multiplatform" }
+compose-material3                = { module = "org.jetbrains.compose.material3:material3",            version.ref = "compose-multiplatform" }
+
+# ── Kotlin ──────────────────────────────────────────────────────────────────
+# ── Eclipse Layout Kernel ────────────────────────────────────────────────────
+elk-core                        = { module = "org.eclipse.elk:org.eclipse.elk.core",                version.ref = "elk" }
+elk-alg-layered                 = { module = "org.eclipse.elk:org.eclipse.elk.alg.layered",         version.ref = "elk" }
+xtext-xbase-lib                 = { module = "org.eclipse.xtext:org.eclipse.xtext.xbase.lib",       version.ref = "xtext-xbase-lib" }
+
+# ── Kotlin ──────────────────────────────────────────────────────────────────
+kotlin-stdlib                   = { module = "org.jetbrains.kotlin:kotlin-stdlib",                   version.ref = "kotlin" }
+kotlin-reflect                  = { module = "org.jetbrains.kotlin:kotlin-reflect",                  version.ref = "kotlin" }
+
+# ── Kotlin Scripting ─────────────────────────────────────────────────────────
+kotlin-scripting-common         = { module = "org.jetbrains.kotlin:kotlin-scripting-common",         version.ref = "kotlin" }
+kotlin-scripting-jvm            = { module = "org.jetbrains.kotlin:kotlin-scripting-jvm",            version.ref = "kotlin" }
+kotlin-scripting-jvm-host       = { module = "org.jetbrains.kotlin:kotlin-scripting-jvm-host",       version.ref = "kotlin" }
+kotlin-scripting-dependencies   = { module = "org.jetbrains.kotlin:kotlin-scripting-dependencies",   version.ref = "kotlin" }
+
+# ── Kotlinx ──────────────────────────────────────────────────────────────────
+kotlinx-serialization-json      = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json",    version.ref = "kotlinx-serialization" }
+kotlinx-coroutines-core         = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core",       version.ref = "kotlinx-coroutines" }
+
+# ── Ktor (MCP server — Phase 2) ───────────────────────────────────────────────
+ktor-server-core                = { module = "io.ktor:ktor-server-core",                            version.ref = "ktor" }
+ktor-server-netty               = { module = "io.ktor:ktor-server-netty",                           version.ref = "ktor" }
+ktor-serialization-json         = { module = "io.ktor:ktor-serialization-kotlinx-json",             version.ref = "ktor" }
+
+# ── Apache Batik ─────────────────────────────────────────────────────────────
+batik-transcoder                = { module = "org.apache.xmlgraphics:batik-transcoder", version.ref = "batik" }
+batik-codec                     = { module = "org.apache.xmlgraphics:batik-codec",      version.ref = "batik" }
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+kotlin-test                     = { module = "org.jetbrains.kotlin:kotlin-test",                    version.ref = "kotlin" }
+kotest-runner-junit5            = { module = "io.kotest:kotest-runner-junit5",                      version.ref = "kotest" }
+kotest-assertions-core          = { module = "io.kotest:kotest-assertions-core",                    version.ref = "kotest" }
+kotest-property                 = { module = "io.kotest:kotest-property",                           version.ref = "kotest" }
+junit-bom                       = { module = "org.junit:junit-bom",                                version.ref = "junit" }
+junit-jupiter                   = { module = "org.junit.jupiter:junit-jupiter",                    version.ref = "junit" }
+assertj-core                    = { module = "org.assertj:assertj-core",                           version.ref = "assertj" }
+clikt                           = { module = "com.github.ajalt.clikt:clikt",                         version.ref = "clikt" }
+
+[plugins]
+kotlin-jvm              = { id = "org.jetbrains.kotlin.jvm",                      version.ref = "kotlin" }
+kotlin-multiplatform    = { id = "org.jetbrains.kotlin.multiplatform",            version.ref = "kotlin" }
+kotlin-serialization    = { id = "org.jetbrains.kotlin.plugin.serialization",     version.ref = "kotlin" }
+compose-multiplatform   = { id = "org.jetbrains.compose",                         version.ref = "compose-multiplatform" }
+compose-compiler        = { id = "org.jetbrains.kotlin.plugin.compose",           version.ref = "kotlin" }
+ktlint                  = { id = "org.jlleitschuh.gradle.ktlint",                 version.ref = "ktlint-plugin" }
+graalvm-native          = { id = "org.graalvm.buildtools.native",                 version.ref = "graalvm-native" }
+vanniktech-publish      = { id = "com.vanniktech.maven.publish",                  version.ref = "vanniktech-publish" }

@@ -1,0 +1,154 @@
+= kuml-core-dsl
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-core-dsl*
+
+Type-safe Kotlin DSL builder infrastructure for kUML.
+Provides the `diagram{}` / `umlModel{}` entry-points, the `@KumlDsl` scope marker,
+and the complete set of UML element builders (`classOf`, `interfaceOf`, `enumOf`, …).
+
+== Entry Points
+
+[cols="1,3"]
+|===
+| Function | Description
+
+| `diagram(name, type, block)`
+| Creates a `KumlDiagram`.
+  Default type: `DiagramType.CLASS`.
+  Full UML element builders available in the lambda.
+
+| `umlModel(name, level, block)`
+| Creates a `KumlModel` with `language = UML`.
+  Use for model files without a fixed diagram type.
+  Full UML element builders available in the lambda.
+|===
+
+== UML Builder Functions
+
+All functions are available inside `diagram { }` and `umlModel { }` lambdas.
+
+[cols="1,3"]
+|===
+| Function | Description
+
+| `classOf(name) { … }`
+| Builds a `UmlClass`. Inline `extends(…)` / `implements(…)` add relationships to the diagram.
+
+| `interfaceOf(name) { … }`
+| Builds a `UmlInterface`. Inline `extends(…)` supported.
+
+| `enumOf(name) { literal(…) }`
+| Builds a `UmlEnumeration` with literal values.
+
+| `` `package`(name) { … } `` / `packageOf(name)`
+| Builds a `UmlPackage`. Contents can be nested packages, classes, interfaces, enumerations.
+
+| `association(sourceId, targetId) { … }`
+| Builds a `UmlAssociation`. Also accepts classifier handles: `association(source = cls, target = iface)`.
+
+| `generalization(specificId, generalId)`
+| Builds a `UmlGeneralization` (inheritance arrow).
+
+| `realization(implementingId, interfaceId)`
+| Builds a `UmlInterfaceRealization` (dashed arrow with open triangle).
+
+| `dependency(clientId, supplierId)`
+| Builds a `UmlDependency` (dashed open arrow).
+|===
+
+Inside `classOf { }` and `interfaceOf { }`:
+
+[cols="1,3"]
+|===
+| Function | Description
+
+| `attribute(name, type)`
+| Adds a `UmlProperty`. Type accepts a `String` name or a classifier handle.
+
+| `operation(name) { parameter(…) }`
+| Adds a `UmlOperation`. Parameters drive overload disambiguation in the element ID.
+
+| `extends(generalId)` / `extends(handle)`
+| Records an inline generalization (propagated to diagram/model scope).
+
+| `implements(interfaceId)` / `implements(handle)`
+| Records an inline interface realization.
+|===
+
+== Usage
+
+[source,kotlin]
+----
+// order-domain.kuml.kts — no imports needed (KumlScriptDefinition provides them)
+umlModel("Order Domain") {
+
+    val status = enumOf("OrderStatus") {
+        literal("DRAFT"); literal("CONFIRMED"); literal("SHIPPED")
+    }
+
+    `package`("domain") {
+        classOf("Order") {
+            attribute("id",     type = "UUID")
+            attribute("status", type = status)   // handle — sets referencedId automatically
+            operation("confirm")
+            operation("find") { parameter("id", "Long"); returns("Order") }
+        }
+        interfaceOf("IOrderRepo") {
+            operation("findById") { parameter("id", "Long") }
+        }
+    }
+
+    association(sourceId = "domain::Order", targetId = "domain::OrderItem") {
+        name        = "contains"
+        aggregation = AggregationKind.COMPOSITE
+        source { multiplicity("1") }
+        target { multiplicity("1..*") }
+    }
+
+    realization(implementingId = "domain::OrderRepo", interfaceId = "domain::IOrderRepo")
+}
+----
+
+== DSL Scope Safety
+
+`@KumlDsl` is applied to all builder classes and scope interfaces.
+This prevents accidentally calling an outer-scope builder inside an inner lambda:
+
+[source,kotlin]
+----
+diagram(name = "Test") {
+    classOf("A") {
+        classOf("B") { }  // ← compile error: @DslMarker prevents implicit outer scope call
+    }
+}
+----
+
+== ID Strategy
+
+All element IDs are derived deterministically from the qualified namespace path
+using `::` as separator.
+The function `UmlIds.disambiguate` appends `~2`, `~3`, … on collisions.
+Explicit overrides are always possible via the `id = "…"` parameter.
+
+| Element | Example ID |
+|---|---|
+| Root class | `Order` |
+| Packaged class | `domain::Order` |
+| Attribute | `domain::Order::id` |
+| Operation | `domain::Order::confirm()` / `domain::Order::find(Long)` |
+
+== Installation
+
+[source,kotlin]
+----
+dependencies {
+    implementation("dev.kuml:kuml-core-dsl:0.1.0")
+    // kuml-core-model is exposed transitively via api()
+    // kuml-metamodel-uml is an implementation dependency (builders only)
+}
+----
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]

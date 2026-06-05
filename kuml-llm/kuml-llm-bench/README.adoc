@@ -1,0 +1,70 @@
+= kuml-llm-bench
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-llm-bench*
+
+LLM benchmark suite for kUML.
+
+Measures how reliably an LLM can produce valid diagrams in different
+text-based modelling languages. Runs a fixed task corpus against any
+`LlmBackend` and emits a Markdown report.
+
+Commit: `fc1a8ba`.
+
+== Task Corpus
+
+10 tasks total, balanced across notation and natural language:
+
+[cols="1,1,3"]
+|===
+| Notation | Count | Languages
+
+| kUML class diagram
+| 4
+| 2× DE, 2× EN
+
+| kUML C4 system context
+| 2
+| 1× DE, 1× EN
+
+| PlantUML class
+| 2
+| 1× DE, 1× EN
+
+| Mermaid class
+| 2
+| 1× DE, 1× EN
+|===
+
+== Running
+
+[source,bash]
+----
+# Offline / unit-test mode using LlmMockBackend
+./gradlew :kuml-llm:kuml-llm-bench:run --args="--mock"
+
+# Live mode against the Anthropic API
+ANTHROPIC_API_KEY=sk-... ./gradlew :kuml-llm:kuml-llm-bench:run
+----
+
+== Output
+
+`benchmark-report.md` in the working directory — a Markdown table with
+per-notation, per-language, per-task success and failure rows, plus an
+aggregate score.
+
+== Key Types
+
+* `BenchmarkRunner` — drives the task corpus through a chosen `LlmBackend`.
+* `BenchmarkTask` — one task: notation, language, prompt, validator.
+* `BenchmarkReport` — collected results, renders to Markdown.
+
+== Dependencies
+
+* `kuml-llm-core`
+* `kuml-llm-anthropic` (runtime, for live mode)
+* `kuml-core-script` — validates generated kUML scripts via `DiagramExtractor`
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]

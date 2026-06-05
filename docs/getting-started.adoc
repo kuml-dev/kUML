@@ -1,0 +1,171 @@
+= kUML — Getting Started
+:toc: macro
+:toclevels: 2
+:source-highlighter: rouge
+:icons: font
+
+Welcome to kUML — a Kotlin-DSL approach to UML and C4 modelling that renders
+deterministic SVG and PNG directly from your codebase.
+
+toc::[]
+
+== 1. Installation
+
+You can use kUML three ways:
+
+[cols="1,3", options="header"]
+|===
+| Option | When to choose
+
+| **CLI JAR** | One-off rendering, CI pipelines, shell scripts.
+| **Gradle library** | Embedding kUML inside an application or build script.
+| **Homebrew** (planned) | Single-command install on macOS / Linux — see `docs/release.md`.
+|===
+
+=== 1a. CLI JAR (today)
+
+[source,bash]
+----
+git clone https://github.com/kuml-dev/kuml.git
+cd kuml
+./gradlew :kuml-cli:installDist
+export PATH="$PWD/kuml-cli/build/install/kuml/bin:$PATH"
+kuml --help
+----
+
+=== 1b. Gradle library
+
+[source,kotlin]
+----
+dependencies {
+    implementation("dev.kuml:kuml-core-script:0.1.0")
+    implementation("dev.kuml:kuml-renderer-layout-elk:0.1.0")
+    implementation("dev.kuml:kuml-io-svg:0.1.0")
+}
+----
+
+== 2. Your first class diagram (5 min)
+
+Save the snippet below as `hello.kuml.kts`. The full file lives under
+`docs/examples/kuml-getting-started.kuml.kts`.
+
+[source,kotlin]
+----
+classDiagram(name = "Hello kUML") {
+    val user = classOf(name = "User") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "email", type = "String")
+    }
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "total", type = "BigDecimal")
+    }
+    association(source = user, target = order) {
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "0..*"); role = "orders" }
+    }
+}
+----
+
+Render:
+
+[source,bash]
+----
+kuml render hello.kuml.kts -o hello.svg
+----
+
+Open `hello.svg` in any browser.
+
+== 3. Your first C4 diagram (5 min)
+
+[source,kotlin]
+----
+c4Model(name = "Shop") {
+    val customer = person(name = "Customer")
+    val shop = softwareSystem(name = "Shop System")
+    val payments = softwareSystem(name = "Payment Provider") { external = true }
+    relationship(source = customer, target = shop) { technology = "HTTPS" }
+    relationship(source = shop, target = payments) { technology = "HTTPS / JSON" }
+    systemContextDiagram(name = "Shop — System Context") {
+        include(customer, shop, payments)
+    }
+}
+----
+
+Render the same way. kUML auto-detects UML vs C4 from the DSL entrypoint.
+
+== 4. Watch mode
+
+For iterative editing, run:
+
+[source,bash]
+----
+kuml watch hello.kuml.kts -o hello.svg
+----
+
+The CLI re-renders on every save (~150 ms typical) using a single warm script
+host.
+
+== 5. Validation with OCL
+
+kUML embeds a small OCL-subset interpreter for invariants. Suppose your domain
+forbids more than five attributes per class:
+
+[source,bash]
+----
+kuml validate hello.kuml.kts \
+    --rule "context Class inv: self.attributes->size() <= 5"
+----
+
+Exit code 0 → valid. Exit code 4 → constraint violated. See
+`kuml-core/kuml-core-ocl/README.adoc` for the full grammar.
+
+== 6. Code generation
+
+Generate idiomatic Kotlin from a class diagram:
+
+[source,bash]
+----
+kuml generate hello.kuml.kts --target kotlin -o src/main/kotlin
+----
+
+The `kuml-gen-kotlin` plugin emits one file per class with `attribute` slots
+mapped to `val` properties. Plugin loading via JAR is on the roadmap for V1.1.
+
+== 7. Markdown integration
+
+Embed kUML directly in your docs:
+
+````markdown
+# Architecture
+
+```kuml
+classDiagram(name = "Overview") {
+    val a = classOf(name = "A")
+    val b = classOf(name = "B")
+    association(source = a, target = b)
+}
+```
+````
+
+Render to inline-SVG Markdown:
+
+[source,bash]
+----
+kuml markdown --input README.md --output README.rendered.md --mode inline
+----
+
+Linked-SVG and linked-PNG modes write asset files next to the document. See
+link:./kuml-docs/kuml-markdown/README.adoc[`kuml-markdown` README] for details
+and Pandoc integration.
+
+== 8. Next steps
+
+* link:./diagram-types.adoc[Diagram-type reference] — one-page tour of every
+  supported diagram.
+* link:./benchmark/README.md[LLM benchmark guide] — measure how well your
+  preferred LLM emits kuml DSL.
+* link:./release.md[Release & distribution guide] — Maven Central, Homebrew,
+  release workflow.
+* Browse `kuml-tests/examples/` — eleven runnable scripts cover every
+  diagram type with realistic structure.

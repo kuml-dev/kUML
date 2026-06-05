@@ -1,0 +1,66 @@
+= kuml-llm-anthropic
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-llm-anthropic*
+
+Anthropic Claude API backend for `kuml-llm-core`.
+
+Implements `LlmBackend` using the JDK 11+ `java.net.http.HttpClient` — no
+extra dependencies (no Retrofit, no OkHttp, no Anthropic SDK). Keeps the
+classpath small and GraalVM-friendly.
+
+Commit: `fc1a8ba`.
+
+== Configuration
+
+[cols="1,3"]
+|===
+| Setting | Default
+
+| Model
+| `claude-haiku-4-5-20251001` (V1.0 default — `claude-3-5-haiku-20241022` was retired)
+
+| API endpoint
+| `https://api.anthropic.com/v1/messages`
+
+| API key env var
+| `ANTHROPIC_API_KEY`
+
+| API version header
+| `anthropic-version: 2023-06-01`
+
+| Max tokens (response)
+| `2048` (override via the `maxTokens` ctor parameter)
+
+| Request timeout
+| `60s` (override via the `timeoutSeconds` ctor parameter)
+|===
+
+== Usage
+
+[source,kotlin]
+----
+val backend: LlmBackend = AnthropicBackend(
+    apiKey  = System.getenv("ANTHROPIC_API_KEY"),
+    modelId = AnthropicBackend.DEFAULT_MODEL,   // or any current Claude id
+)
+
+// System prompt is a separate parameter, NOT a LlmMessage with role "system".
+val response = backend.complete(
+    messages = listOf(
+        LlmMessage(role = "user", content = "Generate an Order class with id and status.")
+    ),
+    systemPrompt = "You are a kUML model generator. Respond ONLY with the script."
+)
+println(response.content)
+----
+
+== Dependencies
+
+* `kuml-llm-core`
+* JDK 11+ (`java.net.http.HttpClient`)
+* `kotlinx-serialization-json` (request/response shape)
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]

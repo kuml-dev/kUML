@@ -1,0 +1,39 @@
+= kuml-layout-elk
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-layout-elk*
+
+ELK 0.11.0 adapter for kUML.
+
+Implements `KumlLayoutEngine` from `kuml-layout-api` using
+link:https://www.eclipse.org/elk/[Eclipse Layout Kernel] — specifically the
+`elk.layered` algorithm (Sugiyama / hierarchical layout).
+
+== What it does
+
+. Translates a `LayoutGraph` (from `kuml-layout-bridge`) into an ELK graph
+. Runs `elk.layered` layout
+. Translates ELK node positions + edge bend-points back into `LayoutResult`
+
+ELK types never leave this module — all public API surfaces are ELK-free.
+
+== Dependency note
+
+ELK 0.11.0's POM does not declare `org.eclipse.xtext:org.eclipse.xtext.xbase.lib`
+as a runtime dependency, even though `LayeredMetaDataProvider` requires it.
+This module adds it explicitly:
+
+[source,kotlin]
+----
+// build.gradle.kts
+implementation(libs.xtext.xbase.lib)   // "2.43.0" — ELK 0.11.0 runtime fix
+----
+
+== GraalVM Native Image
+
+Reflection configuration for ELK's service-loader mechanism will be added in
+`kuml-packaging/kuml-native`. This module is JVM-only in V1.
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]

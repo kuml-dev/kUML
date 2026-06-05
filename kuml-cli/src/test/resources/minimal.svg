@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: Plain · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 208 228"
+     width="208"
+     height="228">
+  <defs>
+  <style>
+    .kuml-class { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-interface { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-enum { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-component { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-state { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-usecase { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-system { fill: #FFFFFF; stroke: #000000; stroke-width: 2.0; }
+.kuml-container { fill: #FFFFFF; stroke: #000000; stroke-width: 1.0; }
+.kuml-c4component { fill: #FFFFFF; stroke: #000000; stroke-width: 1.0; }
+.kuml-title { font-family: system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #000000; }
+.kuml-subtitle { font-family: system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #000000; }
+.kuml-body { font-family: system-ui, sans-serif; font-size: 11.0px; fill: #000000; }
+.kuml-small { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #666666; }
+.kuml-stereotype { font-family: system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #666666; }
+.kuml-edge { stroke: #000000; stroke-width: 1.5; fill: none; }
+.kuml-edge-dashed { stroke: #999999; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #000000; stroke-width: 1.0; }
+.kuml-actor { stroke: #000000; stroke-width: 1.5; fill: none; }
+
+  </style>
+  <marker id="arrow-open" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 9 5 L 1 9" stroke="#000000" stroke-width="1.5" fill="none"/>
+  </marker>
+  <marker id="arrow-open-muted" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+    <path d="M 1 1 L 9 5 L 1 9" stroke="#999999" stroke-width="1.5" fill="none"/>
+  </marker>
+  <marker id="arrow-triangle" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="strokeWidth">
+    <polygon points="1 1 11 6 1 11" stroke="#000000" stroke-width="1.5" fill="white"/>
+  </marker>
+  <marker id="arrow-triangle-muted" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="strokeWidth">
+    <polygon points="1 1 11 6 1 11" stroke="#999999" stroke-width="1.5" fill="white"/>
+  </marker>
+  </defs>
+  <g id="nodes">
+    <g id="Order" transform="translate(32,32)">
+      <rect width="160" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="80" y="18" text-anchor="middle">
+        Order
+      </text>
+    </g>
+    <g id="Customer" transform="translate(32,132)">
+      <rect width="160" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="80" y="18" text-anchor="middle">
+        Customer
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+  </g>
+</svg>

@@ -1,0 +1,69 @@
+= kuml-gen-kotlin
+:toc:
+
+image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-gen-kotlin*
+
+Built-in Kotlin code generator for kUML.
+
+Translates `UmlModel` classifiers into idiomatic Kotlin source.
+Used by `kuml-cli`'s `kuml generate --plugin kotlin` and by `kuml-mcp`'s
+`kuml.generate` tool.
+
+Commit: `0df0891`.
+
+== Mapping
+
+[cols="1,2"]
+|===
+| UML element | Kotlin output
+
+| `UmlClass`
+| `data class` with constructor parameters from `UmlProperty`
+
+| `UmlInterface`
+| `interface` with abstract members
+
+| `UmlEnumeration`
+| `enum class` with literal entries
+
+| `UmlGeneralization`
+| `: SuperType()` / `: SuperInterface`
+
+| `UmlInterfaceRealization`
+| `: InterfaceName` (with implementations)
+
+| Multiplicity `0..1`
+| `T?`
+
+| Multiplicity `1`
+| `T`
+
+| Multiplicity `*` / `0..*` / `1..*`
+| `List<T>`
+|===
+
+== Key Types
+
+* `KotlinCodeGenerator` — implements `KumlCodeGenerator` from `kuml-codegen-api`.
+* `KotlinCodeGeneratorOptions` — package override, indent style, etc.
+
+== Usage
+
+[source,kotlin]
+----
+val files = KotlinCodeGenerator().generate(
+    model,
+    options = mapOf("package" to "com.example.domain")
+)
+files.forEach { Path.of(outDir, it.path).writeText(it.contents) }
+----
+
+== Dependencies
+
+* `kuml-codegen-api`
+* `kuml-core-model`
+* `kuml-metamodel-uml`
+
+== License
+
+Apache 2.0 — see link:../../LICENSE[LICENSE]
