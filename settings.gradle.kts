@@ -68,6 +68,7 @@ include(
     "kuml-io:kuml-io-svg",          // Phase 2 — SVG/PNG-Export
     "kuml-io:kuml-io-png",          // Phase 1 — PNG-Export via Batik (Fat-JAR only)
     "kuml-io:kuml-io-json",         // Phase 2 — Modell-Persistenz (kotlinx.serialization)
+    "kuml-io:kuml-io-latex",        // V2.0.2 — LaTeX/TikZ-Export (MVP: Klassendiagramme, plain theme, snippet)
     // "kuml-io:kuml-io-structurizr",  // V1.1 — C4 ⇌ Structurizr DSL
     // "kuml-io:kuml-io-emf",          // V2 — OPTIONAL XMI ⇌ Eclipse UML2
 )

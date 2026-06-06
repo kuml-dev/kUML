@@ -25,11 +25,15 @@ internal object FormatResolver {
         output: Path?,
         @Suppress("UNUSED_PARAMETER") input: File,
     ): String {
-        if (format != null) return format
+        if (format != null) {
+            // `tex` is an alias for `latex` — the file extension users expect.
+            return if (format == "tex") "latex" else format
+        }
         if (output != null) {
             val name = output.fileName?.toString() ?: ""
             if (name.endsWith(".svg")) return "svg"
             if (name.endsWith(".png")) return "png"
+            if (name.endsWith(".tex")) return "latex"
         }
         return "svg"
     }
@@ -56,6 +60,12 @@ internal object FormatResolver {
                 .removeSuffix(".kuml.kts")
                 .removeSuffix(".kts")
         val parent = input.parentFile ?: File(".")
-        return parent.resolve("$base.$format").toPath()
+        // Map internal format key → on-disk extension.
+        val ext =
+            when (format) {
+                "latex" -> "tex"
+                else -> format
+            }
+        return parent.resolve("$base.$ext").toPath()
     }
 }

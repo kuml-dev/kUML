@@ -1,9 +1,12 @@
 package dev.kuml.cli
 
 import dev.kuml.core.config.KumlConfig
+import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.io.latex.KumlLatexRenderer
+import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.io.svg.KumlSvgRenderer
@@ -119,6 +122,16 @@ internal object RenderPipeline {
                     KumlPngRenderer.toPng(diagram, layoutResult, theme, PngRenderOptions(widthPx = width))
                 writeBinary(output, pngBytes)
             }
+            "latex" -> {
+                // V2.0.2 MVP: snippet mode (`\begin{tikzpicture}…\end{tikzpicture}`).
+                // Standalone mode (`\documentclass{standalone}`) is reachable today
+                // via the library API; a CLI `--latex-standalone` flag lands later
+                // when the V2.x options pipeline grows. The theme is implicit —
+                // the renderer ships a plain monochrome `\tikzset{…}` block that
+                // users can override in their preamble.
+                val tex = KumlLatexRenderer.toLatex(diagram, layoutResult, LatexRenderOptions.DEFAULT)
+                writeText(output, tex)
+            }
             else -> throw ScriptEvaluationException("Unsupported format: $format")
         }
     }
@@ -149,6 +162,16 @@ internal object RenderPipeline {
                         PngRenderOptions(widthPx = width),
                     )
                 writeBinary(output, pngBytes)
+            }
+            "latex" -> {
+                // C4 LaTeX export reuses the UML class-renderer fallback — each
+                // C4 element gets a labelled rectangle. Full C4-style boxes
+                // (Person / SoftwareSystem / Container with role labels) land
+                // in a later V2.x wave; for V2.0.2 the MVP focus is class
+                // diagrams.
+                val placeholderDiagram = KumlDiagram(name = diagram.name)
+                val tex = KumlLatexRenderer.toLatex(placeholderDiagram, layoutResult, LatexRenderOptions.DEFAULT)
+                writeText(output, tex)
             }
             else -> throw ScriptEvaluationException("Unsupported format: $format")
         }

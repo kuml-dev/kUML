@@ -32,7 +32,7 @@ internal class RenderCommand : CliktCommand(name = "render") {
         .path()
 
     private val format by option("-f", "--format", help = "Output format")
-        .choice("svg", "png")
+        .choice("svg", "png", "latex", "tex")
 
     private val width by option("-w", "--width", help = "Width in pixels (PNG only)")
         .int()
@@ -43,7 +43,7 @@ internal class RenderCommand : CliktCommand(name = "render") {
     private val configFile by option("--config", help = "Path to kuml.config.kts")
         .file(mustExist = true, canBeDir = false)
 
-    override fun help(context: Context): String = "Render a kUML script (UML or C4) to SVG or PNG."
+    override fun help(context: Context): String = "Render a kUML script (UML or C4) to SVG, PNG, or LaTeX/TikZ source."
 
     override fun run() {
         try {

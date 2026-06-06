@@ -55,6 +55,7 @@ dependencies {
     implementation(project(":kuml-renderer:kuml-themes-core"))
     implementation(project(":kuml-io:kuml-io-svg"))
     implementation(project(":kuml-io:kuml-io-png"))
+    implementation(project(":kuml-io:kuml-io-latex")) // V2.0.2 — TikZ/LaTeX-Export
     implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
     implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
     implementation(project(":kuml-docs:kuml-markdown"))
