@@ -176,6 +176,14 @@ jobs:
   dispatch-tap:
     name: Dispatch Homebrew tap update
     needs: [build, package-runtime]
+    # Run even if a `package-runtime` matrix leg failed, so we still
+    # produce a useful summary with recovery instructions. Skip only on
+    # explicit workflow cancellation. The dispatch step itself is gated
+    # on `steps.payload.outputs.complete == 'true'` further down — a
+    # partial set of platform artefacts NEVER produces a partial tap
+    # update, because the Homebrew formula's `on_macos { on_intel/on_arm }`
+    # + `on_linux` shape requires all three URLs to be coherent.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -188,37 +196,87 @@ jobs:
         id: payload
         shell: bash
         run: |
-          # Read each <target>.env, build a JSON object with one entry per target.
+          # Read each <target>.env, build a JSON object with one entry per
+          # target. Unlike the previous version, missing targets are NOT a
+          # hard error — we emit `complete=true/false` + a `missing=` list
+          # so the downstream `if:` clauses and the Summary step can react.
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json, os, pathlib
+          import json, pathlib
 
           out = {}
           for p in sorted(pathlib.Path("sha-artifacts").glob("*.env")):
               kv = dict(line.strip().split("=", 1) for line in p.read_text().splitlines() if line.strip())
               out[kv["target"]] = {"url": kv["url"], "sha256": kv["sha256"]}
 
-          missing = {"darwin-x86_64", "darwin-arm64", "linux-x86_64"} - out.keys()
-          if missing:
-              raise SystemExit(f"missing runtime artefacts for: {sorted(missing)}")
+          required = {"darwin-x86_64", "darwin-arm64", "linux-x86_64"}
+          missing = sorted(required - out.keys())
+          complete = not missing
 
+          print(f"complete={'true' if complete else 'false'}")
+          print(f"missing={','.join(missing)}")
+          # Always emit a `platforms` value so subsequent steps can
+          # reference it without conditional indirection. When incomplete,
+          # we still emit the partial map for the Summary step's debug
+          # block, but `Dispatch` won't fire (gated on `complete`).
           print(f"platforms={json.dumps(out)}")
           PY
 
-      - name: Print Homebrew formula update hint
+      - name: Summary
+        # Always run so the workflow's Summary tab gets useful output even
+        # if the matrix was incomplete. The summary tells maintainers
+        # exactly what's missing and how to recover.
+        if: ${{ always() }}
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          COMPLETE: ${{ steps.payload.outputs.complete }}
+          MISSING: ${{ steps.payload.outputs.missing }}
+          PLATFORMS: ${{ steps.payload.outputs.platforms }}
+          HAS_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
         run: |
-          echo "### Homebrew update" >> $GITHUB_STEP_SUMMARY
-          echo "version = ${{ needs.build.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          echo '${{ steps.payload.outputs.platforms }}' >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          if [ -z "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]; then
-            echo "_HOMEBREW_TAP_TOKEN not set — formula not auto-updated. Edit Formula/kuml.rb in kuml-dev/homebrew-kuml manually._" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "_Dispatched to kuml-dev/homebrew-kuml — see its Actions tab for the formula bump._" >> $GITHUB_STEP_SUMMARY
-          fi
+          {
+            echo "### Homebrew update"
+            echo ""
+            echo "| Field    | Value |"
+            echo "| -------- | ----- |"
+            echo "| Version  | \`$VERSION\` |"
+            echo "| Complete | \`$COMPLETE\` |"
+            if [ "$COMPLETE" != "true" ]; then
+              echo "| Missing  | \`$MISSING\` |"
+            fi
+            echo ""
+            if [ "$COMPLETE" = "true" ] && [ "$HAS_TOKEN" = "true" ]; then
+              echo "✅ All three platform artefacts present — dispatching to \`kuml-dev/homebrew-kuml\`. See its Actions tab for the formula bump."
+            elif [ "$COMPLETE" = "true" ] && [ "$HAS_TOKEN" != "true" ]; then
+              echo "⚠ \`HOMEBREW_TAP_TOKEN\` is not set — auto-dispatch skipped. Trigger manually:"
+              echo ""
+              echo '```bash'
+              echo "gh workflow run update-formula.yml -R kuml-dev/homebrew-kuml \\"
+              echo "    -f version=$VERSION \\"
+              echo "    -f platforms_json='$PLATFORMS'"
+              echo '```'
+            else
+              echo "⛔ **Tap NOT updated.** Missing platform artefacts: \`$MISSING\`."
+              echo ""
+              echo "Common causes: a \`package-runtime\` matrix leg failed (deprecated runner, transient infra) or was cancelled."
+              echo ""
+              echo "**Recovery:**"
+              echo ""
+              echo "1. Re-run only the failed matrix leg from this workflow's run page (\"Re-run failed jobs\")."
+              echo "2. Or trigger the tap manually once the missing assets are uploaded to the release:"
+              echo ""
+              echo '```bash'
+              echo "# Compute SHA-256 for each runtime zip in the release first, then:"
+              echo "gh workflow run update-formula.yml -R kuml-dev/homebrew-kuml \\"
+              echo "    -f version=$VERSION \\"
+              echo "    -f platforms_json='<JSON with url + sha256 per target>'"
+              echo '```'
+              echo ""
+              echo "Or use the \`republish-runtime.yml\` workflow in this repo to rebuild one platform leg without re-running the whole release."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Dispatch Homebrew tap update
-        if: env.HOMEBREW_TAP_TOKEN != ''
+        if: steps.payload.outputs.complete == 'true' && env.HOMEBREW_TAP_TOKEN != ''
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         uses: peter-evans/repository-dispatch@v3
