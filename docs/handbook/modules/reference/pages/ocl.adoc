@@ -1,0 +1,124 @@
+= OCL Constraints
+:description: Write executable invariants on your kUML model with the OCL subset.
+
+The Object Constraint Language (OCL) is the OMG-standard expression language for adding
+invariants, pre-conditions, and post-conditions to UML models. kUML implements a
+practical subset suitable for invariants and state-machine guards.
+
+== Invariants on classifiers
+
+Add `constraint(name, body)` inside any classifier:
+
+[source,kotlin]
+----
+classOf(name = "Order") {
+    attribute(name = "total", type = "BigDecimal")
+    attribute(name = "discount", type = "BigDecimal")
+
+    constraint(name = "NonNegativeTotal",
+        body = "self.total >= 0")
+    constraint(name = "DiscountWithinLimits",
+        body = "self.discount >= 0 and self.discount <= self.total")
+}
+----
+
+The `body` is plain OCL. `self` always refers to the surrounding classifier instance.
+
+== Validation
+
+[source,bash]
+----
+kuml validate order.kuml.kts
+----
+
+The CLI parses every constraint, evaluates it, and exits with code:
+
+* `0` if every constraint holds.
+* `1` if any constraint is violated. Each violation prints the constraint name, the
+  classifier it sits on, and the OCL expression.
+* non-zero if a constraint fails to parse (syntax error).
+
+In a Gradle build, the `kumlValidate` task runs the same check and fails the build if
+`failOnValidationViolations` is `true` (the default).
+
+== Supported OCL subset (v0.3.0)
+
+[cols="1,3"]
+|===
+| Category | Supported
+
+| Boolean operators
+| `and`, `or`, `not`, `xor`, `implies`
+
+| Comparison
+| `=`, `<>`, `<`, `<=`, `>`, `>=`
+
+| Arithmetic
+| `+`, `-`, `*`, `/`, unary `-`
+
+| Literals
+| Integer (`42`), Real (`3.14`), String (`'hello'`), Boolean (`true`, `false`), `null`
+
+| Navigation
+| `self.attribute`, `self.operation()` (no-arg calls), `self.assocEnd.role`
+
+| Collection ops
+| `forAll`, `exists`, `isEmpty`, `notEmpty`, `size`, `includes`, `excludes`
+
+| Conditionals
+| `if then else endif`
+|===
+
+== State-machine guards
+
+Transition guards on state machines use the same OCL subset, with two additional
+implicit variables: `event` (the triggering event with its payload as a `Map<String, Any?>`)
+and the model instance binding.
+
+[source,kotlin]
+----
+stateMachine(name = "Cart") {
+    initial("empty")
+    state("active") {
+        // Read attribute from current variables map
+        constraint(name = "PositiveItemCount", body = "self.itemCount > 0")
+    }
+    state("checked_out") { final() }
+
+    transition(from = "active", to = "checked_out",
+        trigger = "checkout",
+        guard = "event.totalCents > 0 and self.itemCount > 0")
+}
+----
+
+The runtime parses the guard at evaluation time, navigates `event.totalCents` against the
+event's payload map, and `self.itemCount` against the machine's variables map. Both are
+populated by the simulator's event stream — see xref:simulate.adoc[simulate].
+
+== Profile-level constraints
+
+Stereotypes can carry constraints that apply automatically to any element with that
+stereotype:
+
+[source,kotlin]
+----
+profile(name = "JavaEE") {
+    stereotype(name = "Entity", extending = UmlMetaclass.Class) {
+        constraint(name = "RequiresIdAttribute",
+            body = "self.ownedAttribute->exists(a | a.appliedStereotype.name = 'Id')")
+    }
+}
+----
+
+When you `applyProfile("JavaEE")` and stereotype a class as `Entity`, the validator
+checks the constraint without you adding it manually.
+
+== What's not supported
+
+* `let ... in ...` — declarative bindings (V2)
+* `oclIsKindOf`, `oclAsType` — type tests and casts (V2)
+* Multi-argument operation calls in expressions (V2)
+* User-defined OCL helper operations (V2)
+
+If you hit a limit, fall back to a smaller constraint or split it into multiple
+named constraints — the validator runs them independently anyway.

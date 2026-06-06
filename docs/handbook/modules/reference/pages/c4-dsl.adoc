@@ -1,0 +1,148 @@
+= C4 DSL Reference
+:description: Author C4 system context, container, component, and deployment diagrams.
+
+The https://c4model.com/[C4 model] describes software architecture at four levels: System
+Context, Container, Component, and Code (kUML uses UML class diagrams for Level 4).
+kUML supports all C4 view types and round-trips to the Structurizr DSL.
+
+== The C4 workspace
+
+A C4 model is a *workspace* containing *elements* (Person, SoftwareSystem, Container,
+Component, DeploymentNode) and *relationships*. Views are projections of the workspace.
+
+[source,kotlin]
+----
+c4Model(name = "Internet Banking System") {
+    val customer = person(name = "Customer",
+        description = "A bank customer with a personal account")
+
+    val banking = softwareSystem(name = "Internet Banking System",
+        description = "Allows customers to view their account and make payments") {
+
+        val webApp = container(name = "Web Application",
+            technology = "Java / Spring MVC",
+            description = "Delivers the static content and the SPA")
+
+        val singlePageApp = container(name = "Single-Page Application",
+            technology = "TypeScript / React",
+            description = "The browser-side UI")
+
+        val api = container(name = "API Application",
+            technology = "Java / Spring") {
+
+            component(name = "AccountController",
+                technology = "Spring REST controller")
+            component(name = "TransactionRepository",
+                technology = "Spring Data JPA")
+        }
+
+        val database = container(name = "Database",
+            technology = "PostgreSQL")
+    }
+
+    val mainframe = softwareSystem(name = "Mainframe Banking System",
+        description = "Stores all core banking data")
+
+    relationship(source = customer, target = banking,
+        description = "Views accounts, makes payments")
+    relationship(source = banking, target = mainframe,
+        description = "Reads account data")
+}
+----
+
+== Views
+
+Workspace data on its own renders nothing. You declare *views* to pick what to show:
+
+[source,kotlin]
+----
+systemContextDiagram(name = "System Context — Internet Banking") {
+    system = "Internet Banking System"   // The system in focus
+}
+
+containerDiagram(name = "Container view") {
+    system = "Internet Banking System"
+}
+
+componentDiagram(name = "Component view — API") {
+    container = "API Application"
+}
+
+dynamicDiagram(name = "Place payment") {
+    // Sequence-style flow across containers
+    step(from = "Single-Page Application", to = "API Application",
+        description = "POST /payments")
+    step(from = "API Application", to = "Mainframe Banking System",
+        description = "validate")
+}
+
+deploymentDiagram(name = "Production deployment") {
+    deploymentNode(name = "AWS eu-central-1") {
+        deploymentNode(name = "EC2 ASG") {
+            containerInstance(container = "API Application")
+        }
+        deploymentNode(name = "RDS") {
+            containerInstance(container = "Database")
+        }
+    }
+}
+
+systemLandscapeDiagram(name = "Landscape") {
+    // No specific system — shows all top-level elements and relationships
+}
+----
+
+== Round-trip with Structurizr
+
+kUML can export to and import from https://structurizr.com[Structurizr DSL]:
+
+[source,bash]
+----
+# Export your kUML C4 to Structurizr
+kuml export workspace.kuml.kts --format structurizr --output workspace.dsl
+
+# Read back (parse-only — for verification)
+kuml parse workspace.dsl --format structurizr
+----
+
+The export emits valid Structurizr DSL that the Structurizr CLI and the Structurizr Lite
+viewer consume directly. Useful for sharing with teams that have a Structurizr investment.
+
+See xref:export.adoc[Structurizr export] for the full mapping table and round-trip
+guarantees.
+
+== Mixing C4 and UML
+
+A single workspace can include both C4 views and UML class/state diagrams. C4 Level 4
+("Code") is canonically a UML class diagram — keep both in one script:
+
+[source,kotlin]
+----
+umlModel(name = "Banking system") {
+    c4Model(name = "Banking") {
+        softwareSystem("Internet Banking") {
+            container("API") {
+                component("AccountController")
+            }
+        }
+    }
+
+    containerDiagram(name = "Container view") {
+        system = "Internet Banking"
+    }
+
+    // Level 4: the actual class structure of AccountController
+    classDiagram(name = "AccountController internals") {
+        classOf("AccountController") {
+            attribute("repo", "TransactionRepository")
+            operation("getBalance") { returnType = "Money" }
+        }
+    }
+}
+----
+
+== Stereotypes and styling
+
+C4 elements accept stereotypes for thematic styling. The default themes (`plain`, `kuml`,
+`elegant`, `playful`) all honour the C4 stock styles. Custom themes can map stereotypes to
+colours, shapes, and stroke widths — see xref:themes.adoc[themes & config].

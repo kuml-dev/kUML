@@ -1,0 +1,188 @@
+= AsciiDoc & Antora
+:description: Embed kUML diagrams in AsciiDoc — listing blocks, block macros, Antora-compatible output.
+
+The `kuml-asciidoc` module is an AsciiDoc preprocessor that replaces `[source,kuml]` listing
+blocks and `kuml::path[]` block macros with rendered diagrams. The output is valid
+AsciiDoc that Antora's Asciidoctor pipeline consumes without further setup.
+
+== Two ways to embed diagrams
+
+=== Inline source — `[source,kuml]`
+
+[source,asciidoc]
+----
+= My architecture document
+
+The order subsystem:
+
+[source,kuml]
+----
+classDiagram(name = "Order Domain") {
+    val order = classOf("Order") {
+        attribute("id", "UUID")
+        attribute("status", "OrderStatus")
+    }
+    val item = classOf("OrderItem")
+    association(source = order, target = item)
+}
+----
+
+That domain model exposes...
+----
+
+=== External file — `kuml::path[]`
+
+[source,asciidoc]
+----
+= My architecture document
+
+The order subsystem:
+
+kuml::diagrams/order.kuml.kts[]
+
+That domain model exposes...
+----
+
+External-file embedding is preferred when:
+
+* The same diagram appears in multiple docs.
+* The diagram is large enough to clutter the AsciiDoc source.
+* You want the diagram in version control as a standalone file with its own history.
+
+== Three output modes
+
+The preprocessor supports three modes that trade off complexity vs. portability:
+
+=== `InlineSvg` (default)
+
+[source,kotlin]
+----
+val processor = AsciidocProcessor()
+val result = processor.process(
+    input = File("guide.adoc").readText(),
+    mode = AsciidocOutputMode.InlineSvg,
+)
+File("guide.rendered.adoc").writeText(result.output)
+----
+
+The diagram becomes an Asciidoctor passthrough block:
+
+[source,asciidoc]
+----
+++++
+<svg xmlns="http://www.w3.org/2000/svg" …>...</svg>
+++++
+----
+
+The SVG renders directly in HTML. No external files. Perfect for single-file documents.
+
+=== `LinkedSvg(assetsDir)`
+
+[source,kotlin]
+----
+val result = processor.process(
+    input = source,
+    mode = AsciidocOutputMode.LinkedSvg(File("assets/images")),
+    baseName = "guide",
+)
+----
+
+Each diagram is written as a separate SVG into `assetsDir/`, and the block is replaced
+with an Asciidoctor `image::` macro:
+
+[source,asciidoc]
+----
+image::guide-1.svg[Order Domain]
+----
+
+Linked SVGs let you cache, share, or hand-edit individual diagrams without re-running the
+preprocessor. Use this mode when documents have many diagrams or when post-processing the
+SVG is part of your toolchain.
+
+=== `LinkedPng(assetsDir, widthPx)`
+
+[source,kotlin]
+----
+val result = processor.process(
+    input = source,
+    mode = AsciidocOutputMode.LinkedPng(File("assets/images"), widthPx = 1024),
+)
+----
+
+Same as `LinkedSvg`, but the assets are rasterized PNGs. Use when the target medium
+doesn't support SVG (some PDF toolchains, some Wikis).
+
+== Antora compatibility
+
+All three modes produce *valid AsciiDoc* that Antora's Asciidoctor pipeline consumes
+without extra setup:
+
+* `InlineSvg` uses Asciidoctor passthrough blocks, which Antora respects as-is.
+* `LinkedSvg` and `LinkedPng` use the `image::` macro. Place the asset files in
+  `modules/<module>/images/` per Antora's conventions, and the macro resolves them
+  via standard image-path resolution.
+
+A typical Antora component layout:
+
+[source]
+----
+docs/handbook/
+├── antora.yml
+└── modules/
+    └── ROOT/
+        ├── nav.adoc
+        ├── pages/
+        │   └── architecture.adoc        # contains kuml::… or [source,kuml]
+        └── images/                      # → LinkedSvg/Png target
+            └── architecture-1.svg
+----
+
+This handbook itself uses this layout — see `docs/handbook/` in the source repo.
+
+== Block attributes
+
+Both block forms accept attributes:
+
+[source,asciidoc]
+----
+[source,kuml,name=order-domain,width=800]
+----
+classDiagram(name = "Order Domain") { … }
+----
+
+kuml::diagrams/order.kuml.kts[name=order-domain,width=800]
+----
+
+Recognised attributes:
+
+* `name` — overrides the asset file stem. Without it, the preprocessor uses
+  `${baseName}-${index}`.
+* `width` — for PNG output, override the global width for this diagram.
+
+== Pipeline architecture
+
+The processor is a straightforward four-stage pipeline:
+
+. *Extract* — `AsciidocBlockExtractor` scans the source for block patterns, returning
+  a list of `AsciidocKumlBlock` instances with their line ranges and source text.
+. *Evaluate* — for each block, the kUML script is evaluated via `AsciidocRenderPipeline.evaluate`
+  (block macros read the external file relative to `baseDir`).
+. *Render* — depending on the output mode, the diagram becomes inline SVG, an external
+  SVG file, or a rasterized PNG.
+. *Splice* — replace the original block lines (in reverse order, so indices stay stable)
+  with the replacement output.
+
+The result is a `AsciidocProcessResult(output: String, assets: List<File>)` — the
+transformed AsciiDoc and the list of files written to disk.
+
+== When you do NOT need this preprocessor
+
+For full-featured Asciidoctor extension support (the `[kuml]` block macro as a proper
+Asciidoctor extension, not a preprocessor pass), see the standalone
+https://github.com/kuml-dev/kuml-asciidoc[kuml-asciidoc Asciidoctor extension] published
+to Maven Central. That extension hooks into the Asciidoctor build pipeline directly
+without a separate preprocessor step — at the cost of a ~30 MB JRuby runtime dependency.
+
+The preprocessor in `kuml-docs/kuml-asciidoc` is the lightweight choice for projects that
+don't want JRuby. The Asciidoctor extension is the integrated choice for projects already
+running Asciidoctor anyway (most Antora sites).

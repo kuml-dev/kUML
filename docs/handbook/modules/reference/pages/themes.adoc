@@ -1,0 +1,159 @@
+= Themes & Configuration
+:description: Themes, the kuml.config.kts DSL, and how to override defaults at every level.
+
+A kUML *theme* is a typed colour-and-typography object that the renderer reads when drawing.
+Configuration layering lets you pick a theme — and override individual stereotype styles —
+without forking the renderer.
+
+== Built-in themes
+
+[cols="1,3"]
+|===
+| Name | Character
+
+| `plain`
+| Black-on-white, no decoration. Default for documentation that should not look styled.
+
+| `kuml`
+| Brand colours, blue accents, Inter font. The "house" theme used in marketing screenshots.
+
+| `elegant`
+| Muted warm greys with dusty-rose accents, serif typeface, restrained corner radii.
+
+| `playful`
+| Vivid pastels, coral and teal accents, rounded sans-serif typeface, generous corner radii.
+|===
+
+Apply via CLI flag:
+
+[source,bash]
+----
+kuml render diagram.kuml.kts --theme elegant
+----
+
+Or pin via the Gradle plugin:
+
+[source,kotlin]
+----
+kuml {
+    theme.set("playful")
+}
+----
+
+== The `kuml.config.kts` DSL
+
+Project-level defaults live in a `kuml.config.kts` file at the repo root (or wherever the
+CLI is invoked from). The DSL uses the same scripting host as diagram files.
+
+[source,kotlin]
+----
+// kuml.config.kts
+kumlConfig {
+    render {
+        theme = "kuml"
+        format = "svg"
+        widthPx = 1024              // PNG width
+
+        // Override individual stereotype slots without losing other theme defaults
+        stereotypes {
+            override("Entity") {
+                backgroundColor = "#fff7e6"
+                borderColor = "#d97706"
+            }
+            override("Scheduled") {
+                showName = false   // Render only tagged values, not the «Scheduled» tag
+            }
+        }
+    }
+}
+----
+
+The override DSL uses *nullable slots* — you only set what you want to change. Untouched
+fields fall back to the active theme's value.
+
+== Configuration layering
+
+Three layers, highest priority first:
+
+. *CLI flag* — `--theme elegant`, `--format png`, `--width 2048`
+. *Config file* — `kuml.config.kts` discovered in the CWD or via `--config <path>`
+. *Built-in defaults* — `kuml` theme, SVG format, 1024 px width
+
+A higher layer overrides lower layers field by field, not file by file. Setting just
+`--theme elegant` on the CLI keeps your config-file `stereotypes { ... }` overrides intact.
+
+== Authoring your own theme
+
+Themes are Kotlin objects implementing `KumlTheme`:
+
+[source,kotlin]
+----
+object CompanyBrandTheme : KumlTheme {
+    override val name: String = "company"
+    override val colors: KumlColors = KumlColors(
+        background = "#ffffff",
+        defaultStroke = "#1f2937",
+        accent = "#2563eb",
+        // ...
+    )
+    override val typography: KumlTypography = KumlTypography(
+        fontFamily = "Inter, sans-serif",
+        // ...
+    )
+    override val borders: KumlBorders = KumlBorders(cornerRadius = 4f)
+}
+
+class CompanyBrandThemeProvider : KumlThemeProvider {
+    override val name: String = "company"
+    override fun theme(): KumlTheme = CompanyBrandTheme
+}
+----
+
+Register via `META-INF/services/dev.kuml.renderer.theme.core.KumlThemeProvider`:
+
+[source]
+----
+com.example.CompanyBrandThemeProvider
+----
+
+CLI and Gradle plugin pick it up:
+
+[source,bash]
+----
+kuml render diagram.kuml.kts --theme company
+----
+
+== Stereotype-driven styling
+
+Themes can map stereotypes to drawing slots:
+
+[source,kotlin]
+----
+object MyTheme : KumlTheme {
+    // ...
+    override val stereotypeStyles: Map<String, StereotypeTheme> = mapOf(
+        "Entity" to StereotypeTheme(
+            backgroundColor = "#fff7e6",
+            borderColor = "#d97706",
+            showName = true,
+        ),
+        "Transient" to StereotypeTheme(
+            textOpacity = 0.4f,
+        ),
+    )
+}
+----
+
+This is how the JavaEE-styled themes light up `@Entity` classes differently from
+regular classifiers. The renderer queries `stereotypeStyles[stereotypeName]` when
+drawing each element — empty map = no stereotype styling, fallback to the global theme.
+
+== Config DSL — `kuml-core-config` module
+
+The full DSL lives in `dev.kuml.core.config.dsl`. The top-level entry point is `kumlConfig`,
+nested blocks for render, layout, codegen, and validation will land as needed. The Config
+DSL has its own scripting host (`KumlConfigScript`) — Config scripts cannot accidentally
+contain diagram DSL or vice versa.
+
+The CLI's `--config <path>` flag accepts both `*.kuml.config.kts` files and inline JSON via
+`--config-json '{...}'` (V2 — file-based for now).

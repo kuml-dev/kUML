@@ -1,0 +1,144 @@
+= Quick Start
+:description: Write, render, and validate your first kUML diagram in ten minutes.
+
+This walkthrough takes you from an empty directory to a rendered diagram, a generated
+Kotlin domain, and a validated OCL constraint — using only the CLI. Pick any toolchain
+afterwards; the script files stay the same.
+
+== Step 1 — Your first class diagram
+
+Create `order.kuml.kts`:
+
+[source,kotlin]
+----
+classDiagram(name = "Order Domain") {
+    val status = enumOf(name = "OrderStatus") {
+        literal(name = "DRAFT")
+        literal(name = "CONFIRMED")
+        literal(name = "SHIPPED")
+    }
+
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "status", type = status)
+        operation(name = "confirm")
+        operation(name = "cancel")
+    }
+
+    val item = classOf(name = "OrderItem") {
+        attribute(name = "sku", type = "String")
+        attribute(name = "quantity", type = "Int")
+    }
+
+    association(source = order, target = item) {
+        aggregation = AggregationKind.COMPOSITE
+        sourceMultiplicity = "1"
+        targetMultiplicity = "1..*"
+    }
+}
+----
+
+Render it:
+
+[source,bash]
+----
+kuml render order.kuml.kts --output order.svg
+----
+
+Open `order.svg` — you'll see two boxes (`Order`, `OrderItem`), an enum (`OrderStatus`), and
+a composite-association diamond between them.
+
+NOTE: No `import` statements. The kUML scripting host injects all DSL packages as default
+imports, so `classDiagram`, `classOf`, `association`, `AggregationKind` are all directly available.
+
+== Step 2 — Add a behaviour with `kuml simulate`
+
+Add a state machine alongside the class diagram. Save this as `order-lifecycle.kuml.kts`:
+
+[source,kotlin]
+----
+stateDiagram(name = "Order lifecycle") {
+    stateMachine(name = "Order") {
+        initial(name = "draft")
+        state(name = "confirmed")
+        state(name = "shipped") { final() }
+
+        transition(from = "draft", to = "confirmed", trigger = "confirm")
+        transition(from = "confirmed", to = "shipped", trigger = "ship")
+    }
+}
+----
+
+Now run a simulation:
+
+[source,bash]
+----
+echo '[{"name":"confirm"},{"name":"ship"}]' > events.json
+kuml simulate order-lifecycle.kuml.kts --events events.json
+----
+
+You'll get a trace of every transition fired, every entry/exit action, and the final state.
+This is the *executable behaviour runtime* — kUML can run state machines, not just draw them.
+
+See xref:reference:simulate.adoc[the simulate reference] for the full event format and
+verification options.
+
+== Step 3 — Generate code from the model
+
+The class diagram is just data — you can feed it to any code generator. To get Kotlin
+data classes:
+
+[source,bash]
+----
+kuml generate order.kuml.kts --plugin kotlin --package com.example.order --output gen/
+----
+
+Look in `gen/com/example/order/Order.kt` — a Kotlin data class with the fields and an
+enum for `OrderStatus`. Other built-in generators:
+
+* `--plugin java` — POJO, records, or Lombok-flavoured Java (`--options java-style=records`)
+* `--plugin sql` — DDL for PostgreSQL (default), MySQL, H2, or SQLite (`--options dialect=mysql`)
+
+Both honour JavaEE / Spring / JPA stereotypes if your model applies the matching profile.
+See xref:reference:codegen.adoc[the codegen reference] for the full options.
+
+== Step 4 — Validate with OCL
+
+OCL invariants live alongside the model. Edit `order.kuml.kts` to add a constraint:
+
+[source,kotlin]
+----
+classOf(name = "Order") {
+    attribute(name = "id", type = "UUID")
+    attribute(name = "status", type = status)
+    constraint(name = "DraftHasNoShipmentDate", body = "self.shippedAt = null")
+    operation(name = "confirm")
+    operation(name = "cancel")
+}
+----
+
+Then validate:
+
+[source,bash]
+----
+kuml validate order.kuml.kts
+----
+
+The validator parses every OCL expression, evaluates it against the model, and exits non-zero
+if any constraint fails. Useful as a CI step or a Gradle `check` task hook (see the Gradle
+plugin's `failOnValidationViolations` setting).
+
+== Step 5 — Use it in a real project
+
+Three integration paths, pick whichever fits:
+
+* *Gradle build* — apply the `dev.kuml` plugin, drop scripts in `src/main/kuml/`, the build
+  renders and validates automatically. See xref:tooling:gradle.adoc[Gradle plugin].
+* *AsciiDoc docs* — embed scripts directly in `.adoc` files with `[source,kuml]` or
+  `kuml::file.kuml.kts[]`. See xref:tooling:asciidoc.adoc[AsciiDoc & Antora].
+* *Markdown docs* — same idea, with ```` ```kuml ```` code fences.
+  See xref:tooling:markdown.adoc[Markdown].
+
+You now have a versionable model, an executable behaviour, generated code, and validation.
+Keep going with xref:concepts.adoc[the core concepts] or jump to the
+xref:reference:uml-dsl.adoc[full DSL reference].

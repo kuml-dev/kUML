@@ -1,0 +1,187 @@
+= Code Generation
+:description: Generate Kotlin, Java, and SQL DDL from your kUML model.
+
+kUML ships three code generators out of the box. They share a `CodeGenRegistry`
+infrastructure, so authoring a new generator follows the same pattern as a theme or
+profile — `META-INF/services` registration, done.
+
+== Built-in generators
+
+[cols="1,3"]
+|===
+| Generator | Output
+
+| `kotlin`
+| Kotlin data classes for each `UmlClass`, sealed interfaces for `UmlInterface`,
+  Kotlin enums for `UmlEnumeration`. Operations become member functions.
+
+| `java`
+| Java POJOs, records, or Lombok-annotated classes. Honours JavaEE / JPA stereotypes
+  for `@Entity`, `@Id`, `@Column`, `@Transient`.
+
+| `sql`
+| DDL for PostgreSQL (default), MySQL, H2, or SQLite. Topologically sorted
+  `CREATE TABLE` statements with FK block at the end. Honours `Entity` and `Id`
+  stereotypes for table names and primary keys.
+|===
+
+== Generating Kotlin
+
+[source,bash]
+----
+kuml generate model.kuml.kts \
+    --plugin kotlin \
+    --package com.example.domain \
+    --output gen/
+----
+
+Output structure:
+[source]
+----
+gen/
+└── com/
+    └── example/
+        └── domain/
+            ├── Order.kt
+            ├── OrderItem.kt
+            └── OrderStatus.kt
+----
+
+The Kotlin generator produces idiomatic data classes with no framework dependencies.
+Operations become method stubs marked `TODO()` — kUML generates *signatures*, not
+implementations. That's a deliberate choice: model the contract, write the body in Kotlin.
+
+== Generating Java
+
+[source,bash]
+----
+kuml generate model.kuml.kts \
+    --plugin java \
+    --package com.example.domain \
+    --options java-style=records \
+    --output gen/
+----
+
+`java-style` options:
+
+* `pojo` (default) — classic class with private fields and getters/setters
+* `records` — Java 16+ record types
+* `lombok` — `@Data`-annotated POJO (requires the Lombok dependency)
+
+The Java generator inspects applied JavaEE stereotypes:
+
+[source,kotlin]
+----
+classOf("Order") {
+    stereotype("Entity", "tableName" to "orders")
+    attribute("id", "UUID") { stereotype("Id") }
+    attribute("notes", "String") { stereotype("Transient") }
+}
+----
+
+produces:
+
+[source,java]
+----
+@jakarta.persistence.Entity(name = "orders")
+public class Order {
+    @jakarta.persistence.Id
+    private UUID id;
+
+    @jakarta.persistence.Transient
+    private String notes;
+
+    // getters/setters omitted
+}
+----
+
+JavaEE annotations are emitted fully qualified — that side-steps import collisions and makes
+the output self-documenting. Lombok-mode is the exception (mainstream pattern, short forms
+expected).
+
+== Generating SQL DDL
+
+[source,bash]
+----
+kuml generate model.kuml.kts \
+    --plugin sql \
+    --options dialect=postgres,sql-drop=true \
+    --output gen/
+----
+
+`dialect` options: `postgres` (default), `mysql`, `h2`, `sqlite`.
+`sql-drop=true` prepends `DROP TABLE IF EXISTS …` statements (handy for migrations).
+
+The output is a single `schema.sql` with:
+
+. Optional `DROP TABLE` block
+. `CREATE TYPE` for enum types (Postgres only — other dialects use `VARCHAR` with `CHECK`)
+. `CREATE TABLE` statements, topologically sorted so referenced tables exist before referrers
+. `ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY …` block at the end (avoids circular FK
+  problems during deployment)
+
+Multiplicity translates to constraints:
+
+[cols="1,2"]
+|===
+| UML multiplicity | SQL
+
+| `(1, 1)`
+| `NOT NULL`
+
+| `(0, 1)`
+| `NULL`
+
+| `(1, *)` or `(*, *)` (M:N)
+| `-- TODO: M:N join table` comment (V2 will emit it automatically)
+|===
+
+Stereotype-driven mapping:
+
+* `Entity{tableName="users"}` → `CREATE TABLE users (…)`
+* `Id` → `PRIMARY KEY`
+* `Column{name="created_at"}` → renames the column
+
+== Generating from Gradle
+
+The Gradle plugin's `kumlGenerate` task takes the same options through the extension:
+
+[source,kotlin]
+----
+kuml {
+    generator.set("java")
+    generatePackage.set("com.example.domain")
+    generateOptions.put("java-style", "records")
+}
+----
+
+`kumlGenerate` writes to `${buildDir}/kuml/generated/` by default. Configure
+`outputDir.dir("generated")` to override.
+
+== Authoring a custom generator
+
+Implement `KumlCodeGenerator` and provide a `KumlCodeGeneratorProvider`:
+
+[source,kotlin]
+----
+class TypeScriptCodeGenerator : KumlCodeGenerator {
+    override fun generate(
+        diagram: KumlDiagram,
+        outputDir: File,
+        options: Map<String, String>,
+    ): List<File> {
+        // emit .ts files, return the list of written files
+    }
+}
+
+class TypeScriptCodeGeneratorProvider : KumlCodeGeneratorProvider {
+    override val name: String = "typescript"
+    override fun create(): KumlCodeGenerator = TypeScriptCodeGenerator()
+}
+----
+
+Register via `META-INF/services/dev.kuml.codegen.api.KumlCodeGeneratorProvider`. CLI/Gradle
+pick it up via `--plugin typescript` / `generator.set("typescript")`.
+
+The KumlCodeGenerator API is intentionally minimal — `diagram + outputDir + options` in,
+list of written files out. Generators decide their own directory layout.

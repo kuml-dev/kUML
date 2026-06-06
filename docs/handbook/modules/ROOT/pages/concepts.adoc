@@ -1,0 +1,117 @@
+= Core Concepts
+:description: The metamodel, the scripting host, the layout pipeline, and the behaviour runtime.
+
+This page explains how kUML is put together so the reference pages make sense. Read it once
+and the rest is mechanical.
+
+== The metamodel
+
+kUML's metamodel is plain Kotlin data classes, organised in three layers:
+
+* `dev.kuml.core.model` — the abstract `KumlDiagram` / `KumlElement` interfaces, plus shared
+  primitives (`Multiplicity`, `Visibility`, `KumlMetaValue`).
+* `dev.kuml.uml` — UML 2.x metaclasses: `UmlClass`, `UmlInterface`, `UmlComponent`,
+  `UmlStateMachine`, `UmlState`, `UmlActivity`, `UmlUseCase`, `UmlAssociation`,
+  `UmlAssociationEnd`, and so on. All immutable, all serializable.
+* `dev.kuml.c4.model` — C4 metaclasses: `C4Workspace`, `C4SoftwareSystem`, `C4Container`,
+  `C4Component`, `C4Person`, `C4Relationship`.
+
+The DSL builders (`dev.kuml.uml.dsl`, `dev.kuml.c4.dsl`) produce instances of these data
+classes. Everything you do in a `*.kuml.kts` script is sugar over `UmlClass(...)`,
+`UmlAssociation(...)`, etc.
+
+== The scripting host
+
+`*.kuml.kts` files are Kotlin scripts evaluated by `dev.kuml.core.script.KumlScript`. The
+script template declares default imports for all DSL packages — that's why scripts have no
+`import` statements.
+
+The host is reused across calls (compilation is cached). When you write `kuml render a.kuml.kts b.kuml.kts`,
+the second script reuses the same compiled host.
+
+In tests, evaluate inline source with `KumlScriptHost.eval(code: String)`:
+
+[source,kotlin]
+----
+val result = KumlScriptHost.eval("""
+    classDiagram(name = "Test") { classOf("Hello") }
+""")
+----
+
+== Rendering pipeline
+
+When you render a diagram, four stages run in sequence:
+
+. *Extract* — `DiagramExtractor` pulls `KumlDiagram` (UML) or `C4Workspace + C4View`
+  (C4) out of the script's return value. The script returns the result of its last
+  top-level call, which is always a `diagram(...)` or `c4Model { ... }`.
+. *Bridge* — `UmlLayoutBridge` / `C4LayoutBridge` convert the metamodel into a
+  layout-engine-agnostic `LayoutGraph` (just nodes + edges + groups).
+. *Layout* — a `KumlLayoutEngine` computes positions. Two engines ship: `elk.layered`
+  (default, ELK Sugiyama-based) and `kuml.grid` (pure Kotlin, deterministic, hint-based).
+. *Render* — `KumlSvgRenderer` or `KumlPngRenderer` turn the laid-out graph into vector
+  output. The theme (`KumlTheme`) controls colours, fonts, and stroke widths.
+
+Each stage is a pure function — the entire pipeline is reproducible and cacheable.
+
+== Behaviour runtime
+
+State machines aren't just drawings. The `kuml-runtime-core` module evaluates them
+according to a published operational semantics with nine numbered rules. You can:
+
+* Feed events to a state machine and get a trace (`kuml simulate`).
+* Compare the trace against a golden file (`--expected`).
+* Embed the runtime in your own JVM code and step machines transactionally.
+
+The runtime is pure Kotlin, has no I/O, and uses the same metamodel as the renderer — the
+diagram you draw is the model the runtime executes. There is no second source of truth.
+
+See xref:reference:simulate.adoc[simulate] for details.
+
+== Profiles and stereotypes
+
+UML 2 profiles let you tag model elements with domain-specific semantics. kUML ships five:
+
+* `kuml-profile-soaml` — SoaML (Service-oriented Modelling Architecture)
+* `kuml-profile-javaee` — JavaEE / Jakarta EE (`@Entity`, `@Id`, `@Column`, …)
+* `kuml-profile-spring` — Spring (`@Scheduled`)
+* `kuml-profile-openapi` — OpenAPI (`Operation`, `Parameter`)
+* `kuml-profile-autosar` — AUTOSAR (`Runnable`, `BehaviorSpec`)
+
+Apply a profile in a script:
+
+[source,kotlin]
+----
+classDiagram(name = "Order Domain") {
+    applyProfile("JavaEE")
+    classOf("Order") {
+        stereotype("Entity", "tableName" to "orders")
+        attribute("id", "UUID") { stereotype("Id") }
+    }
+}
+----
+
+The Java and SQL code generators read these stereotypes at runtime, so the same model can
+emit:
+
+* `@jakarta.persistence.Entity(name = "orders")` Java
+* `CREATE TABLE orders (id UUID PRIMARY KEY, …)` PostgreSQL
+
+See xref:reference:profiles.adoc[profiles].
+
+== Configuration
+
+A `kuml.config.kts` file overrides defaults globally (rendering, themes, codegen options).
+A `layout { ... }` block on any element overrides layout hints locally.
+
+Configuration is *layered*: CLI flag > `kuml.config.kts` > built-in defaults. The same
+holds for the Gradle plugin — extension settings override file-level config.
+
+See xref:reference:themes.adoc[themes & config] and xref:reference:layout.adoc[layout].
+
+== Where to go from here
+
+* Browse the xref:reference:uml-dsl.adoc[UML DSL reference] for every diagram type.
+* Read xref:reference:c4-dsl.adoc[the C4 DSL] if you're using the C4 model.
+* See xref:reference:codegen.adoc[codegen] for how stereotypes drive output.
+* Pick an editor: xref:tooling:intellij.adoc[IntelliJ] or xref:tooling:vscode.adoc[VS Code].

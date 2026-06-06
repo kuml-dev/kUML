@@ -1,0 +1,168 @@
+= Markdown
+:description: Embed kUML diagrams in Markdown — fenced code blocks → rendered SVG.
+
+The `kuml-docs/kuml-markdown` module is a Markdown preprocessor that turns kUML fenced
+code blocks into rendered SVG. Use it for any toolchain that consumes Markdown — MkDocs,
+Docusaurus, Jekyll, GitHub README, Hugo, even plain Pandoc.
+
+== The basic pattern
+
+````markdown
+# Order subsystem
+
+The order domain:
+
+```kuml
+classDiagram(name = "Order Domain") {
+    classOf("Order") {
+        attribute("id", "UUID")
+    }
+}
+```
+
+That domain exposes...
+````
+
+After preprocessing, the fenced block is replaced with an inline SVG (HTML passthrough)
+or an `![alt](path)` image reference, depending on the chosen output mode.
+
+== Output modes
+
+The Markdown preprocessor mirrors the AsciiDoc one:
+
+[cols="1,3"]
+|===
+| Mode | Replacement
+
+| `InlineSvg`
+| The fenced block is replaced with the raw SVG markup. Most Markdown renderers (GitHub,
+  GitLab, MkDocs Material, Docusaurus with `rehype-raw`) pass HTML through.
+
+| `LinkedSvg(dir)`
+| Each diagram is written as a `.svg` to `dir`, the fence is replaced with
+  `![alt](dir/name.svg)`.
+
+| `LinkedPng(dir, widthPx)`
+| Same as LinkedSvg, rasterized to PNG. For renderers that strip HTML and SVG (some
+  static-site CI pipelines).
+|===
+
+== CLI usage
+
+[source,bash]
+----
+kuml render README.md --markdown --output README.rendered.md \
+    --mode linked-svg --assets-dir docs/diagrams
+----
+
+The CLI walks the input, processes every `kuml` fenced block, and writes the result.
+External assets are written to the chosen directory.
+
+== Programmatic usage
+
+[source,kotlin]
+----
+import dev.kuml.markdown.MarkdownProcessor
+import dev.kuml.markdown.MarkdownOutputMode
+import java.io.File
+
+val processor = MarkdownProcessor()
+val source = File("README.md").readText()
+val result = processor.process(
+    input = source,
+    mode = MarkdownOutputMode.LinkedSvg(File("docs/diagrams")),
+    baseName = "readme",
+)
+
+File("README.rendered.md").writeText(result.output)
+result.assets.forEach { println("Wrote ${it.path}") }
+----
+
+== Integrations
+
+=== MkDocs Material
+
+Add a build hook that runs the Markdown preprocessor before MkDocs sees the source:
+
+[source,yaml]
+----
+# mkdocs.yml
+hooks:
+  - hooks/kuml.py
+----
+
+[source,python]
+----
+# hooks/kuml.py
+import subprocess
+
+def on_files(files, config):
+    subprocess.run([
+        "kuml", "render", "docs/",
+        "--markdown",
+        "--mode", "inline-svg",
+    ], check=True)
+    return files
+----
+
+The hook runs once per `mkdocs serve` / `mkdocs build`, and the resulting Markdown is
+ready for MkDocs to consume normally.
+
+=== Docusaurus
+
+Docusaurus 2+ supports MDX, which passes HTML through. Inline SVG output works out of
+the box:
+
+[source,bash]
+----
+kuml render docs/ --markdown --mode inline-svg
+yarn build
+----
+
+For LinkedSvg/Png, ensure your asset paths align with Docusaurus's static asset folder
+(`static/img/...`).
+
+=== GitHub README
+
+GitHub renders inline SVG that's embedded directly in Markdown:
+
+````markdown
+```kuml
+classDiagram(name = "Hello") { classOf("World") }
+```
+````
+
+After `kuml render README.md --markdown --mode inline-svg`, the fence becomes raw SVG
+that GitHub displays in the repo's README. Run it as a `pre-commit` hook.
+
+=== Pandoc
+
+[source,bash]
+----
+kuml render input.md --markdown --output preprocessed.md
+pandoc preprocessed.md -o output.pdf
+----
+
+Pandoc treats embedded HTML/SVG as raw blocks — pass `--from markdown+raw_html` if needed.
+
+== Tradeoffs vs. AsciiDoc
+
+* AsciiDoc's `kuml::file[]` block macro lets you reference external files. The Markdown
+  pipeline supports the same via filename hints in the fence (`{path=diagrams/order.kuml.kts}`),
+  but the syntax is uglier — Markdown doesn't have block macros as a primitive.
+* AsciiDoc has better cross-reference and admonition support, useful for engineering docs.
+* Markdown wins on ecosystem reach: every static site generator and Wiki supports it
+  natively.
+
+Pick whichever your team already uses. Both pipelines share the same `kuml` rendering
+core — the diagrams look identical.
+
+== Implementation notes
+
+The preprocessor uses a simple fence-scanner — it does NOT parse the Markdown structure.
+A code fence at line N starts at the `\```kuml` opening and ends at the matching closing
+fence. The substitution preserves surrounding whitespace and other Markdown structure
+verbatim.
+
+Comparison-equivalent to the AsciiDoc preprocessor (`AsciidocProcessor`), both are in
+`kuml-docs/`. Each ~150 LOC, deliberately simple. Bug-for-bug fixes propagate easily.

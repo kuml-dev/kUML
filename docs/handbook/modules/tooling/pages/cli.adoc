@@ -1,0 +1,190 @@
+= CLI Reference
+:description: The `kuml` command-line interface.
+
+The CLI is the most direct way to use kUML — render, generate, validate, simulate, export,
+parse. Every subcommand prints its own help with `--help`.
+
+== Synopsis
+
+[source,bash]
+----
+kuml <subcommand> [options] <script>...
+----
+
+Common options on every subcommand:
+
+* `--config <path>` — load a `kuml.config.kts` file
+* `--verbose` / `-v` — enable debug output
+* `--version` — print version and exit
+* `--help` / `-h` — print subcommand help
+
+== `kuml render`
+
+Render a script to SVG or PNG.
+
+[source,bash]
+----
+kuml render [options] <script>...
+----
+
+Options:
+
+* `--output <path>` — output file (or directory if multiple scripts)
+* `--format svg|png` — default `svg`
+* `--theme <name>` — theme name (e.g. `plain`, `kuml`, `elegant`, `playful`)
+* `--engine <id>` — layout engine ID (e.g. `elk.layered`, `kuml.grid`)
+* `--width <pixels>` — PNG width (height is derived from aspect ratio)
+
+If the script contains a `umlModel { ... }` with multiple diagrams, each diagram renders
+to its own file using the diagram name as the file stem.
+
+== `kuml generate`
+
+Generate code from a script using a registered code generator.
+
+[source,bash]
+----
+kuml generate [options] <script>
+----
+
+Options:
+
+* `--output <dir>` — output directory (created if missing)
+* `--plugin <name>` — generator name (`kotlin`, `java`, `sql`, or custom)
+* `--package <fqn>` — target package (Java/Kotlin)
+* `--options key=value,key=value` — generator-specific options
+
+Examples:
+
+[source,bash]
+----
+kuml generate model.kuml.kts --plugin java --package com.example --options java-style=records
+kuml generate model.kuml.kts --plugin sql --options dialect=mysql,sql-drop=true
+----
+
+== `kuml validate`
+
+Validate OCL constraints. Exits non-zero on the first failed constraint.
+
+[source,bash]
+----
+kuml validate [options] <script>...
+----
+
+Options:
+
+* `--strict` — also fail on profile-level constraints (default: only element constraints)
+
+Output is structured: every violation prints constraint name, host classifier, OCL body,
+and a short failure message. Suitable as a CI step.
+
+== `kuml simulate`
+
+Run a state-machine simulation. See xref:reference:simulate.adoc[the simulate reference]
+for the full event/trace format.
+
+[source,bash]
+----
+kuml simulate [options] <script>
+----
+
+Options:
+
+* `--events <path>` — JSON file with event array
+* `--interactive` — REPL mode (no `--events`)
+* `--output <path>` — write the trace to a file (otherwise stdout)
+* `--expected <path>` — diff trace against an expected file; exit code 6 on mismatch
+* `--epoch-clock` — replace wall-clock timestamps with monotonic epoch ms from 0
+* `--machine <name>` — pick a machine by name when the script contains multiple
+
+== `kuml export`
+
+Export a kUML model to an external format.
+
+[source,bash]
+----
+kuml export [options] <script>
+----
+
+Options:
+
+* `--format <name>` — currently `structurizr` (more formats in V2)
+* `--output <path>` — output file
+
+== `kuml parse`
+
+Read an external format back into a kUML script.
+
+[source,bash]
+----
+kuml parse [options] <input>
+----
+
+Options:
+
+* `--format <name>` — `structurizr`
+* `--output <path>` — output `*.kuml.kts` file
+
+== `kuml profile`
+
+Inspect registered profiles. Useful for debugging stereotype-driven codegen.
+
+[source,bash]
+----
+kuml profile list
+kuml profile show JavaEE
+kuml profile validate JavaEE       # self-check: every stereotype constraint is parseable
+----
+
+== `kuml ai`
+
+Hook for LLM-assisted workflows. Currently exposes the MCP server stdio frontend:
+
+[source,bash]
+----
+kuml ai mcp-stdio                   # speak MCP over stdio
+----
+
+The MCP server exposes tools for diagram introspection, validation, and code generation —
+agents can query a kUML model the same way they query a database. See the source for
+the full tool list.
+
+== Exit codes
+
+[cols="1,2"]
+|===
+| Code | Meaning
+
+| 0
+| Success.
+
+| 1
+| Script error (compilation, missing imports).
+
+| 2
+| User error (bad argument, file not found).
+
+| 3
+| Validation error (OCL constraint violated).
+
+| 4
+| Generation error (code generator threw).
+
+| 5
+| Layout error (engine failed to produce a result).
+
+| 6
+| Trace diff (simulate `--expected` mismatch).
+|===
+
+These codes are stable — CI scripts can branch on them.
+
+== Performance notes
+
+The CLI compiles each script once and caches the result in the Kotlin scripting host. The
+first invocation is slow (cold JVM, JIT warmup, ELK initialisation) — typically 2-4 seconds.
+Subsequent invocations within the same JVM (use `kuml shell` if needed) are sub-second.
+
+For build pipelines that render dozens of diagrams, the Gradle plugin's `kumlRender` task
+is much faster: it reuses the Gradle daemon's warm JVM and Gradle's incremental input
+checks skip unchanged files entirely.

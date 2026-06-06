@@ -1,0 +1,243 @@
+= Layout Engines
+:description: How kUML places nodes and routes edges. ELK, kuml.grid, DSL hints.
+
+The layout step computes positions for every diagram element. kUML ships two engines and
+lets third parties register more through a ServiceLoader SPI.
+
+== Two built-in engines
+
+[cols="1,3"]
+|===
+| Engine | Character
+
+| `elk.layered`
+| https://eclipse.dev/elk/[Eclipse Layout Kernel] Sugiyama-based layered layout. Default
+  for class, component, deployment, and most C4 diagrams. Handles arbitrary graphs well,
+  produces aesthetically reasonable output without user input.
+
+| `kuml.grid`
+| Pure-Kotlin grid engine, GraalVM-native-image-compatible. Deterministic, hint-driven —
+  you place elements on a coarse grid; the engine respects your placement. Best when you
+  want predictable, hand-tuned layouts.
+|===
+
+The engine is selected per render via `LayoutEngineRegistry.pickFor(diagramKind, preferred)`:
+
+. If `preferred` is set (CLI flag, config, or DSL hint), use it — no capability check.
+. Otherwise, the first registered engine whose capabilities include the diagram type.
+. Otherwise, the first engine that supports `DiagramKind.Generic`.
+. Otherwise, `null` (registry empty).
+
+Override per render:
+
+[source,bash]
+----
+kuml render diagram.kuml.kts --engine kuml.grid
+----
+
+== DSL hints — taking control
+
+For predictable layouts, place a `layout { ... }` block on any element. The hints
+materialize into `kuml.layout.*` metadata, the bridge reads them into the engine's
+`NodeHints`, and the engine respects them (if capable).
+
+[source,kotlin]
+----
+classDiagram(name = "Domain") {
+    val customer = classOf("Customer") {
+        layout {
+            col = 0; row = 0
+        }
+    }
+
+    val order = classOf("Order") {
+        layout {
+            col = 1; row = 0
+            colSpan = 2
+        }
+    }
+
+    val item = classOf("OrderItem") {
+        layout {
+            below(order)
+            sameColAs(order)
+        }
+    }
+}
+----
+
+Hint vocabulary:
+
+[cols="1,3"]
+|===
+| Hint | Effect
+
+| `col = N`
+| Pin to column N (0-based).
+
+| `row = N`
+| Pin to row N (0-based).
+
+| `colSpan = N`
+| Element spans N columns.
+
+| `rowSpan = N`
+| Element spans N rows.
+
+| `pinned = true`
+| Engine must not move this element from its current slot.
+
+| `above(other)`
+| Place above the referenced element.
+
+| `below(other)`
+| Place below the referenced element.
+
+| `leftOf(other)`
+| Place to the left of the referenced element.
+
+| `rightOf(other)`
+| Place to the right of the referenced element.
+
+| `sameRowAs(other)`
+| Same row as the referenced element.
+
+| `sameColAs(other)`
+| Same column as the referenced element.
+|===
+
+References take either a typed val (preferred — IDE-checked) or a String ID:
+
+[source,kotlin]
+----
+val order = classOf("Order")
+classOf("Item") { layout { below(order) } }       // Typed reference
+classOf("Item") { layout { below("Order") } }      // String — looser, also works
+----
+
+== When the engine can't honour a hint
+
+Conflicts produce a `LayoutWarning` in `LayoutResult.warnings`:
+
+[cols="1,3"]
+|===
+| Warning code | When
+
+| `hint.conflict.gridSlot`
+| Two elements want the same hard-pinned slot. Loser is shifted right; warning lists the
+  affected node IDs.
+
+| `hint.unfulfilled.relativeConstraint`
+| Preferred slot from a relative constraint was occupied. Fallback to next free slot.
+
+| `hint.deferred.relativeConstraint`
+| Anchor element wasn't yet placed when the constraint was evaluated.
+
+| `engine.performance.large_graph`
+| Graph exceeds the engine's recommended max (`maxRecommendedNodes`). Suggest a different
+  engine.
+|===
+
+The CLI prints warnings after a render so you can iterate on hints without staring at SVG
+diffs.
+
+== Edge routing
+
+Four edge styles, all engines support all four:
+
+[cols="1,3"]
+|===
+| Style | Behaviour
+
+| `Direct`
+| Straight line between source and target.
+
+| `OrthogonalRounded` (default)
+| Horizontal-vertical-horizontal (or vertical-horizontal-vertical) route with rounded corners.
+
+| `TreeRounded`
+| V-shape route with top-down bias — looks tidy for hierarchies. V1.1.12 falls back to
+  `OrthogonalRounded`; V1.2 adds tree-aware routing proper.
+
+| `Bezier`
+| Cubic Bezier with two control points offset perpendicular to the direct line.
+|===
+
+Set per edge:
+
+[source,kotlin]
+----
+association(source = a, target = b) {
+    routeStyle = EdgeRouteStyle.Direct
+}
+----
+
+Or globally for a diagram:
+
+[source,kotlin]
+----
+classDiagram(name = "X") {
+    layoutHints {
+        defaultEdgeStyle = EdgeRouteStyle.Bezier
+    }
+    // ...
+}
+----
+
+== Performance characteristics
+
+[cols="1,2,2"]
+|===
+| Size | `elk.layered` | `kuml.grid`
+
+| ≤ 100 nodes
+| < 100 ms
+| < 10 ms
+
+| ≤ 500 nodes
+| < 1 s
+| < 100 ms
+
+| > 500 nodes
+| Still works, may be slow
+| Emits `engine.performance.large_graph` warning; suggests ELK
+|===
+
+The grid engine is deterministic — same input + same seed = byte-identical layout. ELK is
+also seeded but has more internal randomness in its heuristics; outputs are stable but
+small floating-point differences may appear across JVM versions.
+
+== Authoring your own engine
+
+Implement `KumlLayoutEngine` (pure Kotlin recommended for native-image compatibility),
+then provide a `KumlLayoutEngineProvider`:
+
+[source,kotlin]
+----
+class CircularLayoutEngine : KumlLayoutEngine {
+    override val id = LayoutEngineId("circular")
+    override val capabilities = LayoutCapabilities(
+        deterministic = true,
+        supportedDiagramKinds = setOf(DiagramKind.UmlClass, DiagramKind.Generic),
+        // ...
+    )
+    override fun layout(graph: LayoutGraph, hints: LayoutHints): LayoutResult {
+        // ... place nodes on a circle, route edges, return LayoutResult
+    }
+}
+
+class CircularLayoutEngineProvider : KumlLayoutEngineProvider {
+    override val id = LayoutEngineId("circular")
+    override fun engine() = CircularLayoutEngine()
+}
+----
+
+Register via `META-INF/services/dev.kuml.layout.KumlLayoutEngineProvider`:
+
+[source]
+----
+com.example.CircularLayoutEngineProvider
+----
+
+`LayoutEngineRegistry.loadFromClasspath()` discovers it. CLI flag `--engine circular`
+selects it.

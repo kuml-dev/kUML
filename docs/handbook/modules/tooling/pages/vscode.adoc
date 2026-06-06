@@ -1,0 +1,166 @@
+= VS Code Extension
+:description: Syntax highlighting, snippets, and one-click render in VS Code.
+
+The `kuml-vscode` extension brings kUML to Visual Studio Code and any VS Code-compatible
+editor (Cursor, VSCodium, Code Server). It is a self-contained TypeScript package — no
+Language Server, no Kotlin extension dependency, no JVM startup cost just for editing.
+
+== Install
+
+*Extensions sidebar → Search "kUML" → Install.*
+
+Or install a local `.vsix` distribution built from source:
+
+[source,bash]
+----
+cd kuml-vscode-plugin
+npm install
+npm run package
+# → kuml-vscode-0.X.Y.vsix
+
+code --install-extension kuml-vscode-0.X.Y.vsix
+----
+
+== What you get
+
+* *Syntax highlighting* — own TextMate grammar (`source.kuml`) with Kotlin basics plus
+  a dedicated `#kuml-dsl` pattern group. Diagram entry points, UML DSL builders, and C4
+  DSL builders all highlight as first-class language constructs. Works offline, no
+  dependency on a third-party Kotlin extension.
+
+* *File icon* — distinct icon for `*.kuml.kts` files in the Explorer and editor tabs
+  (light and dark variants).
+
+* *Snippets* — type any of these prefixes and `Tab` to expand:
++
+[cols="1,3"]
+|===
+| Prefix | Expands to
+
+| `diagram`
+| Empty class diagram with a name placeholder.
+
+| `umlModel`
+| `umlModel { classDiagram { … } }` wrapper.
+
+| `classOf`
+| Class with attribute, operation, and stereotype placeholders.
+
+| `interfaceOf`
+| Interface with one operation.
+
+| `enumOf`
+| Enum with two literal placeholders.
+
+| `c4Model`
+| Person + SoftwareSystem + Container + `systemContextDiagram`.
+
+| `association`
+| Binary association with role names and multiplicities.
+
+| `generalization`
+| Inheritance between a child and a parent.
+
+| `realization`
+| Implements between a class and an interface.
+
+| `stateMachine`
+| State machine with initial, two states, two transitions.
+
+| `applyProfile`
+| `applyProfile(...)` with the five built-in profiles as a choice list.
+|===
+
+* *Render command* — *kUML: Render to SVG* (command palette, editor title bar, or
+  editor context menu). Shells out to `kuml render`, writes to a temp file, opens the
+  result. Works on unsaved buffers too.
+
+== Configuration
+
+Three settings, all under `kuml.*`:
+
+[cols="1,2"]
+|===
+| Setting | Description
+
+| `kuml.cliPath` (default: `kuml`)
+| Path to the `kuml` CLI. Override if the binary is not on `PATH`.
+
+| `kuml.theme` (default: `kuml`)
+| Theme name passed to `--theme` for the render command.
+
+| `kuml.format` (default: `svg`)
+| Output format. `svg` opens in a VS Code preview tab; `png` opens in the OS viewer.
+|===
+
+Edit via *Settings → Extensions → kUML*, or directly in `settings.json`:
+
+[source,json]
+----
+{
+    "kuml.cliPath": "/usr/local/bin/kuml",
+    "kuml.theme": "elegant",
+    "kuml.format": "svg"
+}
+----
+
+== Render command — how it works
+
+When you trigger *kUML: Render to SVG* on the active buffer:
+
+. The extension writes the buffer's text to a temp file in `os.tmpdir()`. This works
+  for unsaved buffers and for *Untitled* documents.
+. It spawns `kuml render --theme … --format … --output <tmpOut> <tmpSrc>` (no shell,
+  so paths with spaces and special characters are safe).
+. On success: opens the rendered SVG in a preview tab (PNG goes to the OS viewer because
+  VS Code's binary handling is awkward).
+. On failure: notification with the trimmed CLI stderr; if `ENOENT`, hints at the
+  `kuml.cliPath` setting.
+
+You can re-render on save by adding a task to `tasks.json` and binding it to a key, or
+just hit the command again — the extension overwrites the temp file each time.
+
+== What's deliberately NOT in scope
+
+* *Language Server Protocol* (V2). A full LSP brings autocomplete for the DSL,
+  go-to-declaration on classifier vals, and inline OCL validation. It is a substantial
+  investment that only pays off once kUML's user base justifies maintenance.
+
+* *Live-preview panel that re-renders on save* (V2). Possible with a webview, but the
+  on-demand render command covers the common case at a fraction of the complexity.
+
+* *Inline validation diagnostics* (V2). Same constraints as the LSP point.
+
+* *Code completion beyond snippets* (V2). The snippets cover the high-frequency idioms;
+  beyond that, you're typing Kotlin, and VS Code's Kotlin extensions (if installed)
+  provide reasonable completion.
+
+== Troubleshooting
+
+[cols="1,3"]
+|===
+| Symptom | Likely cause
+
+| *kUML: Render to SVG* prompts "kUML CLI is not on PATH"
+| `kuml` is not in your `PATH`. Either install it (see xref:ROOT:install.adoc[Installation])
+  or point `kuml.cliPath` at the binary.
+
+| Render fails with a script syntax error
+| The buffer has a syntax problem. Save the buffer and run `kuml render <file>` directly
+  to see the full error.
+
+| File opens as plain text
+| The file extension isn't `.kuml.kts`. The grammar only activates for that suffix.
+
+| Snippets don't show up
+| Snippets are scoped to the `kuml` language. If you have other extensions registering
+  for `*.kts` files, they may take precedence. Check *Language Mode* in the bottom-right
+  status bar — it should say *kUML*.
+|===
+
+== Sister extensions
+
+VS Code Marketplace has Kotlin extensions (Fwcd Kotlin, Mathias Frohlich's Kotlin) that
+provide deeper Kotlin support. They co-exist with the kUML extension cleanly — the kUML
+grammar takes precedence for `*.kuml.kts`, and a separate Kotlin extension handles
+`*.kt` and ordinary `*.kts`.

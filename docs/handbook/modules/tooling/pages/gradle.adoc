@@ -1,0 +1,188 @@
+= Gradle Plugin
+:description: The `dev.kuml` Gradle plugin — render, generate, validate as Gradle tasks.
+
+The Gradle plugin contributes three tasks to any Gradle build: `kumlRender`, `kumlGenerate`,
+and `kumlValidate`. All three are `@CacheableTask` with proper `@InputDirectory` /
+`@OutputDirectory` annotations — incremental builds skip unchanged scripts.
+
+== Apply the plugin
+
+[source,kotlin]
+----
+// build.gradle.kts
+plugins {
+    id("dev.kuml") version "{kuml-version}"
+}
+----
+
+That's all you need to get the three tasks registered. Defaults are sensible:
+
+* Source directory: `src/main/kuml/`
+* Output directory: `${buildDir}/kuml/`
+* Format: `svg`
+* Theme: `kuml`
+* Generator: `kotlin`
+
+Override any of these in the `kuml { ... }` extension block.
+
+== Configuration block
+
+[source,kotlin]
+----
+kuml {
+    sourceDir.set(file("src/main/kuml"))
+    outputDir.set(layout.buildDirectory.dir("kuml"))
+    format.set("svg")                         // "svg" | "png"
+    theme.set("elegant")                      // any ThemeRegistry name
+    widthPx.set(2048)                         // PNG width (ignored for SVG)
+    generator.set("java")                     // "kotlin" | "java" | "sql" | custom
+    generatePackage.set("com.example.domain") // Java/Kotlin package
+    generateOptions.put("java-style", "records")
+    generateOptions.put("dialect", "postgres")
+    failOnValidationViolations.set(true)      // fail the build on OCL violations
+}
+----
+
+Every property is a Gradle lazy `Property` / `DirectoryProperty` / `MapProperty` — you can
+wire them to project conventions, settings, or other tasks.
+
+== `kumlRender`
+
+[source,bash]
+----
+./gradlew kumlRender
+----
+
+Walks `sourceDir` for `*.kuml.kts` files and renders each to `outputDir`, mirroring the
+source's directory structure:
+
+[source]
+----
+src/main/kuml/
+├── order.kuml.kts
+└── billing/
+    └── invoice.kuml.kts
+
+# →
+
+build/kuml/
+├── order.svg
+└── billing/
+    └── invoice.svg
+----
+
+Inputs (cacheable):
+
+* `sourceDir` (PathSensitive=RELATIVE)
+* `format`, `theme`, `widthPx`
+
+Outputs:
+
+* `outputDir`
+
+A second `./gradlew kumlRender` with no source changes is `UP-TO-DATE`.
+
+== `kumlGenerate`
+
+[source,bash]
+----
+./gradlew kumlGenerate
+----
+
+Runs the configured `generator` over every diagram in `sourceDir`. C4 scripts are skipped
+automatically (only UML diagrams produce code). Output goes to `outputDir/generated/`
+by default.
+
+Wire into other tasks:
+
+[source,kotlin]
+----
+tasks.named<JavaCompile>("compileJava") {
+    dependsOn("kumlGenerate")
+    source(layout.buildDirectory.dir("kuml/generated"))
+}
+----
+
+For Kotlin source, point `srcDirs` of the `main` source set at the same directory.
+
+== `kumlValidate`
+
+[source,bash]
+----
+./gradlew kumlValidate
+----
+
+Runs `OclValidator` over every `*.kuml.kts` in `sourceDir`. Hangs on to the build's
+`check` lifecycle:
+
+[source,kotlin]
+----
+plugins {
+    id("dev.kuml")
+    java
+}
+// check automatically depends on kumlValidate
+----
+
+If `failOnValidationViolations = true` (default), violations fail the build with a
+human-readable error listing each violation. If `false`, the same information is logged as
+a warning but the build continues — useful for grace-period rollouts.
+
+== Multi-project builds
+
+In a multi-project build, apply the plugin only to the projects that own kUML scripts:
+
+[source,kotlin]
+----
+// settings.gradle.kts
+include(":app", ":domain", ":docs")
+
+// docs/build.gradle.kts
+plugins {
+    id("dev.kuml")
+}
+kuml {
+    sourceDir.set(file("src/main/kuml"))
+    outputDir.set(layout.buildDirectory.dir("kuml"))
+}
+----
+
+The plugin is self-contained — no parent project configuration needed.
+
+== Reproducibility
+
+The Gradle plugin uses the same scripting host, layout engines, themes, and generators as
+the CLI. Outputs are byte-identical:
+
+[source,bash]
+----
+diff <(kuml render src/main/kuml/order.kuml.kts) build/kuml/order.svg
+# (no output — files are identical)
+----
+
+That makes CI cache invalidation straightforward: a commit that changes a `*.kuml.kts`
+invalidates the corresponding output; everything else stays cached.
+
+== Publishing the plugin from your own fork
+
+The plugin is published to Maven Central (group `dev.kuml`, artefact `kuml-gradle-plugin`).
+A locally published copy is one Gradle invocation away:
+
+[source,bash]
+----
+./gradlew :kuml-gradle:kuml-gradle-plugin:publishToMavenLocal
+----
+
+Then in your consumer build's `settings.gradle.kts`:
+
+[source,kotlin]
+----
+pluginManagement {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+    }
+}
+----
+
+Apply as usual: `id("dev.kuml") version "X.Y.Z-SNAPSHOT"`.

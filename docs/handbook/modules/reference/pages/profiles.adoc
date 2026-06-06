@@ -1,0 +1,157 @@
+= Profiles
+:description: Stereotypes, tagged values, and the built-in JavaEE/Spring/OpenAPI/AUTOSAR/SoaML profiles.
+
+UML 2.x profiles are the OMG-standard extension mechanism: a profile defines stereotypes
+and tagged values that extend specific metaclasses. kUML treats profiles as first-class
+modules — five ship with v0.3.0, more are easy to add.
+
+== Built-in profiles
+
+[cols="1,2,3"]
+|===
+| Profile | Module | Stereotypes (selected)
+
+| SoaML
+| `kuml-profile-soaml`
+| `Service`, `Participant`, `ServiceContract`
+
+| JavaEE
+| `kuml-profile-javaee`
+| `Entity`, `Id`, `Column`, `Transient`
+
+| Spring
+| `kuml-profile-spring`
+| `Scheduled`
+
+| OpenAPI
+| `kuml-profile-openapi`
+| `Operation`, `Parameter`
+
+| AUTOSAR
+| `kuml-profile-autosar`
+| `Runnable`, `BehaviorSpec`
+|===
+
+All five are discovered through ServiceLoader — apply by name, no Maven coordinate gymnastics:
+
+[source,kotlin]
+----
+classDiagram(name = "Domain") {
+    applyProfile("JavaEE")
+
+    classOf("Order") {
+        stereotype("Entity", "tableName" to "orders")
+        attribute("id", "UUID") { stereotype("Id") }
+        attribute("notes", "String") { stereotype("Transient") }
+    }
+}
+----
+
+== Authoring your own profile
+
+Profiles are plain Kotlin objects implementing `KumlProfile`. Drop the file in any module,
+add a `META-INF/services/dev.kuml.profile.KumlProfileProvider` entry, and the CLI / Gradle
+plugin / IDE picks it up.
+
+[source,kotlin]
+----
+object MyProfile : KumlProfile {
+    override val name: String = "MyCompany"
+
+    override fun stereotypes(): List<KumlStereotype> = listOf(
+        KumlStereotype(
+            name = "Aggregate",
+            extending = setOf(UmlMetaclass.Class),
+            taggedValues = listOf(
+                KumlTaggedValue(name = "boundedContext", type = "String"),
+            ),
+            constraints = listOf(
+                KumlStereotypeConstraint(
+                    name = "MustHaveIdAttribute",
+                    body = "self.ownedAttribute->exists(a | a.appliedStereotype.name = 'Id')",
+                ),
+            ),
+        ),
+    )
+}
+
+class MyProfileProvider : KumlProfileProvider {
+    override fun profile(): KumlProfile = MyProfile
+}
+----
+
+`META-INF/services/dev.kuml.profile.KumlProfileProvider`:
+[source]
+----
+com.example.MyProfileProvider
+----
+
+That's the full registration. After `applyProfile("MyCompany")`, `stereotype("Aggregate", ...)`
+works in any class diagram.
+
+== Stereotype validation
+
+When you `applyProfile`, kUML enforces:
+
+* The stereotype name exists in the profile.
+* The stereotype's `extending` set contains the metaclass of the host element (so you
+  can't put `Entity` on an `UmlOperation`).
+* Tagged values are typed — you can't pass a `String` where `Int` is required.
+* Any constraints attached to the stereotype validate at `kuml validate` time.
+
+Mismatches are reported with the constraint name, the host element, and the OCL body —
+the same format as user-written constraints.
+
+== Profiles and code generation
+
+The Java and SQL generators inspect applied stereotypes from the JavaEE profile and emit
+matching framework annotations / DDL:
+
+[cols="1,2,2"]
+|===
+| Stereotype | Java output | SQL output
+
+| `Entity`
+| `@jakarta.persistence.Entity(name = "...")`
+| `CREATE TABLE name (...)`
+
+| `Id`
+| `@jakarta.persistence.Id`
+| `PRIMARY KEY`
+
+| `Column`
+| `@jakarta.persistence.Column(name = "...")`
+| `column_name TYPE`
+
+| `Transient`
+| `@jakarta.persistence.Transient`
+| (column omitted)
+|===
+
+The generators read stereotypes *by name*, not by class reference — they have no
+compile-time dependency on the profile modules. You can apply the same Java codegen to a
+model that uses a custom `MyCompany`-flavoured profile, as long as the stereotypes have the
+same names.
+
+See xref:codegen.adoc[code generation].
+
+== Multi-profile diagrams
+
+`applyProfile` is repeatable — apply as many as you need:
+
+[source,kotlin]
+----
+classDiagram(name = "Service domain") {
+    applyProfile("JavaEE")
+    applyProfile("Spring")
+    applyProfile("OpenAPI")
+
+    classOf("OrderService") {
+        operation("scheduleCleanup") { stereotype("Scheduled", "cron" to "0 0 * * *") }
+        operation("placeOrder") { stereotype("Operation", "method" to "POST") }
+    }
+}
+----
+
+Stereotype names must be unique across applied profiles within a single diagram — the
+parser fails fast on collisions with a clear error.

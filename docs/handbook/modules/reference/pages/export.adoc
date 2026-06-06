@@ -1,0 +1,139 @@
+= Structurizr Export
+:description: Round-trip your kUML C4 models with Structurizr DSL.
+
+`kuml export` writes a kUML C4 workspace to https://structurizr.com[Structurizr] DSL. The
+Structurizr ecosystem (CLI, Lite viewer, cloud workspaces) consumes the output without
+further configuration.
+
+== Quick example
+
+[source,bash]
+----
+kuml export workspace.kuml.kts --format structurizr --output workspace.dsl
+----
+
+The output is a single `.dsl` file that Structurizr Lite can open:
+
+[source,bash]
+----
+docker run -it --rm -p 8080:8080 \
+    -v $(pwd):/usr/local/structurizr \
+    structurizr/lite
+# Open http://localhost:8080 — kUML's diagrams show up directly.
+----
+
+== Mapping table
+
+[cols="2,2,2"]
+|===
+| kUML | Structurizr | Notes
+
+| `c4Model { ... }`
+| `workspace "..."`
+| The workspace block contains both `model` and `views`.
+
+| `person(name)`
+| `person "name"`
+| Tagged values map to structurizr tags.
+
+| `softwareSystem(name)`
+| `softwareSystem "name"`
+|
+
+| `container(name, technology)`
+| `container "name" "description" "technology"`
+| The optional description is rendered when present.
+
+| `component(name, technology)`
+| `component "name" "description" "technology"`
+|
+
+| `relationship(source, target, description)`
+| `source -> target "description"`
+| Bidirectional relationships emit two arrows.
+
+| `systemContextDiagram(name) { system = "..." }`
+| `systemContext target "key" { include * }`
+|
+
+| `containerDiagram(name) { system = "..." }`
+| `container target "key" { include * }`
+|
+
+| `componentDiagram(name) { container = "..." }`
+| `component target "key" { include * }`
+|
+
+| `dynamicDiagram(name) { step(...) }`
+| `dynamic * "key" { source -> target "description" }`
+| Numbered steps map to Structurizr's auto-numbered messages.
+
+| `deploymentDiagram(name) { deploymentNode { ... } }`
+| `deployment * "Production" "key" { ... }`
+| Nested `deploymentNode` translates 1:1.
+
+| `systemLandscapeDiagram(name)`
+| `systemLandscape "key" { include * }`
+|
+|===
+
+== Hierarchical identifiers
+
+kUML emits `!identifiers hierarchical` at the top of the workspace. That means containers
+and components are addressed as `softwareSystem.container.component` — the standard
+Structurizr identifier scheme.
+
+[source]
+----
+workspace "Banking" {
+    !identifiers hierarchical
+
+    model {
+        customer = person "Customer"
+
+        banking = softwareSystem "Internet Banking" {
+            api = container "API" "Spring REST"
+            db = container "Database" "PostgreSQL"
+        }
+
+        customer -> banking.api "Uses"
+        banking.api -> banking.db "Reads from"
+    }
+
+    views {
+        systemContext banking "Context" { include * }
+        container banking "Containers" { include * }
+    }
+}
+----
+
+== Round-tripping
+
+kUML can also *parse* Structurizr DSL back into a kUML C4 workspace:
+
+[source,bash]
+----
+kuml parse workspace.dsl --format structurizr --output workspace.kuml.kts
+----
+
+The round-trip is *structurally lossless* for the elements in the mapping table above.
+Round-tripping a kUML workspace through Structurizr produces an identical kUML model
+modulo whitespace and element order.
+
+What does NOT round-trip:
+
+* Custom Structurizr styles (`styles { ... }` block) — kUML uses themes instead.
+* Structurizr DSL `!ref` directives — they expand at parse time.
+* Branding metadata (`branding { ... }`) — kUML has no equivalent.
+
+== Use cases
+
+* *Mixed teams* — write models in kUML, share them with Structurizr-using teammates
+  through `export`. They author in Structurizr if they prefer; you re-import on demand.
+* *Lite viewer* — `kuml export` + `structurizr/lite` Docker = a free interactive C4 viewer.
+* *Migration* — moving a Structurizr workspace into kUML for git-native authoring and
+  CI validation? Run `kuml parse` once, commit the result.
+
+The export and parse codecs live in `kuml-export-structurizr` — a tiny module with two
+sealed types (`StructurizrToken`, `StructurizrNode`) and a pair of emitter / parser
+functions. Both are tested with round-trip property tests: emit → parse → equals.

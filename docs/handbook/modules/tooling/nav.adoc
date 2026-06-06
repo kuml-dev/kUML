@@ -1,0 +1,6 @@
+* xref:cli.adoc[CLI]
+* xref:gradle.adoc[Gradle plugin]
+* xref:intellij.adoc[JetBrains plugin]
+* xref:vscode.adoc[VS Code extension]
+* xref:asciidoc.adoc[AsciiDoc & Antora]
+* xref:markdown.adoc[Markdown]

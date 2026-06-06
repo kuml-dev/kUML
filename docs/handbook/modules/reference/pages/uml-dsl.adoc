@@ -1,0 +1,295 @@
+= UML DSL Reference
+:description: Every UML 2.x diagram type supported by kUML, with the DSL syntax.
+
+kUML supports all 13 UML 2.x diagram types defined by OMG. Every type uses the same
+authoring pattern: a top-level diagram builder, optionally wrapped in a `umlModel { ... }`
+container.
+
+== Diagram types at a glance
+
+[cols="1,2,2"]
+|===
+| Type | Builder | Use it for
+
+| Class
+| `classDiagram(name) { ... }`
+| Static structure: classes, interfaces, enums, generalisation, association.
+
+| Object
+| `objectDiagram(name) { ... }`
+| Concrete snapshots: instances and links between them at a point in time.
+
+| Package
+| `packageDiagram(name) { ... }`
+| Logical grouping: packages, nested packages, package dependencies.
+
+| Component
+| `componentDiagram(name) { ... }`
+| Software architecture: components, ports, provided/required interfaces.
+
+| Deployment
+| `deploymentDiagram(name) { ... }`
+| Physical mapping: nodes, artifacts, deployment relationships.
+
+| Use case
+| `useCaseDiagram(name) { ... }`
+| Actor goals: actors, use cases, include/extend relationships.
+
+| Sequence
+| `sequenceDiagram(name) { ... }`
+| Time-ordered interaction: lifelines, messages, fragments.
+
+| Communication
+| `communicationDiagram(name) { ... }`
+| Spatially-ordered interaction: lifelines connected by numbered messages.
+
+| State machine
+| `stateDiagram(name) { stateMachine(name) { ... } }`
+| Discrete behaviour: states, transitions, triggers, guards, effects.
+
+| Activity
+| `activityDiagram(name) { ... }`
+| Workflow: actions, control flow, decisions, parallel splits.
+
+| Profile
+| `profileDiagram(name) { ... }`
+| Stereotype definitions: extensions of the UML metamodel.
+
+| Timing
+| `timingDiagram(name) { ... }`
+| State-over-time: lifelines with state changes along a timeline.
+
+| Interaction overview
+| `interactionOverviewDiagram(name) { ... }`
+| Control flow over interactions: combines activity + sequence semantics.
+
+| Composite structure
+| `compositeStructureDiagram(name) { ... }`
+| Internal structure: parts, ports, connectors within a classifier.
+|===
+
+== Class diagrams
+
+The most common starting point. All classifier-level constructs go inside `classDiagram { ... }`.
+
+[source,kotlin]
+----
+classDiagram(name = "Domain") {
+    // Enumerations
+    val status = enumOf(name = "OrderStatus") {
+        literal(name = "DRAFT")
+        literal(name = "CONFIRMED")
+    }
+
+    // Interfaces
+    val payable = interfaceOf(name = "Payable") {
+        operation(name = "amountDue") { returnType = "BigDecimal" }
+    }
+
+    // Classes
+    val order = classOf(name = "Order") {
+        // Attributes
+        attribute(name = "id", type = "UUID") { visibility = Visibility.Private }
+        attribute(name = "status", type = status)         // enum val as type
+        attribute(name = "total", type = "BigDecimal")
+
+        // Operations
+        operation(name = "confirm")
+        operation(name = "cancel") {
+            visibility = Visibility.Public
+            returnType = "Boolean"
+        }
+
+        // OCL invariants
+        constraint(name = "PositiveTotal", body = "self.total >= 0")
+    }
+
+    val customer = classOf(name = "Customer")
+
+    // Relationships
+    generalization(child = order, parent = "AbstractEntity")
+    realization(client = order, supplier = payable)
+    association(source = order, target = customer) {
+        sourceMultiplicity = "*"
+        targetMultiplicity = "1"
+        targetRole = "customer"
+    }
+}
+----
+
+=== Classifier features in detail
+
+[cols="1,2"]
+|===
+| Element | Notes
+
+| `attribute(name, type)`
+| `type` can be a `String` or any classifier-producing val (returns a typed reference).
+  Optional: `multiplicity`, `visibility`, `isStatic`, `defaultValue`.
+
+| `operation(name)`
+| Block-form: add `parameter(...)`, `returnType`, `visibility`, `stereotype(...)`.
+
+| `parameter(name, type)`
+| Inside an `operation` block. Set `direction` (`In`, `Out`, `InOut`) if needed.
+
+| `stereotype(name, vararg taggedValues)`
+| Applies an applied-stereotype to the surrounding element. Requires a matching profile
+  to be `applyProfile`-d on the diagram.
+
+| `constraint(name, body)`
+| Adds an OCL invariant. Evaluated by `kuml validate`.
+
+| `aggregation = AggregationKind.{NONE,SHARED,COMPOSITE}`
+| Aggregation kind on an `association { ... }`.
+|===
+
+== Object diagrams
+
+Object diagrams show concrete instances. Use them for examples and snapshots.
+
+[source,kotlin]
+----
+objectDiagram(name = "Order #42") {
+    val order = objectOf(name = "order42", classifier = "Order") {
+        slot(name = "status", value = "CONFIRMED")
+        slot(name = "total", value = "99.50")
+    }
+    val item1 = objectOf(name = "item1", classifier = "OrderItem")
+    val item2 = objectOf(name = "item2", classifier = "OrderItem")
+    link(source = order, target = item1)
+    link(source = order, target = item2)
+}
+----
+
+== Component diagrams
+
+Component diagrams describe software architecture: which components exist, what they
+provide, what they require.
+
+[source,kotlin]
+----
+componentDiagram(name = "Order service architecture") {
+    val orderService = component(name = "OrderService") {
+        port(name = "rest")
+        operation(name = "placeOrder")
+        attribute(name = "config", type = "OrderConfig")
+    }
+
+    val paymentService = component(name = "PaymentService") {
+        port(name = "rest")
+    }
+
+    dependency(source = orderService, target = paymentService) {
+        // technology = "REST"   (V1.2)
+    }
+}
+----
+
+Components can carry attributes and operations as of v0.3.0 — they are full classifiers.
+
+== State machines
+
+State machines have their own scope inside a `stateDiagram { ... }`.
+
+[source,kotlin]
+----
+stateDiagram(name = "Order lifecycle") {
+    stateMachine(name = "Order") {
+        initial(name = "start")
+        state(name = "draft")
+        state(name = "confirmed")
+        state(name = "shipped") { final() }
+
+        // Composite state with substates
+        state(name = "processing") {
+            initial(name = "picking")
+            state(name = "picking")
+            state(name = "packing")
+            transition(from = "picking", to = "packing", trigger = "packed")
+        }
+
+        // Transitions: trigger, guard, effect
+        transition(from = "start", to = "draft")
+        transition(from = "draft", to = "confirmed", trigger = "confirm",
+                   guard = "self.total > 0", effect = "log('confirmed')")
+        transition(from = "confirmed", to = "shipped", trigger = "ship")
+        transition(from = "confirmed", to = "processing", trigger = "process")
+        transition(from = "processing", to = "shipped", trigger = "complete")
+    }
+}
+----
+
+Triggers, guards, and effects are free-form strings. The runtime parses guards as OCL and
+evaluates them against the current state; effects are recorded in the trace but not executed
+in v0.3.0 (effect execution is V2). Triggers match by exact string equality.
+
+See xref:simulate.adoc[state-machine simulation] for the operational semantics and how to
+run a machine against a stream of events.
+
+== Sequence diagrams
+
+[source,kotlin]
+----
+sequenceDiagram(name = "Place order flow") {
+    val customer = lifeline(name = "Customer", classifier = "Customer")
+    val service = lifeline(name = "OrderService", classifier = "OrderService")
+    val payment = lifeline(name = "PaymentService", classifier = "PaymentService")
+
+    message(from = customer, to = service, label = "placeOrder()")
+    message(from = service, to = payment, label = "authorise()")
+    message(from = payment, to = service, label = "OK", style = MessageStyle.Reply)
+    message(from = service, to = customer, label = "confirmation", style = MessageStyle.Reply)
+}
+----
+
+== Use case diagrams
+
+[source,kotlin]
+----
+useCaseDiagram(name = "Customer goals") {
+    val customer = actor(name = "Customer")
+    val staff = actor(name = "Staff")
+
+    val placeOrder = useCase(name = "Place order")
+    val payOrder = useCase(name = "Pay order")
+    val refundOrder = useCase(name = "Refund order")
+
+    customer.uses(placeOrder)
+    customer.uses(payOrder)
+    staff.uses(refundOrder)
+
+    placeOrder.includes(payOrder)
+    refundOrder.extends(payOrder)
+}
+----
+
+== Other types
+
+The remaining diagram types (deployment, activity, communication, profile, timing,
+interaction overview, composite structure, package) all follow the same pattern: a
+top-level builder, classifier-like inner constructs, relationships drawn with infix
+helpers or DSL functions. See the
+https://github.com/kuml-dev/kUML/tree/master/docs/examples[examples directory] for
+a script for each type.
+
+== Composing diagrams
+
+A single script can contain multiple diagrams by wrapping them in `umlModel`:
+
+[source,kotlin]
+----
+umlModel(name = "Order subsystem") {
+    classDiagram(name = "Domain") {
+        // ...
+    }
+    componentDiagram(name = "Architecture") {
+        // ...
+    }
+    stateDiagram(name = "Lifecycle") {
+        stateMachine(name = "Order") { /* ... */ }
+    }
+}
+----
+
+Each contained diagram renders to its own SVG when invoked through the CLI or Gradle plugin.

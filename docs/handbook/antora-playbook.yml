@@ -1,0 +1,38 @@
+#
+# Antora playbook for local site generation.
+#
+# Generate the site with:
+#   npx antora generate docs/handbook/antora-playbook.yml --to-dir docs/handbook/build/site
+#
+# Open the result:
+#   open docs/handbook/build/site/index.html
+#
+site:
+  title: kUML Handbook
+  url: https://kuml.dev/handbook
+  start_page: kuml::index.adoc
+
+content:
+  sources:
+    - url: ../..
+      branches: HEAD
+      start_path: docs/handbook
+
+ui:
+  bundle:
+    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
+    snapshot: true
+
+output:
+  dir: ./build/site
+
+asciidoc:
+  extensions:
+    # When the kuml-asciidoc Maven artefact is on the runtime classpath, this
+    # picks up the `[kuml]` block macro and renders embedded diagrams inline.
+    # If the extension is unavailable, listings render as plain Kotlin script
+    # source — which still reads correctly.
+    - '@asciidoctor/kuml'
+  attributes:
+    page-toclevels: 3
+    source-highlighter: highlight.js

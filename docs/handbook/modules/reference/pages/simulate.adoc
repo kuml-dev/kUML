@@ -1,0 +1,187 @@
+= State-Machine Simulation
+:description: Run kUML state machines with `kuml simulate` — events in, trace out, exit-code-driven verification.
+
+`kuml simulate` runs a state machine headlessly: you feed it events, it produces a trace
+of every transition, entry/exit action, and effect. This is what makes kUML the first UML
+tool that *executes* models, not just draws them.
+
+The runtime is pure Kotlin, has no I/O, and implements a published operational semantics
+with nine numbered rules (see `kuml-runtime-core/OPERATIONAL_SEMANTICS.md`).
+
+== Hello, simulate
+
+Given a state machine:
+
+[source,kotlin]
+----
+// order-lifecycle.kuml.kts
+stateDiagram(name = "Order lifecycle") {
+    stateMachine(name = "Order") {
+        initial("start")
+        state("draft")
+        state("confirmed")
+        state("shipped") { final() }
+
+        transition(from = "start", to = "draft")
+        transition(from = "draft", to = "confirmed", trigger = "confirm")
+        transition(from = "confirmed", to = "shipped", trigger = "ship")
+    }
+}
+----
+
+And an event file:
+
+[source,json]
+----
+// events.json
+[
+    {"name": "confirm"},
+    {"name": "ship"}
+]
+----
+
+Run:
+
+[source,bash]
+----
+kuml simulate order-lifecycle.kuml.kts --events events.json
+----
+
+You'll get a trace listing every step: the initial transition fired, `draft` entered,
+`confirm` event consumed, `confirmed` entered, `ship` event consumed, `shipped` entered
+(final state — machine terminates).
+
+== Event format
+
+Events are JSON objects with a required `name` and an optional `payload`:
+
+[source,json]
+----
+[
+    {"name": "addItem", "payload": {"sku": "ABC-123", "quantity": 2}},
+    {"name": "addItem", "payload": {"sku": "DEF-456", "quantity": 1}},
+    {"name": "checkout", "payload": {"totalCents": 4990}}
+]
+----
+
+The payload is accessible inside guard expressions as `event.<key>` — see xref:ocl.adoc[OCL].
+
+== Trace format
+
+The trace is a JSON file with a stable schema:
+
+[source,json]
+----
+{
+    "schema": "kuml.trace.v1",
+    "machine": "Order",
+    "entries": [
+        {"type": "Initialised", "vertex": "start"},
+        {"type": "Transitioned", "trigger": null, "from": "start", "to": "draft"},
+        {"type": "Entered", "vertex": "draft"},
+        {"type": "EventReceived", "event": {"name": "confirm"}},
+        {"type": "Transitioned", "trigger": "confirm", "from": "draft", "to": "confirmed"},
+        {"type": "Exited", "vertex": "draft"},
+        {"type": "Entered", "vertex": "confirmed"},
+        // ...
+        {"type": "Terminated"}
+    ]
+}
+----
+
+`TraceEntry` is a sealed Kotlin type — entries serialize with a `type` discriminator.
+Read traces in your own code with `KumlRuntimeJson.decodeTrace(jsonString)`.
+
+== Verification with golden traces
+
+Capture an expected trace and diff against it on each run:
+
+[source,bash]
+----
+# Capture once
+kuml simulate order-lifecycle.kuml.kts --events events.json \
+    --output expected.trace.json
+
+# Verify thereafter
+kuml simulate order-lifecycle.kuml.kts --events events.json \
+    --expected expected.trace.json
+----
+
+The exit code tells you what happened:
+
+* `0` — trace matches the expected file.
+* `6` (`TRACE_DIFF`) — trace differs; the CLI prints a human-readable diff showing every
+  difference grouped by entry index.
+* `1` — script or input error.
+
+Use this as a regression test in CI: when you change a transition or guard, the diff
+flags it instantly.
+
+== Determinism via `--epoch-clock`
+
+By default the runtime stamps each `Transitioned` entry with wall-clock time. For
+goldfile tests this is useless — timestamps change on every run. Pass `--epoch-clock`
+to lock the clock to monotonic epoch ms starting from 0:
+
+[source,bash]
+----
+kuml simulate order-lifecycle.kuml.kts --events events.json --epoch-clock
+----
+
+Now the trace is byte-identical across machines and across runs.
+
+== Interactive mode
+
+For exploration, run without `--events`:
+
+[source,bash]
+----
+kuml simulate order-lifecycle.kuml.kts --interactive
+----
+
+You get a REPL: type an event name (and optionally a JSON payload), watch the machine
+step. `:state` prints the current vertex, `:exit` quits.
+
+== Operational semantics (high-level)
+
+The nine numbered rules in `OPERATIONAL_SEMANTICS.md`:
+
+. *Initialisation* — start in the synthetic root, descend through default initial transitions.
+. *Trigger-guard match* — choose the first transition whose trigger matches the event and
+  whose guard evaluates to true.
+. *Composite entry* — entering a composite state descends into its initial substate
+  automatically.
+. *Exit ordering* — exit from the deepest state up to the LCA bottom-up.
+. *Entry ordering* — enter from the LCA down to the target top-down.
+. *Run-to-completion* — process one event end-to-end before consuming the next.
+. *Atomicity* — failed transitions roll back; current state is unchanged.
+. *Effect logging* — `effect` strings appear in the trace but are NOT executed in v0.3.0
+  (V2 will execute OCL-subset action language).
+. *Termination* — entering a final state at top level terminates the machine.
+
+Each rule has a goldfile test in `kuml-runtime-core/src/test/.../*GoldfileTest.kt` — read
+them as worked examples.
+
+== Embedding the runtime
+
+To run machines from your own JVM code:
+
+[source,kotlin]
+----
+val script = File("order.kuml.kts")
+val extracted = KumlScriptHost.eval(script).valueOrThrow() as ExtractedDiagram.Uml
+val machine = extracted.diagram.elements.filterIsInstance<UmlStateMachine>().single()
+
+val interpreter = StateMachineRuntime(machine)
+val instance = interpreter.start()
+
+interpreter.fire(instance, Event(name = "confirm"))
+interpreter.fire(instance, Event(name = "ship"))
+
+println(instance.currentVertexIds)  // ["shipped"]
+println(instance.isTerminated)      // true
+----
+
+`StateMachineRuntime` is thread-safe per instance. Multiple `StateMachineInstance`s share
+the same `StateMachineRuntime` and the same machine model — only the per-instance state
+differs.

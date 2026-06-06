@@ -1,0 +1,14 @@
+name: kuml
+title: kUML Handbook
+version: ~                # Versionless — tracks main branch
+nav:
+  - modules/ROOT/nav.adoc
+  - modules/reference/nav.adoc
+  - modules/tooling/nav.adoc
+asciidoc:
+  attributes:
+    # Project-wide attributes referenced from any page
+    project-url: https://github.com/kuml-dev/kUML
+    project-site: https://kuml.dev
+    kuml-version: 0.3.0
+    page-toclevels: 3

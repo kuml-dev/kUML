@@ -1,0 +1,76 @@
+= kUML Handbook
+:icons: font
+
+The Antora-based user handbook for kUML. Browse the source at
+link:modules/[modules/], or build the site locally.
+
+== Build the site
+
+[source,bash]
+----
+npm install -g @antora/cli @antora/site-generator
+antora generate docs/handbook/antora-playbook.yml --to-dir docs/handbook/build/site
+open docs/handbook/build/site/index.html
+----
+
+(`open` is macOS. Use `xdg-open` on Linux, `start` on Windows.)
+
+== Layout
+
+[source]
+----
+docs/handbook/
+├── antora.yml                      # Component descriptor (name, version, nav)
+├── antora-playbook.yml             # Site-generation playbook
+├── README.adoc                     # ← this file
+└── modules/
+    ├── ROOT/                       # Getting-started module
+    │   ├── nav.adoc
+    │   └── pages/
+    │       ├── index.adoc          # Landing
+    │       ├── install.adoc        # Installation
+    │       ├── quickstart.adoc     # First diagram in 10 minutes
+    │       └── concepts.adoc       # Core concepts
+    ├── reference/                  # DSL and feature reference
+    │   ├── nav.adoc
+    │   └── pages/
+    │       ├── uml-dsl.adoc
+    │       ├── c4-dsl.adoc
+    │       ├── ocl.adoc
+    │       ├── profiles.adoc
+    │       ├── themes.adoc
+    │       ├── codegen.adoc
+    │       ├── simulate.adoc
+    │       ├── export.adoc
+    │       └── layout.adoc
+    └── tooling/                    # Tool integrations
+        ├── nav.adoc
+        └── pages/
+            ├── cli.adoc
+            ├── gradle.adoc
+            ├── intellij.adoc
+            ├── vscode.adoc
+            ├── asciidoc.adoc
+            └── markdown.adoc
+----
+
+== Contributing
+
+Pages are plain AsciiDoc. Cross-references use Antora's `xref:module:page.adoc[]` syntax:
+
+* Within the same module: `xref:other.adoc[Label]`
+* Across modules: `xref:tooling:cli.adoc[CLI]`
+
+Avoid hard URLs to GitHub; use Antora attributes (defined in `antora.yml` -> `asciidoc.attributes`)
+for the project URL and site URL:
+
+[source,asciidoc]
+----
+See {project-url}[the repo] for the source.
+----
+
+== Status
+
+This handbook covers kUML v{kuml-version}. It is in active development and ships with
+every release. Sections may move, but URLs are stable — Antora's slugged URLs are
+generated from page filenames, which are deliberately conservative.

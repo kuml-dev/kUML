@@ -1,0 +1,108 @@
+= JetBrains IDE Plugin
+:description: First-class editor support for `*.kuml.kts` in IntelliJ IDEA, Android Studio, PyCharm, …
+
+The `dev.kuml.intellij` plugin adds editor support for kUML script files in every JetBrains
+IDE based on IntelliJ Platform build 243+ (IDEA 2024.3 or newer). It is intentionally
+minimal — Syntax highlighting, default imports, file icon. Nothing more, nothing less.
+
+== Install
+
+*Settings → Plugins → Marketplace*, search for `kUML`, click *Install*, restart the IDE.
+
+Or install a local `.zip` distribution built from source:
+
+[source,bash]
+----
+./gradlew :kuml-jetbrains:kuml-jetbrains-plugin:buildPlugin
+# → kuml-jetbrains/kuml-jetbrains-plugin/build/distributions/kuml-jetbrains-plugin-X.Y.Z.zip
+----
+
+Then *Settings → Plugins → ⚙ → Install Plugin from Disk…* and pick the zip.
+
+== What you get
+
+* *Syntax highlighting* — full Kotlin highlighting inherited from the bundled Kotlin
+  plugin. kUML DSL builders (`classDiagram`, `umlModel`, `classOf`, `c4Model`, …)
+  highlight like ordinary Kotlin functions because that's exactly what they are.
+
+* *Default imports resolved by the editor* — when you type `classDiagram(name = "X") { }`,
+  IntelliJ knows `classDiagram` comes from `dev.kuml.core.dsl` even though there's no
+  `import` line. Same for `dev.kuml.uml.dsl.*`, `dev.kuml.c4.dsl.*`,
+  `dev.kuml.core.model.*`, and the UML / C4 metamodel packages.
+
+* *Structure view* — diagrams and elements show up in the *Structure* tool window
+  (since they're nested Kotlin lambdas).
+
+* *Refactoring & Find Usages* — works the same as for any Kotlin file. Rename a
+  classifier val, every reference updates. Find Usages on `classOf(...)` lists every
+  call site.
+
+* *Custom file icon* — `*.kuml.kts` files are visually distinct in the project view
+  and editor tabs.
+
+== Under the hood
+
+The plugin registers a `ScriptDefinitionsProvider` (Kotlin scripting extension point)
+that hands the `dev.kuml.core.script.KumlScript` template to IntelliJ's Kotlin plugin.
+The Kotlin plugin reads the `@KotlinScript(fileExtension = "kuml.kts", …)` annotation
+and provides the editing experience.
+
+There is no custom lexer, no custom parser, no custom annotator — we ride entirely on the
+Kotlin plugin's investment. That keeps the plugin tiny (12 KB distribution + bundled
+runtime JARs) and inherits every future improvement to Kotlin scripting for free.
+
+The bundled runtime includes:
+
+* `kuml-core-script` — the script template
+* `kuml-core-model`, `kuml-core-dsl` — DSL surface for resolution
+* `kuml-metamodel-uml`, `kuml-metamodel-c4` — metamodel types
+* The Kotlin scripting infrastructure
+
+So default imports resolve to real symbols in the editor — autocomplete works, hover
+shows KDoc, *Go to Declaration* opens the metamodel class.
+
+== What's deliberately NOT in scope
+
+* *Custom Annotator / Inspection* (V2) — no inline OCL validation, no kUML-specific
+  warnings. Use `kuml validate` or the Gradle plugin's `kumlValidate` task instead.
+
+* *Live-preview panel* (V2) — no embedded SVG preview that updates as you type.
+  Use the VS Code extension's *kUML: Render to SVG* command, or run `kuml render`
+  manually.
+
+* *Language Server Protocol* (V2) — pure platform-plugin implementation, no LSP layer.
+
+* *Refactoring helpers beyond Kotlin* (V2) — no "Extract package", no "Rename diagram",
+  no "Convert class to interface". Kotlin's general-purpose refactoring still works.
+
+The trade-off is intentional: a minimal plugin ships now, the heavyweight features wait
+until there's enough user demand to justify the maintenance cost.
+
+== Configuration
+
+None. The plugin has no settings panel because there's nothing to configure. If you want
+to choose a theme, generator, or layout engine, do that in `kuml.config.kts` or on the
+command line — the IDE plugin is for editing, not for rendering.
+
+== Troubleshooting
+
+[cols="1,3"]
+|===
+| Symptom | Likely cause
+
+| Editor highlights `classDiagram` as unresolved
+| The kUML plugin isn't enabled, or the Kotlin plugin is disabled. Check *Settings →
+  Plugins → Installed*.
+
+| File opens as plain text, no syntax highlighting
+| The file extension isn't `.kuml.kts`. The plugin only activates on that suffix.
+
+| Refactoring renames break references in other `*.kuml.kts` files
+| The Kotlin scripting infrastructure indexes scripts independently. Run *Invalidate
+  Caches and Restart* after large refactors.
+
+| Performance degrades with many `*.kuml.kts` files
+| Each script is independently compiled by the IDE's Kotlin plugin. Performance scales
+  with script count and complexity; if you have hundreds of scripts, consider splitting
+  the project so the IDE only indexes the subset you're editing.
+|===

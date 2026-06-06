@@ -1,0 +1,57 @@
+= kUML Handbook
+:description: Type-safe Kotlin DSL for UML 2.x, SysML 2 and C4. The first UML tool designed for the LLM era.
+
+[.lead]
+*kUML* is a modelling tool that expresses UML 2.x, SysML 2 and C4 as a type-safe Kotlin DSL.
+It is the first UML tool deliberately designed for AI-assisted workflows: every diagram is
+ordinary Kotlin source code, fully versionable in Git, and validatable at compile time.
+
+This handbook covers what kUML does, how to install it, and how to use every feature shipped
+in v{kuml-version}. Use the navigation on the left to jump in, or follow the linear path:
+
+. xref:install.adoc[Install] the CLI, Gradle plugin, or one of the IDE plugins.
+. xref:quickstart.adoc[Write your first diagram] in ten minutes.
+. xref:concepts.adoc[Read up on the core concepts] — metamodel, diagram types, behaviour runtime.
+. Dive into the xref:reference:uml-dsl.adoc[reference] for the full DSL surface.
+. Pick your xref:tooling:cli.adoc[toolchain integration]: CLI, Gradle, IntelliJ, VS Code.
+
+== What problem does kUML solve?
+
+Existing modelling tools fall into two categories, both unsatisfying:
+
+* *Graphical CASE tools* (Enterprise Architect, MagicDraw) — proper modelling, but expensive,
+  not Git-friendly, and impossible to author from a language model.
+* *Text-based diagram tools* (PlantUML, Mermaid) — versionable and LLM-friendly, but they
+  are drawing tools with weak UML support, not modelling tools.
+
+kUML closes the gap:
+
+* a real modelling tool with a complete UML 2.x metamodel and stereotype-based profiles,
+* expressed as ordinary Kotlin source code with IDE refactoring and compile-time checking,
+* fully versionable in Git with line-level diffs,
+* designed from the ground up for LLM-assisted authoring (typed output, named parameters,
+  MCP server for agent introspection, `kuml ai` subcommand, benchmark suite).
+
+== What's in this handbook?
+
+[cols="1,3"]
+|===
+| Module | Contents
+
+| xref:index.adoc[Getting started]
+| Installation, quick start, conceptual model behind kUML.
+
+| xref:reference:uml-dsl.adoc[Reference]
+| Full DSL for all 13 UML diagram types, C4, OCL, profiles, code generation,
+  themes, state-machine simulation, layout engines.
+
+| xref:tooling:cli.adoc[Tooling]
+| CLI, Gradle plugin, JetBrains plugin, VS Code plugin, AsciiDoc / Markdown
+  integration, Structurizr export.
+|===
+
+== Project links
+
+* Source: {project-url}
+* Website: {project-site}
+* License: Apache 2.0
