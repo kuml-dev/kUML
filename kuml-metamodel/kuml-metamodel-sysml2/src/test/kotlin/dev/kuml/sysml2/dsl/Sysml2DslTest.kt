@@ -11,6 +11,8 @@ import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortUsage
+import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.units.kW
@@ -458,6 +460,151 @@ class Sysml2DslTest :
             uc.extends
                 .single()
                 .id shouldBe "extend:Authenticate::BorrowBook"
+        }
+
+        // ── REQ Diagram (V2.0.8) ──────────────────────────────────────────────
+
+        "reqDiagram captures requirements, satisfies, verifies, derives, contains" {
+            val model =
+                sysml2Model("VehicleReqs") {
+                    val topSpeed =
+                        requirementDef(
+                            "TopSpeedRequirement",
+                            reqId = "R-001",
+                            text = "The vehicle shall reach at least 180 km/h on flat road",
+                        )
+                    val fuel =
+                        requirementDef(
+                            "FuelEfficiencyRequirement",
+                            reqId = "R-003",
+                            text = "The vehicle shall consume less than 4 l/100km combined",
+                        )
+                    val emissions = requirementDef("EmissionsRequirement", reqId = "R-004")
+                    val nox = requirementDef("NOxRequirement", reqId = "R-005")
+                    val vehicle = partDef("Vehicle")
+                    val verifyTopSpeed = useCaseDef("VerifyTopSpeed")
+                    reqDiagram("Top-level") {
+                        include(topSpeed)
+                        include(fuel)
+                        include(emissions)
+                        include(nox)
+                        include(vehicle)
+                        include(verifyTopSpeed)
+                        satisfy(vehicle, topSpeed)
+                        verify(verifyTopSpeed, topSpeed)
+                        derive(topSpeed, fuel)
+                        contains(emissions, nox)
+                    }
+                }
+            model.definitions.filterIsInstance<RequirementDefinition>() shouldHaveSize 4
+
+            val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
+            req.name shouldBe "Top-level"
+            req.elementIds shouldBe
+                listOf(
+                    "TopSpeedRequirement",
+                    "FuelEfficiencyRequirement",
+                    "EmissionsRequirement",
+                    "NOxRequirement",
+                    "Vehicle",
+                    "VerifyTopSpeed",
+                )
+            req.satisfies shouldHaveSize 1
+            req.verifies shouldHaveSize 1
+            req.derives shouldHaveSize 1
+            req.contains shouldHaveSize 1
+        }
+
+        "RequirementDefinition stores text, reqId, and subject" {
+            val model =
+                sysml2Model("M") {
+                    requirementDef(
+                        "TopSpeedRequirement",
+                        reqId = "R-001",
+                        text = "The vehicle shall reach at least 180 km/h on flat road",
+                        subject = "Vehicle",
+                    )
+                }
+            val req = model.definitions.filterIsInstance<RequirementDefinition>().single()
+            req.reqId shouldBe "R-001"
+            req.text shouldBe "The vehicle shall reach at least 180 km/h on flat road"
+            req.subject shouldBe "Vehicle"
+        }
+
+        "reqDiagram edge ids are deterministic" {
+            val model =
+                sysml2Model("IdShape") {
+                    val r1 = requirementDef("TopSpeed", reqId = "R-001")
+                    val r2 = requirementDef("Fuel", reqId = "R-003")
+                    val r3 = requirementDef("Emissions", reqId = "R-004")
+                    val r4 = requirementDef("NOx", reqId = "R-005")
+                    val vehicle = partDef("Vehicle")
+                    val verifier = useCaseDef("VerifyTopSpeed")
+                    reqDiagram("REQ") {
+                        include(r1)
+                        include(r2)
+                        include(r3)
+                        include(r4)
+                        include(vehicle)
+                        include(verifier)
+                        satisfy(vehicle, r1)
+                        verify(verifier, r1)
+                        derive(r1, r2)
+                        contains(r3, r4)
+                    }
+                }
+            val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
+            req.satisfies
+                .single()
+                .id shouldBe "satisfy:Vehicle::TopSpeed"
+            req.verifies
+                .single()
+                .id shouldBe "verify:VerifyTopSpeed::TopSpeed"
+            req.derives
+                .single()
+                .id shouldBe "derive:TopSpeed::Fuel"
+            req.contains
+                .single()
+                .id shouldBe "contains:Emissions::NOx"
+        }
+
+        "reqDiagram forward refs via includeById / *ById overloads work" {
+            val model =
+                sysml2Model("Forward") {
+                    requirementDef("TopSpeed", reqId = "R-001")
+                    requirementDef("Fuel", reqId = "R-003")
+                    requirementDef("Emissions", reqId = "R-004")
+                    requirementDef("NOx", reqId = "R-005")
+                    partDef("Vehicle")
+                    useCaseDef("VerifyTopSpeed")
+                    reqDiagram("REQ") {
+                        includeById("TopSpeed")
+                        includeById("Fuel")
+                        includeById("Emissions")
+                        includeById("NOx")
+                        includeById("Vehicle")
+                        includeById("VerifyTopSpeed")
+                        satisfyById("Vehicle", "TopSpeed")
+                        verifyById("VerifyTopSpeed", "TopSpeed")
+                        deriveById("TopSpeed", "Fuel")
+                        containsById("Emissions", "NOx")
+                    }
+                }
+            val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
+            req.elementIds shouldBe
+                listOf("TopSpeed", "Fuel", "Emissions", "NOx", "Vehicle", "VerifyTopSpeed")
+            req.satisfies
+                .single()
+                .id shouldBe "satisfy:Vehicle::TopSpeed"
+            req.verifies
+                .single()
+                .id shouldBe "verify:VerifyTopSpeed::TopSpeed"
+            req.derives
+                .single()
+                .id shouldBe "derive:TopSpeed::Fuel"
+            req.contains
+                .single()
+                .id shouldBe "contains:Emissions::NOx"
         }
 
         "DSL is sysml2Dsl-scoped — inner scopes can't reach outer builders accidentally" {

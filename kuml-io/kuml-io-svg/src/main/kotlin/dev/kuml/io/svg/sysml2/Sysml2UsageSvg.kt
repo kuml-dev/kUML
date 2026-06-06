@@ -12,6 +12,7 @@ import dev.kuml.sysml2.ExtendUsage
 import dev.kuml.sysml2.IncludeUsage
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortUsage
+import dev.kuml.sysml2.RequirementUsage
 import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.sysml2.UseCaseUsage
 
@@ -62,6 +63,12 @@ internal fun renderSysml2Usage(
         is UseCaseUsage -> renderUsageBox(element, layout, builder, stereotype = "use case")
         is IncludeUsage -> renderUsageBox(element, layout, builder, stereotype = "include")
         is ExtendUsage -> renderUsageBox(element, layout, builder, stereotype = "extend")
+        // V2.0.8: REQ-Usage-Kind. Die Bridge zeigt im V2.0.8-MVP keine
+        // RequirementUsages auf der Node-Ebene (REQ-Diagramme rendern
+        // RequirementDefinitions direkt), aber der Dispatcher braucht einen
+        // Branch, damit ein direkter Aufruf — z. B. aus einem Test — nicht
+        // in den UML-Fallback rutscht.
+        is RequirementUsage -> renderUsageBox(element, layout, builder, stereotype = "requirement")
     }
 }
 

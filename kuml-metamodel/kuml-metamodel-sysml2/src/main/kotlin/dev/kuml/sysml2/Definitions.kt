@@ -135,3 +135,54 @@ data class UseCaseDefinition(
     override val specializations: List<KermlSpecialization> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Definition
+
+/**
+ * `RequirementDefinition` — V2.0.8 entry for the SysML 2 Requirement Diagram.
+ *
+ * Represents a system requirement *type*: a constraint or expectation that a
+ * design must satisfy, an external test must verify, or that other
+ * requirements derive from / contain. Maps to SysML 2's `requirement def`
+ * keyword.
+ *
+ * Carries three V2.0.8-specific fields on top of the structural base:
+ *  - [text] — the requirement statement in natural language, e.g.
+ *    `"The vehicle shall reach at least 180 km/h on flat road"`. Rendered as
+ *    the third compartment of the box (word-wrapped). Empty string omits the
+ *    text compartment in the SVG renderer.
+ *  - [reqId] — the optional human-readable identifier, e.g. `"R-001"`. When
+ *    set, the box title compartment shows `"R-001 :: TopSpeedRequirement"`.
+ *  - [subject] — id of the element this requirement constrains (a
+ *    [PartDefinition], [UseCaseDefinition], etc.). Maps to SysML 2's
+ *    `subject`-keyword on `requirement def`. V2.0.8 carries this as a slot;
+ *    automatic subject-edge inference is V2.x polish (see wave plan).
+ *
+ * Structurally otherwise identical to [PartDefinition] — a KerML type that
+ * owns features. Renderer differentiation lives in
+ * [dev.kuml.io.svg.sysml2.renderSysml2Definition] (three-compartment box
+ * with `«requirement»`-stereotype).
+ *
+ * V2.0.8 MVP scope (per the wave plan):
+ *  - Box-with-three-compartments rendering: `«requirement»`, name (+ optional
+ *    `R-NNN ::`-prefix), text.
+ *  - Four edge kinds via [ReqDiagram]: [ReqSatisfy], [ReqVerify],
+ *    [ReqDerive], [ReqContains].
+ *  - V2.x: dashed-line + `«satisfy»` / `«verify»` / `«deriveReqt»` stereotype
+ *    labels on edges; typed constraint expressions; automatic subject-edge
+ *    inference from [subject].
+ */
+@Serializable
+data class RequirementDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    /** The requirement statement in natural language. Empty = omit text compartment. */
+    val text: String = "",
+    /** Optional human-readable identifier, e.g. `"R-001"`. Empty = name only. */
+    val reqId: String = "",
+    /** Optional id of the constrained element (PartDefinition, UseCaseDefinition, …). */
+    val subject: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Definition

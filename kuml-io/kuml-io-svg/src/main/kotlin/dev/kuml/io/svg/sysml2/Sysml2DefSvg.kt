@@ -11,6 +11,7 @@ import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
+import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.UseCaseDefinition
 
@@ -49,6 +50,10 @@ internal fun renderSysml2Definition(
         // V2.0.7: UC-Diagramm-spezifische Formen.
         is ActorDefinition -> renderSysml2Actor(element, layout, theme, builder)
         is UseCaseDefinition -> renderSysml2UseCase(element, layout, theme, builder)
+        // V2.0.8: REQ-Diagramm — dreikompartimentige Anforderungs-Box mit
+        // `«requirement»`-Stereotyp, optional `R-NNN ::`-prefixiertem Namen,
+        // und wort-gewrapptem Anforderungstext.
+        is RequirementDefinition -> renderSysml2Requirement(element, layout, theme, builder)
     }
 }
 

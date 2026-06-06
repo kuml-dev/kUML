@@ -41,8 +41,9 @@ data class Sysml2Model(
 
 /**
  * Sealed root for every SysML 2 diagram kind. V2.0.3 implements [BdDiagram],
- * V2.0.6 adds [IbdDiagram], V2.0.7 adds [UcDiagram] — the rest (REQ, PAR,
- * ACT, SEQ, STM) follow as separate `data class` subtypes in later waves.
+ * V2.0.6 adds [IbdDiagram], V2.0.7 adds [UcDiagram], V2.0.8 adds [ReqDiagram]
+ * — the rest (PAR, ACT, SEQ, STM) follow as separate `data class` subtypes
+ * in later waves.
  */
 @Serializable
 sealed interface Sysml2Diagram {
@@ -207,4 +208,140 @@ data class UcExtend(
     val sourceUseCaseId: String,
     /** Id of the *extended* (target) [UseCaseDefinition]. */
     val targetUseCaseId: String,
+)
+
+/**
+ * **Requirement Diagram** (REQ) — V2.0.8 traceability view over the
+ * structural ([BdDiagram] / [IbdDiagram]) and capability ([UcDiagram]) layers.
+ *
+ * Shows two primary kinds of elements (V2.0.8 MVP):
+ *  - [RequirementDefinition]s as three-compartment boxes (`«requirement»` +
+ *    optional `R-NNN ::`-prefixed name + word-wrapped requirement text).
+ *  - [PartDefinition] / [UseCaseDefinition] / [ActorDefinition] nodes as the
+ *    *subjects* / *satisfiers* / *verifiers* of those requirements (rendered
+ *    as their usual BDD-box / use-case-ellipse / actor-stickfigur form).
+ *
+ * Plus four edge kinds between them:
+ *  - [ReqSatisfy] — a part/use-case **satisfies** a requirement (design ⟶ req).
+ *  - [ReqVerify] — a test/use-case **verifies** a requirement (test ⟶ req).
+ *  - [ReqDerive] — a requirement is **derived** from another requirement
+ *    (child ⟵ parent in the trace hierarchy).
+ *  - [ReqContains] — a parent requirement **contains** a sub-requirement
+ *    (decomposition).
+ *
+ * The diagram captures these edges directly (instead of deriving them from
+ * usages) for the same reason the [UcDiagram] does: an edge between a
+ * `Vehicle` and `R-001 TopSpeedRequirement` is not a structural feature of
+ * either side — it is a diagram-level traceability assertion. A richer
+ * `SatisfyUsage`/`VerifyUsage` metamodel lives in [Usages.kt] only for
+ * future polish; V2.0.8 reads the edges off the diagram itself.
+ *
+ * V2.0.8 MVP scope (per the wave plan):
+ *  - Flat graph: no requirement-group frame; subject-of relationships are
+ *    captured via [RequirementDefinition.subject] but the bridge does not
+ *    yet infer subject-edges automatically (V2.x).
+ *  - All four edge kinds render with the same plain solid line in SVG +
+ *    TikZ. The `«satisfy»` / `«verify»` / `«deriveReqt»` stereotype labels
+ *    and dashed-line styling are deferred to V2.x.
+ *  - PNG export: V2.x (same as BDD / IBD / UC).
+ */
+@Serializable
+data class ReqDiagram(
+    override val name: String,
+    /**
+     * Ids of the [RequirementDefinition]s plus any other node-bearing
+     * definitions (parts, use-cases, actors) the diagram is allowed to
+     * display. Order is preserved so layout / serialisation / diff stay
+     * deterministic.
+     */
+    override val elementIds: List<String> = emptyList(),
+    /** Part/UseCase/Component that satisfies a Requirement. */
+    val satisfies: List<ReqSatisfy> = emptyList(),
+    /** TestCase/UseCase that verifies a Requirement. */
+    val verifies: List<ReqVerify> = emptyList(),
+    /** Requirement derived from a parent Requirement. */
+    val derives: List<ReqDerive> = emptyList(),
+    /** Parent Requirement containing a sub-Requirement. */
+    val contains: List<ReqContains> = emptyList(),
+) : Sysml2Diagram
+
+/**
+ * **Satisfy** edge in a [ReqDiagram] — a design element (Part / UseCase /
+ * Component) satisfies a [RequirementDefinition].
+ *
+ * Semantics: the [sourceId] (the implementation / design / behaviour) fulfils
+ * the requirement [requirementId]. Endpoints reference SysML 2 element ids
+ * by string so the diagram can be authored before the referenced definitions
+ * exist (forward refs are fine). The bridge silently drops satisfies whose
+ * endpoints aren't both in the diagram's visible node set — validator's job
+ * to flag dangling refs.
+ *
+ * Edge id convention (set by the DSL): `satisfy:<sourceId>::<requirementId>`.
+ */
+@Serializable
+data class ReqSatisfy(
+    val id: String,
+    /** Id of the satisfying element (Part / UseCase / Component). */
+    val sourceId: String,
+    /** Id of the [RequirementDefinition] being satisfied. */
+    val requirementId: String,
+)
+
+/**
+ * **Verify** edge in a [ReqDiagram] — a verification element (TestCase /
+ * UseCase) verifies a [RequirementDefinition].
+ *
+ * Semantics: the [sourceId] (typically a test case or verification use case)
+ * checks that the requirement [requirementId] holds. Same forward-ref +
+ * silent-drop conventions as [ReqSatisfy].
+ *
+ * Edge id convention (set by the DSL): `verify:<sourceId>::<requirementId>`.
+ */
+@Serializable
+data class ReqVerify(
+    val id: String,
+    /** Id of the verifying element (TestCase / UseCase). */
+    val sourceId: String,
+    /** Id of the [RequirementDefinition] being verified. */
+    val requirementId: String,
+)
+
+/**
+ * **Derive** edge in a [ReqDiagram] — a child [RequirementDefinition] is
+ * derived from a parent [RequirementDefinition].
+ *
+ * Semantics: the [sourceRequirementId] requirement was derived from
+ * [targetRequirementId] — i.e. it is a refinement / consequence / corollary
+ * of the parent. Captures the trace hierarchy of requirements engineering.
+ *
+ * Edge id convention (set by the DSL):
+ * `derive:<sourceRequirementId>::<targetRequirementId>`.
+ */
+@Serializable
+data class ReqDerive(
+    val id: String,
+    /** Id of the *derived* (child) [RequirementDefinition]. */
+    val sourceRequirementId: String,
+    /** Id of the *parent* [RequirementDefinition] the source derives from. */
+    val targetRequirementId: String,
+)
+
+/**
+ * **Contains** edge in a [ReqDiagram] — a parent [RequirementDefinition]
+ * contains a sub-[RequirementDefinition] (decomposition).
+ *
+ * Semantics: the [parentRequirementId] requirement decomposes into
+ * sub-requirements; [childRequirementId] is one of them. Distinct from
+ * [ReqDerive]: containment is "is part of", derivation is "follows from".
+ *
+ * Edge id convention (set by the DSL):
+ * `contains:<parentRequirementId>::<childRequirementId>`.
+ */
+@Serializable
+data class ReqContains(
+    val id: String,
+    /** Id of the *parent* (containing) [RequirementDefinition]. */
+    val parentRequirementId: String,
+    /** Id of the *child* (contained) [RequirementDefinition]. */
+    val childRequirementId: String,
 )

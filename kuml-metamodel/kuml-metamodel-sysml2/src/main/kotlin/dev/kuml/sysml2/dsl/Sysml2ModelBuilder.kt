@@ -13,6 +13,12 @@ import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortUsage
+import dev.kuml.sysml2.ReqContains
+import dev.kuml.sysml2.ReqDerive
+import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.ReqSatisfy
+import dev.kuml.sysml2.ReqVerify
+import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
@@ -184,6 +190,47 @@ class Sysml2ModelBuilder(
     }
 
     /**
+     * `requirement def TopSpeedRequirement { … }` — V2.0.8 requirement-typed
+     * definition.
+     *
+     * Mirrors [partDef] and adds three V2.0.8-specific slots:
+     *  - [reqId] — optional human-readable id like `"R-001"`, used by the
+     *    SVG renderer to prefix the name as `"R-001 :: TopSpeedRequirement"`.
+     *  - [text] — the requirement statement in natural language, rendered
+     *    as a word-wrapped third compartment. Empty string ⇒ no text
+     *    compartment.
+     *  - [subject] — optional id of the element the requirement constrains
+     *    (carried through the metamodel for future automatic subject-edge
+     *    inference; V2.0.8 only stores it).
+     *
+     * Requirements are nodes in a [ReqDiagram] and the endpoints of
+     * [ReqSatisfy] / [ReqVerify] / [ReqDerive] / [ReqContains] edges.
+     */
+    fun requirementDef(
+        name: String,
+        id: String = name,
+        reqId: String = "",
+        text: String = "",
+        subject: String? = null,
+        isAbstract: Boolean = false,
+        block: DefinitionBuilder.() -> Unit = {},
+    ): RequirementDefinition {
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
+        val def =
+            RequirementDefinition(
+                id = id,
+                name = name,
+                isAbstract = isAbstract,
+                features = builder.features(),
+                text = text,
+                reqId = reqId,
+                subject = subject,
+            )
+        definitions += def
+        return def
+    }
+
+    /**
      * Register a typed [Sysml2Usage] so the model's `usages` list carries the
      * full typed view alongside the KerML `features`. V2.0.6 added this so the
      * IBD bridge can read `model.usages.filterIsInstance<ConnectionUsage>()`
@@ -261,6 +308,35 @@ class Sysml2ModelBuilder(
                 associations = builder.associations(),
                 includes = builder.includes(),
                 extends = builder.extends(),
+            )
+        diagrams += diagram
+        return diagram
+    }
+
+    /**
+     * `reqDiagram("Vehicle — top-level requirements") { … }` — V2.0.8
+     * Requirement Diagram.
+     *
+     * The block declares which requirements (and optionally satisfying parts /
+     * verifying use-cases) participate (`include(...)`) and the four
+     * traceability edges between them (`satisfy(...)`, `verify(...)`,
+     * `derive(...)`, `contains(...)`). IDs for edges are deterministic
+     * (`satisfy:<src>::<req>` etc.) so layout + serialisation + diff stay
+     * stable across runs.
+     */
+    fun reqDiagram(
+        name: String,
+        block: ReqDiagramBuilder.() -> Unit = {},
+    ): ReqDiagram {
+        val builder = ReqDiagramBuilder().apply(block)
+        val diagram =
+            ReqDiagram(
+                name = name,
+                elementIds = builder.ids(),
+                satisfies = builder.satisfies(),
+                verifies = builder.verifies(),
+                derives = builder.derives(),
+                contains = builder.containsList(),
             )
         diagrams += diagram
         return diagram
@@ -562,4 +638,155 @@ class UcDiagramBuilder internal constructor() {
     internal fun includes(): List<UcInclude> = includes.toList()
 
     internal fun extends(): List<UcExtend> = extends.toList()
+}
+
+/**
+ * Scope for `reqDiagram("…") { include(req); satisfy(part, req); verify(uc, req);
+ * derive(child, parent); contains(parent, child) }` — V2.0.8.
+ *
+ * Mirror of [UcDiagramBuilder] for the V2.0.8 Requirement Diagram. The block
+ * collects nodes (`include(...)` / `includeById(...)`) and the four edge
+ * kinds (`satisfy(...)` / `verify(...)` / `derive(...)` / `contains(...)`).
+ *
+ * Naming pitfall — the DSL surface exposes a method named `contains` for the
+ * `ReqContains` edge, which collides with Kotlin's `Collection.contains`. To
+ * keep the public surface natural (`contains(parent, child)`), the internal
+ * accessor that returns the collected `ReqContains` list is named
+ * [containsList] instead of `contains`.
+ *
+ * Edge id conventions:
+ *  - satisfy: `satisfy:<sourceId>::<requirementId>`
+ *  - verify:  `verify:<sourceId>::<requirementId>`
+ *  - derive:  `derive:<sourceRequirementId>::<targetRequirementId>`
+ *  - contains: `contains:<parentRequirementId>::<childRequirementId>`
+ */
+@Sysml2Dsl
+class ReqDiagramBuilder internal constructor() {
+    private val ids = mutableListOf<String>()
+    private val satisfies = mutableListOf<ReqSatisfy>()
+    private val verifies = mutableListOf<ReqVerify>()
+    private val derives = mutableListOf<ReqDerive>()
+    private val containsEdges = mutableListOf<ReqContains>()
+
+    /** Add a SysML 2 definition (requirement, part, use-case, actor) as a node. */
+    fun include(definition: Sysml2Definition) {
+        ids += definition.id
+    }
+
+    /** Add a node by raw id — forward refs / id-only setups. */
+    fun includeById(id: String) {
+        ids += id
+    }
+
+    /**
+     * Create a **satisfy** edge — [source] (Part / UseCase / Component)
+     * satisfies the [requirement]. Returns the [ReqSatisfy] so callers can
+     * hold on to it for further reference.
+     */
+    fun satisfy(
+        source: Sysml2Definition,
+        requirement: RequirementDefinition,
+    ): ReqSatisfy = satisfyById(source.id, requirement.id)
+
+    /** Id-only variant of [satisfy] — for forward refs. */
+    fun satisfyById(
+        sourceId: String,
+        requirementId: String,
+    ): ReqSatisfy {
+        val edge =
+            ReqSatisfy(
+                id = "satisfy:$sourceId::$requirementId",
+                sourceId = sourceId,
+                requirementId = requirementId,
+            )
+        satisfies += edge
+        return edge
+    }
+
+    /**
+     * Create a **verify** edge — [source] (TestCase / UseCase) verifies the
+     * [requirement].
+     */
+    fun verify(
+        source: Sysml2Definition,
+        requirement: RequirementDefinition,
+    ): ReqVerify = verifyById(source.id, requirement.id)
+
+    /** Id-only variant of [verify] — for forward refs. */
+    fun verifyById(
+        sourceId: String,
+        requirementId: String,
+    ): ReqVerify {
+        val edge =
+            ReqVerify(
+                id = "verify:$sourceId::$requirementId",
+                sourceId = sourceId,
+                requirementId = requirementId,
+            )
+        verifies += edge
+        return edge
+    }
+
+    /**
+     * Create a **derive** edge — the [source] requirement is derived from
+     * the [target] requirement (child ⟵ parent).
+     */
+    fun derive(
+        source: RequirementDefinition,
+        target: RequirementDefinition,
+    ): ReqDerive = deriveById(source.id, target.id)
+
+    /** Id-only variant of [derive] — for forward refs. */
+    fun deriveById(
+        sourceRequirementId: String,
+        targetRequirementId: String,
+    ): ReqDerive {
+        val edge =
+            ReqDerive(
+                id = "derive:$sourceRequirementId::$targetRequirementId",
+                sourceRequirementId = sourceRequirementId,
+                targetRequirementId = targetRequirementId,
+            )
+        derives += edge
+        return edge
+    }
+
+    /**
+     * Create a **contains** edge — the [parent] requirement contains the
+     * [child] requirement (decomposition).
+     */
+    fun contains(
+        parent: RequirementDefinition,
+        child: RequirementDefinition,
+    ): ReqContains = containsById(parent.id, child.id)
+
+    /** Id-only variant of [contains] — for forward refs. */
+    fun containsById(
+        parentRequirementId: String,
+        childRequirementId: String,
+    ): ReqContains {
+        val edge =
+            ReqContains(
+                id = "contains:$parentRequirementId::$childRequirementId",
+                parentRequirementId = parentRequirementId,
+                childRequirementId = childRequirementId,
+            )
+        containsEdges += edge
+        return edge
+    }
+
+    internal fun ids(): List<String> = ids.toList()
+
+    internal fun satisfies(): List<ReqSatisfy> = satisfies.toList()
+
+    internal fun verifies(): List<ReqVerify> = verifies.toList()
+
+    internal fun derives(): List<ReqDerive> = derives.toList()
+
+    /**
+     * Returns the collected [ReqContains] edges. Named [containsList] (not
+     * `contains`) to avoid colliding with both the public [contains] DSL
+     * method and Kotlin's `Collection.contains` extension at the call site.
+     */
+    internal fun containsList(): List<ReqContains> = containsEdges.toList()
 }

@@ -12,6 +12,9 @@ import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.PartDefinition
+import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
@@ -350,6 +353,68 @@ public object KumlSvgRenderer {
     public fun toSvgFile(
         model: Sysml2Model,
         diagram: UcDiagram,
+        layoutResult: LayoutResult,
+        out: Path,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): File {
+        val svg = toSvg(model, diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(svg, Charsets.UTF_8)
+        return file
+    }
+
+    /**
+     * Rendert ein SysML-2 REQ-Diagramm als SVG (V2.0.8).
+     *
+     * Wickelt das REQ in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * [RequirementDefinition]s, [PartDefinition]s, [UseCaseDefinition]s und
+     * [ActorDefinition]s als `elements`. Der [NodeRendererDispatcher] hat
+     * seit V2.0.8 einen Branch in
+     * [dev.kuml.io.svg.sysml2.renderSysml2Definition], der
+     * [RequirementDefinition] als dreikompartimentige `«requirement»`-Box
+     * rendert; Parts/UseCases/Actors behalten ihre BDD-/UC-Renderpfade.
+     *
+     * **Edge-Styling**: der V2.0.8-MVP rendert alle vier REQ-Edge-Kinds
+     * (Satisfy, Verify, Derive, Contains) als dieselbe einfache solide
+     * Linie. Die synthetische `KumlDiagram`-Hülle enthält keine
+     * `UmlRelationship`-Elemente für REQ-Edges, deshalb fällt der
+     * [EdgeRendererDispatcher] auf den Plain-Edge-Pfad zurück — das ist gut
+     * genug für die V2.0.8-Wave. Gestricheltes `«satisfy»` / `«verify»` /
+     * `«deriveReqt»`-Styling und Stereotyp-Labels sind V2.x-Polish (siehe
+     * [[kUML V2.0]]-Roadmap).
+     */
+    public fun toSvg(
+        model: Sysml2Model,
+        diagram: ReqDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements =
+            model.definitions
+                .filter { it.id in visible }
+                .filter {
+                    it is RequirementDefinition ||
+                        it is PartDefinition ||
+                        it is UseCaseDefinition ||
+                        it is ActorDefinition
+                }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
+            )
+        return toSvg(synthetic, layoutResult, theme, options)
+    }
+
+    /** [toSvg]-Variante für SysML 2 REQ-Diagramme, schreibt direkt auf Platte. */
+    public fun toSvgFile(
+        model: Sysml2Model,
+        diagram: ReqDiagram,
         layoutResult: LayoutResult,
         out: Path,
         theme: KumlTheme = PlainTheme(),

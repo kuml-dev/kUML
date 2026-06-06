@@ -189,3 +189,24 @@ data class ExtendUsage(
     val targetUseCaseId: String,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Usage
+
+/**
+ * `requirement topSpeed : TopSpeedRequirement` — V2.0.8 requirement-usage,
+ * typed by a [dev.kuml.sysml2.RequirementDefinition].
+ *
+ * Symmetric to [ActorUsage] / [UseCaseUsage]; the V2.0.8 MVP renders
+ * [RequirementDefinition]s directly and does not consume requirement-usages
+ * from the bridge. Lives in the metamodel for completeness so future
+ * polish waves (nested requirement-usages, requirement specialisation) have
+ * a clean attachment point. The SVG renderer falls back to the generic
+ * usage-box dispatch (with `«requirement»` stereotype).
+ */
+@Serializable
+data class RequirementUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String,
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage

@@ -11,6 +11,7 @@ import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
+import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.UseCaseDefinition
 
@@ -51,6 +52,12 @@ internal object Sysml2DefLatexRenderer {
                 // zur BDD/IBD-Geschichte).
                 is ActorDefinition -> "actor def"
                 is UseCaseDefinition -> "use case def"
+                // V2.0.8: REQ-Diagramm. V2.0.8-MVP rendert die Anforderung
+                // als Rechteck-mit-Label-Box mit `«requirement»`-Stereotyp;
+                // das dreikompartimentige TikZ-Pendant (Stereotyp + Name +
+                // wort-gewrappter Anforderungstext) landet in V2.x, analog zur
+                // BDD/IBD/UC-Geschichte.
+                is RequirementDefinition -> "requirement"
             }
         renderBox(definition, stereotype, nodeId, layout, options, out)
     }

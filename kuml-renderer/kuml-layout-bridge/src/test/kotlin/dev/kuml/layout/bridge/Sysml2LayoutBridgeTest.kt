@@ -5,6 +5,12 @@ import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PartDefinition
+import dev.kuml.sysml2.ReqContains
+import dev.kuml.sysml2.ReqDerive
+import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.ReqSatisfy
+import dev.kuml.sysml2.ReqVerify
+import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcAssociation
 import dev.kuml.sysml2.UcDiagram
@@ -405,6 +411,182 @@ class Sysml2LayoutBridgeTest :
             val graph = Sysml2LayoutBridge.toLayoutGraph(model, uc)
             graph.nodes shouldHaveSize 2
             graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder listOf("Reader", "BorrowBook")
+        }
+
+        // ── REQ Diagram (V2.0.8) ──────────────────────────────────────────────
+
+        "REQ with two requirements + one satisfy + one verify → nodes + 2 edges" {
+            val model =
+                sysml2Model("VehicleReqs") {
+                    val topSpeed = requirementDef("TopSpeed", reqId = "R-001", text = "≥180 km/h")
+                    requirementDef("Fuel", reqId = "R-003", text = "≤4 l/100km")
+                    val vehicle = partDef("Vehicle")
+                    val verifier = useCaseDef("VerifyTopSpeed")
+                    reqDiagram("REQ") {
+                        include(topSpeed)
+                        include(vehicle)
+                        include(verifier)
+                        satisfy(vehicle, topSpeed)
+                        verify(verifier, topSpeed)
+                    }
+                }
+            val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
+
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            graph.nodes shouldHaveSize 3
+            graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("TopSpeed", "Vehicle", "VerifyTopSpeed")
+            graph.edges shouldHaveSize 2
+            graph.edges.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("satisfy:Vehicle::TopSpeed", "verify:VerifyTopSpeed::TopSpeed")
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/req-satisfy-and-verify.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "REQ with derive between two requirements" {
+            val model =
+                sysml2Model("Derive") {
+                    val r1 = requirementDef("TopSpeed", reqId = "R-001")
+                    val r2 = requirementDef("Fuel", reqId = "R-003")
+                    reqDiagram("REQ") {
+                        include(r1)
+                        include(r2)
+                        derive(r1, r2)
+                    }
+                }
+            val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            graph.nodes shouldHaveSize 2
+            graph.edges shouldHaveSize 1
+            graph.edges
+                .single()
+                .id.value shouldBe "derive:TopSpeed::Fuel"
+            graph.edges
+                .single()
+                .source.nodeId.value shouldBe "TopSpeed"
+            graph.edges
+                .single()
+                .target.nodeId.value shouldBe "Fuel"
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/req-derive.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "REQ with contains between parent and child requirement" {
+            val model =
+                sysml2Model("Contains") {
+                    val parent = requirementDef("Emissions", reqId = "R-004")
+                    val child = requirementDef("NOx", reqId = "R-005")
+                    reqDiagram("REQ") {
+                        include(parent)
+                        include(child)
+                        contains(parent, child)
+                    }
+                }
+            val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            graph.nodes shouldHaveSize 2
+            graph.edges shouldHaveSize 1
+            graph.edges
+                .single()
+                .id.value shouldBe "contains:Emissions::NOx"
+            graph.edges
+                .single()
+                .source.nodeId.value shouldBe "Emissions"
+            graph.edges
+                .single()
+                .target.nodeId.value shouldBe "NOx"
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/req-contains.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "REQ drops dangling edges silently" {
+            // Edges to non-visible endpoints disappear; same skip-logic as BDD/IBD/UC.
+            val r1 = RequirementDefinition(id = "R1", name = "R1")
+            val ghost = RequirementDefinition(id = "Ghost", name = "Ghost")
+            val vehicle = PartDefinition(id = "Vehicle", name = "Vehicle")
+            val verifier = UseCaseDefinition(id = "Verifier", name = "Verifier")
+            val model = Sysml2Model(name = "Dangle", definitions = listOf(r1, ghost, vehicle, verifier))
+            val req =
+                ReqDiagram(
+                    name = "REQ",
+                    // ghost is NOT in elementIds → all edges referencing it dangle.
+                    elementIds = listOf("R1", "Vehicle", "Verifier"),
+                    satisfies =
+                        listOf(
+                            ReqSatisfy(id = "satisfy:Vehicle::R1", sourceId = "Vehicle", requirementId = "R1"),
+                            ReqSatisfy(id = "satisfy:Vehicle::Ghost", sourceId = "Vehicle", requirementId = "Ghost"),
+                        ),
+                    verifies =
+                        listOf(
+                            ReqVerify(id = "verify:Verifier::R1", sourceId = "Verifier", requirementId = "R1"),
+                            ReqVerify(id = "verify:Verifier::Ghost", sourceId = "Verifier", requirementId = "Ghost"),
+                        ),
+                    derives =
+                        listOf(
+                            ReqDerive(
+                                id = "derive:R1::Ghost",
+                                sourceRequirementId = "R1",
+                                targetRequirementId = "Ghost",
+                            ),
+                        ),
+                    contains =
+                        listOf(
+                            ReqContains(
+                                id = "contains:Ghost::R1",
+                                parentRequirementId = "Ghost",
+                                childRequirementId = "R1",
+                            ),
+                        ),
+                )
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            graph.nodes shouldHaveSize 3
+            // Only the two edges with both endpoints visible survive.
+            graph.edges shouldHaveSize 2
+            graph.edges.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("satisfy:Vehicle::R1", "verify:Verifier::R1")
+        }
+
+        "REQ missing definitions are skipped silently" {
+            val r1 = RequirementDefinition(id = "R1", name = "R1")
+            val model = Sysml2Model(name = "M", definitions = listOf(r1))
+            val req = ReqDiagram(name = "REQ", elementIds = listOf("R1", "NonExistent"))
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            graph.nodes shouldHaveSize 1
+            graph.nodes
+                .single()
+                .id.value shouldBe "R1"
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/req-missing-definition.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "REQ default size for RequirementDefinition matches REQ_DEFAULT_WIDTH × REQ_DEFAULT_HEIGHT" {
+            val model =
+                sysml2Model("Sizes") {
+                    val r = requirementDef("R1")
+                    reqDiagram("REQ") {
+                        include(r)
+                    }
+                }
+            val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            graph.nodes
+                .single()
+                .intrinsicSize.width shouldBe Sysml2LayoutBridge.REQ_DEFAULT_WIDTH
+            graph.nodes
+                .single()
+                .intrinsicSize.height shouldBe Sysml2LayoutBridge.REQ_DEFAULT_HEIGHT
         }
 
         "IBD default size matches IBD_DEFAULT_WIDTH × IBD_DEFAULT_HEIGHT" {

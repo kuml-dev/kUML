@@ -12,7 +12,10 @@ import dev.kuml.layout.NodeId
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
+import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
@@ -222,6 +225,46 @@ public object KumlLatexRenderer {
             model.definitions
                 .filter { it.id in visible }
                 .filter { it is ActorDefinition || it is UseCaseDefinition }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
+            )
+        return toLatex(synthetic, layoutResult, options)
+    }
+
+    /**
+     * Render a SysML 2 REQ-Diagram as TikZ source (V2.0.8).
+     *
+     * Wickelt das REQ in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * [RequirementDefinition]s plus optional projizierten Satisfier/Verifier-
+     * Nodes (Parts/UseCases/Actors). Im V2.0.8-MVP rendert
+     * `Sysml2DefLatexRenderer` Anforderungen als Rechteck mit
+     * `«requirement»`-Stereotyp-Header — das dreikompartimentige
+     * TikZ-Pendant (mit wort-gewrapptem Anforderungstext) ist V2.x-Polish,
+     * analog zur BDD/IBD/UC-Geschichte.
+     *
+     * Edge-Styling: alle vier REQ-Edge-Kinds (Satisfy, Verify, Derive,
+     * Contains) rendern als plain solide Linie (Default-Style des
+     * Edge-Renderers). Gestricheltes Styling + Stereotyp-Labels sind V2.x.
+     */
+    public fun toLatex(
+        model: Sysml2Model,
+        diagram: ReqDiagram,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements =
+            model.definitions
+                .filter { it.id in visible }
+                .filter {
+                    it is RequirementDefinition ||
+                        it is PartDefinition ||
+                        it is UseCaseDefinition ||
+                        it is ActorDefinition
+                }
         val synthetic =
             KumlDiagram(
                 name = diagram.name,

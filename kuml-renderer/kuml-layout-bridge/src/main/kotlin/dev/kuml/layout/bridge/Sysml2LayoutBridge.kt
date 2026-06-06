@@ -13,6 +13,8 @@ import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
+import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
@@ -123,6 +125,16 @@ public object Sysml2LayoutBridge {
      */
     public const val UC_USECASE_WIDTH: Float = 160f
     public const val UC_USECASE_HEIGHT: Float = 70f
+
+    /**
+     * Default-Größe für eine [RequirementDefinition]-Box in einem REQ-Diagramm
+     * (V2.0.8). Höher als die BDD-Default-Größe, weil die Box drei Kompartimente
+     * tragen muss (`«requirement»`-Stereotyp, Name + optionale `R-NNN ::`-
+     * Präfix, und das eigentliche Anforderungstext-Kompartment mit ein bis
+     * drei wortgewrappten Zeilen).
+     */
+    public const val REQ_DEFAULT_WIDTH: Float = 220f
+    public const val REQ_DEFAULT_HEIGHT: Float = 120f
 
     /** Diagnose-Helfer: extrahiert die in [diagram] referenzierten Definitionen aus [model]. */
     public fun resolveVisibleDefinitions(
@@ -319,6 +331,134 @@ public object Sysml2LayoutBridge {
 
         return LayoutGraph(nodes = nodes, edges = edges)
     }
+
+    /**
+     * Übersetzt das gegebene REQ-Diagramm (V2.0.8) in einen [LayoutGraph].
+     *
+     * MVP-Scope:
+     *  - Jede in [ReqDiagram.elementIds] referenzierte [RequirementDefinition]
+     *    (sowie ggf. mit-projizierte Parts / UseCases / Actors als Satisfier
+     *    / Verifier) wird ein [LayoutNode]. Andere Definition-Kinds (Attribute,
+     *    Port, Connection) sind im REQ-Diagramm konzeptionell nicht vorgesehen
+     *    und werden stillschweigend übersprungen — Konsistenzprüfung ist
+     *    Validator-Sache.
+     *  - Größen pro Kind via [sizeProvider]; Default nutzt [REQ_DEFAULT_WIDTH] ×
+     *    [REQ_DEFAULT_HEIGHT] für Requirements und die jeweiligen `UC_*` /
+     *    BDD-Default-Maße für Actors / UseCases / Parts.
+     *  - Die vier Edge-Listen ([ReqDiagram.satisfies], `verifies`, `derives`,
+     *    `contains`) werden zu [LayoutEdge]s. Endpunkte, die nicht beide auf
+     *    sichtbare Knoten zeigen, werden stillschweigend übersprungen —
+     *    gleiche Skip-Logik wie BDD/IBD/UC.
+     *
+     * Edge-Stilunterscheidung: alle vier Edge-Kinds tragen [EdgeHints.NONE]
+     * — der Renderer differenziert über das Edge-ID-Präfix (`satisfy:` /
+     * `verify:` / `derive:` / `contains:`). Im V2.0.8-MVP rendern alle vier
+     * optisch als dieselbe einfache Linie; gestricheltes
+     * `«satisfy»`/`«verify»`/`«deriveReqt»`-Styling und Stereotyp-Labels sind
+     * V2.x.
+     *
+     * @param model Container mit allen Definitionen.
+     * @param diagram Das REQ-Diagramm (`elementIds` selektiert die sichtbaren
+     *   Definitionen; die vier Edge-Listen liefern die Edges).
+     * @param sizeProvider Liefert die intrinsische Größe pro Definition. Default
+     *   nutzt die `REQ_*`/`UC_*`/BDD-Konstanten je nach Definition-Kind.
+     */
+    public fun toLayoutGraph(
+        model: Sysml2Model,
+        diagram: ReqDiagram,
+        sizeProvider: SizeProvider = reqDefaultSizeProvider(),
+    ): LayoutGraph {
+        val visibleIds: Set<String> = diagram.elementIds.toSet()
+
+        val nodes = mutableListOf<LayoutNode>()
+        for (id in diagram.elementIds) {
+            val def = model.definitions.firstOrNull { it.id == id } ?: continue
+            // REQ-Diagramme zeigen primär Requirements; daneben sind
+            // Parts/UseCases/Actors als Satisfier/Verifier-Endpunkte sinnvoll.
+            // Andere Definition-Kinds (Attribute, Port, Connection) werden
+            // stillschweigend übersprungen.
+            if (def !is RequirementDefinition &&
+                def !is PartDefinition &&
+                def !is UseCaseDefinition &&
+                def !is ActorDefinition
+            ) {
+                continue
+            }
+            val kind = def::class.simpleName ?: "Sysml2Definition"
+            nodes +=
+                LayoutNode(
+                    id = NodeId(def.id),
+                    intrinsicSize = sizeProvider.sizeOf(def.id, kind),
+                )
+        }
+        val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
+
+        val edges = mutableListOf<LayoutEdge>()
+
+        for (sat in diagram.satisfies) {
+            if (sat.sourceId !in visibleNodeIds || sat.requirementId !in visibleNodeIds) continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(sat.id),
+                    source = EndpointRef(nodeId = NodeId(sat.sourceId)),
+                    target = EndpointRef(nodeId = NodeId(sat.requirementId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        for (ver in diagram.verifies) {
+            if (ver.sourceId !in visibleNodeIds || ver.requirementId !in visibleNodeIds) continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(ver.id),
+                    source = EndpointRef(nodeId = NodeId(ver.sourceId)),
+                    target = EndpointRef(nodeId = NodeId(ver.requirementId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        for (der in diagram.derives) {
+            if (der.sourceRequirementId !in visibleNodeIds || der.targetRequirementId !in visibleNodeIds) continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(der.id),
+                    source = EndpointRef(nodeId = NodeId(der.sourceRequirementId)),
+                    target = EndpointRef(nodeId = NodeId(der.targetRequirementId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        for (con in diagram.contains) {
+            if (con.parentRequirementId !in visibleNodeIds || con.childRequirementId !in visibleNodeIds) continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(con.id),
+                    source = EndpointRef(nodeId = NodeId(con.parentRequirementId)),
+                    target = EndpointRef(nodeId = NodeId(con.childRequirementId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        return LayoutGraph(nodes = nodes, edges = edges)
+    }
+
+    /**
+     * Default-[SizeProvider] für REQ-Diagramme (V2.0.8) — gibt je nach
+     * `kindHint` (`"RequirementDefinition"` vs `"ActorDefinition"` vs
+     * `"UseCaseDefinition"` vs `"PartDefinition"`) die passenden Default-
+     * Maße zurück. Andere Kinds fallen auf [REQ_DEFAULT_WIDTH] ×
+     * [REQ_DEFAULT_HEIGHT] zurück.
+     */
+    public fun reqDefaultSizeProvider(): SizeProvider =
+        SizeProvider { _, kindHint ->
+            when (kindHint) {
+                "RequirementDefinition" -> dev.kuml.layout.Size(REQ_DEFAULT_WIDTH, REQ_DEFAULT_HEIGHT)
+                "ActorDefinition" -> dev.kuml.layout.Size(UC_ACTOR_WIDTH, UC_ACTOR_HEIGHT)
+                "UseCaseDefinition" -> dev.kuml.layout.Size(UC_USECASE_WIDTH, UC_USECASE_HEIGHT)
+                "PartDefinition" -> dev.kuml.layout.Size(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+                else -> dev.kuml.layout.Size(REQ_DEFAULT_WIDTH, REQ_DEFAULT_HEIGHT)
+            }
+        }
 
     /**
      * Default-[SizeProvider] für UC-Diagramme — gibt je nach `kindHint`

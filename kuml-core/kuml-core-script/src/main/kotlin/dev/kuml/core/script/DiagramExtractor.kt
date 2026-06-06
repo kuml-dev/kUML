@@ -5,6 +5,7 @@ import dev.kuml.c4.model.C4Model
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
@@ -169,6 +170,13 @@ object DiagramExtractor {
                 throw ScriptEvaluationException(
                     "Script '${input.name}' returned a bare UcDiagram. " +
                         "Wrap it inside `sysml2Model(\"…\") { ucDiagram(\"…\") { … } }` " +
+                        "so the renderer has access to the surrounding Sysml2Model.",
+                )
+            }
+            if (value is ReqDiagram) {
+                throw ScriptEvaluationException(
+                    "Script '${input.name}' returned a bare ReqDiagram. " +
+                        "Wrap it inside `sysml2Model(\"…\") { reqDiagram(\"…\") { … } }` " +
                         "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
