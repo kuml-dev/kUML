@@ -6,6 +6,7 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
@@ -180,6 +181,13 @@ object DiagramExtractor {
                         "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
+            if (value is StmDiagram) {
+                throw ScriptEvaluationException(
+                    "Script '${input.name}' returned a bare StmDiagram. " +
+                        "Wrap it inside `sysml2Model(\"…\") { stmDiagram(\"…\") { … } }` " +
+                        "so the renderer has access to the surrounding Sysml2Model.",
+                )
+            }
         }
 
         // Case 2: scan script instance for properties
@@ -240,7 +248,8 @@ object DiagramExtractor {
                 "End the script with a `classDiagram { … }` (UML), " +
                 "a `c4Model(name = \"…\") { systemContextDiagram(name = \"…\") { … } }` (C4), " +
                 "or a `sysml2Model(\"…\") { bdd(\"…\") { … } }` (SysML 2 BDD) / " +
-                "`sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` (SysML 2 IBD) expression.",
+                "`sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` (SysML 2 IBD) / " +
+                "`sysml2Model(\"…\") { stmDiagram(\"…\") { … } }` (SysML 2 STM) expression.",
         )
     }
 

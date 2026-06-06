@@ -16,6 +16,8 @@ import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
@@ -265,6 +267,41 @@ public object KumlLatexRenderer {
                         it is UseCaseDefinition ||
                         it is ActorDefinition
                 }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
+            )
+        return toLatex(synthetic, layoutResult, options)
+    }
+
+    /**
+     * Render a SysML 2 STM-Diagram as TikZ source (V2.0.9).
+     *
+     * Wickelt das STM in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * [StateDefinition]s als `elements`. Im V2.0.9-MVP rendert
+     * `Sysml2DefLatexRenderer` Zustände als Rechteck mit `«state»`-Header
+     * (bzw. `«initial pseudo-state»` / `«final pseudo-state»` für die
+     * Pseudo-State-Varianten) — das abgerundet-rechteckige TikZ-Pendant
+     * inklusive Action-Compartment landet in V2.x-Polish, analog zur
+     * BDD/IBD/UC/REQ-Geschichte im LaTeX-Renderer.
+     *
+     * Edge-Styling: Transitionen rendern als plain solide Linie (Default-Style
+     * des Edge-Renderers). Der `trigger [guard] / effect`-Label und
+     * gestricheltes Styling sind V2.x.
+     */
+    public fun toLatex(
+        model: Sysml2Model,
+        diagram: StmDiagram,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements =
+            model.definitions
+                .filter { it.id in visible }
+                .filter { it is StateDefinition }
         val synthetic =
             KumlDiagram(
                 name = diagram.name,

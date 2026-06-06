@@ -11,7 +11,10 @@ import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.ReqSatisfy
 import dev.kuml.sysml2.ReqVerify
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcAssociation
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UcExtend
@@ -587,6 +590,182 @@ class Sysml2LayoutBridgeTest :
             graph.nodes
                 .single()
                 .intrinsicSize.height shouldBe Sysml2LayoutBridge.REQ_DEFAULT_HEIGHT
+        }
+
+        // ── STM Diagram (V2.0.9) ──────────────────────────────────────────────
+
+        "STM with three states + two transitions → 3 nodes + 2 edges" {
+            val model =
+                sysml2Model("Lights") {
+                    val red = stateDef("Red")
+                    val green = stateDef("Green")
+                    val yellow = stateDef("Yellow")
+                    transition("redToGreen", red, green, trigger = "timer60s")
+                    transition("greenToYellow", green, yellow, trigger = "timer45s")
+                    stmDiagram("Phase cycle") {
+                        include(red)
+                        include(green)
+                        include(yellow)
+                    }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            graph.nodes shouldHaveSize 3
+            graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("Red", "Green", "Yellow")
+            graph.edges shouldHaveSize 2
+            graph.edges.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("transition:Red::Green", "transition:Green::Yellow")
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/stm-three-states-two-transitions.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "STM initial and final pseudo-states are sized as pseudo (24×24)" {
+            val model =
+                sysml2Model("PseudoSizes") {
+                    val initial = stateDef("Initial", isInitial = true)
+                    val red = stateDef("Red")
+                    val final = stateDef("Final", isFinal = true)
+                    transition("initial", initial, red)
+                    transition("end", red, final)
+                    stmDiagram("STM") {
+                        include(initial)
+                        include(red)
+                        include(final)
+                    }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+
+            val initialNode = graph.nodes.single { it.id.value == "Initial" }
+            val finalNode = graph.nodes.single { it.id.value == "Final" }
+            val redNode = graph.nodes.single { it.id.value == "Red" }
+            initialNode.intrinsicSize.width shouldBe Sysml2LayoutBridge.STM_PSEUDO_SIZE
+            initialNode.intrinsicSize.height shouldBe Sysml2LayoutBridge.STM_PSEUDO_SIZE
+            finalNode.intrinsicSize.width shouldBe Sysml2LayoutBridge.STM_PSEUDO_SIZE
+            finalNode.intrinsicSize.height shouldBe Sysml2LayoutBridge.STM_PSEUDO_SIZE
+            redNode.intrinsicSize.width shouldBe Sysml2LayoutBridge.STM_STATE_WIDTH
+            redNode.intrinsicSize.height shouldBe Sysml2LayoutBridge.STM_STATE_HEIGHT
+        }
+
+        "STM drops transitions to dangling states silently" {
+            // Same skip-logic as BDD/IBD/UC/REQ: validator flags dangling refs,
+            // bridge stays render-friendly.
+            val red = StateDefinition(id = "Red", name = "Red")
+            val green = StateDefinition(id = "Green", name = "Green")
+            val ghost = StateDefinition(id = "Ghost", name = "Ghost")
+            val model =
+                Sysml2Model(
+                    name = "Dangle",
+                    definitions = listOf(red, green, ghost),
+                    usages =
+                        listOf(
+                            TransitionUsage(
+                                id = "transition:Red::Green",
+                                name = "redToGreen",
+                                sourceStateId = "Red",
+                                targetStateId = "Green",
+                            ),
+                            TransitionUsage(
+                                id = "transition:Green::Ghost",
+                                name = "greenToGhost",
+                                sourceStateId = "Green",
+                                targetStateId = "Ghost",
+                            ),
+                            TransitionUsage(
+                                id = "transition:Ghost::Red",
+                                name = "ghostToRed",
+                                sourceStateId = "Ghost",
+                                targetStateId = "Red",
+                            ),
+                        ),
+                )
+            // Ghost NOT in elementIds → both edges referencing it dangle.
+            val stm = StmDiagram(name = "STM", elementIds = listOf("Red", "Green"))
+
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            graph.nodes shouldHaveSize 2
+            graph.edges shouldHaveSize 1
+            graph.edges
+                .single()
+                .id.value shouldBe "transition:Red::Green"
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/stm-dangling-transitions.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "STM missing definitions are skipped silently" {
+            val red = StateDefinition(id = "Red", name = "Red")
+            val model = Sysml2Model(name = "M", definitions = listOf(red))
+            val stm = StmDiagram(name = "STM", elementIds = listOf("Red", "NonExistent"))
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            graph.nodes shouldHaveSize 1
+            graph.nodes
+                .single()
+                .id.value shouldBe "Red"
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/stm-missing-definition.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "STM transitions retain trigger/guard/effect via model.usages lookup" {
+            // Bridge doesn't strip transition metadata — the SVG/LaTeX
+            // renderer can still find it via the model.usages list (it lives
+            // there, not on the diagram). Asserts that we kept the original
+            // usage in model.usages after the bridge has built the layout
+            // graph; the trigger label V2.x renderer will use this.
+            val model =
+                sysml2Model("Labels") {
+                    val red = stateDef("Red")
+                    val green = stateDef("Green")
+                    transition(
+                        name = "redToGreen",
+                        source = red,
+                        target = green,
+                        trigger = "timer60s",
+                        guard = "!emergency",
+                        effect = "switchLights('green')",
+                    )
+                    stmDiagram("STM") {
+                        include(red)
+                        include(green)
+                    }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            graph.edges shouldHaveSize 1
+            graph.edges
+                .single()
+                .id.value shouldBe "transition:Red::Green"
+
+            // The trigger/guard/effect survive on the usage in the model — the
+            // bridge does not strip them; renderers (V2.x label polish) can
+            // recover them via the lookup below.
+            val t = model.usages.filterIsInstance<TransitionUsage>().single()
+            t.trigger shouldBe "timer60s"
+            t.guard shouldBe "!emergency"
+            t.effect shouldBe "switchLights('green')"
+        }
+
+        "STM skips non-State definitions in elementIds silently (e.g. PartDefinition)" {
+            val red = StateDefinition(id = "Red", name = "Red")
+            val vehicle = PartDefinition(id = "Vehicle", name = "Vehicle")
+            val model = Sysml2Model(name = "M", definitions = listOf(red, vehicle))
+            val stm = StmDiagram(name = "STM", elementIds = listOf("Red", "Vehicle"))
+
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            graph.nodes shouldHaveSize 1
+            graph.nodes
+                .single()
+                .id.value shouldBe "Red"
         }
 
         "IBD default size matches IBD_DEFAULT_WIDTH × IBD_DEFAULT_HEIGHT" {

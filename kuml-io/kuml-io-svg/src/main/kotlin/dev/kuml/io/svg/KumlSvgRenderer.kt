@@ -15,6 +15,8 @@ import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
@@ -415,6 +417,62 @@ public object KumlSvgRenderer {
     public fun toSvgFile(
         model: Sysml2Model,
         diagram: ReqDiagram,
+        layoutResult: LayoutResult,
+        out: Path,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): File {
+        val svg = toSvg(model, diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(svg, Charsets.UTF_8)
+        return file
+    }
+
+    /**
+     * Rendert ein SysML-2 STM-Diagramm als SVG (V2.0.9).
+     *
+     * Wickelt das STM in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * [StateDefinition]s als `elements`. Der [NodeRendererDispatcher] hat
+     * seit V2.0.9 einen Branch in
+     * [dev.kuml.io.svg.sysml2.renderSysml2Definition], der
+     * [StateDefinition] je nach `isInitial`/`isFinal`-Flags als gefüllten
+     * Kreis (Initial), Donut (Final) oder abgerundetes Rechteck (regulär,
+     * mit optionalen `entry/exit/do`-Action-Zeilen) rendert.
+     *
+     * **Edge-Styling**: der V2.0.9-MVP rendert Transitionen als dieselbe
+     * einfache solide Linie. Die synthetische `KumlDiagram`-Hülle enthält
+     * keine `UmlRelationship`-Elemente für TransitionUsages, deshalb fällt
+     * der [EdgeRendererDispatcher] auf den Plain-Edge-Pfad zurück — das ist
+     * gut genug für die V2.0.9-Wave. Der `trigger [guard] / effect`-Label
+     * und gestricheltes Styling sind V2.x-Polish (siehe
+     * [[kUML V2.0]]-Roadmap).
+     */
+    public fun toSvg(
+        model: Sysml2Model,
+        diagram: StmDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements =
+            model.definitions
+                .filter { it.id in visible }
+                .filter { it is StateDefinition }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
+            )
+        return toSvg(synthetic, layoutResult, theme, options)
+    }
+
+    /** [toSvg]-Variante für SysML 2 STM-Diagramme, schreibt direkt auf Platte. */
+    public fun toSvgFile(
+        model: Sysml2Model,
+        diagram: StmDiagram,
         layoutResult: LayoutResult,
         out: Path,
         theme: KumlTheme = PlainTheme(),

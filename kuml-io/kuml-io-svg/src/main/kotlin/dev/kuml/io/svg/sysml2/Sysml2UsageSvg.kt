@@ -13,7 +13,9 @@ import dev.kuml.sysml2.IncludeUsage
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.RequirementUsage
+import dev.kuml.sysml2.StateUsage
 import dev.kuml.sysml2.Sysml2Usage
+import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UseCaseUsage
 
 /**
@@ -69,6 +71,13 @@ internal fun renderSysml2Usage(
         // Branch, damit ein direkter Aufruf — z. B. aus einem Test — nicht
         // in den UML-Fallback rutscht.
         is RequirementUsage -> renderUsageBox(element, layout, builder, stereotype = "requirement")
+        // V2.0.9: STM-Usage-Kinds. Die Bridge zeigt im V2.0.9-MVP keine
+        // StateUsages/TransitionUsages auf der Node-Ebene (STM-Diagramme
+        // rendern StateDefinitions direkt; Transitionen werden Edges, keine
+        // Knoten), aber der Dispatcher braucht Branches, damit ein direkter
+        // Aufruf nicht in den UML-Fallback rutscht.
+        is StateUsage -> renderUsageBox(element, layout, builder, stereotype = "state")
+        is TransitionUsage -> renderUsageBox(element, layout, builder, stereotype = "transition")
     }
 }
 

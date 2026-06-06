@@ -19,10 +19,13 @@ import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.ReqSatisfy
 import dev.kuml.sysml2.ReqVerify
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.Sysml2Usage
+import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcAssociation
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UcExtend
@@ -231,6 +234,114 @@ class Sysml2ModelBuilder(
     }
 
     /**
+     * `state def Red { … }` — V2.0.9 state-typed definition.
+     *
+     * Mirrors [partDef] and adds three V2.0.9-specific slots ([entryAction],
+     * [exitAction], [doAction]) plus the two pseudo-state markers
+     * ([isInitial], [isFinal]). Regular states use the defaults of both
+     * markers (`false`); the initial pseudo-state sets `isInitial = true`
+     * and the final pseudo-state sets `isFinal = true`.
+     *
+     * States are nodes in an [StmDiagram]; transitions between them are
+     * captured separately via [transition] / [transitionById] which register
+     * a [TransitionUsage] on the model's `usages` list.
+     */
+    fun stateDef(
+        name: String,
+        id: String = name,
+        isInitial: Boolean = false,
+        isFinal: Boolean = false,
+        entryAction: String? = null,
+        exitAction: String? = null,
+        doAction: String? = null,
+        isAbstract: Boolean = false,
+        block: DefinitionBuilder.() -> Unit = {},
+    ): StateDefinition {
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
+        val def =
+            StateDefinition(
+                id = id,
+                name = name,
+                isAbstract = isAbstract,
+                features = builder.features(),
+                isInitial = isInitial,
+                isFinal = isFinal,
+                entryAction = entryAction,
+                exitAction = exitAction,
+                doAction = doAction,
+            )
+        definitions += def
+        return def
+    }
+
+    /**
+     * `transition Off → Red trigger 'powerOn'` — V2.0.9 transition-usage
+     * between two [StateDefinition]s (or pseudo-states).
+     *
+     * Registers the resulting [TransitionUsage] in [Sysml2Model.usages] (via
+     * [registerUsage] — the V2.0.6 architecture-bonus). The bridge picks
+     * transitions back up from `model.usages` when projecting an
+     * [StmDiagram], so the surface does not need to declare them on the
+     * diagram itself — see [StmDiagram] KDoc for the rationale.
+     *
+     * Default [id] convention: `transition:<source>::<target>` —
+     * deterministic, readable, collision-free for unique state-pairs.
+     * Callers can override the id when two distinct transitions connect the
+     * same pair (e.g. `transition:Red::Green:timer` vs
+     * `transition:Red::Green:emergency`).
+     */
+    fun transition(
+        name: String,
+        source: StateDefinition,
+        target: StateDefinition,
+        trigger: String? = null,
+        guard: String? = null,
+        effect: String? = null,
+        id: String = "transition:${source.id}::${target.id}",
+    ): TransitionUsage =
+        transitionById(
+            name = name,
+            sourceStateId = source.id,
+            targetStateId = target.id,
+            trigger = trigger,
+            guard = guard,
+            effect = effect,
+            id = id,
+        )
+
+    /**
+     * Id-only variant of [transition] — for forward refs / id-only setups.
+     *
+     * Useful when a transition needs to be wired between two states whose
+     * `StateDefinition` references are not yet in scope (e.g. when reading
+     * the state graph from an external source and replaying it through the
+     * builder).
+     */
+    fun transitionById(
+        name: String,
+        sourceStateId: String,
+        targetStateId: String,
+        trigger: String? = null,
+        guard: String? = null,
+        effect: String? = null,
+        id: String = "transition:$sourceStateId::$targetStateId",
+    ): TransitionUsage {
+        val usage =
+            TransitionUsage(
+                id = id,
+                name = name,
+                qualifiedName = name,
+                sourceStateId = sourceStateId,
+                targetStateId = targetStateId,
+                trigger = trigger,
+                guard = guard,
+                effect = effect,
+            )
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
      * Register a typed [Sysml2Usage] so the model's `usages` list carries the
      * full typed view alongside the KerML `features`. V2.0.6 added this so the
      * IBD bridge can read `model.usages.filterIsInstance<ConnectionUsage>()`
@@ -338,6 +449,29 @@ class Sysml2ModelBuilder(
                 derives = builder.derives(),
                 contains = builder.containsList(),
             )
+        diagrams += diagram
+        return diagram
+    }
+
+    /**
+     * `stmDiagram("Traffic light — phase cycle") { … }` — V2.0.9 State
+     * Transition Diagram.
+     *
+     * The block declares which [StateDefinition]s (initial / final pseudo-
+     * states + regular states) participate (`include(...)` /
+     * `includeById(...)`). Transitions are *not* declared on the diagram —
+     * they live on the model via [transition] / [transitionById] and the
+     * bridge auto-includes them when both endpoints are visible. See
+     * [StmDiagram] KDoc for why STM follows the BDD/IBD "transitions live on
+     * the model" pattern rather than the UC/REQ "edges live on the diagram"
+     * pattern.
+     */
+    fun stmDiagram(
+        name: String,
+        block: StmDiagramBuilder.() -> Unit = {},
+    ): StmDiagram {
+        val builder = StmDiagramBuilder().apply(block)
+        val diagram = StmDiagram(name = name, elementIds = builder.ids())
         diagrams += diagram
         return diagram
     }
@@ -789,4 +923,31 @@ class ReqDiagramBuilder internal constructor() {
      * method and Kotlin's `Collection.contains` extension at the call site.
      */
     internal fun containsList(): List<ReqContains> = containsEdges.toList()
+}
+
+/**
+ * Scope for `stmDiagram("…") { include(red); include(green); include(yellow) }`
+ * — V2.0.9 State Transition Diagram.
+ *
+ * Mirrors [BdDiagramBuilder] (selects nodes only — no edges on the diagram).
+ * Transitions are auto-included by the bridge from `Sysml2Model.usages`
+ * whenever both endpoint state-ids are in this builder's [ids] list. See
+ * [StmDiagram] KDoc for the rationale (transitions ARE the model, not a
+ * diagram-only assertion).
+ */
+@Sysml2Dsl
+class StmDiagramBuilder internal constructor() {
+    private val ids = mutableListOf<String>()
+
+    /** Add a [StateDefinition] (regular state or pseudo-state) as a node. */
+    fun include(state: StateDefinition) {
+        ids += state.id
+    }
+
+    /** Add a state by raw id — forward refs / id-only setups. */
+    fun includeById(id: String) {
+        ids += id
+    }
+
+    internal fun ids(): List<String> = ids.toList()
 }

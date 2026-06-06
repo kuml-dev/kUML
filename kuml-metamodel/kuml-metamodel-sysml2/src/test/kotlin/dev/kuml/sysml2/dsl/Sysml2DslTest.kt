@@ -13,6 +13,9 @@ import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StmDiagram
+import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.units.kW
@@ -605,6 +608,119 @@ class Sysml2DslTest :
             req.contains
                 .single()
                 .id shouldBe "contains:Emissions::NOx"
+        }
+
+        // ── STM Diagram (V2.0.9) ──────────────────────────────────────────────
+
+        "stateDef stores isInitial/isFinal/entry/exit/do action fields" {
+            val model =
+                sysml2Model("StateFields") {
+                    stateDef("Initial", isInitial = true)
+                    stateDef("Final", isFinal = true)
+                    stateDef(
+                        "Red",
+                        entryAction = "switchLights('red')",
+                        exitAction = "logTransition('red')",
+                        doAction = "tickTimer()",
+                    )
+                }
+            val states = model.definitions.filterIsInstance<StateDefinition>()
+            states shouldHaveSize 3
+
+            val initial = states.single { it.name == "Initial" }
+            initial.isInitial shouldBe true
+            initial.isFinal shouldBe false
+
+            val final = states.single { it.name == "Final" }
+            final.isFinal shouldBe true
+            final.isInitial shouldBe false
+
+            val red = states.single { it.name == "Red" }
+            red.entryAction shouldBe "switchLights('red')"
+            red.exitAction shouldBe "logTransition('red')"
+            red.doAction shouldBe "tickTimer()"
+            red.isInitial shouldBe false
+            red.isFinal shouldBe false
+        }
+
+        "transition registers a TransitionUsage in model.usages with source/target/trigger/guard/effect" {
+            val model =
+                sysml2Model("Lights") {
+                    val red = stateDef("Red")
+                    val green = stateDef("Green")
+                    transition(
+                        name = "redToGreen",
+                        source = red,
+                        target = green,
+                        trigger = "timer60s",
+                        guard = "!emergency",
+                        effect = "switchLights('green')",
+                    )
+                }
+            val transitions = model.usages.filterIsInstance<TransitionUsage>()
+            transitions shouldHaveSize 1
+            val t = transitions.single()
+            t.name shouldBe "redToGreen"
+            t.sourceStateId shouldBe "Red"
+            t.targetStateId shouldBe "Green"
+            t.trigger shouldBe "timer60s"
+            t.guard shouldBe "!emergency"
+            t.effect shouldBe "switchLights('green')"
+            // Default id convention: `transition:<source>::<target>`.
+            t.id shouldBe "transition:Red::Green"
+        }
+
+        "stmDiagram captures state ids in declaration order" {
+            val model =
+                sysml2Model("TrafficLights") {
+                    val initial = stateDef("Initial", isInitial = true)
+                    val red = stateDef("Red")
+                    val green = stateDef("Green")
+                    val yellow = stateDef("Yellow")
+                    transition("initial", initial, red)
+                    transition("redToGreen", red, green, trigger = "timer60s")
+                    transition("greenToYellow", green, yellow, trigger = "timer45s")
+                    transition("yellowToRed", yellow, red, trigger = "timer5s")
+                    stmDiagram("Phase cycle") {
+                        include(initial)
+                        include(red)
+                        include(green)
+                        include(yellow)
+                    }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            stm.name shouldBe "Phase cycle"
+            stm.elementIds shouldBe listOf("Initial", "Red", "Green", "Yellow")
+            // Transitions remain on the model.usages (not on the diagram).
+            model.usages.filterIsInstance<TransitionUsage>() shouldHaveSize 4
+        }
+
+        "transition forward-ref via transitionById accepts id-only endpoints" {
+            // Useful when replaying a state machine from an external source where
+            // the StateDefinition references are not yet in scope.
+            val model =
+                sysml2Model("ForwardRefSTM") {
+                    stateDef("Red")
+                    stateDef("Green")
+                    transitionById(
+                        name = "redToGreen",
+                        sourceStateId = "Red",
+                        targetStateId = "Green",
+                        trigger = "timer60s",
+                    )
+                    stmDiagram("STM") {
+                        includeById("Red")
+                        includeById("Green")
+                    }
+                }
+            val t = model.usages.filterIsInstance<TransitionUsage>().single()
+            t.id shouldBe "transition:Red::Green"
+            t.sourceStateId shouldBe "Red"
+            t.targetStateId shouldBe "Green"
+            t.trigger shouldBe "timer60s"
+
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            stm.elementIds shouldBe listOf("Red", "Green")
         }
 
         "DSL is sysml2Dsl-scoped — inner scopes can't reach outer builders accidentally" {

@@ -15,8 +15,11 @@ import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.StateDefinition
+import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
 
@@ -135,6 +138,25 @@ public object Sysml2LayoutBridge {
      */
     public const val REQ_DEFAULT_WIDTH: Float = 220f
     public const val REQ_DEFAULT_HEIGHT: Float = 120f
+
+    /**
+     * Default-Größe für eine reguläre [StateDefinition]-Box in einem
+     * STM-Diagramm (V2.0.9). Spiegelt die IBD-Box-Größe — auch die STM-Box
+     * trägt nur Name + optional ein, zwei Action-Zeilen, mehr Platz braucht
+     * sie nicht. Composite-States (V2.x) werden eine größere Box brauchen,
+     * weil sie geschachtelte STM-Diagramme enthalten.
+     */
+    public const val STM_STATE_WIDTH: Float = 180f
+    public const val STM_STATE_HEIGHT: Float = 80f
+
+    /**
+     * Default-Größe für eine Pseudo-State-Bounding-Box in einem STM-Diagramm
+     * (V2.0.9) — gilt sowohl für Initial (gefüllter Kreis) als auch für Final
+     * (Donut). Klein gehalten, damit Pseudo-States visuell als Marker und
+     * nicht als reguläre Zustände wahrgenommen werden. Der Renderer zeichnet
+     * den Kreis bzw. Donut innerhalb dieser quadratischen Bounds zentriert.
+     */
+    public const val STM_PSEUDO_SIZE: Float = 24f
 
     /** Diagnose-Helfer: extrahiert die in [diagram] referenzierten Definitionen aus [model]. */
     public fun resolveVisibleDefinitions(
@@ -441,6 +463,111 @@ public object Sysml2LayoutBridge {
 
         return LayoutGraph(nodes = nodes, edges = edges)
     }
+
+    /**
+     * Übersetzt das gegebene STM-Diagramm (V2.0.9) in einen [LayoutGraph].
+     *
+     * MVP-Scope:
+     *  - Jede in [StmDiagram.elementIds] referenzierte [StateDefinition]
+     *    (reguläre Zustände + Pseudo-States) wird ein [LayoutNode]. Andere
+     *    Definition-Kinds (Part, Attribute, Port, Connection, Actor, …) sind
+     *    im STM-Diagramm konzeptionell nicht vorgesehen und werden
+     *    stillschweigend übersprungen — Konsistenzprüfung ist Validator-Sache.
+     *  - Größen pro State-Kind via [sizeProvider]; Default nutzt
+     *    [STM_PSEUDO_SIZE] × [STM_PSEUDO_SIZE] für Pseudo-States (Initial /
+     *    Final) und [STM_STATE_WIDTH] × [STM_STATE_HEIGHT] für reguläre
+     *    Zustände.
+     *  - Transitionen werden aus `model.usages.filterIsInstance<TransitionUsage>()`
+     *    gezogen — nicht aus dem Diagramm. Eine Transition wird genau dann
+     *    zur [LayoutEdge], wenn beide Endpunkte
+     *    ([TransitionUsage.sourceStateId] + `targetStateId`) im sichtbaren
+     *    Knoten-Set liegen. Dangling-Transitionen werden stillschweigend
+     *    übersprungen.
+     *
+     * **Architektur-Begründung** für "Transitionen leben auf dem Modell, nicht
+     * auf dem Diagramm" (anders als V2.0.7-UC / V2.0.8-REQ): Transitionen
+     * sind ein integraler Teil der State-Machine-Semantik (die zukünftige
+     * Behaviour-Runtime-Welle braucht sie zur Laufzeit), während UC-/REQ-Edges
+     * reine Diagramm-Aussagen sind. Das STM-Diagramm ist eine *Projektion*
+     * der Knoten; die Edges entstehen automatisch aus dem Modell.
+     *
+     * Edge-Stilunterscheidung: alle Transitionen tragen [EdgeHints.NONE] —
+     * der `trigger [guard] / effect`-Label ist V2.x-Polish (kein Konsument
+     * im V2.0.9-MVP, weil die synthetische `KumlDiagram`-Hülle keine
+     * `UmlRelationship`-Elemente für TransitionUsages hat — gleiche
+     * Limitation wie UC / REQ).
+     *
+     * @param model Container mit allen Definitionen + Usages
+     *   (Transitionen werden aus `model.usages` gelesen).
+     * @param diagram Das STM-Diagramm (`elementIds` selektiert die sichtbaren
+     *   Zustände; Transitionen kommen vom Modell).
+     * @param sizeProvider Liefert die intrinsische Größe pro State. Default
+     *   nutzt die `STM_*`-Konstanten je nach State-Kind (Pseudo vs. regulär).
+     */
+    public fun toLayoutGraph(
+        model: Sysml2Model,
+        diagram: StmDiagram,
+        sizeProvider: SizeProvider = stmDefaultSizeProvider(),
+    ): LayoutGraph {
+        val nodes = mutableListOf<LayoutNode>()
+        for (id in diagram.elementIds) {
+            val def = model.definitions.firstOrNull { it.id == id } ?: continue
+            // STM-Diagramme zeigen nur StateDefinitions; alles andere
+            // ist konzeptionell nicht vorgesehen und wird ignoriert.
+            if (def !is StateDefinition) continue
+            val kindHint =
+                when {
+                    def.isInitial -> "InitialPseudoState"
+                    def.isFinal -> "FinalPseudoState"
+                    else -> "StateDefinition"
+                }
+            nodes +=
+                LayoutNode(
+                    id = NodeId(def.id),
+                    intrinsicSize = sizeProvider.sizeOf(def.id, kindHint),
+                )
+        }
+        val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
+
+        // Transitions aus dem Modell ziehen (nicht aus dem Diagramm) — siehe
+        // KDoc-Begründung oben. Eine Transition wird zur Edge, wenn beide
+        // Endpunkte sichtbar sind; sonst stillschweigend übersprungen.
+        val edges = mutableListOf<LayoutEdge>()
+        for (transition in model.usages.filterIsInstance<TransitionUsage>()) {
+            if (transition.sourceStateId !in visibleNodeIds ||
+                transition.targetStateId !in visibleNodeIds
+            ) {
+                continue
+            }
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(transition.id),
+                    source = EndpointRef(nodeId = NodeId(transition.sourceStateId)),
+                    target = EndpointRef(nodeId = NodeId(transition.targetStateId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        return LayoutGraph(nodes = nodes, edges = edges)
+    }
+
+    /**
+     * Default-[SizeProvider] für STM-Diagramme (V2.0.9) — gibt je nach
+     * `kindHint` (`"InitialPseudoState"` / `"FinalPseudoState"` /
+     * `"StateDefinition"`) die passenden Default-Maße zurück. Pseudo-States
+     * sind quadratisch ([STM_PSEUDO_SIZE]) damit der Renderer den Kreis bzw.
+     * Donut bequem zentrieren kann; reguläre Zustände nutzen die
+     * BDD-ähnlichen Box-Maße ([STM_STATE_WIDTH] × [STM_STATE_HEIGHT]).
+     */
+    public fun stmDefaultSizeProvider(): SizeProvider =
+        SizeProvider { _, kindHint ->
+            when (kindHint) {
+                "InitialPseudoState", "FinalPseudoState" ->
+                    dev.kuml.layout.Size(STM_PSEUDO_SIZE, STM_PSEUDO_SIZE)
+                "StateDefinition" -> dev.kuml.layout.Size(STM_STATE_WIDTH, STM_STATE_HEIGHT)
+                else -> dev.kuml.layout.Size(STM_STATE_WIDTH, STM_STATE_HEIGHT)
+            }
+        }
 
     /**
      * Default-[SizeProvider] für REQ-Diagramme (V2.0.8) — gibt je nach

@@ -12,6 +12,7 @@ import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.UseCaseDefinition
 
@@ -58,6 +59,19 @@ internal object Sysml2DefLatexRenderer {
                 // wort-gewrappter Anforderungstext) landet in V2.x, analog zur
                 // BDD/IBD/UC-Geschichte.
                 is RequirementDefinition -> "requirement"
+                // V2.0.9: STM-Diagramm. V2.0.9-MVP rendert StateDefinitions
+                // als Rechteck mit `«state»`-Stereotyp — abgerundete Ecken
+                // und Pseudo-State-Markierungen (Initial-Kreis / Final-Donut)
+                // im TikZ-Pendant sind V2.x-Polish, analog zur
+                // BDD/IBD/UC/REQ-Geschichte. Der Stereotyp-String
+                // unterscheidet sich je nach State-Kind, damit der visuelle
+                // Hinweis im Fallback erhalten bleibt.
+                is StateDefinition ->
+                    when {
+                        definition.isInitial -> "initial pseudo-state"
+                        definition.isFinal -> "final pseudo-state"
+                        else -> "state"
+                    }
             }
         renderBox(definition, stereotype, nodeId, layout, options, out)
     }

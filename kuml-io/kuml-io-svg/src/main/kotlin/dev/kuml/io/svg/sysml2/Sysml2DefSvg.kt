@@ -12,6 +12,7 @@ import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.UseCaseDefinition
 
@@ -54,6 +55,9 @@ internal fun renderSysml2Definition(
         // `«requirement»`-Stereotyp, optional `R-NNN ::`-prefixiertem Namen,
         // und wort-gewrapptem Anforderungstext.
         is RequirementDefinition -> renderSysml2Requirement(element, layout, theme, builder)
+        // V2.0.9: STM-Diagramm — abgerundeter Zustand (oder Initial/Final
+        // Pseudo-State als Kreis/Donut).
+        is StateDefinition -> renderStateDefinition(element, layout, theme, builder)
     }
 }
 

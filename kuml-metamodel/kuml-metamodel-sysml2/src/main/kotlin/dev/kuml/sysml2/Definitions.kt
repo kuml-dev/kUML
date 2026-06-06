@@ -186,3 +186,70 @@ data class RequirementDefinition(
     val subject: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Definition
+
+/**
+ * `StateDefinition` — V2.0.9 entry for the SysML 2 State Transition Diagram.
+ *
+ * Represents a *state* of the system under modelling: a discrete situation
+ * in which the system rests until a [dev.kuml.sysml2.TransitionUsage] fires.
+ * Maps to SysML 2's `state def`/`state` keywords. Three flavours are encoded
+ * by the two boolean pseudo-state markers ([isInitial], [isFinal]) plus the
+ * "regular state" default (both `false`):
+ *
+ *  - **Initial pseudo-state** (`isInitial = true`) — rendered as a small
+ *    filled circle. There is exactly one per state machine in the MVP (the
+ *    enforcement is a validator concern; the metamodel allows multiple).
+ *  - **Final pseudo-state** (`isFinal = true`) — rendered as a "donut" (an
+ *    outer circle with an inner filled circle).
+ *  - **Regular state** (both flags `false`) — rendered as a rounded-rect with
+ *    the name centred at top and optional `entry / exit / do` action lines
+ *    below a divider.
+ *
+ * Carries three V2.0.9-specific action slots ([entryAction], [exitAction],
+ * [doAction]) holding the SysML 2 concrete-syntax action statement *as a
+ * raw string*. The typed action AST (with a proper expression tree, side
+ * effect typing, and behaviour-runtime hooks) is a separate V2.x wave —
+ * keeping action strings in the MVP unblocks rendering without committing
+ * to an action-language semantics that is still under discussion.
+ *
+ * V2.0.9 MVP scope (per the wave plan):
+ *  - Flat state machine: no composite / orthogonal / history states. Each
+ *    state is a leaf.
+ *  - No fork / join pseudo-states. Initial + final are the only two
+ *    pseudo-state kinds.
+ *  - [isInitial] and [isFinal] are mutually exclusive *by spec* but the
+ *    metamodel does not enforce it — that check belongs in the validator
+ *    so callers can construct partially-invalid states for testing /
+ *    diagnostics without a panic.
+ *  - Behaviour runtime (live execution of the state machine) is a separate
+ *    "Executable Behaviour Runtime" wave per the V2.0 plan; V2.0.9 only
+ *    captures the structural projection.
+ */
+@Serializable
+data class StateDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    /**
+     * Pseudo-state marker: `true` = initial pseudo-state (filled circle).
+     * Mutually exclusive with [isFinal] *by spec*; the metamodel does not
+     * enforce the rule.
+     */
+    val isInitial: Boolean = false,
+    /**
+     * Pseudo-state marker: `true` = final pseudo-state (donut shape).
+     * Mutually exclusive with [isInitial] *by spec*; the metamodel does not
+     * enforce the rule.
+     */
+    val isFinal: Boolean = false,
+    /** Optional `entry / do … ` action statement (raw string in MVP). */
+    val entryAction: String? = null,
+    /** Optional `exit / do … ` action statement (raw string in MVP). */
+    val exitAction: String? = null,
+    /** Optional `do … ` activity statement (raw string in MVP). */
+    val doAction: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Definition

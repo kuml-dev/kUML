@@ -41,9 +41,9 @@ data class Sysml2Model(
 
 /**
  * Sealed root for every SysML 2 diagram kind. V2.0.3 implements [BdDiagram],
- * V2.0.6 adds [IbdDiagram], V2.0.7 adds [UcDiagram], V2.0.8 adds [ReqDiagram]
- * — the rest (PAR, ACT, SEQ, STM) follow as separate `data class` subtypes
- * in later waves.
+ * V2.0.6 adds [IbdDiagram], V2.0.7 adds [UcDiagram], V2.0.8 adds [ReqDiagram],
+ * V2.0.9 adds [StmDiagram] — the rest (PAR, ACT, SEQ) follow as separate
+ * `data class` subtypes in later waves.
  */
 @Serializable
 sealed interface Sysml2Diagram {
@@ -209,6 +209,52 @@ data class UcExtend(
     /** Id of the *extended* (target) [UseCaseDefinition]. */
     val targetUseCaseId: String,
 )
+
+/**
+ * **State Transition Diagram** (STM) — V2.0.9 dynamic-behaviour view that
+ * bridges to the upcoming Behaviour-Runtime line.
+ *
+ * Shows the lifecycle of a system part as a finite state machine:
+ *  - [StateDefinition]s appear as rounded boxes (regular states) or as
+ *    pseudo-state shapes (filled circle for initial, donut for final).
+ *  - [dev.kuml.sysml2.TransitionUsage]s are auto-included from
+ *    `Sysml2Model.usages` whenever both endpoints are in [elementIds] —
+ *    transitions live on the *model* (not on the diagram) because they
+ *    are part of the state-machine's runtime identity, which the future
+ *    Behaviour-Runtime wave needs.
+ *
+ * This is the **inverse** convention from the V2.0.7 [UcDiagram] / V2.0.8
+ * [ReqDiagram], whose edges are captured at the diagram level. Rationale:
+ * UC associations and REQ traceability edges are *diagram-only* assertions,
+ * whereas STM transitions ARE the model — they must round-trip end-to-end
+ * through any runtime / animation / verification pipeline that the
+ * V2.x-Behaviour-Runtime layer introduces.
+ *
+ * V2.0.9 MVP scope (per the wave plan):
+ *  - Flat state machines: no composite / orthogonal / history states.
+ *  - Initial + final pseudo-states only; fork / join are V2.x.
+ *  - Transitions render as plain solid edges; the `trigger [guard] / effect`
+ *    label is V2.x polish (the synthetic [KumlDiagram] hull has no
+ *    `UmlRelationship` for TransitionUsages, so the edge dispatcher's
+ *    element lookup misses and the edge falls back to the plain path —
+ *    same limitation as UC / REQ).
+ *  - PNG export: V2.x (same as BDD / IBD / UC / REQ).
+ *  - Live Behaviour-Runtime hookup: separate "Executable Behaviour Runtime"
+ *    wave per the V2.0 roadmap; V2.0.9 only captures the structural
+ *    projection.
+ */
+@Serializable
+data class StmDiagram(
+    override val name: String,
+    /**
+     * Ids of the [StateDefinition]s to display. Transitions from
+     * [Sysml2Model.usages] whose [dev.kuml.sysml2.TransitionUsage.sourceStateId]
+     * AND [dev.kuml.sysml2.TransitionUsage.targetStateId] are both in this set
+     * are auto-included by the bridge. Order is preserved so layout /
+     * serialisation / diff stay deterministic.
+     */
+    override val elementIds: List<String> = emptyList(),
+) : Sysml2Diagram
 
 /**
  * **Requirement Diagram** (REQ) — V2.0.8 traceability view over the

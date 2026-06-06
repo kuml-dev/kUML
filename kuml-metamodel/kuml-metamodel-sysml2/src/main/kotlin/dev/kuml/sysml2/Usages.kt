@@ -210,3 +210,74 @@ data class RequirementUsage(
     override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Usage
+
+/**
+ * `state s1 : State1` — V2.0.9 state-usage, typed by a
+ * [dev.kuml.sysml2.StateDefinition].
+ *
+ * Carried for symmetry with [ActorUsage] / [UseCaseUsage] /
+ * [RequirementUsage]. The V2.0.9 MVP renders
+ * [dev.kuml.sysml2.StateDefinition]s directly (via the diagram-level
+ * [dev.kuml.sysml2.StmDiagram.elementIds]) and does not consume state-usages
+ * from the bridge; the SVG renderer falls back to the generic usage-box
+ * dispatch.
+ *
+ * Lives in the metamodel for completeness so future polish waves (nested
+ * state-usages, state specialisation, composite state membership) have a
+ * clean attachment point.
+ */
+@Serializable
+data class StateUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String,
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
+ * `transition Off → Red trigger 'powerOn' guard '…' effect '…'` — V2.0.9
+ * transition usage between two [dev.kuml.sysml2.StateDefinition]s (or
+ * pseudo-states).
+ *
+ * Carries the four SysML 2 concrete-syntax slots of a transition:
+ *  - [sourceStateId] / [targetStateId] — the two endpoints. The bridge
+ *    silently drops transitions whose endpoints aren't both in the diagram's
+ *    visible node set (validator's job to flag dangling refs).
+ *  - [trigger] — the optional event that fires the transition
+ *    (`"timer60s"`, `"buttonPressed"`, …). Raw string in V2.0.9 MVP.
+ *  - [guard] — the optional OCL-subset boolean guard
+ *    (`"speed > 0"`, `"!charging"`). Raw string in V2.0.9 MVP.
+ *  - [effect] — the optional action emitted when the transition fires
+ *    (`"switchLights('green')"`). Raw string in V2.0.9 MVP.
+ *
+ * The default [definitionId] is the synthetic `"sysml2.transition"` literal
+ * so the [Sysml2Usage]-contract is satisfied without forcing callers to
+ * declare a `TransitionDefinition` — transitions have no SysML 2 *definition*
+ * counterpart; they are pure usages between two state definitions.
+ *
+ * Edge id convention (set by the DSL):
+ * `transition:<sourceStateId>::<targetStateId>` — deterministic, readable,
+ * collision-free for unique state-pairs. Callers can override the id when
+ * two distinct transitions connect the same pair of states.
+ */
+@Serializable
+data class TransitionUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.transition",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    /** Id of the source [dev.kuml.sysml2.StateDefinition] (or pseudo-state). */
+    val sourceStateId: String,
+    /** Id of the target [dev.kuml.sysml2.StateDefinition] (or pseudo-state). */
+    val targetStateId: String,
+    /** Optional event that fires the transition (e.g. `"timer60s"`). */
+    val trigger: String? = null,
+    /** Optional OCL-subset boolean guard (e.g. `"speed > 0"`). */
+    val guard: String? = null,
+    /** Optional action emitted when the transition fires. */
+    val effect: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
