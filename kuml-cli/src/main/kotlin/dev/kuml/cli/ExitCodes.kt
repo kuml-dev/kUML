@@ -16,4 +16,26 @@ internal object ExitCodes {
 
     /** `kuml simulate --expected` produced a trace that differs from the goldfile. */
     internal const val TRACE_DIFF: Int = 6
+
+    // ── `kuml update` (V2.0.1) ────────────────────────────────────────────────
+    //
+    // Distinct codes per outcome so shell/CI scripts can react:
+    //   `kuml update check && echo "up to date" || handle-update $?`
+    //
+    // We pick 10/11 (instead of 6/7) to leave room for future per-subcommand
+    // diagnostic codes without colliding with anything in the 0–9 range.
+
+    /** `kuml update check` found a newer **stable** release on GitHub. */
+    internal const val UPDATE_AVAILABLE: Int = 10
+
+    /** `kuml update check` found a newer **pre-release** (with no newer stable). */
+    internal const val PRERELEASE_AVAILABLE: Int = 11
+
+    /**
+     * `kuml update check` could not reach GitHub (DNS, timeout, non-2xx) and
+     * had no usable cached entry to fall back to. Distinct from `SCRIPT_ERROR`
+     * because callers may want to suppress this in CI without masking real
+     * script failures.
+     */
+    internal const val ONLINE_ERROR: Int = 1
 }
