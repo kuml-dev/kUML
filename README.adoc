@@ -89,6 +89,9 @@ kuml render order-domain.kuml.kts --format svg
 
 | *OCL subset*
 | Object Constraint Language constraints directly on the Kotlin model.
+
+| *Built-in UML profiles*
+| Five profiles ship with v0.3.0 — *AUTOSAR* (Classic Platform R22-11), JavaEE / Jakarta EE, Spring, OpenAPI, SoaML. Discovered through `ServiceLoader`; add your own without touching the CLI.
 |===
 
 == How kUML compares
@@ -111,6 +114,8 @@ kuml render order-domain.kuml.kts --format svg
 | Type-safe DSL                | ✅ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ⚠️
 | Real metamodel               | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌
 | OCL constraints              | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌
+| AUTOSAR profile (built-in)   | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌
+| Built-in UML profiles (5)    | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌
 | Code generation (M2T)        | ✅ | ❌ | ❌ | ❌ | ⚠️ | ✅ | ✅ | ❌
 | MDA transforms (M2M)         | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ⚠️ | ❌
 | Executable behaviour         | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌
@@ -136,7 +141,7 @@ kuml render order-domain.kuml.kts --format svg
 * *PlantUML's ecosystem is enormous* — wikis, IDEs, AsciiDoc tooling, CI plugins. kUML builds bridges (AsciiDoc extension, Gradle plugin, IDE plugins) rather than fighting on volume.
 * *Structurizr owns C4 emotionally.* kUML offers Structurizr DSL round-trip — interoperate, don't compete.
 * *Mermaid has GitHub-native rendering* — the lowest possible barrier. kUML targets value from step two onward.
-* *MagicDraw and Cameo dominate enterprise automotive.* kUML's AUTOSAR and SoaML profiles (v1.1) are the first bridgehead.
+* *MagicDraw and Cameo dominate enterprise automotive — but their AUTOSAR support is a paid add-on.* kUML ships the AUTOSAR profile in the box (v0.3.0): `«SoftwareComponent»` with kind/packageName, `«ComInterface»` with version/isService, `«AutosarPort»` with direction (D17 — deliberately not `Port` to avoid the UML metaclass clash), `«Runnable»` with periodic/event-triggered/init/shutdown kinds, and `«BehaviorSpec»` on state machines feeding into `kuml simulate` for trace-based RTE verification.
 
 == CLI Commands
 

@@ -1,5 +1,5 @@
 = Profiles
-:description: Stereotypes, tagged values, and the built-in JavaEE/Spring/OpenAPI/AUTOSAR/SoaML profiles.
+:description: Stereotypes, tagged values, and the built-in AUTOSAR/JavaEE/Spring/OpenAPI/SoaML profiles.
 
 UML 2.x profiles are the OMG-standard extension mechanism: a profile defines stereotypes
 and tagged values that extend specific metaclasses. kUML treats profiles as first-class
@@ -11,28 +11,60 @@ modules — five ship with v0.3.0, more are easy to add.
 |===
 | Profile | Module | Stereotypes (selected)
 
-| SoaML
-| `kuml-profile-soaml`
-| `Service`, `Participant`, `ServiceContract`
+| AUTOSAR
+| `kuml-profile-autosar`
+| `SoftwareComponent`, `ComInterface`, `AutosarPort`, `Runnable`, `BehaviorSpec`
 
-| JavaEE
+| JavaEE / Jakarta EE
 | `kuml-profile-javaee`
-| `Entity`, `Id`, `Column`, `Transient`
+| `Entity`, `Repository`, `PersistenceContext`, `Service`, `Controller`
 
 | Spring
 | `kuml-profile-spring`
-| `Scheduled`
+| `RestController`, `SpringData`, `Scheduled`
 
 | OpenAPI
 | `kuml-profile-openapi`
-| `Operation`, `Parameter`
+| `Resource`, `Schema`, `Operation`, `Parameter`
 
-| AUTOSAR
-| `kuml-profile-autosar`
-| `Runnable`, `BehaviorSpec`
+| SoaML
+| `kuml-profile-soaml`
+| `Service`, `Participant`, `ServiceInterface`, `ServiceContract`, `ServicesArchitecture`
 |===
 
-All five are discovered through ServiceLoader — apply by name, no Maven coordinate gymnastics:
+All five are discovered through ServiceLoader — apply by name, no Maven coordinate gymnastics.
+
+=== AUTOSAR example
+
+AUTOSAR Classic Platform R22-11 modeled as type-safe Kotlin. Five stereotypes cover
+software components, communication interfaces, ports, runnables and behavior specs:
+
+[source,kotlin]
+----
+componentDiagram(name = "Brake Assist SWC") {
+    applyProfile("AUTOSAR")
+
+    component("BrakeAssist") {
+        stereotype("SoftwareComponent", "kind" to "Application", "packageName" to "powertrain")
+
+        port("wheelSpeedIn") { stereotype("AutosarPort", "direction" to "Required") }
+        port("brakeCmdOut")  { stereotype("AutosarPort", "direction" to "Provided") }
+
+        operation("evaluate") { stereotype("Runnable", "kind" to "Periodic", "periodMs" to 10L) }
+        operation("onInit")   { stereotype("Runnable", "kind" to "OnInit") }
+    }
+
+    interface("WheelSpeed") {
+        stereotype("ComInterface", "version" to "1.0", "isService" to false)
+        operation("read")
+    }
+}
+----
+
+The `«AutosarPort»` stereotype is deliberately named that way (not `Port`) to avoid a
+clash with the UML metamodel's own `Port` metaclass.
+
+=== JavaEE example
 
 [source,kotlin]
 ----
