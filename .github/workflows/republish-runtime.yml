@@ -1,0 +1,100 @@
+#
+# Republish a single platform's jlink runtime ZIP to an existing GitHub Release.
+#
+# Use case: a Release-workflow matrix leg failed (e.g. the GitHub-hosted
+# macos-13 Intel runner was deprecated mid-release) and we need to add the
+# missing platform asset without moving the tag or re-running the entire
+# release workflow.
+#
+# Trigger:
+#   gh workflow run republish-runtime.yml \
+#       -f tag=v0.3.0 \
+#       -f target=darwin-x86_64
+#
+# Targets:
+#   - darwin-x86_64  → macos-latest with x64 JDK (cross-built via Rosetta)
+#   - darwin-arm64   → macos-latest with aarch64 JDK
+#   - linux-x86_64   → ubuntu-latest with x64 JDK
+#
+name: Republish runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.3.0)'
+        required: true
+        type: string
+      target:
+        description: 'Platform target to (re)publish'
+        required: true
+        type: choice
+        options:
+          - darwin-x86_64
+          - darwin-arm64
+          - linux-x86_64
+
+permissions:
+  contents: write   # required to upload assets to the GitHub Release
+
+jobs:
+  republish:
+    name: Republish ${{ inputs.target }} for ${{ inputs.tag }}
+    # We can't use `matrix.os` with workflow_dispatch inputs directly in
+    # `runs-on`, so we map manually with a `case`-style expression.
+    runs-on: ${{ inputs.target == 'linux-x86_64' && 'ubuntu-latest' || 'macos-latest' }}
+    steps:
+      - name: Checkout at the release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Set up JDK 21 (matching target architecture)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          architecture: ${{ inputs.target == 'darwin-arm64' && 'aarch64' || 'x64' }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build bundled jlink runtime zip
+        run: ./gradlew :kuml-cli:runtimeZip
+
+      - name: Rename runtime zip with target suffix and compute SHA-256
+        id: pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          ORIG=$(ls kuml-cli/build/distributions/kuml-runtime-*.zip | head -n1)
+          VER='${{ inputs.tag }}'
+          VER="${VER#v}"   # strip leading 'v'
+          OUT="kuml-cli/build/distributions/kuml-runtime-${VER}-${{ inputs.target }}.zip"
+          mv "$ORIG" "$OUT"
+          SHA=$(shasum -a 256 "$OUT" | cut -d ' ' -f1)
+          echo "zip=$OUT"   >> $GITHUB_OUTPUT
+          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+          echo "name=$(basename "$OUT")" >> $GITHUB_OUTPUT
+          echo "version=$VER" >> $GITHUB_OUTPUT
+
+      - name: Upload runtime zip to existing GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          files: ${{ steps.pack.outputs.zip }}
+          fail_on_unmatched_files: true
+
+      - name: Summary
+        run: |
+          {
+            echo "### Republished ${{ inputs.target }} for ${{ inputs.tag }}"
+            echo ""
+            echo "| Field    | Value |"
+            echo "| -------- | ----- |"
+            echo "| Asset    | \`${{ steps.pack.outputs.name }}\` |"
+            echo "| SHA-256  | \`${{ steps.pack.outputs.sha256 }}\` |"
+            echo "| Release  | https://github.com/${{ github.repository }}/releases/tag/${{ inputs.tag }} |"
+            echo ""
+            echo "If this asset is consumed by the Homebrew tap, update Formula/kuml.rb manually with the SHA above."
+          } >> $GITHUB_STEP_SUMMARY
