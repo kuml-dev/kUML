@@ -1,0 +1,129 @@
+{
+  "Class diagram skeleton": {
+    "prefix": "diagram",
+    "scope": "kuml",
+    "description": "Empty class diagram with a name placeholder.",
+    "body": [
+      "classDiagram(name = \"${1:Diagram name}\") {",
+      "    $0",
+      "}"
+    ]
+  },
+  "UML model wrapper": {
+    "prefix": "umlModel",
+    "scope": "kuml",
+    "description": "Top-level UML model container — group multiple diagrams in one script.",
+    "body": [
+      "umlModel(name = \"${1:Model name}\") {",
+      "    classDiagram(name = \"${2:Class diagram}\") {",
+      "        $0",
+      "    }",
+      "}"
+    ]
+  },
+  "Class declaration": {
+    "prefix": "classOf",
+    "scope": "kuml",
+    "description": "Declare a UML class with attributes and operations.",
+    "body": [
+      "classOf(\"${1:ClassName}\") {",
+      "    attribute(\"${2:propName}\", \"${3:String}\")",
+      "    operation(\"${4:doSomething}\") {",
+      "        $0",
+      "    }",
+      "}"
+    ]
+  },
+  "Interface declaration": {
+    "prefix": "interfaceOf",
+    "scope": "kuml",
+    "description": "Declare a UML interface with operations.",
+    "body": [
+      "interfaceOf(\"${1:InterfaceName}\") {",
+      "    operation(\"${2:method}\")",
+      "    $0",
+      "}"
+    ]
+  },
+  "Enum declaration": {
+    "prefix": "enumOf",
+    "scope": "kuml",
+    "description": "Declare a UML enumeration with literals.",
+    "body": [
+      "enumOf(\"${1:EnumName}\") {",
+      "    literal(\"${2:VALUE_A}\")",
+      "    literal(\"${3:VALUE_B}\")",
+      "    $0",
+      "}"
+    ]
+  },
+  "C4 model": {
+    "prefix": "c4Model",
+    "scope": "kuml",
+    "description": "Top-level C4 model with a Person, a Software System, and a Container.",
+    "body": [
+      "c4Model(name = \"${1:System name}\") {",
+      "    person(\"${2:User}\", description = \"${3:End user of the system}\")",
+      "    softwareSystem(\"${4:System}\") {",
+      "        container(\"${5:WebApp}\", technology = \"${6:Kotlin / Ktor}\")",
+      "    }",
+      "    $0",
+      "}",
+      "",
+      "systemContextDiagram(name = \"${1} — System context\") {",
+      "    // include(...) the elements you want to show in this view",
+      "}"
+    ]
+  },
+  "Association between classes": {
+    "prefix": "association",
+    "scope": "kuml",
+    "description": "Binary association between two classes with role names and multiplicities.",
+    "body": [
+      "association {",
+      "    end(\"${1:Source}\", role = \"${2:source}\", multiplicity = \"${3:1}\")",
+      "    end(\"${4:Target}\", role = \"${5:target}\", multiplicity = \"${6:*}\")",
+      "}"
+    ]
+  },
+  "Generalization": {
+    "prefix": "generalization",
+    "scope": "kuml",
+    "description": "Generalization (inheritance) between a child and a parent type.",
+    "body": [
+      "generalization(child = \"${1:Child}\", parent = \"${2:Parent}\")"
+    ]
+  },
+  "Realization": {
+    "prefix": "realization",
+    "scope": "kuml",
+    "description": "Realization (implements) between a class and an interface.",
+    "body": [
+      "realization(client = \"${1:Class}\", supplier = \"${2:Interface}\")"
+    ]
+  },
+  "State machine": {
+    "prefix": "stateMachine",
+    "scope": "kuml",
+    "description": "State machine with initial state, two real states, and a transition.",
+    "body": [
+      "stateMachine(name = \"${1:Lifecycle}\") {",
+      "    initial(\"${2:start}\")",
+      "    state(\"${3:Open}\")",
+      "    state(\"${4:Closed}\") { final() }",
+      "    transition(from = \"${2}\", to = \"${3}\")",
+      "    transition(from = \"${3}\", to = \"${4}\", trigger = \"${5:close}\")",
+      "    $0",
+      "}"
+    ]
+  },
+  "Apply profile": {
+    "prefix": "applyProfile",
+    "scope": "kuml",
+    "description": "Apply a registered kUML profile (SoaML, JavaEE, Spring, OpenAPI, AUTOSAR).",
+    "body": [
+      "applyProfile(\"${1|SoaML,JavaEE,Spring,OpenAPI,AUTOSAR|}\")",
+      "$0"
+    ]
+  }
+}

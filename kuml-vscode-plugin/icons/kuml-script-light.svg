@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+  <path d="M3.5 1.5h6L12.5 4.5V13.5a1 1 0 0 1-1 1h-8a1 1 0 0 1-1-1V2.5a1 1 0 0 1 1-1z"
+        stroke="#6A737D" stroke-width="1" fill="#F6F8FA"/>
+  <path d="M9.5 1.5V4.5H12.5" stroke="#6A737D" stroke-width="1" fill="none"/>
+  <text x="4" y="11.5" font-family="Menlo, Consolas, monospace" font-size="6"
+        font-weight="700" fill="#1F6FEB">k</text>
+  <text x="7" y="11.5" font-family="Menlo, Consolas, monospace" font-size="6"
+        font-weight="700" fill="#6A737D">U</text>
+</svg>

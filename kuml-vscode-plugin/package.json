@@ -1,0 +1,127 @@
+{
+  "name": "kuml-vscode",
+  "displayName": "kUML",
+  "description": "Syntax highlighting, snippets, and CLI-driven SVG preview for kUML diagram scripts (*.kuml.kts).",
+  "version": "0.1.0",
+  "publisher": "kuml-dev",
+  "license": "Apache-2.0",
+  "homepage": "https://kuml.dev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kuml-dev/kUML.git",
+    "directory": "kuml-vscode-plugin"
+  },
+  "bugs": {
+    "url": "https://github.com/kuml-dev/kUML/issues"
+  },
+  "_comment_icon": "Marketplace icon must be a 128x128+ PNG (SVGs are rejected by vsce). Add `\"icon\": \"icons/kuml-marketplace.png\"` here before publishing to the VS Code Marketplace.",
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Visualization"
+  ],
+  "keywords": [
+    "kuml",
+    "uml",
+    "c4",
+    "diagram",
+    "kotlin-script"
+  ],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:kuml"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "kuml",
+        "aliases": ["kUML", "kuml"],
+        "extensions": [".kuml.kts"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/kuml-script-light.svg",
+          "dark": "./icons/kuml-script-dark.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "kuml",
+        "scopeName": "source.kuml",
+        "path": "./syntaxes/kuml.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "kuml",
+        "path": "./snippets/kuml.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "kuml.renderToSvg",
+        "title": "kUML: Render to SVG",
+        "category": "kUML"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "when": "resourceLangId == kuml",
+          "command": "kuml.renderToSvg",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "when": "resourceLangId == kuml",
+          "command": "kuml.renderToSvg",
+          "group": "kuml@1"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "kuml.renderToSvg",
+          "when": "resourceLangId == kuml"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "kUML",
+      "properties": {
+        "kuml.cliPath": {
+          "type": "string",
+          "default": "kuml",
+          "description": "Path to the kUML CLI executable. Defaults to `kuml` (resolved on PATH). Override if the CLI is installed in a non-standard location."
+        },
+        "kuml.theme": {
+          "type": "string",
+          "default": "kuml",
+          "description": "Default theme passed to `kuml render --theme`. Any name registered via the ThemeRegistry (e.g. plain, kuml, elegant, playful)."
+        },
+        "kuml.format": {
+          "type": "string",
+          "enum": ["svg", "png"],
+          "default": "svg",
+          "description": "Render output format used by the `kUML: Render to SVG` command. PNG is opened in the default OS viewer; SVG is opened in a VS Code preview tab."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -p . --watch",
+    "test": "node --test --enable-source-maps out/test/*.test.js",
+    "package": "vsce package",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0",
+    "@vscode/vsce": "^3.0.0"
+  }
+}
