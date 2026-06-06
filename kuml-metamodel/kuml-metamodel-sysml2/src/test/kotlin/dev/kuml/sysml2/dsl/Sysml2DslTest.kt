@@ -1,6 +1,7 @@
 package dev.kuml.sysml2.dsl
 
 import dev.kuml.kerml.KermlMultiplicity
+import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
@@ -10,6 +11,8 @@ import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortUsage
+import dev.kuml.sysml2.UcDiagram
+import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.units.kW
 import dev.kuml.sysml2.units.kWh
 import dev.kuml.sysml2.units.kg
@@ -329,6 +332,132 @@ class Sysml2DslTest :
             val cu = model.usages.filterIsInstance<ConnectionUsage>().single()
             cu.sourceEndId shouldBe "Vehicle::engine::out"
             cu.targetEndId shouldBe "Vehicle::battery::in"
+        }
+
+        // ── UC Diagram (V2.0.7) ───────────────────────────────────────────────
+
+        "ucDiagram captures actors, use cases, associations, includes, and extends" {
+            val model =
+                sysml2Model("Library") {
+                    val reader = actorDef("Reader")
+                    val librarian = actorDef("Librarian")
+                    val borrow = useCaseDef("BorrowBook")
+                    val auth = useCaseDef("Authenticate")
+                    val returnBook = useCaseDef("ReturnBook")
+                    val payFee = useCaseDef("PayLateFee")
+                    ucDiagram("Top-level UC") {
+                        include(reader)
+                        include(librarian)
+                        include(borrow)
+                        include(auth)
+                        include(returnBook)
+                        include(payFee)
+                        association(reader, borrow)
+                        association(librarian, borrow)
+                        include(borrow, auth)
+                        extend(payFee, returnBook)
+                    }
+                }
+            // 2 actors + 4 use-cases = 6 definitions.
+            model.definitions.filterIsInstance<ActorDefinition>() shouldHaveSize 2
+            model.definitions.filterIsInstance<UseCaseDefinition>() shouldHaveSize 4
+
+            val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
+            uc.name shouldBe "Top-level UC"
+            uc.elementIds shouldBe
+                listOf("Reader", "Librarian", "BorrowBook", "Authenticate", "ReturnBook", "PayLateFee")
+            uc.associations shouldHaveSize 2
+            uc.includes shouldHaveSize 1
+            uc.extends shouldHaveSize 1
+        }
+
+        "ucDiagram include relationship is disambiguated from include(definition)" {
+            // Same name, different argument types: include(Sysml2Definition) vs
+            // include(UseCaseDefinition, UseCaseDefinition). Kotlin overload
+            // resolution picks the right one — assert both work in one block.
+            val model =
+                sysml2Model("DisambigDemo") {
+                    val borrow = useCaseDef("BorrowBook")
+                    val auth = useCaseDef("Authenticate")
+                    ucDiagram("UC") {
+                        // One-arg form → add use-case as a node.
+                        include(borrow)
+                        include(auth)
+                        // Two-arg form → create the «include» relationship.
+                        include(borrow, auth)
+                    }
+                }
+            val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
+            uc.elementIds shouldBe listOf("BorrowBook", "Authenticate")
+            uc.includes shouldHaveSize 1
+            uc.includes
+                .single()
+                .id shouldBe "include:BorrowBook::Authenticate"
+            uc.includes
+                .single()
+                .sourceUseCaseId shouldBe "BorrowBook"
+            uc.includes
+                .single()
+                .targetUseCaseId shouldBe "Authenticate"
+        }
+
+        "ucDiagram associations / includes / extends have deterministic ids" {
+            val model =
+                sysml2Model("IdShape") {
+                    val reader = actorDef("Reader")
+                    val borrow = useCaseDef("BorrowBook")
+                    val auth = useCaseDef("Authenticate")
+                    val returnBook = useCaseDef("ReturnBook")
+                    val payFee = useCaseDef("PayLateFee")
+                    ucDiagram("UC") {
+                        include(reader)
+                        include(borrow)
+                        include(auth)
+                        include(returnBook)
+                        include(payFee)
+                        association(reader, borrow)
+                        include(borrow, auth)
+                        extend(payFee, returnBook)
+                    }
+                }
+            val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
+            uc.associations
+                .single()
+                .id shouldBe "assoc:Reader::BorrowBook"
+            uc.includes
+                .single()
+                .id shouldBe "include:BorrowBook::Authenticate"
+            uc.extends
+                .single()
+                .id shouldBe "extend:PayLateFee::ReturnBook"
+        }
+
+        "ucDiagram supports forward references via id-only overloads" {
+            val model =
+                sysml2Model("Forward") {
+                    actorDef("Reader")
+                    useCaseDef("BorrowBook")
+                    useCaseDef("Authenticate")
+                    ucDiagram("UC") {
+                        includeById("Reader")
+                        includeById("BorrowBook")
+                        includeById("Authenticate")
+                        associationById("Reader", "BorrowBook")
+                        includeById("BorrowBook", "Authenticate")
+                        extendById("Authenticate", "BorrowBook")
+                    }
+                }
+            val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
+            uc.elementIds shouldBe listOf("Reader", "BorrowBook", "Authenticate")
+            uc.associations
+                .single()
+                .id shouldBe "assoc:Reader::BorrowBook"
+            uc.includes
+                .single()
+                .id shouldBe "include:BorrowBook::Authenticate"
+            uc.extends
+                .single()
+                .id shouldBe "extend:Authenticate::BorrowBook"
         }
 
         "DSL is sysml2Dsl-scoped — inner scopes can't reach outer builders accidentally" {

@@ -7,6 +7,7 @@ import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.UcDiagram
 import java.io.File
 import kotlin.script.experimental.api.ResultValue
 
@@ -161,6 +162,13 @@ object DiagramExtractor {
                 throw ScriptEvaluationException(
                     "Script '${input.name}' returned a bare IbdDiagram. " +
                         "Wrap it inside `sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` " +
+                        "so the renderer has access to the surrounding Sysml2Model.",
+                )
+            }
+            if (value is UcDiagram) {
+                throw ScriptEvaluationException(
+                    "Script '${input.name}' returned a bare UcDiagram. " +
+                        "Wrap it inside `sysml2Model(\"…\") { ucDiagram(\"…\") { … } }` " +
                         "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }

@@ -6,11 +6,13 @@ import dev.kuml.io.latex.fmtCoord
 import dev.kuml.kerml.KermlFeature
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
+import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.Sysml2Definition
+import dev.kuml.sysml2.UseCaseDefinition
 
 /**
  * TikZ-Renderer für SysML-2 Definitionen — die LaTeX-Variante des
@@ -43,6 +45,12 @@ internal object Sysml2DefLatexRenderer {
                 is AttributeDefinition -> "attribute def"
                 is PortDefinition -> "port def"
                 is ConnectionDefinition -> "connection def"
+                // V2.0.7: UC-Diagramm-Definitions. V2.0.7-MVP rendert sie als
+                // Rechteck-mit-Label-Boxen mit semantischem Stereotyp; das
+                // TikZ-Stickfigur-/Ellipsen-Pendant landet in V2.x (analog
+                // zur BDD/IBD-Geschichte).
+                is ActorDefinition -> "actor def"
+                is UseCaseDefinition -> "use case def"
             }
         renderBox(definition, stereotype, nodeId, layout, options, out)
     }

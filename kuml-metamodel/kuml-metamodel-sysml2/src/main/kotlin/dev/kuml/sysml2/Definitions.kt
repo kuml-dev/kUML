@@ -85,3 +85,53 @@ data class ConnectionDefinition(
     override val specializations: List<KermlSpecialization> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Definition
+
+/**
+ * `ActorDefinition` — V2.0.7 entry for the SysML 2 Use Case Diagram.
+ *
+ * Represents an external entity that interacts with the system under
+ * consideration (a human user, a downstream service, a sensor, …). In a UC
+ * Diagram, actors are the *sources* of associations to use cases — they
+ * "participate in" a capability.
+ *
+ * Structurally identical to [PartDefinition] (KerML type that owns features)
+ * — the differentiation is purely diagrammatic: actors render as stick
+ * figures, parts render as boxes. Future polish waves may add actor-
+ * specialisation arrows or system-boundary frames; V2.0.7 keeps the actor
+ * as a flat leaf node.
+ */
+@Serializable
+data class ActorDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Definition
+
+/**
+ * `UseCaseDefinition` — V2.0.7 entry for the SysML 2 Use Case Diagram.
+ *
+ * Represents a capability or scenario the system offers, e.g.
+ * `BorrowBook`, `Authenticate`, `PayLateFee`. In a UC Diagram, use cases
+ * are the *targets* of actor-associations and the endpoints of the
+ * `«include»` / `«extend»` relationships between two use cases.
+ *
+ * Structurally identical to [PartDefinition] — the distinction lives in
+ * the renderer (use cases become ellipses, parts become boxes) and in the
+ * way UC diagrams aggregate them via [dev.kuml.sysml2.UcAssociation] /
+ * [dev.kuml.sysml2.UcInclude] / [dev.kuml.sysml2.UcExtend]. Use-case
+ * generalisation (`UC :> ParentUC`) is V2.x polish.
+ */
+@Serializable
+data class UseCaseDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Definition

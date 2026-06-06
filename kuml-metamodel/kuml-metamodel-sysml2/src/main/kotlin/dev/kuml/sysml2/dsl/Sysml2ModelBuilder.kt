@@ -2,6 +2,7 @@ package dev.kuml.sysml2.dsl
 
 import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.kerml.KermlSpecialization
+import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
@@ -16,6 +17,11 @@ import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.Sysml2Usage
+import dev.kuml.sysml2.UcAssociation
+import dev.kuml.sysml2.UcDiagram
+import dev.kuml.sysml2.UcExtend
+import dev.kuml.sysml2.UcInclude
+import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.units.UnitValue
 
 /**
@@ -129,6 +135,55 @@ class Sysml2ModelBuilder(
     }
 
     /**
+     * `actor def Reader { … }` — V2.0.7 actor-typed definition.
+     *
+     * Mirrors [partDef]. The optional body lets future polish waves attach
+     * attribute usages (e.g. an actor with a `role : Role` attribute); the
+     * V2.0.7 MVP uses actors as flat leaf nodes in [UcDiagram]s.
+     */
+    fun actorDef(
+        name: String,
+        id: String = name,
+        isAbstract: Boolean = false,
+        block: DefinitionBuilder.() -> Unit = {},
+    ): ActorDefinition {
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
+        val def =
+            ActorDefinition(
+                id = id,
+                name = name,
+                isAbstract = isAbstract,
+                features = builder.features(),
+            )
+        definitions += def
+        return def
+    }
+
+    /**
+     * `use case def BorrowBook { … }` — V2.0.7 use-case-typed definition.
+     *
+     * Mirrors [partDef]. Use cases are nodes in a [UcDiagram] and the
+     * endpoints of [UcAssociation] / [UcInclude] / [UcExtend] edges.
+     */
+    fun useCaseDef(
+        name: String,
+        id: String = name,
+        isAbstract: Boolean = false,
+        block: DefinitionBuilder.() -> Unit = {},
+    ): UseCaseDefinition {
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
+        val def =
+            UseCaseDefinition(
+                id = id,
+                name = name,
+                isAbstract = isAbstract,
+                features = builder.features(),
+            )
+        definitions += def
+        return def
+    }
+
+    /**
      * Register a typed [Sysml2Usage] so the model's `usages` list carries the
      * full typed view alongside the KerML `features`. V2.0.6 added this so the
      * IBD bridge can read `model.usages.filterIsInstance<ConnectionUsage>()`
@@ -179,6 +234,33 @@ class Sysml2ModelBuilder(
                 name = name,
                 ownerId = owner.id,
                 elementIds = builder.ids(),
+            )
+        diagrams += diagram
+        return diagram
+    }
+
+    /**
+     * `ucDiagram("Library — top-level use cases") { … }` — V2.0.7 Use Case
+     * Diagram.
+     *
+     * The block declares which actors + use cases participate
+     * (`include(...)`) and the associations / include / extend edges between
+     * them (`association(...)`, `include(uc1, uc2)`, `extend(uc1, uc2)`).
+     * IDs for edges are deterministic so layout + serialisation + diff stay
+     * stable across runs.
+     */
+    fun ucDiagram(
+        name: String,
+        block: UcDiagramBuilder.() -> Unit = {},
+    ): UcDiagram {
+        val builder = UcDiagramBuilder().apply(block)
+        val diagram =
+            UcDiagram(
+                name = name,
+                elementIds = builder.ids(),
+                associations = builder.associations(),
+                includes = builder.includes(),
+                extends = builder.extends(),
             )
         diagrams += diagram
         return diagram
@@ -364,4 +446,120 @@ class IbdDiagramBuilder internal constructor() {
     }
 
     internal fun ids(): List<String> = ids.toList()
+}
+
+/**
+ * Scope for `ucDiagram("…") { include(reader); include(borrowBook);
+ * association(reader, borrowBook); include(borrowBook, authenticate);
+ * extend(payLateFee, returnBook) }` — V2.0.7.
+ *
+ * Two distinct `include`-flavours live on this builder; they are disambig-
+ * uated by Kotlin overload resolution on parameter types:
+ *  - [include]`(Sysml2Definition)` *adds a node to the diagram* (actor or
+ *    use case).
+ *  - [include]`(UseCaseDefinition, UseCaseDefinition)` *creates an
+ *    `«include»` relationship edge* between two use cases.
+ *
+ * The compiler picks the right overload based on whether one or two
+ * `UseCaseDefinition`s are passed in. Don't try to call the relationship
+ * form with positional arguments that would collapse into the
+ * single-argument form — the type signature carries the intent.
+ *
+ * Edge id conventions:
+ *  - association: `assoc:<actorId>::<useCaseId>`
+ *  - include relationship: `include:<sourceUcId>::<targetUcId>`
+ *  - extend relationship:  `extend:<sourceUcId>::<targetUcId>`
+ */
+@Sysml2Dsl
+class UcDiagramBuilder internal constructor() {
+    private val ids = mutableListOf<String>()
+    private val associations = mutableListOf<UcAssociation>()
+    private val includes = mutableListOf<UcInclude>()
+    private val extends = mutableListOf<UcExtend>()
+
+    /**
+     * Add a SysML 2 definition (actor or use case) as a visible node in
+     * the UC diagram. See class KDoc for the overload-resolution rule that
+     * distinguishes this from the include-relationship form.
+     */
+    fun include(definition: Sysml2Definition) {
+        ids += definition.id
+    }
+
+    /** Add a node by raw id — forward refs / id-only setups. */
+    fun includeById(id: String) {
+        ids += id
+    }
+
+    /**
+     * Create an actor-to-use-case association edge. Returns the resulting
+     * [UcAssociation] so callers can hold on to it for further reference.
+     */
+    fun association(
+        actor: ActorDefinition,
+        useCase: UseCaseDefinition,
+    ): UcAssociation {
+        val assoc = associationById(actor.id, useCase.id)
+        return assoc
+    }
+
+    /** Id-only variant of [association] — for forward refs. */
+    fun associationById(
+        actorId: String,
+        useCaseId: String,
+    ): UcAssociation {
+        val assoc = UcAssociation(id = "assoc:$actorId::$useCaseId", actorId = actorId, useCaseId = useCaseId)
+        associations += assoc
+        return assoc
+    }
+
+    /**
+     * Create an `«include»` relationship between two use cases —
+     * `source` always executes `target` as part of its own behaviour.
+     *
+     * Distinct overload from [include]`(Sysml2Definition)`: the two-argument
+     * shape with two [UseCaseDefinition]s creates the relationship; the
+     * one-argument shape with a [Sysml2Definition] adds a node.
+     */
+    fun include(
+        source: UseCaseDefinition,
+        target: UseCaseDefinition,
+    ): UcInclude = includeById(source.id, target.id)
+
+    /** Id-only variant of the include-relationship form — for forward refs. */
+    fun includeById(
+        sourceId: String,
+        targetId: String,
+    ): UcInclude {
+        val inc = UcInclude(id = "include:$sourceId::$targetId", sourceUseCaseId = sourceId, targetUseCaseId = targetId)
+        includes += inc
+        return inc
+    }
+
+    /**
+     * Create an `«extend»` relationship between two use cases —
+     * `source` optionally extends `target`'s behaviour.
+     */
+    fun extend(
+        source: UseCaseDefinition,
+        target: UseCaseDefinition,
+    ): UcExtend = extendById(source.id, target.id)
+
+    /** Id-only variant of the extend-relationship form — for forward refs. */
+    fun extendById(
+        sourceId: String,
+        targetId: String,
+    ): UcExtend {
+        val ext = UcExtend(id = "extend:$sourceId::$targetId", sourceUseCaseId = sourceId, targetUseCaseId = targetId)
+        extends += ext
+        return ext
+    }
+
+    internal fun ids(): List<String> = ids.toList()
+
+    internal fun associations(): List<UcAssociation> = associations.toList()
+
+    internal fun includes(): List<UcInclude> = includes.toList()
+
+    internal fun extends(): List<UcExtend> = extends.toList()
 }

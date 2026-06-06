@@ -9,11 +9,14 @@ import dev.kuml.io.latex.uml.UmlEdgeLatexRenderer
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
+import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.UcDiagram
+import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClassifier
 import dev.kuml.uml.UmlDependency
@@ -191,6 +194,39 @@ public object KumlLatexRenderer {
                 name = diagram.name,
                 type = DiagramType.CLASS,
                 elements = visible,
+            )
+        return toLatex(synthetic, layoutResult, options)
+    }
+
+    /**
+     * Render a SysML 2 UC-Diagram as TikZ source (V2.0.7).
+     *
+     * Wickelt das UC in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * [ActorDefinition]s + [UseCaseDefinition]s. Beide rendern im V2.0.7-MVP
+     * über den UML-Klassenfallback als Rechteck mit Name-Label — der dedizierte
+     * TikZ-Stickfigur-/Ellipsen-Renderer ist V2.x-Polish, analog zur
+     * BDD/IBD-Geschichte.
+     *
+     * Edge-Styling: alle drei UC-Edge-Kinds (Association, `«include»`,
+     * `«extend»`) rendern als plain solide Linie (Default-Style des
+     * Edge-Renderers). Gestricheltes Styling + Stereotyp-Labels sind V2.x.
+     */
+    public fun toLatex(
+        model: Sysml2Model,
+        diagram: UcDiagram,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements =
+            model.definitions
+                .filter { it.id in visible }
+                .filter { it is ActorDefinition || it is UseCaseDefinition }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
             )
         return toLatex(synthetic, layoutResult, options)
     }

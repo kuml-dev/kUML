@@ -6,11 +6,13 @@ import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.kerml.KermlFeature
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.Sysml2Definition
+import dev.kuml.sysml2.UseCaseDefinition
 
 /**
  * Rendert SysML-2 Definitionen als BDD-Boxen.
@@ -36,7 +38,7 @@ import dev.kuml.sysml2.Sysml2Definition
 internal fun renderSysml2Definition(
     element: Sysml2Definition,
     layout: NodeLayout,
-    @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
+    theme: KumlTheme,
     builder: SvgBuilder,
 ) {
     when (element) {
@@ -44,6 +46,9 @@ internal fun renderSysml2Definition(
         is AttributeDefinition -> renderBox(element, layout, builder, stereotype = "attribute def")
         is PortDefinition -> renderBox(element, layout, builder, stereotype = "port def")
         is ConnectionDefinition -> renderBox(element, layout, builder, stereotype = "connection def")
+        // V2.0.7: UC-Diagramm-spezifische Formen.
+        is ActorDefinition -> renderSysml2Actor(element, layout, theme, builder)
+        is UseCaseDefinition -> renderSysml2UseCase(element, layout, theme, builder)
     }
 }
 

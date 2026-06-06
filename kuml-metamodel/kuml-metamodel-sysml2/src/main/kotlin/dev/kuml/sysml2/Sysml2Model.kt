@@ -41,8 +41,8 @@ data class Sysml2Model(
 
 /**
  * Sealed root for every SysML 2 diagram kind. V2.0.3 implements [BdDiagram],
- * V2.0.6 adds [IbdDiagram] — the rest (REQ, PAR, ACT, SEQ, STM, UC) follow
- * as separate `data class` subtypes in later waves.
+ * V2.0.6 adds [IbdDiagram], V2.0.7 adds [UcDiagram] — the rest (REQ, PAR,
+ * ACT, SEQ, STM) follow as separate `data class` subtypes in later waves.
  */
 @Serializable
 sealed interface Sysml2Diagram {
@@ -102,3 +102,109 @@ data class IbdDiagram(
      */
     override val elementIds: List<String> = emptyList(),
 ) : Sysml2Diagram
+
+/**
+ * **Use Case Diagram** (UC) — the SysML 2 / UML capability view.
+ *
+ * Shows three primary kinds of elements (V2.0.7 MVP):
+ *  - [ActorDefinition]s as stick-figure nodes — the external entities that
+ *    interact with the system,
+ *  - [UseCaseDefinition]s as ellipse nodes — the capabilities the system
+ *    offers,
+ *  - three kinds of edges between them:
+ *    - [UcAssociation] — an actor participates in a use case
+ *      (the canonical "stick figure connected to ellipse" line),
+ *    - [UcInclude] — `«include»` from one use case to another (always
+ *      executed as part of the source),
+ *    - [UcExtend] — `«extend»` from one use case to another (optional
+ *      extension of the target's behaviour).
+ *
+ * The diagram captures the edges directly (instead of deriving them from
+ * usages) because UC-edge semantics are diagram-specific: an actor-to-
+ * use-case association is not a structural feature of either side, and an
+ * `«include»`/`«extend»` is a diagram-level relationship between two
+ * use-case definitions. A richer [IncludeUsage]/[ExtendUsage] metamodel
+ * lives in [Usages.kt] for future polish waves, but V2.0.7 reads the
+ * edges off the diagram itself.
+ *
+ * V2.0.7 MVP scope (per the wave plan):
+ *  - Flat graph: no system-boundary frame around use cases.
+ *  - All three edge kinds render with the same plain solid line in SVG +
+ *    TikZ. The dashed-line styling and the `«include»`/`«extend»` stereotype
+ *    labels are deferred to V2.x.
+ *  - No actor specialisation arrows, no use-case generalisation.
+ *  - PNG export: V2.x (same as BDD + IBD).
+ */
+@Serializable
+data class UcDiagram(
+    override val name: String,
+    /**
+     * Ids of the [ActorDefinition]s + [UseCaseDefinition]s the diagram is
+     * allowed to display. Order is preserved so layout / serialisation /
+     * diff stay deterministic.
+     */
+    override val elementIds: List<String> = emptyList(),
+    /** Actor ↔ UseCase associations (the classical UML "participates in" line). */
+    val associations: List<UcAssociation> = emptyList(),
+    /** `«include»` relationships between two use-case definitions. */
+    val includes: List<UcInclude> = emptyList(),
+    /** `«extend»` relationships between two use-case definitions. */
+    val extends: List<UcExtend> = emptyList(),
+) : Sysml2Diagram
+
+/**
+ * Actor ↔ use-case association edge in a [UcDiagram].
+ *
+ * Endpoints reference SysML 2 element ids by string so the diagram can be
+ * authored before the referenced definitions exist (forward refs are fine).
+ * The bridge silently drops associations whose endpoints aren't both in
+ * the diagram's visible node set — validator's job to flag dangling refs.
+ *
+ * Edge id convention (set by the DSL): `assoc:<actorId>::<useCaseId>` —
+ * deterministic, readable, collision-free for unique actor/use-case pairs.
+ */
+@Serializable
+data class UcAssociation(
+    val id: String,
+    /** Id of the [ActorDefinition] that participates in the use case. */
+    val actorId: String,
+    /** Id of the [UseCaseDefinition] the actor participates in. */
+    val useCaseId: String,
+)
+
+/**
+ * `«include»` relationship between two use-case definitions in a
+ * [UcDiagram].
+ *
+ * Semantics: the source use case *always* executes the target as part of
+ * its own behaviour (`BorrowBook` includes `Authenticate` → every borrow
+ * authenticates first).
+ *
+ * Edge id convention (set by the DSL): `include:<source>::<target>`.
+ */
+@Serializable
+data class UcInclude(
+    val id: String,
+    /** Id of the *including* (source) [UseCaseDefinition]. */
+    val sourceUseCaseId: String,
+    /** Id of the *included* (target) [UseCaseDefinition]. */
+    val targetUseCaseId: String,
+)
+
+/**
+ * `«extend»` relationship between two use-case definitions in a
+ * [UcDiagram].
+ *
+ * Semantics: the source use case *optionally* extends the target's
+ * behaviour (`PayLateFee` extends `ReturnBook` only when there is a fee).
+ *
+ * Edge id convention (set by the DSL): `extend:<source>::<target>`.
+ */
+@Serializable
+data class UcExtend(
+    val id: String,
+    /** Id of the *extending* (source) [UseCaseDefinition]. */
+    val sourceUseCaseId: String,
+    /** Id of the *extended* (target) [UseCaseDefinition]. */
+    val targetUseCaseId: String,
+)

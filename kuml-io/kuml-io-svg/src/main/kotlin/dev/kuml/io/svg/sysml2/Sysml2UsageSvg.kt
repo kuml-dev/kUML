@@ -5,11 +5,15 @@ import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.sysml2.ActorUsage
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.ExtendUsage
+import dev.kuml.sysml2.IncludeUsage
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.Sysml2Usage
+import dev.kuml.sysml2.UseCaseUsage
 
 /**
  * Rendert SysML-2 Usages als IBD-Boxen (V2.0.6).
@@ -47,6 +51,17 @@ internal fun renderSysml2Usage(
         is PortUsage -> renderUsageBox(element, layout, builder, stereotype = "port")
         is AttributeUsage -> renderUsageBox(element, layout, builder, stereotype = "attribute")
         is ConnectionUsage -> renderUsageBox(element, layout, builder, stereotype = "connection")
+        // V2.0.7: UC-Usage-Kinds. Die Bridge zeigt im V2.0.7-MVP keine
+        // UC-Usages auf der Node-Ebene (UC-Diagramme rendern Actor/UseCase
+        // *Definitions* direkt), aber der Dispatcher braucht trotzdem einen
+        // Branch, damit ein direkter Aufruf — z. B. aus einem Test — nicht
+        // in den UML-Fallback rutscht. Wir nutzen die gleiche Box-Form mit
+        // einem semantischen Stereotyp; V2.x-Polish bringt ggf. Stickfigur/
+        // Ellipsen-Varianten für Usages.
+        is ActorUsage -> renderUsageBox(element, layout, builder, stereotype = "actor")
+        is UseCaseUsage -> renderUsageBox(element, layout, builder, stereotype = "use case")
+        is IncludeUsage -> renderUsageBox(element, layout, builder, stereotype = "include")
+        is ExtendUsage -> renderUsageBox(element, layout, builder, stereotype = "extend")
     }
 }
 

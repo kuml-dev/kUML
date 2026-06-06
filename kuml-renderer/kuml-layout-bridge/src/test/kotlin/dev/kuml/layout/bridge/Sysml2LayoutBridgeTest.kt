@@ -1,10 +1,16 @@
 package dev.kuml.layout.bridge
 
 import dev.kuml.kerml.KermlSpecialization
+import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.UcAssociation
+import dev.kuml.sysml2.UcDiagram
+import dev.kuml.sysml2.UcExtend
+import dev.kuml.sysml2.UcInclude
+import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.dsl.sysml2Model
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
@@ -254,6 +260,151 @@ class Sysml2LayoutBridgeTest :
             val graph = Sysml2LayoutBridge.toLayoutGraph(model, ibd)
             graph.nodes shouldHaveSize 0
             graph.edges shouldHaveSize 0
+        }
+
+        // ── UC Diagram (V2.0.7) ───────────────────────────────────────────────
+
+        "UC with one actor + two use cases + association + include → 3 nodes + 2 edges" {
+            val model =
+                sysml2Model("Library") {
+                    val reader = actorDef("Reader")
+                    val borrow = useCaseDef("BorrowBook")
+                    val auth = useCaseDef("Authenticate")
+                    ucDiagram("UC") {
+                        include(reader)
+                        include(borrow)
+                        include(auth)
+                        association(reader, borrow)
+                        include(borrow, auth)
+                    }
+                }
+            val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
+
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, uc)
+            graph.nodes shouldHaveSize 3
+            graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("Reader", "BorrowBook", "Authenticate")
+            graph.edges shouldHaveSize 2
+            graph.edges.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("assoc:Reader::BorrowBook", "include:BorrowBook::Authenticate")
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/uc-library-association-and-include.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "UC drops associations / includes / extends with dangling endpoints" {
+            // Reader is visible, Librarian isn't — assoc(Librarian, BorrowBook) is dropped.
+            val reader = ActorDefinition(id = "Reader", name = "Reader")
+            val librarian = ActorDefinition(id = "Librarian", name = "Librarian")
+            val borrow = UseCaseDefinition(id = "BorrowBook", name = "BorrowBook")
+            val auth = UseCaseDefinition(id = "Authenticate", name = "Authenticate")
+            val ghost = UseCaseDefinition(id = "Ghost", name = "Ghost")
+            val model =
+                Sysml2Model(
+                    name = "Dangle",
+                    definitions = listOf(reader, librarian, borrow, auth, ghost),
+                )
+            val uc =
+                UcDiagram(
+                    name = "UC",
+                    // Librarian + ghost NOT in elementIds → endpoints dangle.
+                    elementIds = listOf("Reader", "BorrowBook", "Authenticate"),
+                    associations =
+                        listOf(
+                            UcAssociation(id = "assoc:Reader::BorrowBook", actorId = "Reader", useCaseId = "BorrowBook"),
+                            UcAssociation(
+                                id = "assoc:Librarian::BorrowBook",
+                                actorId = "Librarian",
+                                useCaseId = "BorrowBook",
+                            ),
+                        ),
+                    includes =
+                        listOf(
+                            UcInclude(
+                                id = "include:BorrowBook::Authenticate",
+                                sourceUseCaseId = "BorrowBook",
+                                targetUseCaseId = "Authenticate",
+                            ),
+                            UcInclude(
+                                id = "include:BorrowBook::Ghost",
+                                sourceUseCaseId = "BorrowBook",
+                                targetUseCaseId = "Ghost",
+                            ),
+                        ),
+                    extends =
+                        listOf(
+                            UcExtend(
+                                id = "extend:Ghost::Authenticate",
+                                sourceUseCaseId = "Ghost",
+                                targetUseCaseId = "Authenticate",
+                            ),
+                        ),
+                )
+
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, uc)
+            graph.nodes shouldHaveSize 3
+            // Only the two edges with both endpoints visible survive.
+            graph.edges shouldHaveSize 2
+            graph.edges.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("assoc:Reader::BorrowBook", "include:BorrowBook::Authenticate")
+        }
+
+        "UC respects actor vs use-case default sizes" {
+            val model =
+                sysml2Model("Sizes") {
+                    val reader = actorDef("Reader")
+                    val borrow = useCaseDef("BorrowBook")
+                    ucDiagram("UC") {
+                        include(reader)
+                        include(borrow)
+                    }
+                }
+            val uc = model.diagrams.filterIsInstance<UcDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, uc)
+
+            val readerNode = graph.nodes.single { it.id.value == "Reader" }
+            val borrowNode = graph.nodes.single { it.id.value == "BorrowBook" }
+            readerNode.intrinsicSize.width shouldBe Sysml2LayoutBridge.UC_ACTOR_WIDTH
+            readerNode.intrinsicSize.height shouldBe Sysml2LayoutBridge.UC_ACTOR_HEIGHT
+            borrowNode.intrinsicSize.width shouldBe Sysml2LayoutBridge.UC_USECASE_WIDTH
+            borrowNode.intrinsicSize.height shouldBe Sysml2LayoutBridge.UC_USECASE_HEIGHT
+        }
+
+        "UC missing definitions in the model are skipped silently" {
+            val reader = ActorDefinition(id = "Reader", name = "Reader")
+            val model = Sysml2Model(name = "M", definitions = listOf(reader))
+            val uc =
+                UcDiagram(
+                    name = "UC",
+                    elementIds = listOf("Reader", "NonExistent"),
+                )
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, uc)
+            graph.nodes shouldHaveSize 1
+            graph.nodes
+                .single()
+                .id.value shouldBe "Reader"
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/uc-missing-definition.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "UC skips non-UC definitions in elementIds silently (e.g. PartDefinition)" {
+            // V2.0.7-Konvention: UC-Diagramme zeigen nur Actors + UseCases.
+            // PartDefinitions, die versehentlich in elementIds landen, werden
+            // verworfen — Validator-Sache, gemäß BDD/IBD-Pattern.
+            val reader = ActorDefinition(id = "Reader", name = "Reader")
+            val borrow = UseCaseDefinition(id = "BorrowBook", name = "BorrowBook")
+            val vehicle = PartDefinition(id = "Vehicle", name = "Vehicle")
+            val model = Sysml2Model(name = "M", definitions = listOf(reader, borrow, vehicle))
+            val uc = UcDiagram(name = "UC", elementIds = listOf("Reader", "BorrowBook", "Vehicle"))
+
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, uc)
+            graph.nodes shouldHaveSize 2
+            graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder listOf("Reader", "BorrowBook")
         }
 
         "IBD default size matches IBD_DEFAULT_WIDTH × IBD_DEFAULT_HEIGHT" {

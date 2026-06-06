@@ -7,6 +7,7 @@ import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
+import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.IbdDiagram
@@ -14,6 +15,8 @@ import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.UcDiagram
+import dev.kuml.sysml2.UseCaseDefinition
 
 /**
  * Übersetzt eine SysML-2 Block Definition Diagram-Projektion eines
@@ -104,6 +107,22 @@ public object Sysml2LayoutBridge {
      */
     public const val IBD_DEFAULT_WIDTH: Float = 180f
     public const val IBD_DEFAULT_HEIGHT: Float = 80f
+
+    /**
+     * Default-Größe für eine Actor-Stickfigur in einem UC-Diagramm (V2.0.7).
+     * Schmal + hoch — Kopf + Körper + Beine + Name darunter brauchen vertikal
+     * Platz, horizontal reichen ~60 px.
+     */
+    public const val UC_ACTOR_WIDTH: Float = 60f
+    public const val UC_ACTOR_HEIGHT: Float = 100f
+
+    /**
+     * Default-Größe für eine Use-Case-Ellipse in einem UC-Diagramm (V2.0.7).
+     * Breit + flach — UC-Namen sind häufig mehrere Worte (`BorrowBook`,
+     * `PayLateFee`), passen aber in eine Zeile.
+     */
+    public const val UC_USECASE_WIDTH: Float = 160f
+    public const val UC_USECASE_HEIGHT: Float = 70f
 
     /** Diagnose-Helfer: extrahiert die in [diagram] referenzierten Definitionen aus [model]. */
     public fun resolveVisibleDefinitions(
@@ -209,6 +228,112 @@ public object Sysml2LayoutBridge {
 
         return LayoutGraph(nodes = nodes, edges = edges)
     }
+
+    /**
+     * Übersetzt das gegebene UC-Diagramm (V2.0.7) in einen [LayoutGraph].
+     *
+     * MVP-Scope:
+     *  - Jede in [UcDiagram.elementIds] referenzierte [ActorDefinition] +
+     *    [UseCaseDefinition] wird ein [LayoutNode]. Andere Definition-Kinds
+     *    (Part, Attribute, Port, Connection) sind im UC-Diagramm konzeptionell
+     *    nicht vorgesehen und werden stillschweigend übersprungen — Konsistenz-
+     *    prüfung ist Validator-Sache.
+     *  - Größen pro Kind via [sizeProvider]; Default ist [UC_ACTOR_WIDTH] ×
+     *    [UC_ACTOR_HEIGHT] für Actors und [UC_USECASE_WIDTH] ×
+     *    [UC_USECASE_HEIGHT] für Use Cases.
+     *  - [UcDiagram.associations], [UcDiagram.includes] und [UcDiagram.extends]
+     *    werden zu [LayoutEdge]s. Endpunkte, die nicht beide auf sichtbare
+     *    Knoten zeigen, werden stillschweigend übersprungen — gleiche
+     *    Skip-Logik wie BDD/IBD.
+     *
+     * Edge-Stylunterscheidung: alle drei Edge-Kinds tragen [EdgeHints.NONE]
+     * — der Renderer differenziert über das Edge-ID-Präfix (`assoc:` /
+     * `include:` / `extend:`). Im V2.0.7-MVP rendern alle drei optisch als
+     * dieselbe einfache Linie; gestricheltes `«include»`/`«extend»`-Styling
+     * und Stereotyp-Labels sind V2.x.
+     *
+     * @param model Container mit allen Definitionen.
+     * @param diagram Das UC-Diagramm (`elementIds` selektiert die sichtbaren
+     *   Actor- + UseCase-Definitionen; die drei Edge-Listen liefern die
+     *   Edges).
+     * @param sizeProvider Liefert die intrinsische Größe pro Definition. Default
+     *   nutzt die `UC_*`-Konstanten je nach Definition-Kind.
+     */
+    public fun toLayoutGraph(
+        model: Sysml2Model,
+        diagram: UcDiagram,
+        sizeProvider: SizeProvider = ucDefaultSizeProvider(),
+    ): LayoutGraph {
+        val visibleIds: Set<String> = diagram.elementIds.toSet()
+
+        val nodes = mutableListOf<LayoutNode>()
+        for (id in diagram.elementIds) {
+            val def = model.definitions.firstOrNull { it.id == id } ?: continue
+            // UC-Diagramme zeigen Actors + UseCases; andere Definition-Kinds
+            // gehören nicht in dieses Diagramm und werden stillschweigend
+            // übersprungen.
+            if (def !is ActorDefinition && def !is UseCaseDefinition) continue
+            val kind = def::class.simpleName ?: "Sysml2Definition"
+            nodes +=
+                LayoutNode(
+                    id = NodeId(def.id),
+                    intrinsicSize = sizeProvider.sizeOf(def.id, kind),
+                )
+        }
+        val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
+
+        val edges = mutableListOf<LayoutEdge>()
+
+        for (assoc in diagram.associations) {
+            if (assoc.actorId !in visibleNodeIds || assoc.useCaseId !in visibleNodeIds) continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(assoc.id),
+                    source = EndpointRef(nodeId = NodeId(assoc.actorId)),
+                    target = EndpointRef(nodeId = NodeId(assoc.useCaseId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        for (inc in diagram.includes) {
+            if (inc.sourceUseCaseId !in visibleNodeIds || inc.targetUseCaseId !in visibleNodeIds) continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(inc.id),
+                    source = EndpointRef(nodeId = NodeId(inc.sourceUseCaseId)),
+                    target = EndpointRef(nodeId = NodeId(inc.targetUseCaseId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        for (ext in diagram.extends) {
+            if (ext.sourceUseCaseId !in visibleNodeIds || ext.targetUseCaseId !in visibleNodeIds) continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(ext.id),
+                    source = EndpointRef(nodeId = NodeId(ext.sourceUseCaseId)),
+                    target = EndpointRef(nodeId = NodeId(ext.targetUseCaseId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        return LayoutGraph(nodes = nodes, edges = edges)
+    }
+
+    /**
+     * Default-[SizeProvider] für UC-Diagramme — gibt je nach `kindHint`
+     * (`"ActorDefinition"` vs `"UseCaseDefinition"`) die passenden
+     * `UC_*`-Default-Maße zurück. Andere Kinds fallen auf die UseCase-
+     * Default-Größe zurück.
+     */
+    public fun ucDefaultSizeProvider(): SizeProvider =
+        SizeProvider { _, kindHint ->
+            when (kindHint) {
+                "ActorDefinition" -> dev.kuml.layout.Size(UC_ACTOR_WIDTH, UC_ACTOR_HEIGHT)
+                "UseCaseDefinition" -> dev.kuml.layout.Size(UC_USECASE_WIDTH, UC_USECASE_HEIGHT)
+                else -> dev.kuml.layout.Size(UC_USECASE_WIDTH, UC_USECASE_HEIGHT)
+            }
+        }
 
     /**
      * Findet die längste sichtbare Part-Usage-ID, die ein Präfix des
