@@ -94,6 +94,9 @@ include("kuml-gradle:kuml-gradle-plugin")  // V1.1.9 — dev.kuml Gradle plugin 
 // ── JetBrains IDE Plugin ────────────────────────────── V1.1.10 ──
 include("kuml-jetbrains:kuml-jetbrains-plugin")  // V1.1.10 — IntelliJ Platform plugin (script definition + file type)
 
+// ── Grid Layout Engine ──────────────────────────────── V1.1.12 ──
+include("kuml-renderer:kuml-layout-grid")  // V1.1.12 — pure-Kotlin grid layout engine (no ELK/EMF dep)
+
 // ── Docs Integration ─────────────────────────────────── Phase 2 ──
 include(
     "kuml-docs:kuml-markdown",      // Phase 2 — Markdown kuml-Codeblock → SVG
