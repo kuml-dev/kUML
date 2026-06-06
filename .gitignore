@@ -124,3 +124,6 @@ gradle-app.setting
 .env
 .env.local
 *.env
+
+# IntelliJ Platform Gradle Plugin caches (V1.1.10 — kuml-jetbrains-plugin)
+.intellijPlatform/

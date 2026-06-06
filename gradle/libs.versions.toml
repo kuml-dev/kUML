@@ -15,6 +15,8 @@ ktlint-plugin          = "14.2.0"
 clikt                  = "5.1.0"
 graalvm-native         = "0.10.6"
 vanniktech-publish     = "0.30.0"
+intellij-platform      = "2.11.0"
+intellij-idea          = "2024.3"
 
 [libraries]
 # ── Compose / Kuiver ─────────────────────────────────────────────────────────
@@ -72,3 +74,4 @@ compose-compiler        = { id = "org.jetbrains.kotlin.plugin.compose",         
 ktlint                  = { id = "org.jlleitschuh.gradle.ktlint",                 version.ref = "ktlint-plugin" }
 graalvm-native          = { id = "org.graalvm.buildtools.native",                 version.ref = "graalvm-native" }
 vanniktech-publish      = { id = "com.vanniktech.maven.publish",                  version.ref = "vanniktech-publish" }
+intellij-platform       = { id = "org.jetbrains.intellij.platform",               version.ref = "intellij-platform" }

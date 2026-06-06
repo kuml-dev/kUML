@@ -1,0 +1,76 @@
+<idea-plugin>
+    <id>dev.kuml.intellij</id>
+    <name>kUML</name>
+    <vendor email="dev@kuml.dev" url="https://kuml.dev">kUML</vendor>
+
+    <description><![CDATA[
+        <h3>kUML — Kotlin-based UML &amp; C4 modelling</h3>
+        <p>
+            Adds first-class IntelliJ support for kUML diagram scripts (<code>*.kuml.kts</code>):
+        </p>
+        <ul>
+            <li>
+                Recognises <code>*.kuml.kts</code> as a custom Kotlin script kind via the
+                <code>org.jetbrains.kotlin.scriptDefinitionsProvider</code> extension point.
+            </li>
+            <li>
+                Syntax highlighting and structural navigation are inherited from IntelliJ's
+                Kotlin language support — no custom lexer or parser.
+            </li>
+            <li>
+                Default imports for the kUML DSL (<code>dev.kuml.core.dsl.*</code>,
+                <code>dev.kuml.uml.dsl.*</code>, <code>dev.kuml.c4.dsl.*</code>) are visible
+                to the editor, so unqualified <code>classDiagram { ... }</code>,
+                <code>c4Model { ... }</code>, and friends resolve without explicit imports.
+            </li>
+            <li>
+                Distinct file icon for kUML scripts.
+            </li>
+        </ul>
+        <p>
+            Rendering, code generation, OCL validation, and state-machine simulation are
+            provided by the <code>kuml</code> CLI and the <code>dev.kuml</code> Gradle plugin —
+            this IDE plugin is intentionally minimal and stays out of the render pipeline.
+        </p>
+        <p>
+            Project page: <a href="https://kuml.dev">https://kuml.dev</a>.
+        </p>
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <h4>0.1.0</h4>
+        <ul>
+            <li>Initial release: script definition provider, file type registration, file icon.</li>
+        </ul>
+    ]]></change-notes>
+
+    <!--
+        Compatibility:
+        sinceBuild is in build.gradle.kts (intellijPlatform.pluginConfiguration.ideaVersion).
+        We depend on the Kotlin plugin because we use its scriptDefinitionsProvider EP.
+    -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.kotlin</depends>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <!--
+            Registers KumlScriptDefinitionsProvider with the Kotlin plugin.
+            The provider hands back `dev.kuml.core.script.KumlScript` (which carries the
+            `@KotlinScript(fileExtension = "kuml.kts", …)` annotation) so the Kotlin
+            scripting infrastructure knows how to lex, parse, and resolve `*.kuml.kts`
+            files in the editor.
+        -->
+        <scriptDefinitionsProvider
+            implementation="dev.kuml.jetbrains.KumlScriptDefinitionsProvider"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!--
+            Custom file icon for `*.kuml.kts`.
+            The actual file type is "Kotlin script" (registered by the Kotlin plugin) —
+            we only override the icon for files matching the kUML extension.
+        -->
+        <fileIconProvider
+            implementation="dev.kuml.jetbrains.KumlFileIconProvider"/>
+    </extensions>
+</idea-plugin>

@@ -91,6 +91,9 @@ include("kuml-cli")                 // Phase 2 — Kommandozeilen-Interface
 // ── Gradle Plugin ───────────────────────────────────── V1.1.9 ──
 include("kuml-gradle:kuml-gradle-plugin")  // V1.1.9 — dev.kuml Gradle plugin (kumlRender/Generate/Validate)
 
+// ── JetBrains IDE Plugin ────────────────────────────── V1.1.10 ──
+include("kuml-jetbrains:kuml-jetbrains-plugin")  // V1.1.10 — IntelliJ Platform plugin (script definition + file type)
+
 // ── Docs Integration ─────────────────────────────────── Phase 2 ──
 include(
     "kuml-docs:kuml-markdown",      // Phase 2 — Markdown kuml-Codeblock → SVG
