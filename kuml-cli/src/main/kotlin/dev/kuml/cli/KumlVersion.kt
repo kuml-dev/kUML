@@ -14,7 +14,7 @@ import java.util.Properties
  *  - [VersionCommand] für `kuml version` (Plain-Text + `--json`)
  */
 internal object KumlVersion {
-    /** kUML-Version, z. B. `"0.3.0"` oder `"0.3.1-SNAPSHOT"`. */
+    /** kUML-Version, z. B. `"0.4.0"` oder `"0.4.1-SNAPSHOT"`. */
     val version: String by lazy { props.getProperty("version", "unknown") }
 
     /** Git-SHA des Builds (kurz), z. B. `"9c56700"` oder `"unknown"` außerhalb eines Git-Trees. */

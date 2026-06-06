@@ -14,13 +14,13 @@ import kotlinx.serialization.json.Json
  *
  * Plain text (default):
  * ```
- * kuml 0.3.0 (build: 9c56700, jdk: 21.0.4+8)
+ * kuml 0.4.0 (build: 9c56700, jdk: 21.0.4+8)
  * ```
  *
  * JSON output (`--json`):
  * ```json
  * {
- *   "version": "0.3.0",
+ *   "version": "0.4.0",
  *   "gitSha":  "9c56700",
  *   "jdk":     "21.0.4+8",
  *   "buildTime": "2026-06-06T11:23:45Z"

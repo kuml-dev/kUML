@@ -14,7 +14,7 @@ plugins {
 
 allprojects {
     group = "dev.kuml"
-    version = "0.2.0"
+    version = "0.4.0"
 }
 
 // Apply ktlint to all subprojects that use the Kotlin JVM plugin.
@@ -38,15 +38,50 @@ subprojects {
 // See docs/release.md for the full setup walkthrough.
 // ─────────────────────────────────────────────────────────────────────────────
 
-val nonPublishedModules = setOf(
-    "kUML",
-    "kuml-cli",
-    "kuml-mcp",
-    "kuml-llm-bench",
-    "kuml-tests",
-    "kuml-examples",
-    "kuml-packaging",
-)
+// Modules that are intentionally NOT published to Maven Central. Matched
+// against `Project.name` (the leaf name), not the colon-path — so to keep
+// a sub-module out of the publication set its leaf name must appear here.
+//
+// Test sub-modules (`:kuml-tests:kuml-mcp-tests`, etc.) were silently being
+// included in releases through v0.3.0 because their leaf names were not
+// listed; this caused the Central Portal's component validator to reject
+// the whole deployment as a duplicate against the already-published v0.2.0
+// JARs. Listing each test leaf name fixes that.
+val nonPublishedModules =
+    setOf(
+        "kUML",
+        "kuml-cli",
+        "kuml-mcp",
+        "kuml-llm-bench",
+        "kuml-tests",
+        "kuml-examples",
+        "kuml-packaging",
+        // Test sub-modules (path-aware listing — Gradle subprojects iteration
+        // sees them as separate projects with these leaf names).
+        "kuml-cli-tests",
+        "kuml-codegen-tests",
+        "kuml-dsl-tests",
+        "kuml-llm-tests",
+        "kuml-mcp-tests",
+        "kuml-ocl-tests",
+        "kuml-renderer-tests",
+        // V1.1+ tooling-side artefacts published through other channels
+        // (Gradle Plugin Portal, JetBrains Marketplace, VS Code Marketplace).
+        "kuml-gradle-plugin",
+        "kuml-jetbrains-plugin",
+        // Aggregator parent projects with no JAR of their own — leaf names.
+        "kuml-gradle",
+        "kuml-jetbrains",
+        "kuml-renderer",
+        "kuml-runtime",
+        "kuml-docs",
+        "kuml-codegen",
+        "kuml-core",
+        "kuml-io",
+        "kuml-llm",
+        "kuml-metamodel",
+        "kuml-profile",
+    )
 
 subprojects {
     if (name in nonPublishedModules) return@subprojects
