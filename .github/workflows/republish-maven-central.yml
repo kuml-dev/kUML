@@ -1,0 +1,105 @@
+#
+# Re-run the Maven Central publish for an existing release tag.
+#
+# Use case: the original `Release` workflow run for a tag uploaded
+# Maven Central artefacts that silently never reached the Central
+# Portal (vanniktech `publishToMavenCentral` reported success but
+# https://central.sonatype.com/publishing/deployments shows nothing
+# for the version). We use this workflow to redo the publish step
+# against the SAME tag — git is checked out at the tag, so the JARs
+# carry the correct release coordinates, and the modern
+# `publishAndReleaseToMavenCentral` task explicitly uploads AND
+# publishes the staging deployment via the Central Portal API.
+#
+# Trigger:
+#   gh workflow run republish-maven-central.yml -f tag=v0.3.0
+#
+# Auth: SONATYPE_USERNAME, SONATYPE_PASSWORD secrets (HTTP Basic
+# against the Central Portal), and GPG_SIGNING_KEY +
+# GPG_PASSPHRASE for the in-memory signing the JARs require.
+#
+# Idempotent (kind of): the Central Portal rejects duplicate
+# uploads of the same coordinates. If the previous run did upload
+# anything that survived, this workflow will fail with a clear API
+# error from the publish step. In that case the deployment already
+# exists in the Portal and just needs to be published from the web
+# UI or via `release-maven-central-staging.yml -f deployment_id=<UUID>`.
+#
+# Going forward, the Release workflow's own publish step already
+# runs `automaticRelease = true` (see build.gradle.kts), so for new
+# tags this workflow is only the incident-response tool — the
+# happy path is fully automated.
+#
+name: Republish Maven Central
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to republish (e.g. v0.3.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  republish:
+    name: Republish ${{ inputs.tag }} to Maven Central
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate tag shape
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if ! echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::tag must look like v<major>.<minor>.<patch> (got: $TAG)"
+            exit 1
+          fi
+
+      - name: Checkout at the release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 1
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Publish and release to Maven Central
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
+        # `publishAndReleaseToMavenCentral` is vanniktech's explicit upload-
+        # and-publish task. Independent of the `automaticRelease` flag in
+        # the build script, it always closes and releases the staging
+        # deployment via the Central Portal API. Safer than relying on
+        # `automaticRelease = true` for recovery because we don't depend
+        # on the build-script value at the checked-out tag.
+        run: ./gradlew publishAndReleaseToMavenCentral --no-configuration-cache --stacktrace
+
+      - name: Summary
+        if: ${{ always() }}
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          {
+            echo "### Maven Central republish — \`$TAG\`"
+            echo ""
+            echo "If the publish step succeeded, artefacts will be searchable at"
+            echo "https://search.maven.org/ within ~20 minutes and resolvable from"
+            echo "https://repo1.maven.org/maven2/dev/kuml/ within ~2 hours."
+            echo ""
+            echo "If the publish step failed with \"deployment already exists\","
+            echo "the JARs are already uploaded — look up the deployment ID in"
+            echo "https://central.sonatype.com/publishing/deployments and publish"
+            echo "via \`release-maven-central-staging.yml -f deployment_id=<UUID>\`."
+          } >> "$GITHUB_STEP_SUMMARY"
