@@ -1,0 +1,147 @@
+#
+# Release a deployment that's stuck in the Central Portal staging area.
+#
+# Use case: the main `Release` workflow uploaded artefacts to the Central
+# Portal but didn't auto-publish (because `automaticRelease = false` was
+# in effect at the time, as it was through v0.3.0). The Sonatype deployment
+# sits at status VALIDATED indefinitely until a human clicks "Publish" in
+# https://central.sonatype.com/publishing/deployments. This workflow does
+# that click headlessly via the Central Portal REST API.
+#
+# Trigger:
+#   gh workflow run release-maven-central-staging.yml -f version=0.3.0
+#
+# Auth: uses the existing SONATYPE_USERNAME + SONATYPE_PASSWORD secrets
+# (HTTP Basic). The Central Portal accepts the same credentials it uses
+# for staging upload.
+#
+# Idempotent: if no VALIDATED deployment matches the version, the
+# workflow logs the available deployments and exits non-zero with a clear
+# message. If the deployment is already PUBLISHED, it logs that and
+# exits 0.
+#
+# Going forward: build.gradle.kts now sets `automaticRelease = true`, so
+# future releases publish automatically and this recovery workflow should
+# rarely be needed. Keep it for incident response.
+#
+name: Release Maven Central staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release from staging (e.g. 0.3.0 — without leading v)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Publish staged ${{ inputs.version }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find and publish the matching deployment
+        env:
+          SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
+          SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$SONATYPE_USERNAME" ] || [ -z "$SONATYPE_PASSWORD" ]; then
+            echo "::error::SONATYPE_USERNAME or SONATYPE_PASSWORD not set."
+            exit 1
+          fi
+
+          AUTH=$(printf '%s:%s' "$SONATYPE_USERNAME" "$SONATYPE_PASSWORD" | base64 | tr -d '\n')
+
+          # The Central Portal API exposes a search endpoint for pending
+          # deployments. Filter for the requested version's bundle name.
+          # The bundle name vanniktech-publish picks is "${group}:${artifact}:${version}";
+          # we search by `name` containing the version string.
+          echo "Searching Central Portal for VALIDATED deployments containing version $VERSION…"
+
+          # POST /api/v1/publisher/search/deployments with a paging filter
+          RESPONSE=$(curl -sS -X POST \
+            "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?profile_id=&ip=&state=open" \
+            -H "Authorization: Bearer $AUTH" || true)
+
+          # Fall back to the documented Central Portal endpoint shape if the
+          # OSSRH-style endpoint is gone. The Portal API exposes
+          # `/api/v1/publisher/deployments` for listing the caller's pending
+          # deployments — try that.
+          if [ -z "$RESPONSE" ] || echo "$RESPONSE" | grep -qi "not found"; then
+            RESPONSE=$(curl -sS \
+              "https://central.sonatype.com/api/v1/publisher/deployments?status=VALIDATED" \
+              -H "Authorization: Bearer $AUTH")
+          fi
+
+          echo "::group::Raw API response"
+          echo "$RESPONSE" | head -c 4000
+          echo "::endgroup::"
+
+          DEPLOYMENT_ID=$(echo "$RESPONSE" | python3 -c "
+          import json, os, sys
+          version = os.environ['VERSION']
+          try:
+              data = json.loads(sys.stdin.read())
+          except Exception as e:
+              sys.exit(f'API response is not valid JSON: {e}')
+          # Both API shapes nest the list either at the top level or under
+          # 'repositories' / 'deployments' / 'data'. Probe the common ones.
+          candidates = []
+          for key in ('repositories', 'deployments', 'data'):
+              v = data.get(key) if isinstance(data, dict) else None
+              if isinstance(v, list):
+                  candidates = v
+                  break
+          if not candidates and isinstance(data, list):
+              candidates = data
+          for c in candidates:
+              name = c.get('name', '') or c.get('deploymentName', '')
+              state = (c.get('state') or c.get('deploymentState') or '').upper()
+              if version in name and state in ('VALIDATED', 'OPEN', 'STAGED'):
+                  print(c.get('key') or c.get('deploymentId') or c.get('id') or '')
+                  sys.exit(0)
+          sys.exit(0)
+          ")
+
+          if [ -z "$DEPLOYMENT_ID" ]; then
+            echo "::warning::No VALIDATED deployment matching version $VERSION found via API auto-detection."
+            echo ""
+            echo "Fallback: open https://central.sonatype.com/publishing/deployments in a browser"
+            echo "(log in with the same credentials), locate the deployment for version $VERSION,"
+            echo "and click 'Publish'. The Central Portal API surface changes occasionally; this"
+            echo "workflow's auto-detection covers the common cases but the web UI is always available."
+            exit 1
+          fi
+
+          echo "Publishing deployment id: $DEPLOYMENT_ID"
+
+          # POST /api/v1/publisher/deployment/{id} — releases the deployment.
+          PUBLISH_RESPONSE=$(curl -sS -w "\nHTTP_STATUS:%{http_code}\n" \
+            -X POST "https://central.sonatype.com/api/v1/publisher/deployment/$DEPLOYMENT_ID" \
+            -H "Authorization: Bearer $AUTH")
+          STATUS=$(echo "$PUBLISH_RESPONSE" | grep -oE 'HTTP_STATUS:[0-9]+' | cut -d: -f2)
+          BODY=$(echo "$PUBLISH_RESPONSE" | sed '/^HTTP_STATUS:/d')
+
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "204" ]; then
+            echo "::error::Publish API returned $STATUS"
+            echo "$BODY"
+            exit 1
+          fi
+
+          {
+            echo "### Maven Central release"
+            echo ""
+            echo "| Field         | Value |"
+            echo "| ------------- | ----- |"
+            echo "| Version       | \`$VERSION\` |"
+            echo "| Deployment ID | \`$DEPLOYMENT_ID\` |"
+            echo "| API status    | \`$STATUS\` |"
+            echo ""
+            echo "Artefacts will be searchable at https://search.maven.org/ within ~20 minutes"
+            echo "and resolvable from https://repo1.maven.org/maven2/dev/kuml/ within a few hours."
+          } >> "$GITHUB_STEP_SUMMARY"

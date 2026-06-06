@@ -55,7 +55,14 @@ subprojects {
         apply(plugin = "com.vanniktech.maven.publish")
 
         configure<com.vanniktech.maven.publish.MavenPublishBaseExtension> {
-            publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = false)
+            // automaticRelease = true → vanniktech uploads to the Central
+            // Portal staging and immediately publishes it. Without this flag
+            // (which we had through v0.3.0), the staging deployment sits at
+            // VALIDATED indefinitely until a maintainer clicks "Publish" in
+            // https://central.sonatype.com/publishing/deployments. That's how
+            // v0.3.0's JARs never reached Maven Central even though the
+            // release workflow reported success.
+            publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
             signAllPublications()
 
             configure(
