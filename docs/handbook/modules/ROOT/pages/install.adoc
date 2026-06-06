@@ -24,6 +24,27 @@ brew install kuml-dev/kuml/kuml
 kuml --version
 ----
 
+=== SDKMAN! (macOS / Linux, V2.0.5+)
+
+SDKMAN! is the JVM-ecosystem package manager (`kotlin`, `gradle`, `maven`, `springboot`, …).
+kUML is published as a `PLATFORM_SPECIFIC` candidate with jlink-bundled JREs per platform —
+no Java install required on the host.
+
+[source,bash]
+----
+# Install the latest stable kUML:
+sdk install kuml
+
+# Or pin a specific version:
+sdk install kuml {kuml-version}
+
+# Switch between installed versions:
+sdk use kuml {kuml-version}
+----
+
+Supported platforms: Apple Silicon (`MAC_ARM64`), Intel Mac (`MAC_OSX`), Linux x64 (`LINUX_64`).
+Windows support is on the V2.x roadmap.
+
 === Direct download
 
 Pre-built distributions are attached to each https://github.com/kuml-dev/kUML/releases[GitHub release].
