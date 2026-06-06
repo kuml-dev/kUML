@@ -7,6 +7,7 @@ import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDefinition
@@ -62,7 +63,7 @@ class Sysml2ModelBuilder(
         specializesId: String? = null,
         block: DefinitionBuilder.() -> Unit = {},
     ): PartDefinition {
-        val builder = DefinitionBuilder(parentId = id).apply(block)
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
         val def =
             PartDefinition(
                 id = id,
@@ -82,7 +83,7 @@ class Sysml2ModelBuilder(
         id: String = name,
         block: DefinitionBuilder.() -> Unit = {},
     ): AttributeDefinition {
-        val builder = DefinitionBuilder(parentId = id).apply(block)
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
         val def =
             AttributeDefinition(
                 id = id,
@@ -99,7 +100,7 @@ class Sysml2ModelBuilder(
         id: String = name,
         block: DefinitionBuilder.() -> Unit = {},
     ): PortDefinition {
-        val builder = DefinitionBuilder(parentId = id).apply(block)
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
         val def =
             PortDefinition(
                 id = id,
@@ -116,7 +117,7 @@ class Sysml2ModelBuilder(
         id: String = name,
         block: DefinitionBuilder.() -> Unit = {},
     ): ConnectionDefinition {
-        val builder = DefinitionBuilder(parentId = id).apply(block)
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
         val def =
             ConnectionDefinition(
                 id = id,
@@ -125,6 +126,21 @@ class Sysml2ModelBuilder(
             )
         definitions += def
         return def
+    }
+
+    /**
+     * Register a typed [Sysml2Usage] so the model's `usages` list carries the
+     * full typed view alongside the KerML `features`. V2.0.6 added this so the
+     * IBD bridge can read `model.usages.filterIsInstance<ConnectionUsage>()`
+     * directly — `KermlFeature` loses the `sourceEndId`/`targetEndId` of a
+     * `ConnectionUsage`, which the IBD wiring projection actually needs.
+     *
+     * Called from [DefinitionBuilder] for every `part(...) / attribute(...) /
+     * port(...) / connect(...)` invocation. Stays `internal` so it's part of
+     * the module's contract but not the public DSL surface.
+     */
+    internal fun registerUsage(usage: Sysml2Usage) {
+        usages += usage
     }
 
     // ── Diagrams ─────────────────────────────────────────────────────────
@@ -139,6 +155,31 @@ class Sysml2ModelBuilder(
     ): BdDiagram {
         val builder = BdDiagramBuilder().apply(block)
         val diagram = BdDiagram(name = name, elementIds = builder.ids())
+        diagrams += diagram
+        return diagram
+    }
+
+    /**
+     * `ibd("HybridVehicle wiring", owner = hybrid) { … }` — an Internal Block
+     * Diagram projecting the internal structure of [owner].
+     *
+     * Without an `include`-block the bridge renders **all** part-usages of the
+     * owner (the empty-`elementIds` short-hand). With one or more `include(...)`
+     * calls the bridge restricts the visible part-usages to that subset —
+     * mirrors the BDD's semantic where empty means "no restriction".
+     */
+    fun ibd(
+        name: String,
+        owner: PartDefinition,
+        block: IbdDiagramBuilder.() -> Unit = {},
+    ): IbdDiagram {
+        val builder = IbdDiagramBuilder().apply(block)
+        val diagram =
+            IbdDiagram(
+                name = name,
+                ownerId = owner.id,
+                elementIds = builder.ids(),
+            )
         diagrams += diagram
         return diagram
     }
@@ -163,6 +204,7 @@ class Sysml2ModelBuilder(
 @Sysml2Dsl
 class DefinitionBuilder internal constructor(
     private val parentId: String,
+    private val modelBuilder: Sysml2ModelBuilder,
 ) {
     private val collected = mutableListOf<dev.kuml.kerml.KermlFeature>()
 
@@ -189,6 +231,7 @@ class DefinitionBuilder internal constructor(
                 defaultExpression = default?.toSpecForm(),
             )
         collected += toFeature(usage, typeId)
+        modelBuilder.registerUsage(usage)
         return usage
     }
 
@@ -208,6 +251,7 @@ class DefinitionBuilder internal constructor(
                 multiplicity = multiplicity,
             )
         collected += toFeature(usage, typeId)
+        modelBuilder.registerUsage(usage)
         return usage
     }
 
@@ -227,6 +271,7 @@ class DefinitionBuilder internal constructor(
                 multiplicity = multiplicity,
             )
         collected += toFeature(usage, typeId)
+        modelBuilder.registerUsage(usage)
         return usage
     }
 
@@ -250,6 +295,7 @@ class DefinitionBuilder internal constructor(
                 targetEndId = targetEndId,
             )
         collected += toFeature(usage, typeId)
+        modelBuilder.registerUsage(usage)
         return usage
     }
 
@@ -288,6 +334,31 @@ class BdDiagramBuilder internal constructor() {
     }
 
     /** Add a SysML 2 element by raw id — for forward refs / id-only setups. */
+    fun includeById(id: String) {
+        ids += id
+    }
+
+    internal fun ids(): List<String> = ids.toList()
+}
+
+/**
+ * Scope for `ibd("…", owner = Vehicle) { include(engine); include(battery) }`.
+ *
+ * Mirrors [BdDiagramBuilder] but selects [Sysml2Usage]s (typically
+ * [PartUsage]s) instead of definitions. An empty include-block means
+ * "show all of the owner's part-usages" — the bridge enforces that
+ * empty-list semantics.
+ */
+@Sysml2Dsl
+class IbdDiagramBuilder internal constructor() {
+    private val ids = mutableListOf<String>()
+
+    /** Add a SysML 2 usage (by reference) to the IBD's visible set. */
+    fun include(usage: Sysml2Usage) {
+        ids += usage.id
+    }
+
+    /** Add a SysML 2 usage by raw id — for forward refs / id-only setups. */
     fun includeById(id: String) {
         ids += id
     }

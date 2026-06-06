@@ -18,6 +18,8 @@ import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
+import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.IbdDiagram
 import java.io.File
 import java.io.IOException
 import java.nio.file.Path
@@ -139,12 +141,16 @@ internal object RenderPipeline {
     }
 
     /**
-     * SysML 2 BDD render-Branch (V2.0.4).
+     * SysML 2 render-Branch (V2.0.4 BDD, V2.0.6 IBD).
      *
-     * Bridge → ELK Layout → Render (SVG/LaTeX). PNG ist V2.x — der Batik-PNG-
-     * Renderer braucht für SysML 2 noch ein paar Stereotyp-Style-Mappings, das
-     * lohnt eine eigene Welle. Bis dahin emittet die PNG-Code-Path einen klaren
-     * Fehler statt einer halben Render-Pipeline.
+     * Bridge → ELK Layout → Render (SVG/LaTeX). Dispatch in zwei Stufen:
+     *  1. auf den Diagrammtyp (BDD vs. IBD) — Bridge-Aufruf + Renderer-Wahl.
+     *  2. auf das Ausgabeformat (svg/latex/png).
+     *
+     * PNG ist für beide Diagrammtypen V2.x — der Batik-PNG-Renderer braucht
+     * für SysML 2 noch ein paar Stereotyp-Style-Mappings, das lohnt eine
+     * eigene Welle. Bis dahin emittet die PNG-Code-Path einen klaren Fehler
+     * statt einer halben Render-Pipeline.
      */
     private fun renderSysml2(
         extracted: ExtractedDiagram.Sysml2,
@@ -153,22 +159,31 @@ internal object RenderPipeline {
         theme: KumlTheme,
     ) {
         val model = extracted.model
-        val diagram = extracted.diagram
-        val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-        val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
-        when (format) {
-            "svg" -> {
-                val svg = KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
-                writeText(output, svg)
+        when (val diagram = extracted.diagram) {
+            is BdDiagram -> {
+                val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                when (format) {
+                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
+                    "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
+                    "png" -> throw ScriptEvaluationException(
+                        "PNG-Export für SysML 2 BDDs ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
+                    )
+                    else -> throw ScriptEvaluationException("Unsupported format: $format")
+                }
             }
-            "latex" -> {
-                val tex = KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT)
-                writeText(output, tex)
+            is IbdDiagram -> {
+                val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                when (format) {
+                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
+                    "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
+                    "png" -> throw ScriptEvaluationException(
+                        "PNG-Export für SysML 2 IBDs ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
+                    )
+                    else -> throw ScriptEvaluationException("Unsupported format: $format")
+                }
             }
-            "png" -> throw ScriptEvaluationException(
-                "PNG-Export für SysML 2 BDDs ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
-            )
-            else -> throw ScriptEvaluationException("Unsupported format: $format")
         }
     }
 

@@ -4,6 +4,8 @@ import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
 import java.io.File
 import kotlin.script.experimental.api.ResultValue
@@ -27,14 +29,17 @@ public sealed class ExtractedDiagram {
     ) : ExtractedDiagram()
 
     /**
-     * A SysML 2 BDD with its parent [Sysml2Model] (V2.0.4).
+     * A SysML 2 diagram with its parent [Sysml2Model].
      *
-     * `Sysml2LayoutBridge` needs both: the model holds all definitions, the
-     * BDD selects which ones to project. Mirrors the C4 pattern.
+     * `Sysml2LayoutBridge` needs both: the model holds all definitions/usages,
+     * the diagram selects which slice to project. V2.0.4 introduced this for
+     * BDD ([BdDiagram]); V2.0.6 widened `diagram` to any [Sysml2Diagram] so
+     * IBD ([dev.kuml.sysml2.IbdDiagram]) flows through the same extraction
+     * path. The render pipeline branches on the concrete diagram kind.
      */
     public data class Sysml2(
         val model: Sysml2Model,
-        val diagram: BdDiagram,
+        val diagram: Sysml2Diagram,
     ) : ExtractedDiagram()
 }
 
@@ -141,7 +146,7 @@ object DiagramExtractor {
                 )
             }
             if (value is Sysml2Model) {
-                value.firstBddOrNull()?.let {
+                value.firstDiagramOrNull()?.let {
                     return ExtractedDiagram.Sysml2(value, it)
                 }
             }
@@ -149,6 +154,13 @@ object DiagramExtractor {
                 throw ScriptEvaluationException(
                     "Script '${input.name}' returned a bare BdDiagram. " +
                         "Wrap it inside `sysml2Model(\"…\") { bdd(\"…\") { … } }` " +
+                        "so the renderer has access to the surrounding Sysml2Model.",
+                )
+            }
+            if (value is IbdDiagram) {
+                throw ScriptEvaluationException(
+                    "Script '${input.name}' returned a bare IbdDiagram. " +
+                        "Wrap it inside `sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` " +
                         "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
@@ -191,19 +203,19 @@ object DiagramExtractor {
                     return ExtractedDiagram.C4(model, model.firstDiagramOrNull()!!)
                 }
 
-            // Sysml2Model property with at least one BDD.
+            // Sysml2Model property with at least one diagram (BDD or IBD).
             properties
                 .firstOrNull { prop ->
                     try {
                         val v = prop.get(instance)
-                        v is Sysml2Model && v.firstBddOrNull() != null
+                        v is Sysml2Model && v.firstDiagramOrNull() != null
                     } catch (_: Exception) {
                         false
                     }
                 }?.let { prop ->
                     @Suppress("UNCHECKED_CAST")
                     val model = prop.get(instance) as Sysml2Model
-                    return ExtractedDiagram.Sysml2(model, model.firstBddOrNull()!!)
+                    return ExtractedDiagram.Sysml2(model, model.firstDiagramOrNull()!!)
                 }
         }
 
@@ -211,11 +223,18 @@ object DiagramExtractor {
             "Script '${input.name}' did not produce a renderable diagram. " +
                 "End the script with a `classDiagram { … }` (UML), " +
                 "a `c4Model(name = \"…\") { systemContextDiagram(name = \"…\") { … } }` (C4), " +
-                "or a `sysml2Model(\"…\") { bdd(\"…\") { … } }` (SysML 2) expression.",
+                "or a `sysml2Model(\"…\") { bdd(\"…\") { … } }` (SysML 2 BDD) / " +
+                "`sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` (SysML 2 IBD) expression.",
         )
     }
 
     private fun C4Model.firstDiagramOrNull(): C4Diagram? = diagrams.firstOrNull()
 
-    private fun Sysml2Model.firstBddOrNull(): BdDiagram? = diagrams.filterIsInstance<BdDiagram>().firstOrNull()
+    /**
+     * V2.0.6: picks the *first* diagram in declaration order, regardless of
+     * BDD vs IBD. This preserves the V2.0.4 behaviour for scripts that only
+     * declare a BDD (the BDD comes first) while letting IBD-only scripts
+     * render through the same path.
+     */
+    private fun Sysml2Model.firstDiagramOrNull(): Sysml2Diagram? = diagrams.firstOrNull()
 }

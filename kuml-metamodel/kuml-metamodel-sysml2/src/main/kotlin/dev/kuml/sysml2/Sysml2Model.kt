@@ -10,10 +10,12 @@ import kotlinx.serialization.Serializable
  * the model declares, plus any diagrams ([diagrams]) the author has tagged
  * for rendering.
  *
- * For V2.0.3, "diagram" means a Block Definition Diagram ([BdDiagram]) that
- * selects which definitions to show; the other SysML 2 diagram kinds (IBD,
- * REQ, PAR, ACT, SEQ, STM, UC) land in follow-up waves. The model itself
- * is diagram-agnostic — a single model can drive many diagrams.
+ * For V2.0.3, "diagram" started with a Block Definition Diagram ([BdDiagram])
+ * that selects which definitions to show; V2.0.6 adds [IbdDiagram] (Internal
+ * Block Diagram) for the wiring view of a single [PartDefinition]. The
+ * remaining SysML 2 diagram kinds (REQ, PAR, ACT, SEQ, STM, UC) land in
+ * follow-up waves. The model itself is diagram-agnostic — a single model
+ * can drive many diagrams.
  */
 @Serializable
 data class Sysml2Model(
@@ -38,9 +40,9 @@ data class Sysml2Model(
 }
 
 /**
- * Sealed root for every SysML 2 diagram kind. V2.0.3 implements [BdDiagram]
- * only — the rest follow as separate `data class` subtypes in later waves
- * (IBD, REQ, PAR, ACT, SEQ, STM, UC).
+ * Sealed root for every SysML 2 diagram kind. V2.0.3 implements [BdDiagram],
+ * V2.0.6 adds [IbdDiagram] — the rest (REQ, PAR, ACT, SEQ, STM, UC) follow
+ * as separate `data class` subtypes in later waves.
  */
 @Serializable
 sealed interface Sysml2Diagram {
@@ -64,5 +66,39 @@ sealed interface Sysml2Diagram {
 @Serializable
 data class BdDiagram(
     override val name: String,
+    override val elementIds: List<String> = emptyList(),
+) : Sysml2Diagram
+
+/**
+ * **Internal Block Diagram** (IBD) — the structural sibling of [BdDiagram]
+ * that zooms *inside* a single [PartDefinition] (`ownerId`) and shows its
+ * internal wiring:
+ *
+ *  - every owned `PartUsage` becomes a nested box,
+ *  - every owned `PortUsage` surfaces as a compartment entry (V2.0.6 MVP —
+ *    boundary port markers on the IBD frame are deferred to V2.x),
+ *  - every owned `ConnectionUsage` becomes an edge between the two part-usage
+ *    boxes its endpoints fall under.
+ *
+ * Whereas a BDD shows *types* (Vehicle, Engine, Battery), an IBD shows *the
+ * wiring of one type* (inside Vehicle: `engine : Engine`, `battery : Battery`,
+ * and a `PowerLine` connection between them).
+ *
+ * V2.0.6 MVP scope (per the wave plan):
+ *  - One IBD per [PartDefinition]; nested IBDs (drilling further into a
+ *    contained part) land in V2.x.
+ *  - Boundary ports on the IBD frame: V2.x — needs port-position layout hints.
+ *  - Typed connection styles per `ConnectionDefinition`: V2.x.
+ *  - PNG export: V2.x (same as BDD).
+ */
+@Serializable
+data class IbdDiagram(
+    override val name: String,
+    /** Id of the [PartDefinition] whose internals are projected. */
+    val ownerId: String,
+    /**
+     * Optional filter — if empty, *all* of the owner's part-usages render.
+     * If non-empty, only the listed usage ids survive the bridge's selection.
+     */
     override val elementIds: List<String> = emptyList(),
 ) : Sysml2Diagram

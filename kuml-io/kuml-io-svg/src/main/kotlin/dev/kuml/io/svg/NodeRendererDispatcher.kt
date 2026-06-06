@@ -10,6 +10,7 @@ import dev.kuml.io.svg.c4.renderC4Container
 import dev.kuml.io.svg.c4.renderC4Person
 import dev.kuml.io.svg.c4.renderC4SoftwareSystem
 import dev.kuml.io.svg.sysml2.renderSysml2Definition
+import dev.kuml.io.svg.sysml2.renderSysml2Usage
 import dev.kuml.io.svg.uml.renderUmlActivityNode
 import dev.kuml.io.svg.uml.renderUmlActor
 import dev.kuml.io.svg.uml.renderUmlArtifact
@@ -29,6 +30,7 @@ import dev.kuml.io.svg.uml.renderUmlUseCase
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.Sysml2Definition
+import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.uml.UmlActivityNode
 import dev.kuml.uml.UmlActor
 import dev.kuml.uml.UmlArtifact
@@ -93,6 +95,7 @@ internal object NodeRendererDispatcher {
             is C4Container -> renderC4Container(element, layout, theme, builder)
             is C4Component -> renderC4Component(element, layout, theme, builder)
             is Sysml2Definition -> renderSysml2Definition(element, layout, theme, builder)
+            is Sysml2Usage -> renderSysml2Usage(element, layout, theme, builder)
             else -> renderFallbackNode(element, layout, builder)
         }
     }

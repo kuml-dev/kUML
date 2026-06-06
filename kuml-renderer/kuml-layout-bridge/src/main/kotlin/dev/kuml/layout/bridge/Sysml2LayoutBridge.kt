@@ -8,7 +8,10 @@ import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PartDefinition
+import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
 
@@ -93,11 +96,134 @@ public object Sysml2LayoutBridge {
     public const val DEFAULT_WIDTH: Float = 220f
     public const val DEFAULT_HEIGHT: Float = 140f
 
+    /**
+     * Default-Größe pro IBD-Box (V2.0.6). Kleiner als die BDD-Default-Größe,
+     * weil IBD-Boxen nur `name : Type [mult]` zeigen — keine Compartments für
+     * Attribute/Ports/Sub-Parts. Die `«part»`-Stereotyp-Zeile plus eine
+     * Titelzeile passen bequem in 180×80.
+     */
+    public const val IBD_DEFAULT_WIDTH: Float = 180f
+    public const val IBD_DEFAULT_HEIGHT: Float = 80f
+
     /** Diagnose-Helfer: extrahiert die in [diagram] referenzierten Definitionen aus [model]. */
     public fun resolveVisibleDefinitions(
         model: Sysml2Model,
         diagram: BdDiagram,
     ): List<Sysml2Definition> = diagram.elementIds.mapNotNull { id -> model.definitions.firstOrNull { it.id == id } }
+
+    /**
+     * Übersetzt das gegebene IBD (V2.0.6) in einen [LayoutGraph].
+     *
+     * MVP-Scope:
+     *  - Jede [PartUsage] des Owners (`diagram.ownerId`) wird ein [LayoutNode].
+     *    Wenn `diagram.elementIds` leer ist, sind das alle Part-Usages des
+     *    Owners; ist die Liste gesetzt, wird auf diese Teilmenge gefiltert.
+     *  - Jede [ConnectionUsage], die der Owner besitzt (qualified-name-Prefix
+     *    `"<ownerId>::"`), wird eine [LayoutEdge] — sofern beide Endpunkte auf
+     *    sichtbare Part-Usages mapen. Endpunkte folgen der SysML-2-Konvention
+     *    `Owner::partUsage::portUsage`; per Longest-Prefix-Match wird die
+     *    enthaltende Part-Usage ermittelt.
+     *  - Dangling-Connections (Endpunkt in keiner sichtbaren Part-Usage) werden
+     *    stillschweigend übersprungen — Konsistenzprüfung ist Validator-Sache.
+     *  - Owner nicht gefunden → leerer Graph; analog zum BDD-Verhalten.
+     *
+     * Bewusst ausgenommen (V2.x):
+     *  - Boundary-Port-Marker am IBD-Rahmen (brauchen Port-Position-Hints).
+     *  - Geschachtelte IBDs (IBD-in-IBD).
+     *  - Typed Connection-Linienstile pro `ConnectionDefinition`.
+     *
+     * @param model Container mit Definitionen + Usages.
+     * @param diagram Das IBD (`ownerId` adressiert die PartDefinition, deren
+     *   Innenleben projiziert wird).
+     * @param sizeProvider Liefert die intrinsische Größe pro Part-Usage. Default
+     *   ist [IBD_DEFAULT_WIDTH] × [IBD_DEFAULT_HEIGHT].
+     */
+    public fun toLayoutGraph(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        sizeProvider: SizeProvider = SizeProvider.constant(width = IBD_DEFAULT_WIDTH, height = IBD_DEFAULT_HEIGHT),
+    ): LayoutGraph {
+        // 1. Owner auflösen — fehlt der Owner, ist der Graph leer (analog BDD).
+        val owner =
+            model.definitions
+                .filterIsInstance<PartDefinition>()
+                .firstOrNull { it.id == diagram.ownerId }
+                ?: return LayoutGraph(nodes = emptyList(), edges = emptyList())
+
+        // 2. Definitionen indexieren, um "Feature ist ein Part-Usage" zu erkennen.
+        //    Part-Usages sind Features, deren typeId auf eine PartDefinition zeigt.
+        //    Attribute- und Port-Features zeigen auf Attribute- bzw. PortDefinition
+        //    und sind im IBD-MVP nicht sichtbar (boundary ports → V2.x).
+        val partDefIds: Set<String> =
+            model.definitions
+                .filterIsInstance<PartDefinition>()
+                .map { it.id }
+                .toSet()
+
+        // 3. Owner-Part-Usages bestimmen (KermlFeature-Sicht).
+        //    Feature-ID = `<ownerId>::<partUsageName>` (DSL-Konvention).
+        val ownerPartUsageFeatures =
+            owner.features.filter { feature ->
+                feature.typeId != null && feature.typeId in partDefIds
+            }
+
+        // 4. Optional auf elementIds filtern. Leere Liste = "alle Part-Usages".
+        val filterIds: Set<String>? = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet()
+        val visibleFeatures =
+            if (filterIds == null) {
+                ownerPartUsageFeatures
+            } else {
+                ownerPartUsageFeatures.filter { it.id in filterIds }
+            }
+
+        // 5. LayoutNodes für die sichtbaren Part-Usages — Key = Feature-ID.
+        val nodes =
+            visibleFeatures.map { feature ->
+                LayoutNode(
+                    id = NodeId(feature.id),
+                    intrinsicSize = sizeProvider.sizeOf(feature.id, "PartUsage"),
+                )
+            }
+        val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
+
+        // 6. Edges aus Owner-eigenen Connection-Usages bauen.
+        //    Owner-eigen = qualifiedName beginnt mit `"<ownerId>::"` (DSL-Konvention).
+        val ownerPrefix = "${owner.id}::"
+        val ownerConnections =
+            model.usages
+                .filterIsInstance<ConnectionUsage>()
+                .filter { it.id.startsWith(ownerPrefix) }
+
+        val edges = mutableListOf<LayoutEdge>()
+        for (connection in ownerConnections) {
+            val srcNode = longestPrefixNodeId(connection.sourceEndId, visibleNodeIds) ?: continue
+            val tgtNode = longestPrefixNodeId(connection.targetEndId, visibleNodeIds) ?: continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId("conn:${connection.id}"),
+                    source = EndpointRef(nodeId = NodeId(srcNode)),
+                    target = EndpointRef(nodeId = NodeId(tgtNode)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        return LayoutGraph(nodes = nodes, edges = edges)
+    }
+
+    /**
+     * Findet die längste sichtbare Part-Usage-ID, die ein Präfix des
+     * Endpunkts ist. SysML-2-Endpunkte folgen der Form
+     * `Owner::partUsage::portUsage`; das längste Präfix entspricht der
+     * enthaltenden Part-Usage. Gibt `null` zurück, wenn der Endpunkt in
+     * keiner sichtbaren Part-Usage liegt — die Connection wird dann verworfen.
+     */
+    private fun longestPrefixNodeId(
+        endpointId: String,
+        visibleNodeIds: Set<String>,
+    ): String? =
+        visibleNodeIds
+            .filter { endpointId == it || endpointId.startsWith("$it::") }
+            .maxByOrNull { it.length }
 
     @Suppress("unused")
     private fun PartDefinition.featureCount(): Int = features.size

@@ -45,71 +45,77 @@ sysml2Model("HybridVehicle") {
     val driveshaft = connectionDef("Driveshaft")
 
     // ── Parts ──────────────────────────────────────────────────────────────
-    val battery = partDef("Battery") {
-        attribute("capacity", typeId = energy.id, default = 60.kWh)
-        attribute("nominalVoltage", typeId = voltage.id, default = 400.V)
-        port("dcOut", typeId = powerPort.id)
-    }
+    val battery =
+        partDef("Battery") {
+            attribute("capacity", typeId = energy.id, default = 60.kWh)
+            attribute("nominalVoltage", typeId = voltage.id, default = 400.V)
+            port("dcOut", typeId = powerPort.id)
+        }
 
-    val electricMotor = partDef("ElectricMotor") {
-        attribute("ratedPower", typeId = power.id, default = 150.kW)
-        port("dcIn", typeId = powerPort.id)
-        port("shaft", typeId = mechanicalShaft.id)
-    }
+    val electricMotor =
+        partDef("ElectricMotor") {
+            attribute("ratedPower", typeId = power.id, default = 150.kW)
+            port("dcIn", typeId = powerPort.id)
+            port("shaft", typeId = mechanicalShaft.id)
+        }
 
-    val iceEngine = partDef("InternalCombustionEngine") {
-        attribute("ratedPower", typeId = power.id, default = 90.kW)
-        port("shaft", typeId = mechanicalShaft.id)
-    }
+    val iceEngine =
+        partDef("InternalCombustionEngine") {
+            attribute("ratedPower", typeId = power.id, default = 90.kW)
+            port("shaft", typeId = mechanicalShaft.id)
+        }
 
-    val powerSplitter = partDef("PowerSplitter") {
-        attribute("ratio", typeId = angle.id, default = 35.deg)
-        port("iceIn", typeId = mechanicalShaft.id)
-        port("emIn", typeId = mechanicalShaft.id)
-        port("wheelOut", typeId = mechanicalShaft.id)
-    }
+    val powerSplitter =
+        partDef("PowerSplitter") {
+            attribute("ratio", typeId = angle.id, default = 35.deg)
+            port("iceIn", typeId = mechanicalShaft.id)
+            port("emIn", typeId = mechanicalShaft.id)
+            port("wheelOut", typeId = mechanicalShaft.id)
+        }
 
-    val vehicle = partDef("Vehicle", isAbstract = true) {
-        attribute("curbWeight", typeId = mass.id, default = 1500.kg)
-        attribute("topSpeed", typeId = speed.id, default = 180.kmph)
-    }
+    val vehicle =
+        partDef("Vehicle", isAbstract = true) {
+            attribute("curbWeight", typeId = mass.id, default = 1500.kg)
+            attribute("topSpeed", typeId = speed.id, default = 180.kmph)
+        }
 
-    val hybrid = partDef("HybridVehicle", specializesId = vehicle.id) {
-        part("battery", typeId = battery.id)
-        part("electricMotor", typeId = electricMotor.id)
-        part("ice", typeId = iceEngine.id)
-        part("splitter", typeId = powerSplitter.id)
+    val hybrid =
+        partDef("HybridVehicle", specializesId = vehicle.id) {
+            part("battery", typeId = battery.id)
+            part("electricMotor", typeId = electricMotor.id)
+            part("ice", typeId = iceEngine.id)
+            part("splitter", typeId = powerSplitter.id)
 
-        // Two cylinders — multiplicity demo. The real ICE has 4 cylinders;
-        // we pin 2 here so the BDD example shows the multiplicity glyph.
-        part(
-            name = "auxiliaryFans",
-            typeId = electricMotor.id,
-            multiplicity = KermlMultiplicity(0, 2),
-        )
+            // Two cylinders — multiplicity demo. The real ICE has 4 cylinders;
+            // we pin 2 here so the BDD example shows the multiplicity glyph.
+            part(
+                name = "auxiliaryFans",
+                typeId = electricMotor.id,
+                multiplicity = KermlMultiplicity(0, 2),
+            )
 
-        // Power-flow connections — wire ports up explicitly. SourceEnd/TargetEnd
-        // ids use the SysML 2 `::`-qualified form so the model is unambiguous
-        // even when several parts have the same port name.
-        connect(
-            name = "batteryToMotor",
-            typeId = powerLine.id,
-            sourceEndId = "Battery::dcOut",
-            targetEndId = "ElectricMotor::dcIn",
-        )
-        connect(
-            name = "motorToSplitter",
-            typeId = driveshaft.id,
-            sourceEndId = "ElectricMotor::shaft",
-            targetEndId = "PowerSplitter::emIn",
-        )
-        connect(
-            name = "iceToSplitter",
-            typeId = driveshaft.id,
-            sourceEndId = "InternalCombustionEngine::shaft",
-            targetEndId = "PowerSplitter::iceIn",
-        )
-    }
+            // Power-flow connections — wire ports up explicitly. SourceEnd/TargetEnd
+            // ids use the SysML 2 `::`-qualified form so the model is unambiguous
+            // even when several parts have the same port name.
+            connect(
+                name = "batteryToMotor",
+                typeId = powerLine.id,
+                sourceEndId = "Battery::dcOut",
+                targetEndId = "ElectricMotor::dcIn",
+            )
+            connect(
+                name = "motorToSplitter",
+                typeId = driveshaft.id,
+                sourceEndId = "ElectricMotor::shaft",
+                targetEndId = "PowerSplitter::emIn",
+            )
+            connect(
+                name = "iceToSplitter",
+                typeId = driveshaft.id,
+                sourceEndId = "InternalCombustionEngine::shaft",
+                targetEndId = "PowerSplitter::iceIn",
+            )
+        }
 
     // ── Block Definition Diagram ───────────────────────────────────────────
     bdd("HybridVehicle — structural overview") {
@@ -120,4 +126,10 @@ sysml2Model("HybridVehicle") {
         include(battery)
         include(powerSplitter)
     }
+
+    // ── Internal Block Diagram (V2.0.6) ────────────────────────────────────
+    // Inner wiring view of the HybridVehicle — the four part-usages and the
+    // power-flow connections between them. Empty include-block = "show all
+    // part-usages of the owner"; the bridge expands it.
+    ibd("HybridVehicle — internal block diagram", owner = hybrid)
 }

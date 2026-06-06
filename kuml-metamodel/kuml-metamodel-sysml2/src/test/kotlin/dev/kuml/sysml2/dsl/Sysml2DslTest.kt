@@ -2,15 +2,20 @@ package dev.kuml.sysml2.dsl
 
 import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.sysml2.AttributeDefinition
+import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.PartDefinition
+import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDefinition
+import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.units.kW
 import dev.kuml.sysml2.units.kWh
 import dev.kuml.sysml2.units.kg
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -230,6 +235,100 @@ class Sysml2DslTest :
                 .single()
                 .multiplicity
                 .toSpecForm() shouldBe "8"
+        }
+
+        "ibd projects the part-usages of its owner" {
+            // V2.0.6 — empty include-block means "all part-usages of the owner".
+            val model =
+                sysml2Model("M") {
+                    val engineDef = partDef("Engine")
+                    val batteryDef = partDef("Battery")
+                    val vehicle =
+                        partDef("Vehicle") {
+                            part("engine", typeId = engineDef.id)
+                            part("battery", typeId = batteryDef.id)
+                        }
+                    ibd("Vehicle wiring", owner = vehicle)
+                }
+            val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
+            ibd.name shouldBe "Vehicle wiring"
+            ibd.ownerId shouldBe "Vehicle"
+            // Empty elementIds = "include everything"; the bridge expands it.
+            ibd.elementIds shouldBe emptyList()
+        }
+
+        "ibd with explicit include selects a subset" {
+            val model =
+                sysml2Model("M") {
+                    val engineDef = partDef("Engine")
+                    val batteryDef = partDef("Battery")
+                    lateinit var enginePartUsage: PartUsage
+                    val vehicle =
+                        partDef("Vehicle") {
+                            enginePartUsage = part("engine", typeId = engineDef.id)
+                            part("battery", typeId = batteryDef.id)
+                        }
+                    ibd("Engine-only wiring", owner = vehicle) {
+                        include(enginePartUsage)
+                    }
+                }
+            val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
+            ibd.ownerId shouldBe "Vehicle"
+            ibd.elementIds shouldContainExactly listOf("Vehicle::engine")
+        }
+
+        "ibd includeById accepts forward-/id-only references" {
+            val model =
+                sysml2Model("M") {
+                    val engineDef = partDef("Engine")
+                    val vehicle =
+                        partDef("Vehicle") {
+                            part("engine", typeId = engineDef.id)
+                        }
+                    ibd("Vehicle wiring", owner = vehicle) {
+                        includeById("Vehicle::engine")
+                    }
+                }
+            val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
+            ibd.elementIds shouldContainExactly listOf("Vehicle::engine")
+        }
+
+        "typed usages register on model.usages alongside KerML features (V2.0.6)" {
+            // V2.0.6 surfaced this: the IBD bridge needs ConnectionUsage.sourceEndId
+            // / targetEndId, which the KermlFeature view doesn't carry. The DSL now
+            // pushes every typed usage into `model.usages` alongside the feature
+            // shadow on the parent definition.
+            val model =
+                sysml2Model("M") {
+                    val engineDef = partDef("Engine")
+                    val batteryDef = partDef("Battery")
+                    val powerLine = connectionDef("PowerLine")
+                    val powerPort = portDef("PowerPort")
+                    val mass = attributeDef("Mass")
+                    partDef("Vehicle") {
+                        attribute("curbWeight", typeId = mass.id, default = 1500.kg)
+                        part("engine", typeId = engineDef.id)
+                        part("battery", typeId = batteryDef.id)
+                        port("output", typeId = powerPort.id)
+                        connect(
+                            name = "wiring",
+                            typeId = powerLine.id,
+                            sourceEndId = "Vehicle::engine::out",
+                            targetEndId = "Vehicle::battery::in",
+                        )
+                    }
+                }
+            // 1 attribute, 2 parts, 1 port, 1 connection
+            model.usages shouldHaveSize 5
+            model.usages.filterIsInstance<PartUsage>() shouldHaveSize 2
+            model.usages.filterIsInstance<AttributeUsage>() shouldHaveSize 1
+            model.usages.filterIsInstance<PortUsage>() shouldHaveSize 1
+            model.usages.filterIsInstance<ConnectionUsage>() shouldHaveSize 1
+
+            // The ConnectionUsage round-trips its endpoint ids through the model.
+            val cu = model.usages.filterIsInstance<ConnectionUsage>().single()
+            cu.sourceEndId shouldBe "Vehicle::engine::out"
+            cu.targetEndId shouldBe "Vehicle::battery::in"
         }
 
         "DSL is sysml2Dsl-scoped — inner scopes can't reach outer builders accidentally" {

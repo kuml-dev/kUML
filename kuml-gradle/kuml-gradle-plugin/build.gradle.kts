@@ -24,6 +24,7 @@ dependencies {
     implementation(project(":kuml-io:kuml-io-png"))
     implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
     implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
+    implementation(project(":kuml-metamodel:kuml-metamodel-sysml2")) // V2.0.6 — SysML 2 BDD/IBD in gradle pipeline
     implementation(project(":kuml-codegen:kuml-codegen-api"))
     // Built-in code generators discovered via ServiceLoader at runtime.
     runtimeOnly(project(":kuml-codegen:kuml-gen-kotlin"))

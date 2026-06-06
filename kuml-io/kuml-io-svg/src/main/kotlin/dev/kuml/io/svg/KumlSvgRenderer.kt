@@ -10,6 +10,7 @@ import dev.kuml.layout.NodeId
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.Sysml2Model
 import java.io.File
 import java.nio.file.Path
@@ -252,6 +253,76 @@ public object KumlSvgRenderer {
         file.parentFile?.mkdirs()
         file.writeText(svg, Charsets.UTF_8)
         return file
+    }
+
+    /**
+     * Rendert ein SysML-2-IBD als SVG (V2.0.6).
+     *
+     * Wickelt das IBD in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * Part-Usages (gemäß `diagram.elementIds` bzw. — wenn leer — *allen*
+     * Part-Usages des Owners) als `elements`. Der [NodeRendererDispatcher] hat
+     * seit V2.0.6 einen Branch für [dev.kuml.sysml2.Sysml2Usage] und rendert
+     * die zweizeilige IBD-Box ohne weitere Pipeline-Eingriffe.
+     *
+     * Auswahllogik der sichtbaren Part-Usages:
+     *  - Bridge-Sicht: alle `KermlFeature`s des Owners, deren `typeId` auf eine
+     *    [PartDefinition] zeigt. Hier rekonstruieren wir dieselbe Auswahl auf
+     *    Usage-Ebene, indem wir `model.usages.filterIsInstance<PartUsage>()`
+     *    auf "owner-eigen" filtern (`qualifiedName` beginnt mit `"<ownerId>::"`)
+     *    und optional auf `diagram.elementIds` weiter eingrenzen.
+     */
+    public fun toSvg(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String {
+        val visible = visiblePartUsageElements(model, diagram)
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = visible,
+            )
+        return toSvg(synthetic, layoutResult, theme, options)
+    }
+
+    /** [toSvg]-Variante für SysML 2 IBDs, schreibt direkt auf Platte. */
+    public fun toSvgFile(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        layoutResult: LayoutResult,
+        out: Path,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): File {
+        val svg = toSvg(model, diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(svg, Charsets.UTF_8)
+        return file
+    }
+
+    /**
+     * Berechnet die Liste der sichtbaren Part-Usages für ein IBD. Spiegelt die
+     * Auswahllogik der [dev.kuml.layout.bridge.Sysml2LayoutBridge].
+     *
+     * Owner-eigene Part-Usages: in `model.usages` per `qualifiedName`-Präfix
+     * gefiltert. Wenn `diagram.elementIds` gesetzt ist, wird auf diese
+     * Teilmenge weiter eingegrenzt.
+     */
+    private fun visiblePartUsageElements(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+    ): List<dev.kuml.sysml2.PartUsage> {
+        val ownerPrefix = "${diagram.ownerId}::"
+        val ownerPartUsages =
+            model.usages
+                .filterIsInstance<dev.kuml.sysml2.PartUsage>()
+                .filter { it.id.startsWith(ownerPrefix) }
+        val filter: Set<String>? = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet()
+        return if (filter == null) ownerPartUsages else ownerPartUsages.filter { it.id in filter }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

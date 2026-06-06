@@ -93,6 +93,12 @@ public abstract class KumlGenerateTask
                     logger.lifecycle("kumlGenerate: skipping C4 script '${script.name}'")
                     continue
                 }
+                if (extracted is ExtractedDiagram.Sysml2) {
+                    // V2.0.4+ — code generation is UML-scoped today. SysML 2
+                    // has its own future codegen surface. Skip silently.
+                    logger.lifecycle("kumlGenerate: skipping SysML 2 script '${script.name}'")
+                    continue
+                }
                 val diagram = (extracted as ExtractedDiagram.Uml).diagram
                 val written = gen.generate(diagram, out, opts)
                 totalFiles += written.size

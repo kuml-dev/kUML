@@ -10,6 +10,8 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.uml.UmlAssociation
@@ -112,6 +114,20 @@ public object KumlLatexRenderer {
     ) {
         when (element) {
             is Sysml2Definition -> Sysml2DefLatexRenderer.render(element, nodeId, nodeLayout, options, this)
+            // V2.x: full IBD-styled TikZ for usages (stereotype band + content
+            // line, matching the SVG renderer's two-line layout). V2.0.6
+            // shipped with the rectangle-with-label fallback for usages —
+            // every usage still lands at the layout-faithful pixel position
+            // with `name : Type` as its label, which is enough for the V2.0.6
+            // IBD pipeline to round-trip end-to-end through CLI / docs.
+            is PartUsage ->
+                UmlClassLatexRenderer.renderFallback(
+                    nodeId,
+                    nodeLayout,
+                    options,
+                    this,
+                    label = "${element.name} : ${element.definitionId}",
+                )
             is UmlClassifier -> UmlClassLatexRenderer.render(element, nodeId, nodeLayout, options, this)
             is UmlNamedElement -> UmlClassLatexRenderer.renderFallback(nodeId, nodeLayout, options, this, label = element.name)
             else -> UmlClassLatexRenderer.renderFallback(nodeId, nodeLayout, options, this, label = element.id)
@@ -138,6 +154,43 @@ public object KumlLatexRenderer {
                 name = diagram.name,
                 type = DiagramType.CLASS,
                 elements = elements,
+            )
+        return toLatex(synthetic, layoutResult, options)
+    }
+
+    /**
+     * Rendert ein SysML-2-IBD als TikZ-Quelle (V2.0.6).
+     *
+     * Wickelt das IBD in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * Part-Usages (gemäß `diagram.elementIds` bzw. — wenn leer — *allen*
+     * Part-Usages des Owners) als `elements`. Die innere [renderNode]-Dispatch
+     * fällt für [PartUsage] auf den Rechteck-mit-Label-Pfad zurück.
+     *
+     * V2.x-Polish: dedizierter IBD-TikZ-Renderer mit Stereotyp-Band, der die
+     * SVG-Variante 1:1 in TikZ-Form spiegelt. Heute ist das Output pixelweise
+     * layoutgetreu, aber stilistisch der UML-Fallback — gut genug für die
+     * V2.0.6-Wave, die Substanz statt Politur priorisiert.
+     */
+    public fun toLatex(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String {
+        val ownerPrefix = "${diagram.ownerId}::"
+        val ownerPartUsages =
+            model.usages
+                .filterIsInstance<PartUsage>()
+                .filter { it.id.startsWith(ownerPrefix) }
+        val filter: Set<String>? = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet()
+        val visible =
+            if (filter == null) ownerPartUsages else ownerPartUsages.filter { it.id in filter }
+
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = visible,
             )
         return toLatex(synthetic, layoutResult, options)
     }

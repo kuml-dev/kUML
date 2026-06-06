@@ -9,11 +9,14 @@ import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.bridge.C4LayoutBridge
+import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
+import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.IbdDiagram
 import java.io.File
 import kotlin.script.experimental.api.KotlinType
 import kotlin.script.experimental.api.ResultWithDiagnostics
@@ -141,6 +144,25 @@ internal object GradlePipeline {
                     )
                 KumlSvgRenderer.toSvg(extracted.diagram, extracted.model, layout, theme)
             }
+            is ExtractedDiagram.Sysml2 ->
+                when (val diagram = extracted.diagram) {
+                    is BdDiagram -> {
+                        val layout =
+                            layoutEngine.layout(
+                                Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),
+                                LayoutHints.DEFAULT,
+                            )
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                    }
+                    is IbdDiagram -> {
+                        val layout =
+                            layoutEngine.layout(
+                                Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),
+                                LayoutHints.DEFAULT,
+                            )
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                    }
+                }
         }
 
     /** Render an extracted diagram to PNG bytes. */
@@ -163,6 +185,12 @@ internal object GradlePipeline {
                     )
                 KumlPngRenderer.toPng(extracted.diagram, extracted.model, layout, theme, options)
             }
+            // V2.0.4 (BDD) / V2.0.6 (IBD): PNG-Export für SysML 2 ist V2.x.
+            // Spiegelt das CLI-Verhalten in `RenderPipeline.renderSysml2`.
+            is ExtractedDiagram.Sysml2 -> throw ScriptEvaluationException(
+                "PNG-Export für SysML 2 (${extracted.diagram::class.simpleName}) ist V2.x — " +
+                    "bis dahin bitte SVG oder LaTeX nutzen.",
+            )
         }
     }
 
@@ -171,6 +199,7 @@ internal object GradlePipeline {
         when (extracted) {
             is ExtractedDiagram.Uml -> extracted.diagram.name
             is ExtractedDiagram.C4 -> extracted.diagram.name
+            is ExtractedDiagram.Sysml2 -> extracted.diagram.name
         }
 
     /** Default (fallback) theme — used when the user's pick fails to resolve. */

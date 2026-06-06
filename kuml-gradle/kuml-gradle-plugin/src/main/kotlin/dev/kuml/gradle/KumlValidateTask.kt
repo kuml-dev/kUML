@@ -73,6 +73,12 @@ public abstract class KumlValidateTask
                     logger.lifecycle("kumlValidate: skipping C4 script '${script.name}'")
                     continue
                 }
+                if (extracted is ExtractedDiagram.Sysml2) {
+                    // V2.0.4+ — OCL constraints are UML-scoped; SysML 2 has its own
+                    // future validation surface. Skip silently, mirror the C4 path.
+                    logger.lifecycle("kumlValidate: skipping SysML 2 script '${script.name}'")
+                    continue
+                }
                 val diagram = (extracted as ExtractedDiagram.Uml).diagram
                 val result: KumlValidationResult = OclValidator.validate(diagram)
                 totalChecked++
