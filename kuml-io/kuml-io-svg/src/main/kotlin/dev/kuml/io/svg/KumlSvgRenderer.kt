@@ -2,12 +2,15 @@ package dev.kuml.io.svg
 
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
+import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
+import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.Sysml2Model
 import java.io.File
 import java.nio.file.Path
 
@@ -197,6 +200,54 @@ public object KumlSvgRenderer {
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): File {
         val svg = toSvg(diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(svg, Charsets.UTF_8)
+        return file
+    }
+
+    /**
+     * Rendert ein SysML-2-BDD als SVG (V2.0.4).
+     *
+     * Wickelt das BDD in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * SysML-2-Definitionen als `elements`. Der [NodeRendererDispatcher] hat
+     * seit V2.0.4 einen Branch für [dev.kuml.sysml2.Sysml2Definition] und
+     * rendert die Vier-Sektions-BDD-Box ohne weitere Pipeline-Eingriffe.
+     *
+     * Der `DiagramType` der Hülle ist [DiagramType.CLASS] — visuell trägt die
+     * BDD genau das Layout-Profil eines UML-Klassen-Diagramms (Boxen mit
+     * Compartments + Generalisations als Edges), und ein eigener
+     * `DiagramType.SYSML2_BDD`-Eintrag ist erst sinnvoll, wenn der Renderer
+     * sich darauf konkret anders verhält.
+     */
+    public fun toSvg(
+        model: Sysml2Model,
+        diagram: BdDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements = model.definitions.filter { it.id in visible }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
+            )
+        return toSvg(synthetic, layoutResult, theme, options)
+    }
+
+    /** [toSvg]-Variante für SysML 2 BDDs, schreibt direkt auf Platte. */
+    public fun toSvgFile(
+        model: Sysml2Model,
+        diagram: BdDiagram,
+        layoutResult: LayoutResult,
+        out: Path,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): File {
+        val svg = toSvg(model, diagram, layoutResult, theme, options)
         val file = out.toFile()
         file.parentFile?.mkdirs()
         file.writeText(svg, Charsets.UTF_8)

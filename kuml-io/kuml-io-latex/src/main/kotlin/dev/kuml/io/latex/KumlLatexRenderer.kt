@@ -1,12 +1,17 @@
 package dev.kuml.io.latex
 
+import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
+import dev.kuml.io.latex.sysml2.Sysml2DefLatexRenderer
 import dev.kuml.io.latex.uml.UmlClassLatexRenderer
 import dev.kuml.io.latex.uml.UmlEdgeLatexRenderer
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
+import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.Sysml2Definition
+import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClassifier
 import dev.kuml.uml.UmlDependency
@@ -106,10 +111,35 @@ public object KumlLatexRenderer {
         options: LatexRenderOptions,
     ) {
         when (element) {
+            is Sysml2Definition -> Sysml2DefLatexRenderer.render(element, nodeId, nodeLayout, options, this)
             is UmlClassifier -> UmlClassLatexRenderer.render(element, nodeId, nodeLayout, options, this)
             is UmlNamedElement -> UmlClassLatexRenderer.renderFallback(nodeId, nodeLayout, options, this, label = element.name)
             else -> UmlClassLatexRenderer.renderFallback(nodeId, nodeLayout, options, this, label = element.id)
         }
+    }
+
+    /**
+     * Render a SysML 2 BDD as TikZ source — V2.0.4 sister-entry to the UML
+     * [toLatex] path. Selected definitions become BDD-Boxen,
+     * `:>`-specialisations between visible definitions become generalisation
+     * arrows. Synthesises a [KumlDiagram] hull so the inner rendering loop
+     * stays one path.
+     */
+    public fun toLatex(
+        model: Sysml2Model,
+        diagram: BdDiagram,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements = model.definitions.filter { it.id in visible }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
+            )
+        return toLatex(synthetic, layoutResult, options)
     }
 
     // ─── Edge dispatch ────────────────────────────────────────────────────────

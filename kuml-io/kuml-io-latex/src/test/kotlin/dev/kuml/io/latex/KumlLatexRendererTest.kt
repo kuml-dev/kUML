@@ -69,6 +69,8 @@ class KumlLatexRendererTest :
             tex shouldContain "at (10.000pt, -10.000pt)"
             // Snippet mode by default — no \documentclass.
             tex shouldNotContain "\\documentclass"
+
+            SampleOutput.write("uml/single-class-snippet.tex", tex)
         }
 
         "standalone mode wraps the picture in a complete document" {
@@ -99,6 +101,8 @@ class KumlLatexRendererTest :
             tex shouldContain "\\usetikzlibrary{arrows.meta"
             tex shouldContain "\\begin{document}"
             tex shouldContain "\\end{document}"
+
+            SampleOutput.write("uml/single-class-standalone.tex", tex)
         }
 
         "deterministic — same input yields byte-identical output" {
@@ -186,6 +190,8 @@ class KumlLatexRendererTest :
             // Two compartment dividers (between header/attrs and attrs/ops).
             val dividerCount = "\\\\draw\\[line width=0\\.4pt\\]".toRegex().findAll(tex).count()
             dividerCount shouldBe 2
+
+            SampleOutput.write("uml/class-with-attributes-and-operations.tex", tex)
         }
 
         "association edge picks the kuml-association style and direct route" {
@@ -222,6 +228,8 @@ class KumlLatexRendererTest :
 
             tex shouldContain "\\draw[kuml-association]"
             tex shouldContain "(80.000pt, -30.000pt) -- (200.000pt, -30.000pt)"
+
+            SampleOutput.write("uml/association.tex", tex)
         }
 
         "generalization edge picks the kuml-generalization style with hollow triangle" {
@@ -256,6 +264,8 @@ class KumlLatexRendererTest :
             tex shouldContain "\\draw[kuml-generalization, rounded corners=4.000pt]"
             // Hollow triangle (open Triangle) comes from the picture-level style block.
             tex shouldContain "Triangle[length=3mm, open]"
+
+            SampleOutput.write("uml/generalization.tex", tex)
         }
 
         "stereotypes survive the escape and end up in the header line" {

@@ -3,6 +3,8 @@ package dev.kuml.core.script
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.Sysml2Model
 import java.io.File
 import kotlin.script.experimental.api.ResultValue
 
@@ -22,6 +24,17 @@ public sealed class ExtractedDiagram {
     public data class C4(
         val model: C4Model,
         val diagram: C4Diagram,
+    ) : ExtractedDiagram()
+
+    /**
+     * A SysML 2 BDD with its parent [Sysml2Model] (V2.0.4).
+     *
+     * `Sysml2LayoutBridge` needs both: the model holds all definitions, the
+     * BDD selects which ones to project. Mirrors the C4 pattern.
+     */
+    public data class Sysml2(
+        val model: Sysml2Model,
+        val diagram: BdDiagram,
     ) : ExtractedDiagram()
 }
 
@@ -127,6 +140,18 @@ object DiagramExtractor {
                         "so the renderer has access to the surrounding C4Model.",
                 )
             }
+            if (value is Sysml2Model) {
+                value.firstBddOrNull()?.let {
+                    return ExtractedDiagram.Sysml2(value, it)
+                }
+            }
+            if (value is BdDiagram) {
+                throw ScriptEvaluationException(
+                    "Script '${input.name}' returned a bare BdDiagram. " +
+                        "Wrap it inside `sysml2Model(\"…\") { bdd(\"…\") { … } }` " +
+                        "so the renderer has access to the surrounding Sysml2Model.",
+                )
+            }
         }
 
         // Case 2: scan script instance for properties
@@ -165,14 +190,32 @@ object DiagramExtractor {
                     val model = prop.get(instance) as C4Model
                     return ExtractedDiagram.C4(model, model.firstDiagramOrNull()!!)
                 }
+
+            // Sysml2Model property with at least one BDD.
+            properties
+                .firstOrNull { prop ->
+                    try {
+                        val v = prop.get(instance)
+                        v is Sysml2Model && v.firstBddOrNull() != null
+                    } catch (_: Exception) {
+                        false
+                    }
+                }?.let { prop ->
+                    @Suppress("UNCHECKED_CAST")
+                    val model = prop.get(instance) as Sysml2Model
+                    return ExtractedDiagram.Sysml2(model, model.firstBddOrNull()!!)
+                }
         }
 
         throw ScriptEvaluationException(
             "Script '${input.name}' did not produce a renderable diagram. " +
-                "End the script with a `classDiagram { … }` (UML) or " +
-                "a `c4Model(name = \"…\") { systemContextDiagram(name = \"…\") { … } }` (C4) expression.",
+                "End the script with a `classDiagram { … }` (UML), " +
+                "a `c4Model(name = \"…\") { systemContextDiagram(name = \"…\") { … } }` (C4), " +
+                "or a `sysml2Model(\"…\") { bdd(\"…\") { … } }` (SysML 2) expression.",
         )
     }
 
     private fun C4Model.firstDiagramOrNull(): C4Diagram? = diagrams.firstOrNull()
+
+    private fun Sysml2Model.firstBddOrNull(): BdDiagram? = diagrams.filterIsInstance<BdDiagram>().firstOrNull()
 }

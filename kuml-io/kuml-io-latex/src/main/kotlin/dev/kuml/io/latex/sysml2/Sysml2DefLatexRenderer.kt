@@ -1,0 +1,131 @@
+package dev.kuml.io.latex.sysml2
+
+import dev.kuml.io.latex.LatexRenderOptions
+import dev.kuml.io.latex.escapeLatex
+import dev.kuml.io.latex.fmtCoord
+import dev.kuml.kerml.KermlFeature
+import dev.kuml.layout.NodeId
+import dev.kuml.layout.NodeLayout
+import dev.kuml.sysml2.AttributeDefinition
+import dev.kuml.sysml2.ConnectionDefinition
+import dev.kuml.sysml2.PartDefinition
+import dev.kuml.sysml2.PortDefinition
+import dev.kuml.sysml2.Sysml2Definition
+
+/**
+ * TikZ-Renderer für SysML-2 Definitionen — die LaTeX-Variante des
+ * SVG-BDD-Renderers. Spiegelt das Compartment-Layout (Stereotyp + Name +
+ * Features), nutzt die `kuml-class`/`kuml-classname`/`kuml-feature`-Styles
+ * aus dem TikZ-Style-Block, den `KumlLatexRenderer` einmal pro Picture
+ * emittiert.
+ *
+ * Stereotyp-Mapping pro Definition-Kind:
+ *  - [PartDefinition] → `«part def»`
+ *  - [AttributeDefinition] → `«attribute def»`
+ *  - [PortDefinition] → `«port def»`
+ *  - [ConnectionDefinition] → `«connection def»`
+ *
+ * Y-Flip-Konvention: Layout-Y zeigt nach unten, TikZ-Y nach oben — wir
+ * negieren Y bei der Emission, sodass das BDD pixel-identisch zum SVG-Pendant
+ * landet.
+ */
+internal object Sysml2DefLatexRenderer {
+    fun render(
+        definition: Sysml2Definition,
+        nodeId: NodeId,
+        layout: NodeLayout,
+        options: LatexRenderOptions,
+        out: StringBuilder,
+    ) {
+        val stereotype =
+            when (definition) {
+                is PartDefinition -> "part def"
+                is AttributeDefinition -> "attribute def"
+                is PortDefinition -> "port def"
+                is ConnectionDefinition -> "connection def"
+            }
+        renderBox(definition, stereotype, nodeId, layout, options, out)
+    }
+
+    private fun renderBox(
+        definition: Sysml2Definition,
+        stereotype: String,
+        nodeId: NodeId,
+        layout: NodeLayout,
+        options: LatexRenderOptions,
+        out: StringBuilder,
+    ) {
+        val x = layout.bounds.origin.x
+        val y = layout.bounds.origin.y
+        val w = layout.bounds.size.width
+        val h = layout.bounds.size.height
+        val name = tikzId(nodeId)
+
+        // Outer frame at the layout's top-left, with Y negated for the TikZ
+        // axis flip (mirrors the UML class-box convention in this module).
+        out.appendLine(
+            "${options.indent}\\node[kuml-class, anchor=north west, " +
+                "minimum width=${fmtCoord(w)}pt, minimum height=${fmtCoord(h)}pt] " +
+                "($name) at (${fmtCoord(x)}pt, ${fmtCoord(-y)}pt) {};",
+        )
+
+        // Two- or three-compartment vertical layout depending on whether the
+        // definition has any features.
+        val hasFeatures = definition.features.isNotEmpty()
+        val headerH = if (hasFeatures) h * 0.4f else h
+        val featuresH = if (hasFeatures) h * 0.6f else 0f
+
+        // Header: «kind» + name, centred in the header band.
+        val cx = x + w / 2f
+        val headerCy = y + headerH / 2f
+        val nameStyle = if (definition.isAbstract) "kuml-classname-abstract" else "kuml-classname"
+        val headerText =
+            "\\begin{tabular}{c}" +
+                "\\textit{\\small \\guillemotleft{}${escapeLatex(stereotype)}\\guillemotright{}}\\\\" +
+                "\\textbf{${escapeLatex(definition.name)}}" +
+                "\\end{tabular}"
+        out.appendLine(
+            "${options.indent}\\node[$nameStyle, anchor=center] at " +
+                "(${fmtCoord(cx)}pt, ${fmtCoord(-headerCy)}pt) {$headerText};",
+        )
+
+        if (!hasFeatures) return
+
+        // Divider between header and features.
+        val dividerY = y + headerH
+        out.appendLine(
+            "${options.indent}\\draw[line width=0.4pt] " +
+                "(${fmtCoord(x)}pt, ${fmtCoord(-dividerY)}pt) -- " +
+                "(${fmtCoord(x + w)}pt, ${fmtCoord(-dividerY)}pt);",
+        )
+
+        // Feature lines, one per Feature in declaration order. Spacing is
+        // proportional to the available band so even long feature lists
+        // don't run out the bottom.
+        val lineHeight = featuresH / (definition.features.size + 1).coerceAtLeast(2)
+        for ((i, feature) in definition.features.withIndex()) {
+            val ly = dividerY + lineHeight * (i + 1)
+            out.appendLine(
+                "${options.indent}\\node[kuml-feature, anchor=west] at " +
+                    "(${fmtCoord(x + INNER_PAD)}pt, ${fmtCoord(-ly)}pt) " +
+                    "{${escapeLatex(feature.formatBdd())}};",
+            )
+        }
+    }
+
+    /**
+     * `name : Type [multiplicity] = default` — SysML-2-BDD Feature-Form.
+     * Multiplicity wird weggelassen wenn `1`; Default wird angehängt wenn
+     * vorhanden.
+     */
+    private fun KermlFeature.formatBdd(): String {
+        val type = typeId ?: "?"
+        val multSuffix = if (multiplicity.toSpecForm() == "1") "" else " [${multiplicity.toSpecForm()}]"
+        val defaultSuffix = defaultExpression?.let { " = $it" } ?: ""
+        return "$name : $type$multSuffix$defaultSuffix"
+    }
+
+    private fun tikzId(id: NodeId): String = "n_" + id.value.replace(Regex("[^A-Za-z0-9_]"), "_")
+
+    private const val INNER_PAD: Float = 6f
+}

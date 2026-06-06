@@ -2,6 +2,7 @@
 
 import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.sysml2.dsl.sysml2Model
+import dev.kuml.sysml2.units.V
 import dev.kuml.sysml2.units.deg
 import dev.kuml.sysml2.units.kW
 import dev.kuml.sysml2.units.kWh

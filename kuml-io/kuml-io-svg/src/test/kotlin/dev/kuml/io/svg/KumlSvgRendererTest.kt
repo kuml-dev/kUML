@@ -98,6 +98,8 @@ class KumlSvgRendererTest :
 
             // The association produces a <line> with marker-end="url(#arrow-open)"
             svg shouldContain "marker-end=\"url(#arrow-open)\""
+
+            SampleOutput.write("uml/class-diagram-with-association.svg", svg)
         }
 
         test("KumlSvgRenderer renders a C4 container diagram with system group and 2 containers") {
@@ -143,5 +145,7 @@ class KumlSvgRendererTest :
             // 2 container rects
             val containerRectCount = "class=\"kuml-container\"".toRegex().findAll(svg).count()
             containerRectCount shouldBe 2
+
+            SampleOutput.write("c4/container-diagram-with-system-group.svg", svg)
         }
     })

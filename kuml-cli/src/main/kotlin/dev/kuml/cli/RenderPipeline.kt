@@ -13,6 +13,7 @@ import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.bridge.C4LayoutBridge
+import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -96,6 +97,7 @@ internal object RenderPipeline {
             when (extracted) {
                 is ExtractedDiagram.Uml -> renderUml(extracted, output, format, width, theme)
                 is ExtractedDiagram.C4 -> renderC4(extracted, output, format, width, theme)
+                is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, theme)
             }
         } catch (e: IOException) {
             throw e
@@ -132,6 +134,40 @@ internal object RenderPipeline {
                 val tex = KumlLatexRenderer.toLatex(diagram, layoutResult, LatexRenderOptions.DEFAULT)
                 writeText(output, tex)
             }
+            else -> throw ScriptEvaluationException("Unsupported format: $format")
+        }
+    }
+
+    /**
+     * SysML 2 BDD render-Branch (V2.0.4).
+     *
+     * Bridge → ELK Layout → Render (SVG/LaTeX). PNG ist V2.x — der Batik-PNG-
+     * Renderer braucht für SysML 2 noch ein paar Stereotyp-Style-Mappings, das
+     * lohnt eine eigene Welle. Bis dahin emittet die PNG-Code-Path einen klaren
+     * Fehler statt einer halben Render-Pipeline.
+     */
+    private fun renderSysml2(
+        extracted: ExtractedDiagram.Sysml2,
+        output: Path,
+        format: String,
+        theme: KumlTheme,
+    ) {
+        val model = extracted.model
+        val diagram = extracted.diagram
+        val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+        val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+        when (format) {
+            "svg" -> {
+                val svg = KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
+                writeText(output, svg)
+            }
+            "latex" -> {
+                val tex = KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT)
+                writeText(output, tex)
+            }
+            "png" -> throw ScriptEvaluationException(
+                "PNG-Export für SysML 2 BDDs ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
+            )
             else -> throw ScriptEvaluationException("Unsupported format: $format")
         }
     }

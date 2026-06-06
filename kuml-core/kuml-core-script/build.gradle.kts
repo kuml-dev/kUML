@@ -15,6 +15,7 @@ dependencies {
     api(project(":kuml-core:kuml-core-dsl"))
     api(project(":kuml-metamodel:kuml-metamodel-uml"))
     api(project(":kuml-metamodel:kuml-metamodel-c4"))
+    api(project(":kuml-metamodel:kuml-metamodel-sysml2")) // V2.0.4 — SysML 2 BDD-Extraktion
 
     implementation(libs.kotlin.scripting.common)
     implementation(libs.kotlin.scripting.jvm)

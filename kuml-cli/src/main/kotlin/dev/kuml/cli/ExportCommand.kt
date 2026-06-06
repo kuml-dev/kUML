@@ -81,6 +81,17 @@ internal class ExportCommand : CliktCommand(name = "export") {
                     )
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                 }
+                is ExtractedDiagram.Sysml2 -> {
+                    // V2.0.4: `kuml export` ist Structurizr-only. SysML 2 hat seinen
+                    // eigenen Render-Pfad (`kuml render --format svg|tex`) — Structurizr
+                    // ist semantisch nicht das richtige Export-Ziel für ein BDD.
+                    System.err.println(
+                        "kuml export --format structurizr requires a C4 model — " +
+                            "the script '${scriptFile.name}' produces a SysML 2 model. " +
+                            "Use `kuml render --format svg|tex` for SysML 2 BDDs.",
+                    )
+                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                }
             }
 
         try {

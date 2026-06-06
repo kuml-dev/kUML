@@ -11,6 +11,7 @@ dependencies {
     api(project(":kuml-renderer:kuml-layout-api"))
     api(project(":kuml-metamodel:kuml-metamodel-uml"))
     api(project(":kuml-metamodel:kuml-metamodel-c4"))
+    api(project(":kuml-metamodel:kuml-metamodel-sysml2")) // V2.0.4 — SysML 2 BDD-Bridge
     implementation(project(":kuml-core:kuml-core-model"))
     // Layout-Keys aus dem DSL-Modul werden NICHT verlinkt — String-Literale duplizieren wir lokal
     // in BridgeLayoutKeys (see spec: „Vertrag in Worten" #6)
