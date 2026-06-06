@@ -36,8 +36,8 @@ include(
 include(
     "kuml-metamodel:kuml-metamodel-uml",    // Phase 1 — UML 2.x (5 Diagrammtypen)
     "kuml-metamodel:kuml-metamodel-c4",     // Phase 1 — C4 (vollständig)
-    // "kuml-metamodel:kuml-metamodel-kerml",  // V2 — KerML-Basis für SysML 2
-    // "kuml-metamodel:kuml-metamodel-sysml2", // V2 — SysML 2 auf KerML
+    "kuml-metamodel:kuml-metamodel-kerml",  // V2.0.3 — KerML-Basis für SysML 2
+    "kuml-metamodel:kuml-metamodel-sysml2", // V2.0.3 — SysML 2 auf KerML (BDD-MVP)
 )
 
 // ── Renderer ─────────────────────────────────────────── Phase 1 ──

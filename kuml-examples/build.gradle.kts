@@ -13,6 +13,7 @@ dependencies {
     implementation(project(":kuml-profile:kuml-profile-openapi"))
     implementation(project(":kuml-profile:kuml-profile-autosar"))
     implementation(project(":kuml-core:kuml-core-dsl"))
+    implementation(project(":kuml-metamodel:kuml-metamodel-sysml2")) // V2.0.3 — Hybrid-Vehicle SysML 2 BDD
 
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
