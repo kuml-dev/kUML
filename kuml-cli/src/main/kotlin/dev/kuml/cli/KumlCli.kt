@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.completion.CompletionCommand
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.subcommands
+import com.github.ajalt.clikt.parameters.options.versionOption
 
 /**
  * Root command for the kUML CLI.
@@ -12,6 +13,11 @@ import com.github.ajalt.clikt.core.subcommands
  */
 internal class KumlCli : CliktCommand(name = "kuml") {
     init {
+        // `--version` flag at the root level. Clikt prints the message and exits 0,
+        // so we don't need a separate code path. The string format matches the
+        // convention used by kubectl, gh, brew etc. — see `KumlVersion.formatPlain`.
+        versionOption(version = KumlVersion.version, message = { KumlVersion.formatPlain() })
+
         subcommands(
             RenderCommand(),
             WatchCommand(),
@@ -23,6 +29,7 @@ internal class KumlCli : CliktCommand(name = "kuml") {
             MarkdownCommand(),
             ProfileCommand(),
             SimulateCommand(),
+            VersionCommand(),
             CompletionCommand(name = "completion"),
         )
     }
