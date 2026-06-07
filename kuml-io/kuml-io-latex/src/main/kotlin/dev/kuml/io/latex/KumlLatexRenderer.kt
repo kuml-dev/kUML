@@ -9,6 +9,8 @@ import dev.kuml.io.latex.uml.UmlEdgeLatexRenderer
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
+import dev.kuml.sysml2.ActDiagram
+import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
@@ -302,6 +304,43 @@ public object KumlLatexRenderer {
             model.definitions
                 .filter { it.id in visible }
                 .filter { it is StateDefinition }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
+            )
+        return toLatex(synthetic, layoutResult, options)
+    }
+
+    /**
+     * Render a SysML 2 ACT-Diagram as TikZ source (V2.0.10).
+     *
+     * Wickelt das ACT in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * [ActionDefinition]s als `elements`. Im V2.0.10-MVP rendert
+     * `Sysml2DefLatexRenderer` Action-Knoten als Rechteck mit
+     * kind-spezifischem Stereotyp (`«action»` / `«initial node»` /
+     * `«final node»` / `«flow final node»` / `«decision node»` /
+     * `«merge node»` / `«fork node»` / `«join node»`) — das shape-spezifische
+     * TikZ-Pendant (abgerundete Rechtecke, Kreise, Rauten, Bars) landet in
+     * V2.x-Polish, analog zur BDD/IBD/UC/REQ/STM-Geschichte im
+     * LaTeX-Renderer.
+     *
+     * Edge-Styling: Control Flows und Object Flows rendern als plain solide
+     * Linie (Default-Style des Edge-Renderers). Der `[guard]`-Label (Control
+     * Flow) und `[ObjectType]`-Label (Object Flow) sind V2.x.
+     */
+    public fun toLatex(
+        model: Sysml2Model,
+        diagram: ActDiagram,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements =
+            model.definitions
+                .filter { it.id in visible }
+                .filter { it is ActionDefinition }
         val synthetic =
             KumlDiagram(
                 name = diagram.name,

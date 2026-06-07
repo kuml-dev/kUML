@@ -42,8 +42,8 @@ data class Sysml2Model(
 /**
  * Sealed root for every SysML 2 diagram kind. V2.0.3 implements [BdDiagram],
  * V2.0.6 adds [IbdDiagram], V2.0.7 adds [UcDiagram], V2.0.8 adds [ReqDiagram],
- * V2.0.9 adds [StmDiagram] — the rest (PAR, ACT, SEQ) follow as separate
- * `data class` subtypes in later waves.
+ * V2.0.9 adds [StmDiagram], V2.0.10 adds [ActDiagram] — the rest (PAR, SEQ)
+ * follow as separate `data class` subtypes in later waves.
  */
 @Serializable
 sealed interface Sysml2Diagram {
@@ -209,6 +209,53 @@ data class UcExtend(
     /** Id of the *extended* (target) [UseCaseDefinition]. */
     val targetUseCaseId: String,
 )
+
+/**
+ * **Activity Diagram** (ACT) — V2.0.10 token-flow / workflow view.
+ *
+ * Shows the token flow through a workflow:
+ *  - [ActionDefinition]s appear as one of seven shapes (regular Action,
+ *    Initial / Final / FlowFinal pseudo-nodes, Decision / Merge diamonds,
+ *    Fork / Join bars) — dispatch on [dev.kuml.sysml2.ActivityNodeKind].
+ *  - [dev.kuml.sysml2.ControlFlowUsage]s and [dev.kuml.sysml2.ObjectFlowUsage]s
+ *    are auto-included from `Sysml2Model.usages` whenever both endpoints are
+ *    in [elementIds] — the same **Pattern A** the V2.0.6 IBD / V2.0.9 STM
+ *    use. Flows live on the *model* (not on the diagram) because they are
+ *    part of the activity's runtime identity, which the future
+ *    Behaviour-Runtime wave needs.
+ *
+ * This follows the V2.0.9 STM convention (transitions on the model) rather
+ * than the V2.0.7 UC / V2.0.8 REQ convention (edges on the diagram). The
+ * decision rule is the same: edges that ARE the model round-trip through
+ * the runtime; edges that are diagram-only assertions live on the diagram.
+ * Token flow is firmly in the first camp.
+ *
+ * V2.0.10 MVP scope (per the wave plan):
+ *  - Flat activity: no Activity-Partition (swimlanes), no interruptible
+ *    regions, no pin notation on actions.
+ *  - All seven node kinds, both edge kinds (control flow + object flow).
+ *  - Edges render as plain solid lines; guard / objectType labels are V2.x
+ *    polish (same `EdgeRendererDispatcher` lookup-miss limitation as UC /
+ *    REQ / STM — the synthetic `KumlDiagram` hull has no `UmlRelationship`
+ *    for `ControlFlowUsage` / `ObjectFlowUsage`).
+ *  - Stream-flow / multicast semantics on Object Flow are V2.x polish.
+ *  - PNG export: V2.x (same as BDD / IBD / UC / REQ / STM).
+ *  - Token-Flow runtime execution: separate Behaviour-Runtime wave per the
+ *    V2.0 roadmap; V2.0.10 only captures the structural projection.
+ */
+@Serializable
+data class ActDiagram(
+    override val name: String,
+    /**
+     * Ids of activity-node [ActionDefinition]s to display. Control flows and
+     * object flows from [Sysml2Model.usages] whose
+     * [dev.kuml.sysml2.ControlFlowUsage.sourceNodeId] AND `targetNodeId`
+     * (resp. [dev.kuml.sysml2.ObjectFlowUsage.sourceNodeId] AND
+     * `targetNodeId`) are both in this set are auto-included by the bridge.
+     * Order is preserved so layout / serialisation / diff stay deterministic.
+     */
+    override val elementIds: List<String> = emptyList(),
+) : Sysml2Diagram
 
 /**
  * **State Transition Diagram** (STM) — V2.0.9 dynamic-behaviour view that

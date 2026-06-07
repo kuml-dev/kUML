@@ -3,6 +3,7 @@ package dev.kuml.core.script
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.ReqDiagram
@@ -188,6 +189,13 @@ object DiagramExtractor {
                         "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
+            if (value is ActDiagram) {
+                throw ScriptEvaluationException(
+                    "Script '${input.name}' returned a bare ActDiagram. " +
+                        "Wrap it inside `sysml2Model(\"…\") { actDiagram(\"…\") { … } }` " +
+                        "so the renderer has access to the surrounding Sysml2Model.",
+                )
+            }
         }
 
         // Case 2: scan script instance for properties
@@ -249,7 +257,8 @@ object DiagramExtractor {
                 "a `c4Model(name = \"…\") { systemContextDiagram(name = \"…\") { … } }` (C4), " +
                 "or a `sysml2Model(\"…\") { bdd(\"…\") { … } }` (SysML 2 BDD) / " +
                 "`sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` (SysML 2 IBD) / " +
-                "`sysml2Model(\"…\") { stmDiagram(\"…\") { … } }` (SysML 2 STM) expression.",
+                "`sysml2Model(\"…\") { stmDiagram(\"…\") { … } }` (SysML 2 STM) / " +
+                "`sysml2Model(\"…\") { actDiagram(\"…\") { … } }` (SysML 2 ACT) expression.",
         )
     }
 

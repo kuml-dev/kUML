@@ -237,6 +237,106 @@ data class StateUsage(
 ) : Sysml2Usage
 
 /**
+ * `action act1 : Action1` — V2.0.10 action-usage, typed by an
+ * [dev.kuml.sysml2.ActionDefinition].
+ *
+ * Carried for symmetry with [ActorUsage] / [UseCaseUsage] /
+ * [RequirementUsage] / [StateUsage]. The V2.0.10 MVP renders
+ * [dev.kuml.sysml2.ActionDefinition]s directly (via the diagram-level
+ * [dev.kuml.sysml2.ActDiagram.elementIds]) and does not consume action-usages
+ * from the bridge; the SVG renderer falls back to the generic usage-box
+ * dispatch.
+ *
+ * Lives in the metamodel for completeness so future polish waves (nested
+ * action-usages, sub-activity refinement, pin-typed action ports) have a
+ * clean attachment point.
+ */
+@Serializable
+data class ActionUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String,
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
+ * `flow A → B` — V2.0.10 **control flow** edge between two
+ * [dev.kuml.sysml2.ActionDefinition]s (or activity-node pseudo-nodes).
+ *
+ * Carries the SysML 2 token-passing semantics: a token leaves [sourceNodeId]
+ * and arrives at [targetNodeId]. Optional [guard] expression (`[guard]`)
+ * gates the flow at runtime; raw string in V2.0.10 MVP, identical reasoning
+ * to the V2.0.9 transition guard.
+ *
+ * The default [definitionId] is the synthetic `"sysml2.controlFlow"` literal
+ * so the [Sysml2Usage]-contract is satisfied without forcing callers to
+ * declare a `ControlFlowDefinition` — control flows have no SysML 2
+ * *definition* counterpart; they are pure usages between two activity-node
+ * definitions.
+ *
+ * Edge id convention (set by the DSL):
+ * `controlFlow:<sourceNodeId>::<targetNodeId>` — deterministic, readable,
+ * collision-free for unique node-pairs. Callers can override the id when
+ * two distinct control flows connect the same pair (e.g. when a Decision
+ * fans out via two guarded edges to the same Merge).
+ */
+@Serializable
+data class ControlFlowUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.controlFlow",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    /** Id of the source [dev.kuml.sysml2.ActionDefinition] (any activity-node kind). */
+    val sourceNodeId: String,
+    /** Id of the target [dev.kuml.sysml2.ActionDefinition] (any activity-node kind). */
+    val targetNodeId: String,
+    /** Optional guard expression (`"valid"`, `"!error"`). Raw string in V2.0.10 MVP. */
+    val guard: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
+ * `flow A → B of Order` — V2.0.10 **object flow** edge between two
+ * [dev.kuml.sysml2.ActionDefinition]s.
+ *
+ * Same shape as [ControlFlowUsage] plus an [objectType] slot that records
+ * the type of the object the token carries (`"Order"`, `"Document"`). Raw
+ * string in V2.0.10 MVP; a typed reference to a [PartDefinition] /
+ * [AttributeDefinition] is V2.x polish — keeping the slot a string unblocks
+ * rendering and Behaviour-Runtime hookup without committing to a typed
+ * object-flow semantics that is still under discussion.
+ *
+ * The default [definitionId] is the synthetic `"sysml2.objectFlow"` literal
+ * so the [Sysml2Usage]-contract is satisfied without forcing callers to
+ * declare an `ObjectFlowDefinition`.
+ *
+ * Edge id convention (set by the DSL):
+ * `objectFlow:<sourceNodeId>::<targetNodeId>`.
+ */
+@Serializable
+data class ObjectFlowUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.objectFlow",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    /** Id of the source [dev.kuml.sysml2.ActionDefinition] (any activity-node kind). */
+    val sourceNodeId: String,
+    /** Id of the target [dev.kuml.sysml2.ActionDefinition] (any activity-node kind). */
+    val targetNodeId: String,
+    /**
+     * Optional type of the object the token carries (`"Order"`, `"Document"`).
+     * Raw string in V2.0.10 MVP; typed reference to a [PartDefinition] /
+     * [AttributeDefinition] is V2.x polish.
+     */
+    val objectType: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
  * `transition Off → Red trigger 'powerOn' guard '…' effect '…'` — V2.0.9
  * transition usage between two [dev.kuml.sysml2.StateDefinition]s (or
  * pseudo-states).

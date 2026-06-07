@@ -2,13 +2,18 @@ package dev.kuml.sysml2.dsl
 
 import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.kerml.KermlSpecialization
+import dev.kuml.sysml2.ActDiagram
+import dev.kuml.sysml2.ActionDefinition
+import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDefinition
@@ -472,6 +477,254 @@ class Sysml2ModelBuilder(
     ): StmDiagram {
         val builder = StmDiagramBuilder().apply(block)
         val diagram = StmDiagram(name = name, elementIds = builder.ids())
+        diagrams += diagram
+        return diagram
+    }
+
+    // ── V2.0.10 ACT ──────────────────────────────────────────────────────
+
+    /**
+     * `action def ValidateOrder { … }` — V2.0.10 action-typed definition.
+     *
+     * Declares a *regular action* node by default (`kind = Action`); the
+     * pseudo-node helpers ([initialNode] / [finalNode] / [flowFinalNode] /
+     * [decisionNode] / [mergeNode] / [forkNode] / [joinNode]) delegate to
+     * this method with a fixed [kind]. The [action] body is optional — when
+     * set, the SVG renderer surfaces it as a second text line beneath the
+     * name (truncated at ~30 chars).
+     *
+     * Actions are nodes in an [ActDiagram]; control / object flows between
+     * them are captured separately via [controlFlow] / [objectFlow], which
+     * register the resulting usage on the model's `usages` list (V2.0.6
+     * architecture bonus).
+     */
+    fun actionDef(
+        name: String,
+        id: String = name,
+        action: String? = null,
+        kind: ActivityNodeKind = ActivityNodeKind.Action,
+        isAbstract: Boolean = false,
+        block: DefinitionBuilder.() -> Unit = {},
+    ): ActionDefinition {
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
+        val def =
+            ActionDefinition(
+                id = id,
+                name = name,
+                isAbstract = isAbstract,
+                features = builder.features(),
+                kind = kind,
+                action = action,
+            )
+        definitions += def
+        return def
+    }
+
+    /**
+     * `initial` — V2.0.10 initial activity-node helper.
+     *
+     * Convenience wrapper around [actionDef] with `kind = Initial`. The
+     * renderer draws a small filled circle; the [action] slot is ignored
+     * for pseudo-nodes.
+     */
+    fun initialNode(
+        name: String = "Initial",
+        id: String = name,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Initial)
+
+    /**
+     * `final` — V2.0.10 final activity-node helper.
+     *
+     * Convenience wrapper around [actionDef] with `kind = Final`. The
+     * renderer draws a donut (outer ring + inner filled disc); the [action]
+     * slot is ignored for pseudo-nodes.
+     */
+    fun finalNode(
+        name: String = "Final",
+        id: String = name,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Final)
+
+    /**
+     * `flow final` — V2.0.10 flow-final activity-node helper.
+     *
+     * Convenience wrapper around [actionDef] with `kind = FlowFinal`. The
+     * renderer draws a circle with an X inside (two diagonal lines), marking
+     * the end of a single token — other concurrent tokens continue.
+     */
+    fun flowFinalNode(
+        name: String = "FlowFinal",
+        id: String = name,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.FlowFinal)
+
+    /**
+     * `decide` — V2.0.10 decision activity-node helper.
+     *
+     * Convenience wrapper around [actionDef] with `kind = Decision`. The
+     * renderer draws a diamond; the node branches on guards (1 incoming →
+     * N outgoing).
+     */
+    fun decisionNode(
+        name: String,
+        id: String = name,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Decision)
+
+    /**
+     * `merge` — V2.0.10 merge activity-node helper.
+     *
+     * Convenience wrapper around [actionDef] with `kind = Merge`. The
+     * renderer draws a diamond; the node merges alternative branches
+     * (N incoming → 1 outgoing).
+     */
+    fun mergeNode(
+        name: String,
+        id: String = name,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Merge)
+
+    /**
+     * `fork` — V2.0.10 fork activity-node helper.
+     *
+     * Convenience wrapper around [actionDef] with `kind = Fork`. The
+     * renderer draws a synchronisation bar; the node splits into parallel
+     * branches (1 incoming → N outgoing).
+     */
+    fun forkNode(
+        name: String,
+        id: String = name,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Fork)
+
+    /**
+     * `join` — V2.0.10 join activity-node helper.
+     *
+     * Convenience wrapper around [actionDef] with `kind = Join`. The
+     * renderer draws a synchronisation bar; the node synchronises parallel
+     * branches (N incoming → 1 outgoing).
+     */
+    fun joinNode(
+        name: String,
+        id: String = name,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Join)
+
+    /**
+     * `flow A → B [guard]` — V2.0.10 control-flow usage between two
+     * [ActionDefinition]s (regular actions or any activity-node pseudo-kind).
+     *
+     * Registers the resulting [ControlFlowUsage] in [Sysml2Model.usages] (via
+     * [registerUsage] — the V2.0.6 architecture bonus). The bridge picks
+     * control flows back up from `model.usages` when projecting an
+     * [ActDiagram], so the surface does not need to declare them on the
+     * diagram itself — see [ActDiagram] KDoc for the rationale (token flow
+     * lives on the model because the future Behaviour-Runtime wave needs it).
+     *
+     * Default [id] convention: `controlFlow:<source>::<target>` —
+     * deterministic, readable, collision-free for unique node-pairs.
+     * Callers can override the id when two distinct control flows connect
+     * the same pair (e.g. a Decision fans out via two guarded edges to the
+     * same Merge).
+     */
+    fun controlFlow(
+        name: String,
+        source: ActionDefinition,
+        target: ActionDefinition,
+        guard: String? = null,
+        id: String = "controlFlow:${source.id}::${target.id}",
+    ): ControlFlowUsage =
+        controlFlowById(
+            name = name,
+            sourceNodeId = source.id,
+            targetNodeId = target.id,
+            guard = guard,
+            id = id,
+        )
+
+    /**
+     * Id-only variant of [controlFlow] — for forward refs / id-only setups.
+     */
+    fun controlFlowById(
+        name: String,
+        sourceNodeId: String,
+        targetNodeId: String,
+        guard: String? = null,
+        id: String = "controlFlow:$sourceNodeId::$targetNodeId",
+    ): ControlFlowUsage {
+        val usage =
+            ControlFlowUsage(
+                id = id,
+                name = name,
+                qualifiedName = name,
+                sourceNodeId = sourceNodeId,
+                targetNodeId = targetNodeId,
+                guard = guard,
+            )
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * `flow A → B of Order` — V2.0.10 object-flow usage between two
+     * [ActionDefinition]s.
+     *
+     * Same registration semantics as [controlFlow]; the [objectType] slot
+     * records the type of the object the token carries (`"Order"`,
+     * `"Document"`) — raw string in V2.0.10 MVP.
+     *
+     * Default [id] convention: `objectFlow:<source>::<target>`.
+     */
+    fun objectFlow(
+        name: String,
+        source: ActionDefinition,
+        target: ActionDefinition,
+        objectType: String? = null,
+        id: String = "objectFlow:${source.id}::${target.id}",
+    ): ObjectFlowUsage =
+        objectFlowById(
+            name = name,
+            sourceNodeId = source.id,
+            targetNodeId = target.id,
+            objectType = objectType,
+            id = id,
+        )
+
+    /**
+     * Id-only variant of [objectFlow] — for forward refs / id-only setups.
+     */
+    fun objectFlowById(
+        name: String,
+        sourceNodeId: String,
+        targetNodeId: String,
+        objectType: String? = null,
+        id: String = "objectFlow:$sourceNodeId::$targetNodeId",
+    ): ObjectFlowUsage {
+        val usage =
+            ObjectFlowUsage(
+                id = id,
+                name = name,
+                qualifiedName = name,
+                sourceNodeId = sourceNodeId,
+                targetNodeId = targetNodeId,
+                objectType = objectType,
+            )
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * `actDiagram("Order processing — workflow") { … }` — V2.0.10 Activity
+     * Diagram.
+     *
+     * The block declares which [ActionDefinition]s (regular actions +
+     * pseudo-nodes) participate (`include(...)` / `includeById(...)`).
+     * Control flows and object flows are *not* declared on the diagram —
+     * they live on the model via [controlFlow] / [objectFlow] and the bridge
+     * auto-includes them when both endpoints are visible. See [ActDiagram]
+     * KDoc for the rationale (flows ARE the model, not a diagram-only
+     * assertion).
+     */
+    fun actDiagram(
+        name: String,
+        block: ActDiagramBuilder.() -> Unit = {},
+    ): ActDiagram {
+        val builder = ActDiagramBuilder().apply(block)
+        val diagram = ActDiagram(name = name, elementIds = builder.ids())
         diagrams += diagram
         return diagram
     }
@@ -945,6 +1198,33 @@ class StmDiagramBuilder internal constructor() {
     }
 
     /** Add a state by raw id — forward refs / id-only setups. */
+    fun includeById(id: String) {
+        ids += id
+    }
+
+    internal fun ids(): List<String> = ids.toList()
+}
+
+/**
+ * Scope for `actDiagram("…") { include(initial); include(validate); … }` —
+ * V2.0.10 Activity Diagram.
+ *
+ * Mirrors [BdDiagramBuilder] / [StmDiagramBuilder] (selects nodes only — no
+ * edges on the diagram). Control flows and object flows are auto-included
+ * by the bridge from `Sysml2Model.usages` whenever both endpoint node-ids
+ * are in this builder's [ids] list. See [ActDiagram] KDoc for the rationale
+ * (token flow ARE the model, not a diagram-only assertion).
+ */
+@Sysml2Dsl
+class ActDiagramBuilder internal constructor() {
+    private val ids = mutableListOf<String>()
+
+    /** Add an [ActionDefinition] (any [ActivityNodeKind]) as a node. */
+    fun include(node: ActionDefinition) {
+        ids += node.id
+    }
+
+    /** Add a node by raw id — forward refs / id-only setups. */
     fun includeById(id: String) {
         ids += id
     }

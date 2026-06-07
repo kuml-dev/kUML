@@ -6,6 +6,7 @@ import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.kerml.KermlFeature
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
@@ -58,6 +59,10 @@ internal fun renderSysml2Definition(
         // V2.0.9: STM-Diagramm — abgerundeter Zustand (oder Initial/Final
         // Pseudo-State als Kreis/Donut).
         is StateDefinition -> renderStateDefinition(element, layout, theme, builder)
+        // V2.0.10: ACT-Diagramm — Aktion, Pseudo-Knoten (Initial/Final/FlowFinal),
+        // Decision/Merge-Raute oder Fork/Join-Bar — Dispatch über
+        // ActionDefinition.kind.
+        is ActionDefinition -> renderActionDefinition(element, layout, theme, builder)
     }
 }
 

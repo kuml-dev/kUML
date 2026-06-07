@@ -188,6 +188,70 @@ data class RequirementDefinition(
 ) : Sysml2Definition
 
 /**
+ * `ActionDefinition` — V2.0.10 entry for the SysML 2 Activity Diagram.
+ *
+ * Represents one of the seven activity-node shapes that an ACT diagram
+ * supports:
+ *  - **Regular action** (`kind = Action`) — rounded box with the action body
+ *    rendered as a second text line beneath the name.
+ *  - **Initial node** (`kind = Initial`) — small filled circle marking the
+ *    start of the activity.
+ *  - **Final node** (`kind = Final`) — donut shape marking the end of the
+ *    entire activity.
+ *  - **Flow Final node** (`kind = FlowFinal`) — circle with an X inside,
+ *    marking the end of one token (other concurrent tokens continue).
+ *  - **Decision node** (`kind = Decision`) — diamond, branches on guards.
+ *  - **Merge node** (`kind = Merge`) — diamond, merges alternative branches.
+ *  - **Fork node** (`kind = Fork`) — synchronisation bar, splits into
+ *    parallel branches.
+ *  - **Join node** (`kind = Join`) — synchronisation bar, synchronises
+ *    parallel branches.
+ *
+ * **Design rationale — one class + an enum, not seven sealed sub-types**:
+ * the V2.0.9 STM wave handled two pseudo-state flavours with Boolean flags
+ * on a single `StateDefinition`. ACT has seven flavours; a sealed-class
+ * explosion (seven sub-types of [Sysml2Definition], each empty save for a
+ * marker) would bloat the metamodel surface for no semantic gain. A single
+ * [ActionDefinition] discriminated by [ActivityNodeKind] keeps the
+ * metamodel compact, the SVG renderer's dispatch shape uniform, and the
+ * layout-bridge's size-provider trivially expressible as a `when (kind)`.
+ *
+ * Carries one V2.0.10-specific data slot:
+ *  - [action] — optional raw action body (`"log('processing')"`,
+ *    `"computeTotal(items)"`). Only meaningful when
+ *    `kind = ActivityNodeKind.Action`; ignored by the renderer for every
+ *    other kind. Raw string in V2.0.10 MVP — the typed action AST (with a
+ *    proper expression tree, side-effect typing, and behaviour-runtime
+ *    hooks) is a separate V2.x wave, identical reasoning to the V2.0.9
+ *    `entry/exit/do`-action strings on [StateDefinition].
+ *
+ * V2.0.10 MVP scope (per the wave plan):
+ *  - Flat activity: no Activity-Partition (swimlanes), no interruptible
+ *    regions, no pin notation on actions.
+ *  - Token-Flow runtime execution is a separate Behaviour-Runtime wave;
+ *    V2.0.10 only captures the structural projection.
+ *  - Stream-flow / multicast semantics on Object Flow are V2.x polish.
+ */
+@Serializable
+data class ActionDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    /** Which of the seven activity-node shapes this is. Defaults to a regular action. */
+    val kind: ActivityNodeKind = ActivityNodeKind.Action,
+    /**
+     * Optional raw action body (`"log('processing')"`). Only meaningful for
+     * `kind = ActivityNodeKind.Action`; ignored by the renderer for every
+     * other kind.
+     */
+    val action: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Definition
+
+/**
  * `StateDefinition` — V2.0.9 entry for the SysML 2 State Transition Diagram.
  *
  * Represents a *state* of the system under modelling: a discrete situation

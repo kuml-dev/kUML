@@ -1,12 +1,17 @@
 package dev.kuml.sysml2.dsl
 
 import dev.kuml.kerml.KermlMultiplicity
+import dev.kuml.sysml2.ActDiagram
+import dev.kuml.sysml2.ActionDefinition
+import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDefinition
@@ -721,6 +726,95 @@ class Sysml2DslTest :
 
             val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
             stm.elementIds shouldBe listOf("Red", "Green")
+        }
+
+        // ── V2.0.10 ACT ──────────────────────────────────────────────────
+
+        "V2.0.10 actionDef stores kind + action body" {
+            val model =
+                sysml2Model("ActTest") {
+                    actionDef(
+                        name = "ValidateOrder",
+                        action = "validate(order)",
+                    )
+                }
+            val act = model.definitions.filterIsInstance<ActionDefinition>().single()
+            act.id shouldBe "ValidateOrder"
+            act.name shouldBe "ValidateOrder"
+            act.kind shouldBe ActivityNodeKind.Action
+            act.action shouldBe "validate(order)"
+        }
+
+        "V2.0.10 pseudo-node helpers produce the right ActivityNodeKind" {
+            val model =
+                sysml2Model("ActTest") {
+                    initialNode()
+                    finalNode()
+                    flowFinalNode()
+                    decisionNode("Valid?")
+                    mergeNode("Done?")
+                    forkNode("Split")
+                    joinNode("Sync")
+                }
+            val byName = model.definitions.filterIsInstance<ActionDefinition>().associateBy { it.name }
+            byName.getValue("Initial").kind shouldBe ActivityNodeKind.Initial
+            byName.getValue("Final").kind shouldBe ActivityNodeKind.Final
+            byName.getValue("FlowFinal").kind shouldBe ActivityNodeKind.FlowFinal
+            byName.getValue("Valid?").kind shouldBe ActivityNodeKind.Decision
+            byName.getValue("Done?").kind shouldBe ActivityNodeKind.Merge
+            byName.getValue("Split").kind shouldBe ActivityNodeKind.Fork
+            byName.getValue("Sync").kind shouldBe ActivityNodeKind.Join
+        }
+
+        "V2.0.10 controlFlow registers a ControlFlowUsage with source/target/guard" {
+            val model =
+                sysml2Model("ActTest") {
+                    val a = actionDef("A")
+                    val b = actionDef("B")
+                    controlFlow(name = "aToB", source = a, target = b, guard = "valid")
+                }
+            val flow = model.usages.filterIsInstance<ControlFlowUsage>().single()
+            flow.id shouldBe "controlFlow:A::B"
+            flow.sourceNodeId shouldBe "A"
+            flow.targetNodeId shouldBe "B"
+            flow.guard shouldBe "valid"
+            flow.definitionId shouldBe "sysml2.controlFlow"
+        }
+
+        "V2.0.10 objectFlow registers an ObjectFlowUsage with objectType" {
+            val model =
+                sysml2Model("ActTest") {
+                    val a = actionDef("Validate")
+                    val b = actionDef("Process")
+                    objectFlow(name = "carry", source = a, target = b, objectType = "Order")
+                }
+            val flow = model.usages.filterIsInstance<ObjectFlowUsage>().single()
+            flow.id shouldBe "objectFlow:Validate::Process"
+            flow.sourceNodeId shouldBe "Validate"
+            flow.targetNodeId shouldBe "Process"
+            flow.objectType shouldBe "Order"
+            flow.definitionId shouldBe "sysml2.objectFlow"
+        }
+
+        "V2.0.10 actDiagram captures element ids in declaration order" {
+            val model =
+                sysml2Model("ActTest") {
+                    val init = initialNode()
+                    val validate = actionDef("Validate")
+                    val fin = finalNode()
+                    controlFlow("start", init, validate)
+                    controlFlow("end", validate, fin)
+                    actDiagram("Workflow") {
+                        include(init)
+                        include(validate)
+                        include(fin)
+                    }
+                }
+            val act = model.diagrams.filterIsInstance<ActDiagram>().single()
+            act.name shouldBe "Workflow"
+            act.elementIds shouldContainExactly listOf("Initial", "Validate", "Final")
+            // Flows are on the model, not on the diagram.
+            model.usages.filterIsInstance<ControlFlowUsage>() shouldHaveSize 2
         }
 
         "DSL is sysml2Dsl-scoped — inner scopes can't reach outer builders accidentally" {

@@ -7,10 +7,15 @@ import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
+import dev.kuml.sysml2.ActDiagram
+import dev.kuml.sysml2.ActionDefinition
+import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.ReqDiagram
@@ -157,6 +162,48 @@ public object Sysml2LayoutBridge {
      * den Kreis bzw. Donut innerhalb dieser quadratischen Bounds zentriert.
      */
     public const val STM_PSEUDO_SIZE: Float = 24f
+
+    /**
+     * Default-Breite einer regulären [ActionDefinition]-Box in einem
+     * Activity-Diagramm (V2.0.10). Etwas breiter als die STM-State-Box,
+     * weil Actions typischerweise eine zweite Zeile mit einem
+     * Action-Body-Ausdruck tragen — der ist in der Praxis länger als der
+     * State-Name.
+     */
+    public const val ACT_ACTION_WIDTH: Float = 160f
+
+    /** Default-Höhe einer regulären [ActionDefinition]-Box (V2.0.10). */
+    public const val ACT_ACTION_HEIGHT: Float = 60f
+
+    /**
+     * Default-Größe für eine Pseudo-Node-Bounding-Box in einem
+     * Activity-Diagramm (V2.0.10) — gilt für Initial (gefüllter Kreis),
+     * Final (Donut) und FlowFinal (Kreis mit X). Etwas größer als die
+     * STM-Pseudo-Größe, weil die FlowFinal-Variante ein internes X-Muster
+     * tragen muss und 24px dafür knapp werden.
+     */
+    public const val ACT_PSEUDO_SIZE: Float = 28f
+
+    /**
+     * Default-Breite einer Decision-/Merge-Raute in einem Activity-Diagramm
+     * (V2.0.10). Quadratisch, weil der Renderer die Raute durch vier Punkte
+     * (oben/rechts/unten/links der Bounds) zeichnet.
+     */
+    public const val ACT_DIAMOND_WIDTH: Float = 50f
+
+    /** Default-Höhe einer Decision-/Merge-Raute (V2.0.10). */
+    public const val ACT_DIAMOND_HEIGHT: Float = 50f
+
+    /**
+     * Default-Breite einer Fork-/Join-Synchronisations-Bar in einem
+     * Activity-Diagramm (V2.0.10). Die Bridge gibt eine horizontale Bar als
+     * Default; die Layout-Engine kann die Orientierung später drehen,
+     * wenn das Routing das nahelegt.
+     */
+    public const val ACT_BAR_WIDTH: Float = 120f
+
+    /** Default-Höhe einer Fork-/Join-Synchronisations-Bar (V2.0.10). */
+    public const val ACT_BAR_HEIGHT: Float = 10f
 
     /** Diagnose-Helfer: extrahiert die in [diagram] referenzierten Definitionen aus [model]. */
     public fun resolveVisibleDefinitions(
@@ -550,6 +597,143 @@ public object Sysml2LayoutBridge {
 
         return LayoutGraph(nodes = nodes, edges = edges)
     }
+
+    /**
+     * Übersetzt das gegebene ACT-Diagramm (V2.0.10) in einen [LayoutGraph].
+     *
+     * MVP-Scope:
+     *  - Jede in [ActDiagram.elementIds] referenzierte [ActionDefinition]
+     *    (alle sieben Aktivitäts-Knoten-Kinds — regulärer Action, Initial /
+     *    Final / FlowFinal Pseudo-Nodes, Decision / Merge / Fork / Join) wird
+     *    ein [LayoutNode]. Andere Definition-Kinds (Part, Attribute, Port,
+     *    Connection, Actor, UseCase, Requirement, State) sind im
+     *    ACT-Diagramm konzeptionell nicht vorgesehen und werden
+     *    stillschweigend übersprungen — Konsistenzprüfung ist Validator-Sache.
+     *  - Größen pro Node-Kind via [sizeProvider]; Default nutzt die
+     *    `ACT_*`-Konstanten je nach [ActivityNodeKind]:
+     *    - Action: [ACT_ACTION_WIDTH] × [ACT_ACTION_HEIGHT]
+     *    - Initial / Final / FlowFinal: [ACT_PSEUDO_SIZE] × [ACT_PSEUDO_SIZE]
+     *    - Decision / Merge: [ACT_DIAMOND_WIDTH] × [ACT_DIAMOND_HEIGHT]
+     *    - Fork / Join: [ACT_BAR_WIDTH] × [ACT_BAR_HEIGHT]
+     *  - Control flows und object flows werden aus
+     *    `model.usages.filterIsInstance<ControlFlowUsage>()` und
+     *    `…<ObjectFlowUsage>()` gezogen — nicht aus dem Diagramm. Eine Flow
+     *    wird genau dann zur [LayoutEdge], wenn beide Endpunkte im
+     *    sichtbaren Knoten-Set liegen. Dangling-Flows werden stillschweigend
+     *    übersprungen.
+     *
+     * **Architektur-Begründung** für "Flows leben auf dem Modell, nicht auf
+     * dem Diagramm" (wie STM, anders als UC / REQ): Token-Flow ist ein
+     * integraler Teil der Activity-Semantik (die zukünftige
+     * Behaviour-Runtime-Welle braucht sie zur Laufzeit), während UC-/REQ-
+     * Edges reine Diagramm-Aussagen sind. Das ACT-Diagramm ist eine
+     * *Projektion* der Knoten; die Edges entstehen automatisch aus dem
+     * Modell.
+     *
+     * Edge-Stilunterscheidung: alle Flows tragen [EdgeHints.NONE] — der
+     * `[guard]`-Label (Control Flow) bzw. `[ObjectType]`-Label (Object Flow)
+     * ist V2.x-Polish. Die synthetische `KumlDiagram`-Hülle hat keine
+     * `UmlRelationship`-Elemente für `ControlFlowUsage` / `ObjectFlowUsage`,
+     * deshalb fällt der Edge-Renderer auf den Plain-Pfad zurück — gleiche
+     * Limitation wie UC / REQ / STM.
+     *
+     * @param model Container mit allen Definitionen + Usages (Flows werden
+     *   aus `model.usages` gelesen).
+     * @param diagram Das ACT-Diagramm (`elementIds` selektiert die sichtbaren
+     *   Knoten; Flows kommen vom Modell).
+     * @param sizeProvider Liefert die intrinsische Größe pro Knoten. Default
+     *   nutzt die `ACT_*`-Konstanten je nach [ActivityNodeKind].
+     */
+    public fun toLayoutGraph(
+        model: Sysml2Model,
+        diagram: ActDiagram,
+        sizeProvider: SizeProvider = actDefaultSizeProvider(),
+    ): LayoutGraph {
+        val nodes = mutableListOf<LayoutNode>()
+        for (id in diagram.elementIds) {
+            val def = model.definitions.firstOrNull { it.id == id } ?: continue
+            // ACT-Diagramme zeigen nur ActionDefinitions (alle Kinds); alles andere
+            // ist konzeptionell nicht vorgesehen und wird ignoriert.
+            if (def !is ActionDefinition) continue
+            val kindHint = def.kind.name
+            nodes +=
+                LayoutNode(
+                    id = NodeId(def.id),
+                    intrinsicSize = sizeProvider.sizeOf(def.id, kindHint),
+                )
+        }
+        val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
+
+        // Flows aus dem Modell ziehen (nicht aus dem Diagramm) — siehe
+        // KDoc-Begründung oben. Eine Flow wird zur Edge, wenn beide
+        // Endpunkte sichtbar sind; sonst stillschweigend übersprungen.
+        val edges = mutableListOf<LayoutEdge>()
+        for (flow in model.usages.filterIsInstance<ControlFlowUsage>()) {
+            if (flow.sourceNodeId !in visibleNodeIds ||
+                flow.targetNodeId !in visibleNodeIds
+            ) {
+                continue
+            }
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(flow.id),
+                    source = EndpointRef(nodeId = NodeId(flow.sourceNodeId)),
+                    target = EndpointRef(nodeId = NodeId(flow.targetNodeId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+        for (flow in model.usages.filterIsInstance<ObjectFlowUsage>()) {
+            if (flow.sourceNodeId !in visibleNodeIds ||
+                flow.targetNodeId !in visibleNodeIds
+            ) {
+                continue
+            }
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(flow.id),
+                    source = EndpointRef(nodeId = NodeId(flow.sourceNodeId)),
+                    target = EndpointRef(nodeId = NodeId(flow.targetNodeId)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        return LayoutGraph(nodes = nodes, edges = edges)
+    }
+
+    /**
+     * Default-[SizeProvider] für ACT-Diagramme (V2.0.10) — gibt je nach
+     * `kindHint` (Name eines [ActivityNodeKind]-Enum-Werts) die passenden
+     * Default-Maße zurück:
+     *  - `"Action"` → [ACT_ACTION_WIDTH] × [ACT_ACTION_HEIGHT]
+     *  - `"Initial"` / `"Final"` / `"FlowFinal"` → quadratisch
+     *    [ACT_PSEUDO_SIZE] × [ACT_PSEUDO_SIZE]
+     *  - `"Decision"` / `"Merge"` → [ACT_DIAMOND_WIDTH] × [ACT_DIAMOND_HEIGHT]
+     *  - `"Fork"` / `"Join"` → [ACT_BAR_WIDTH] × [ACT_BAR_HEIGHT] (horizontale
+     *    Bar; Layout-Engine kann später flippen)
+     *
+     * Unbekannte Hints fallen auf die Action-Größe zurück.
+     */
+    public fun actDefaultSizeProvider(): SizeProvider =
+        SizeProvider { _, kindHint ->
+            when (kindHint) {
+                ActivityNodeKind.Action.name ->
+                    dev.kuml.layout.Size(ACT_ACTION_WIDTH, ACT_ACTION_HEIGHT)
+                ActivityNodeKind.Initial.name,
+                ActivityNodeKind.Final.name,
+                ActivityNodeKind.FlowFinal.name,
+                ->
+                    dev.kuml.layout.Size(ACT_PSEUDO_SIZE, ACT_PSEUDO_SIZE)
+                ActivityNodeKind.Decision.name,
+                ActivityNodeKind.Merge.name,
+                ->
+                    dev.kuml.layout.Size(ACT_DIAMOND_WIDTH, ACT_DIAMOND_HEIGHT)
+                ActivityNodeKind.Fork.name,
+                ActivityNodeKind.Join.name,
+                ->
+                    dev.kuml.layout.Size(ACT_BAR_WIDTH, ACT_BAR_HEIGHT)
+                else -> dev.kuml.layout.Size(ACT_ACTION_WIDTH, ACT_ACTION_HEIGHT)
+            }
+        }
 
     /**
      * Default-[SizeProvider] für STM-Diagramme (V2.0.9) — gibt je nach

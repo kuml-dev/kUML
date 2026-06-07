@@ -6,6 +6,8 @@ import dev.kuml.io.latex.fmtCoord
 import dev.kuml.kerml.KermlFeature
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
+import dev.kuml.sysml2.ActionDefinition
+import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
@@ -71,6 +73,24 @@ internal object Sysml2DefLatexRenderer {
                         definition.isInitial -> "initial pseudo-state"
                         definition.isFinal -> "final pseudo-state"
                         else -> "state"
+                    }
+                // V2.0.10: ACT-Diagramm. V2.0.10-MVP rendert ActionDefinitions
+                // als Rechteck mit kind-spezifischem Stereotyp; das
+                // shape-spezifische TikZ-Pendant (abgerundete Rechtecke, Kreise,
+                // Rauten, Bars) ist V2.x-Polish, analog zur BDD/IBD/UC/REQ/STM-
+                // Geschichte. Der Stereotyp-String unterscheidet sich je nach
+                // ActivityNodeKind, damit der visuelle Hinweis im Fallback
+                // erhalten bleibt.
+                is ActionDefinition ->
+                    when (definition.kind) {
+                        ActivityNodeKind.Action -> "action"
+                        ActivityNodeKind.Initial -> "initial node"
+                        ActivityNodeKind.Final -> "final node"
+                        ActivityNodeKind.FlowFinal -> "flow final node"
+                        ActivityNodeKind.Decision -> "decision node"
+                        ActivityNodeKind.Merge -> "merge node"
+                        ActivityNodeKind.Fork -> "fork node"
+                        ActivityNodeKind.Join -> "join node"
                     }
             }
         renderBox(definition, stereotype, nodeId, layout, options, out)

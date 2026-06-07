@@ -15,6 +15,7 @@ import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
+import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.ReqDiagram
@@ -182,6 +183,14 @@ internal object GradlePipeline {
                         KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                     }
                     is StmDiagram -> {
+                        val layout =
+                            layoutEngine.layout(
+                                Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),
+                                LayoutHints.DEFAULT,
+                            )
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                    }
+                    is ActDiagram -> {
                         val layout =
                             layoutEngine.layout(
                                 Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),

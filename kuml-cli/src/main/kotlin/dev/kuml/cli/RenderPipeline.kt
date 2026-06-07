@@ -18,6 +18,7 @@ import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
+import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.ReqDiagram
@@ -219,6 +220,18 @@ internal object RenderPipeline {
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
                     "png" -> throw ScriptEvaluationException(
                         "PNG-Export für SysML 2 STM-Diagramme ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
+                    )
+                    else -> throw ScriptEvaluationException("Unsupported format: $format")
+                }
+            }
+            is ActDiagram -> {
+                val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                when (format) {
+                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
+                    "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
+                    "png" -> throw ScriptEvaluationException(
+                        "PNG-Export für SysML 2 ACT-Diagramme ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
                     )
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
                 }

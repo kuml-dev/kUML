@@ -5,11 +5,14 @@ import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.sysml2.ActionUsage
 import dev.kuml.sysml2.ActorUsage
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExtendUsage
 import dev.kuml.sysml2.IncludeUsage
+import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.RequirementUsage
@@ -78,6 +81,14 @@ internal fun renderSysml2Usage(
         // Aufruf nicht in den UML-Fallback rutscht.
         is StateUsage -> renderUsageBox(element, layout, builder, stereotype = "state")
         is TransitionUsage -> renderUsageBox(element, layout, builder, stereotype = "transition")
+        // V2.0.10: ACT-Usage-Kinds. Die Bridge zeigt im V2.0.10-MVP keine
+        // ActionUsages/ControlFlowUsages/ObjectFlowUsages auf der Node-Ebene
+        // (ACT-Diagramme rendern ActionDefinitions direkt; Flows werden Edges,
+        // keine Knoten), aber der Dispatcher braucht Branches, damit ein
+        // direkter Aufruf nicht in den UML-Fallback rutscht.
+        is ActionUsage -> renderUsageBox(element, layout, builder, stereotype = "action")
+        is ControlFlowUsage -> renderUsageBox(element, layout, builder, stereotype = "control flow")
+        is ObjectFlowUsage -> renderUsageBox(element, layout, builder, stereotype = "object flow")
     }
 }
 

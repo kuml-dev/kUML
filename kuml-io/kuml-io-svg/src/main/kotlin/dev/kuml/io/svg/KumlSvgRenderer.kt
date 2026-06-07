@@ -9,6 +9,8 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
+import dev.kuml.sysml2.ActDiagram
+import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
@@ -473,6 +475,64 @@ public object KumlSvgRenderer {
     public fun toSvgFile(
         model: Sysml2Model,
         diagram: StmDiagram,
+        layoutResult: LayoutResult,
+        out: Path,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): File {
+        val svg = toSvg(model, diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(svg, Charsets.UTF_8)
+        return file
+    }
+
+    /**
+     * Rendert ein SysML-2 ACT-Diagramm als SVG (V2.0.10).
+     *
+     * Wickelt das ACT in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * [ActionDefinition]s als `elements`. Der [NodeRendererDispatcher] hat
+     * seit V2.0.10 einen Branch in
+     * [dev.kuml.io.svg.sysml2.renderSysml2Definition], der
+     * [ActionDefinition] je nach [dev.kuml.sysml2.ActivityNodeKind] rendert:
+     * abgerundetes Rechteck (Action), gefüllter Kreis (Initial), Donut
+     * (Final), Kreis mit X (FlowFinal), Raute (Decision / Merge) oder
+     * Synchronisations-Bar (Fork / Join).
+     *
+     * **Edge-Styling**: der V2.0.10-MVP rendert Control Flows und Object
+     * Flows als dieselbe einfache solide Linie. Die synthetische
+     * `KumlDiagram`-Hülle enthält keine `UmlRelationship`-Elemente für
+     * `ControlFlowUsage` / `ObjectFlowUsage`, deshalb fällt der
+     * [EdgeRendererDispatcher] auf den Plain-Edge-Pfad zurück — das ist gut
+     * genug für die V2.0.10-Wave. Der `[guard]`-Label (Control Flow) und
+     * `[ObjectType]`-Label (Object Flow) sind V2.x-Polish (siehe
+     * [[kUML V2.0]]-Roadmap).
+     */
+    public fun toSvg(
+        model: Sysml2Model,
+        diagram: ActDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements =
+            model.definitions
+                .filter { it.id in visible }
+                .filter { it is ActionDefinition }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
+            )
+        return toSvg(synthetic, layoutResult, theme, options)
+    }
+
+    /** [toSvg]-Variante für SysML 2 ACT-Diagramme, schreibt direkt auf Platte. */
+    public fun toSvgFile(
+        model: Sysml2Model,
+        diagram: ActDiagram,
         layoutResult: LayoutResult,
         out: Path,
         theme: KumlTheme = PlainTheme(),

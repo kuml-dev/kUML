@@ -1,9 +1,14 @@
 package dev.kuml.layout.bridge
 
 import dev.kuml.kerml.KermlSpecialization
+import dev.kuml.sysml2.ActDiagram
+import dev.kuml.sysml2.ActionDefinition
+import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.ReqContains
 import dev.kuml.sysml2.ReqDerive
@@ -766,6 +771,202 @@ class Sysml2LayoutBridgeTest :
             graph.nodes
                 .single()
                 .id.value shouldBe "Red"
+        }
+
+        // ── ACT Diagram (V2.0.10) ─────────────────────────────────────────────
+
+        "ACT with action + decision + two control flows → 3 nodes + 2 edges" {
+            val model =
+                sysml2Model("Workflow") {
+                    val validate = actionDef("Validate")
+                    val decide = decisionNode("Valid?")
+                    val process = actionDef("Process")
+                    controlFlow("vToD", validate, decide)
+                    controlFlow("dToP", decide, process, guard = "valid")
+                    actDiagram("Pipeline") {
+                        include(validate)
+                        include(decide)
+                        include(process)
+                    }
+                }
+            val act = model.diagrams.filterIsInstance<ActDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            graph.nodes shouldHaveSize 3
+            graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("Validate", "Valid?", "Process")
+            graph.edges shouldHaveSize 2
+            graph.edges.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("controlFlow:Validate::Valid?", "controlFlow:Valid?::Process")
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/act-action-decision-two-flows.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "ACT initial/final/flowFinal pseudo-nodes are sized as pseudo (28×28)" {
+            val model =
+                sysml2Model("Pseudo") {
+                    val initial = initialNode()
+                    val finalN = finalNode()
+                    val ff = flowFinalNode()
+                    actDiagram("ACT") {
+                        include(initial)
+                        include(finalN)
+                        include(ff)
+                    }
+                }
+            val act = model.diagrams.filterIsInstance<ActDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            graph.nodes shouldHaveSize 3
+            for (n in graph.nodes) {
+                n.intrinsicSize.width shouldBe Sysml2LayoutBridge.ACT_PSEUDO_SIZE
+                n.intrinsicSize.height shouldBe Sysml2LayoutBridge.ACT_PSEUDO_SIZE
+            }
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/act-pseudo-sizes.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "ACT decision/merge nodes are sized as diamond (50×50)" {
+            val model =
+                sysml2Model("Diamonds") {
+                    val d = decisionNode("Valid?")
+                    val m = mergeNode("Joined")
+                    actDiagram("ACT") {
+                        include(d)
+                        include(m)
+                    }
+                }
+            val act = model.diagrams.filterIsInstance<ActDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            for (n in graph.nodes) {
+                n.intrinsicSize.width shouldBe Sysml2LayoutBridge.ACT_DIAMOND_WIDTH
+                n.intrinsicSize.height shouldBe Sysml2LayoutBridge.ACT_DIAMOND_HEIGHT
+            }
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/act-diamond-sizes.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "ACT fork/join nodes are sized as bar (120×10)" {
+            val model =
+                sysml2Model("Bars") {
+                    val f = forkNode("Split")
+                    val j = joinNode("Sync")
+                    actDiagram("ACT") {
+                        include(f)
+                        include(j)
+                    }
+                }
+            val act = model.diagrams.filterIsInstance<ActDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            for (n in graph.nodes) {
+                n.intrinsicSize.width shouldBe Sysml2LayoutBridge.ACT_BAR_WIDTH
+                n.intrinsicSize.height shouldBe Sysml2LayoutBridge.ACT_BAR_HEIGHT
+            }
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/act-bar-sizes.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "ACT drops control flows to dangling endpoints silently" {
+            val a = ActionDefinition(id = "A", name = "A")
+            val b = ActionDefinition(id = "B", name = "B")
+            val ghost = ActionDefinition(id = "Ghost", name = "Ghost")
+            val model =
+                Sysml2Model(
+                    name = "Dangle",
+                    definitions = listOf(a, b, ghost),
+                    usages =
+                        listOf(
+                            ControlFlowUsage(
+                                id = "controlFlow:A::B",
+                                name = "aToB",
+                                sourceNodeId = "A",
+                                targetNodeId = "B",
+                            ),
+                            ControlFlowUsage(
+                                id = "controlFlow:B::Ghost",
+                                name = "bToGhost",
+                                sourceNodeId = "B",
+                                targetNodeId = "Ghost",
+                            ),
+                            ControlFlowUsage(
+                                id = "controlFlow:Ghost::A",
+                                name = "ghostToA",
+                                sourceNodeId = "Ghost",
+                                targetNodeId = "A",
+                            ),
+                        ),
+                )
+            val act = ActDiagram(name = "ACT", elementIds = listOf("A", "B"))
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            graph.nodes shouldHaveSize 2
+            graph.edges shouldHaveSize 1
+            graph.edges
+                .single()
+                .id.value shouldBe "controlFlow:A::B"
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/act-dangling-flows.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "ACT object flow retains objectType via model.usages lookup" {
+            val model =
+                sysml2Model("Carry") {
+                    val a = actionDef("Validate")
+                    val b = actionDef("Process")
+                    objectFlow("carry", a, b, objectType = "Order")
+                    actDiagram("ACT") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val act = model.diagrams.filterIsInstance<ActDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            graph.edges shouldHaveSize 1
+            graph.edges
+                .single()
+                .id.value shouldBe "objectFlow:Validate::Process"
+
+            // objectType survives on the usage in the model — V2.x label polish
+            // recovers it via the lookup below.
+            val flow = model.usages.filterIsInstance<ObjectFlowUsage>().single()
+            flow.objectType shouldBe "Order"
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/act-object-flow.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "ACT regular action sized as ACT_ACTION_WIDTH × ACT_ACTION_HEIGHT" {
+            val model =
+                sysml2Model("M") {
+                    val a = actionDef("Act", action = "x()")
+                    actDiagram("D") {
+                        include(a)
+                    }
+                }
+            val act = model.diagrams.filterIsInstance<ActDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            graph.nodes
+                .single()
+                .intrinsicSize.width shouldBe Sysml2LayoutBridge.ACT_ACTION_WIDTH
+            graph.nodes
+                .single()
+                .intrinsicSize.height shouldBe Sysml2LayoutBridge.ACT_ACTION_HEIGHT
+            // ActivityNodeKind enum-name matching against size-provider hint.
+            ActivityNodeKind.Action.name shouldBe "Action"
         }
 
         "IBD default size matches IBD_DEFAULT_WIDTH × IBD_DEFAULT_HEIGHT" {
