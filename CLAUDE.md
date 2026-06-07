@@ -209,6 +209,25 @@ kuml/
 > - Quelle der Wahrheit für Modul-Stand: `git log <pfad>` und das Inhaltsverzeichnis der `.adoc`-Datei.
 > - Wenn ein Modul-README einen Bezug zu einem bestimmten Commit braucht (z. B. „ADR-konform seit …"), nenne stattdessen das **Datum** oder den **Versions-Tag** (`Seit v0.1.0`), nicht den SHA.
 
+### Release-Choreographie (kUML ↔ kuml.dev synchron)
+
+Bei **jedem neuen kUML-Release** (Tag `v*.*.*` auf `kuml-dev/kUML`) gehört dazu ein
+synchrones Update der kuml.dev-Webseite:
+
+1. **CHANGELOG-Eintrag** in `CHANGELOG.md` für die neue Version, vor dem Push des Tags.
+2. **`src/pages/whats-new.astro`** (EN) und **`src/pages/de/aktuelles.astro`** (DE) auf
+   kuml.dev bekommen einen neuen Eintrag oben — gleicher Inhalt wie der CHANGELOG-Block,
+   aber Marketing-tauglich aufbereitet (bürgernah, Features statt Commits).
+3. **`src/pages/features.astro`** und die Vergleichs-Matrix `src/pages/comparison.astro`
+   werden um neue Features ergänzt, sodass kuml.dev nie hinter dem aktuellen Code zurück
+   bleibt.
+4. **Build-Smoke-Test**: `npm run build` muss clean durchlaufen.
+5. **Commit-Format auf kuml.dev**:
+   `Sync site with kUML vX.Y.Z (<kurzbeschreibung der hauptneuerung>)`
+
+Die Webseite **muss vor dem nächsten Release wieder aktuell sein** — kein Drift
+zwischen Code und Marketing-Surface.
+
 ---
 
 ## Kotlin-Coding-Konventionen
