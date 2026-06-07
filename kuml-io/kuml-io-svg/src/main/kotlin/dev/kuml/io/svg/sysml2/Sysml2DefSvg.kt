@@ -7,6 +7,7 @@ import dev.kuml.kerml.KermlFeature
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ActionDefinition
+import dev.kuml.sysml2.ActivityPartitionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
@@ -75,6 +76,18 @@ internal fun renderSysml2Definition(
         // Stereotyp, Name, Expression-Body (monospaced, ggf. ellipsis-trunkiert)
         // und Parameter-Liste mit `«in»`/`«out»`/`«inout»`-Stereotyp-Präfix.
         is ConstraintDefinition -> renderConstraintDefinition(element, layout, theme, builder)
+        // V2.0.16: ACT-Diagramm — ActivityPartitions (Swimlanes) sind KEINE
+        // gewöhnlichen Node-Boxes. Sie surface'n im Renderer als Gruppen-
+        // Container über `layoutResult.groups` — die KumlSvgRenderer-ACT-
+        // Overload zeichnet die gestrichelten Lanes + Header-Bars direkt
+        // (siehe renderActivityPartitionGroup). Hier im Definitions-Dispatch
+        // sollen sie deshalb NICHT als reguläre Box gerendert werden — wir
+        // returnen explizit, damit der NodeRendererDispatcher keine
+        // Doppel-Box-Visualisierung produziert, falls ein ActivityPartition-
+        // Knoten je in `layoutResult.nodes` landet (z. B. aus einem Unit-
+        // Test, der die Sysml2DefSvg-Funktion direkt aufruft). Der Lane-
+        // Pfad ist die einzige korrekte Visualisierung.
+        is ActivityPartitionDefinition -> Unit
     }
 }
 

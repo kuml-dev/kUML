@@ -2,6 +2,8 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SampleOutput
+import dev.kuml.layout.GroupId
+import dev.kuml.layout.GroupLayout
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
@@ -11,6 +13,8 @@ import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActDiagram
+import dev.kuml.sysml2.ActionPin
+import dev.kuml.sysml2.PinDirection
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.dsl.sysml2Model
 import io.kotest.core.spec.style.StringSpec
@@ -182,6 +186,148 @@ class Sysml2ActSvgTest :
             val (model, act) = orderModel()
             val svg1 = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
             val svg2 = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+            svg1 shouldBe svg2
+        }
+
+        // ── V2.0.16 Partitions + Pins ─────────────────────────────────────
+
+        // Tiny two-partition model: Customer lane with PlaceOrder,
+        // OrderSystem lane with ValidateOrder (input + output pin) and
+        // ProcessPayment.
+        fun partitionedModel(): Pair<Sysml2Model, ActDiagram> {
+            val model =
+                sysml2Model("OrderProcessingPartitions") {
+                    val customer = activityPartition("Customer")
+                    val orderSys = activityPartition("OrderSystem")
+                    val place =
+                        actionDef(
+                            "PlaceOrder",
+                            partition = customer,
+                            pins = listOf(ActionPin("orderDetails", direction = PinDirection.Output)),
+                        )
+                    val validate =
+                        actionDef(
+                            "ValidateOrder",
+                            partition = orderSys,
+                            pins =
+                                listOf(
+                                    ActionPin("orderDetails", direction = PinDirection.Input),
+                                    ActionPin("validation", direction = PinDirection.Output),
+                                ),
+                        )
+                    val pay = actionDef("ProcessPayment", partition = orderSys)
+                    controlFlow("p2v", place, validate)
+                    controlFlow("v2p", validate, pay)
+                    actDiagram("Partitioned Workflow") {
+                        include(place)
+                        include(validate)
+                        include(pay)
+                    }
+                }
+            val act = model.diagrams.filterIsInstance<ActDiagram>().single()
+            return model to act
+        }
+
+        // Layout with two lanes side-by-side and three action boxes
+        // distributed inside the lanes. Lane bounds are wide enough to
+        // contain the action box and a header bar.
+        fun partitionedLayout(): LayoutResult =
+            LayoutResult(
+                engineId = LayoutEngineId("test"),
+                seed = 1L,
+                canvas = Size(600f, 400f),
+                nodes =
+                    mapOf(
+                        NodeId("PlaceOrder") to NodeLayout(bounds = Rect(Point(40f, 80f), Size(160f, 60f))),
+                        NodeId("ValidateOrder") to NodeLayout(bounds = Rect(Point(280f, 80f), Size(160f, 60f))),
+                        NodeId("ProcessPayment") to NodeLayout(bounds = Rect(Point(280f, 200f), Size(160f, 60f))),
+                    ),
+                edges = emptyMap(),
+                groups =
+                    mapOf(
+                        GroupId("Customer") to GroupLayout(bounds = Rect(Point(20f, 20f), Size(220f, 340f))),
+                        GroupId("OrderSystem") to GroupLayout(bounds = Rect(Point(260f, 20f), Size(220f, 340f))),
+                    ),
+            )
+
+        "ACT partition renders as dashed vertical lane with header containing the partition name" {
+            val (model, act) = partitionedModel()
+            val svg = KumlSvgRenderer.toSvg(model, act, partitionedLayout(), PlainTheme())
+
+            // One <g id="activityPartition:Customer"> group element with a
+            // dashed outer rectangle (stroke-dasharray) + header text.
+            svg shouldContain "id=\"activityPartition:Customer\""
+            svg shouldContain "id=\"activityPartition:OrderSystem\""
+            svg shouldContain "stroke-dasharray=\"6 4\""
+            // Partition names surface in the lane headers (the SVG builder
+            // pretty-prints text content on its own indented line).
+            svg shouldContain "Customer"
+            svg shouldContain "OrderSystem"
+
+            SampleOutput.write("sysml2-act/order-partitions.svg", svg)
+        }
+
+        "ACT actions in different partitions appear in different lane bounds" {
+            val (model, act) = partitionedModel()
+            val svg = KumlSvgRenderer.toSvg(model, act, partitionedLayout(), PlainTheme())
+
+            // PlaceOrder's group translate-X is around 20 + padding,
+            // OrderSystem's around 260 + padding. Assert relative X by
+            // checking the X attribute substring of each partition group's
+            // `transform="translate(...)"`. The padding adds the same
+            // constant offset to both, so the relative ordering is
+            // preserved.
+            val customerIdx = svg.indexOf("id=\"activityPartition:Customer\"")
+            val orderSysIdx = svg.indexOf("id=\"activityPartition:OrderSystem\"")
+            (customerIdx < orderSysIdx) shouldBe true
+
+            // The PlaceOrder action's X (40 + padding) is less than the
+            // ValidateOrder action's X (280 + padding) — confirms different
+            // horizontal lane positions.
+            val placeIdx = svg.indexOf("id=\"PlaceOrder\"")
+            val validateIdx = svg.indexOf("id=\"ValidateOrder\"")
+            val placeTransform = svg.substring(placeIdx, placeIdx + 80)
+            val validateTransform = svg.substring(validateIdx, validateIdx + 80)
+            placeTransform shouldContain "translate("
+            validateTransform shouldContain "translate("
+        }
+
+        "ACT action with pins renders small squares with pin names" {
+            val (model, act) = partitionedModel()
+            val svg = KumlSvgRenderer.toSvg(model, act, partitionedLayout(), PlainTheme())
+
+            // ValidateOrder has both an Input and an Output pin — find its
+            // <g> block and assert both pin labels surface inside it.
+            val vIdx = svg.indexOf("id=\"ValidateOrder\"")
+            val vEnd = svg.indexOf("</g>", vIdx)
+            val vBlock = svg.substring(vIdx, vEnd)
+            // Pin squares — kuml-class rects with width=10.
+            vBlock shouldContain "width=\"10\""
+            // Pin names render as small text labels adjacent to the squares
+            // (pretty-printed on their own indented line).
+            vBlock shouldContain "orderDetails"
+            vBlock shouldContain "validation"
+
+            SampleOutput.write("sysml2-act/order-pins.svg", svg)
+        }
+
+        "ACT action without pins is unchanged from V2.0.10 (regression guard)" {
+            val (model, act) = orderModel()
+            val svg = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+
+            // Validate has no pins — its <g> block must not contain a
+            // 10×10 pin rect (the action box itself is 160×60).
+            val vIdx = svg.indexOf("id=\"Validate\"")
+            val vEnd = svg.indexOf("</g>", vIdx)
+            val vBlock = svg.substring(vIdx, vEnd)
+            // No pin square (would be `width="10"`).
+            (vBlock.contains("width=\"10\"")) shouldBe false
+        }
+
+        "ACT partitioned output is deterministic — same input renders byte-identically" {
+            val (model, act) = partitionedModel()
+            val svg1 = KumlSvgRenderer.toSvg(model, act, partitionedLayout(), PlainTheme())
+            val svg2 = KumlSvgRenderer.toSvg(model, act, partitionedLayout(), PlainTheme())
             svg1 shouldBe svg2
         }
     })

@@ -402,6 +402,19 @@ public object KumlLatexRenderer {
      * Edge-Styling: Control Flows und Object Flows rendern als plain solide
      * Linie (Default-Style des Edge-Renderers). Der `[guard]`-Label (Control
      * Flow) und `[ObjectType]`-Label (Object Flow) sind V2.x.
+     *
+     * V2.x: **Partitions and pins are SVG-only in V2.0.16; LaTeX polish is V2.x.**
+     * The wave V2.0.16 added Activity Partitions (swimlanes) and typed pins
+     * on actions to the metamodel + SVG renderer, but the LaTeX renderer
+     * keeps the V2.0.10 baseline visual: an [ActivityPartitionDefinition]
+     * falls back to a plain rectangle box with `«activity partition»`-
+     * stereotype (see `Sysml2DefLatexRenderer`), and pins are silently
+     * omitted from the action box rendering. Achieving the full lane-with-
+     * header-bar + side-anchored-pin visual in TikZ needs a dedicated
+     * partition-aware rendering pass (analogous to the SVG renderer's
+     * `renderActivityPartitionGroup`) which is deferred to V2.x — same
+     * polish-deferral pattern as V2.0.15 Combined Fragments / Execution
+     * Specs / Create / Destroy.
      */
     public fun toLatex(
         model: Sysml2Model,

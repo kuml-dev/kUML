@@ -248,6 +248,89 @@ data class ActionDefinition(
      * other kind.
      */
     val action: String? = null,
+    /**
+     * Optional id of the [ActivityPartitionDefinition] that owns this action
+     * (V2.0.16). When set, the layout-bridge places the action node inside
+     * the partition's group (rendered as a vertical lane with a header bar);
+     * when unset, the action floats outside any lane. Validator's job to flag
+     * dangling references — the bridge silently renders the node outside
+     * any group when the id does not resolve to a visible partition.
+     *
+     * Only meaningful for `kind = ActivityNodeKind.Action` and the four
+     * non-pseudo pseudo-nodes (Initial / Final / FlowFinal / Decision /
+     * Merge / Fork / Join); the SVG renderer applies it uniformly across
+     * all kinds so a Decision diamond can sit inside a lane just like a
+     * regular Action box.
+     */
+    val partitionId: String? = null,
+    /**
+     * Typed input / output pins on this action (V2.0.16). Each pin renders
+     * as a small white square on the appropriate edge of the action box
+     * (Input pins → left edge, Output pins → right edge), vertically
+     * distributed. Only meaningful for `kind = ActivityNodeKind.Action`;
+     * the renderer skips pins for pseudo-nodes (Initial / Final / FlowFinal /
+     * Decision / Merge / Fork / Join — these kinds have no semantically
+     * meaningful pin slots in SysML 2).
+     *
+     * Defaults to an empty list so existing V2.0.10 actions stay byte-
+     * identical in the renderer output.
+     */
+    val pins: List<ActionPin> = emptyList(),
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Definition
+
+/**
+ * `ActivityPartitionDefinition` — V2.0.16 entry for the SysML 2 Activity
+ * Diagram (closes the V2.0.10 deferred-item list).
+ *
+ * Represents an **Activity Partition** (a.k.a. **Swimlane**) — a visual grouping
+ * of action nodes by the entity that owns / executes them (a department, a
+ * subsystem, a deployed service, an actor). Maps to SysML 2's `partition`
+ * keyword inside an `activity`. In a Activity Diagram, partitions appear as
+ * vertical lanes with a header bar containing the partition name at the top;
+ * actions assigned to a partition (via [ActionDefinition.partitionId]) render
+ * inside that lane.
+ *
+ * Carries one V2.0.16-specific slot on top of the structural base:
+ *  - [represents] — optional id of the represented entity, typically a
+ *    [PartDefinition] id (e.g. `"Customer"`, `"OrderSystem"`, `"Warehouse"`).
+ *    Read-only metadata in the V2.0.16 MVP (the renderer surfaces only the
+ *    partition's own [name] in the header bar); surfaces as a tooltip / link
+ *    in V2.x polish — identical reasoning to [LifelineDefinition.represents].
+ *
+ * **Layout integration**: the V2.0.16 bridge emits one [dev.kuml.layout.LayoutGroup]
+ * per visible partition, reusing the `groups` slot on `LayoutGraph` that V2.0
+ * C4-SoftwareSystem grouping already populated. ELK respects groups (it
+ * positions all child nodes inside the group bounds); the SVG renderer then
+ * draws a dashed lane outline + a solid header bar over each group, with the
+ * partition name centred in the header.
+ *
+ * V2.0.16 MVP scope (per the wave plan):
+ *  - **Vertical lanes only**. Horizontal partitions (lanes that run left-to-
+ *    right with time flowing across) are V2.x polish.
+ *  - **Flat**, no nested partitions (a partition cannot contain another).
+ *    Hierarchical partitions are V2.x.
+ *  - Only the [name] surfaces in the header; the optional [represents]-target
+ *    name is V2.x.
+ *  - The LaTeX renderer renders an [ActivityPartitionDefinition] as a plain
+ *    rectangle fallback (same kind-stereotype-fallback strategy as the
+ *    V2.0.7–15 LaTeX path); the lane / header polish is SVG-only in V2.0.16,
+ *    as is the pin rendering.
+ */
+@Serializable
+data class ActivityPartitionDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    /**
+     * Optional reference to the represented entity — typically a
+     * [PartDefinition] id (`"Customer"`, `"OrderSystem"`). Read-only metadata
+     * in the V2.0.16 MVP; surfaces as a tooltip / link in V2.x polish.
+     */
+    val represents: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Definition
 

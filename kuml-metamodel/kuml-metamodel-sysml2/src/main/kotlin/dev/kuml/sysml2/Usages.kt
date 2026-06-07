@@ -262,6 +262,33 @@ data class ActionUsage(
 ) : Sysml2Usage
 
 /**
+ * `partition p : Customer` — V2.0.16 activity-partition-usage, typed by an
+ * [dev.kuml.sysml2.ActivityPartitionDefinition].
+ *
+ * Carried for symmetry with [ActorUsage] / [UseCaseUsage] / [RequirementUsage] /
+ * [StateUsage] / [ActionUsage] / [LifelineUsage] / [ConstraintUsage]. The
+ * V2.0.16 MVP renders [dev.kuml.sysml2.ActivityPartitionDefinition]s indirectly
+ * via the layout-bridge's group emission (the renderer never draws a
+ * partition-usage as a top-level node — partitions surface as lane
+ * containers), but the dispatcher still needs a branch so a direct call from
+ * a unit test does not fall back to the UML usage path. The SVG renderer
+ * falls back to the generic usage-box dispatch.
+ *
+ * Lives in the metamodel for completeness so future polish waves (nested
+ * partitions, partition-usage on a sub-activity, horizontal lanes) have a
+ * clean attachment point.
+ */
+@Serializable
+data class ActivityPartitionUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String,
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
  * `flow A → B` — V2.0.10 **control flow** edge between two
  * [dev.kuml.sysml2.ActionDefinition]s (or activity-node pseudo-nodes).
  *

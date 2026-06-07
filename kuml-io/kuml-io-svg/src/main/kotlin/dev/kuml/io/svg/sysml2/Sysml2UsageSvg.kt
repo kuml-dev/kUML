@@ -6,6 +6,7 @@ import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ActionUsage
+import dev.kuml.sysml2.ActivityPartitionUsage
 import dev.kuml.sysml2.ActorUsage
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BindingConnectorUsage
@@ -118,6 +119,14 @@ internal fun renderSysml2Usage(
             renderUsageBox(element, layout, builder, stereotype = "combined fragment")
         is ExecutionSpecificationUsage ->
             renderUsageBox(element, layout, builder, stereotype = "execution spec")
+        // V2.0.16: ACT-Diagramm — ActivityPartition-Usage. Die Bridge zeigt
+        // im V2.0.16-MVP keine ActivityPartitionUsages auf der Node-Ebene
+        // (ACT-Diagramme rendern ActivityPartitionDefinitions als Gruppen-
+        // Container, keine Knoten), aber der Dispatcher braucht einen
+        // Branch, damit ein direkter Aufruf — z. B. aus einem Unit-Test —
+        // nicht in den UML-Fallback rutscht.
+        is ActivityPartitionUsage ->
+            renderUsageBox(element, layout, builder, stereotype = "activity partition")
     }
 }
 

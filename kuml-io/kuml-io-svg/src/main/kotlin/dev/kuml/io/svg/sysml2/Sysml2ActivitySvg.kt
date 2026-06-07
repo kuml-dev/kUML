@@ -6,7 +6,9 @@ import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ActionDefinition
+import dev.kuml.sysml2.ActionPin
 import dev.kuml.sysml2.ActivityNodeKind
+import dev.kuml.sysml2.PinDirection
 
 /**
  * Rendert eine SysML-2-[ActionDefinition] als Activity-Diagramm-Knoten
@@ -127,8 +129,118 @@ private fun renderRegularAction(
                 ),
             ) { text(xmlEscapeText(truncated)) }
         }
+
+        // V2.0.16: render pins on the action box edge. Input pins land on
+        // the left edge, Output pins on the right edge, each evenly
+        // distributed along the available vertical height. The pin name
+        // surfaces as a small text label adjacent to the square (outside
+        // for inputs, outside-right for outputs) so the label does not
+        // collide with the action name / body.
+        renderActionPins(element.pins, w, h)
     }
 }
+
+/**
+ * Renders the input / output pins on the edge of a regular action box
+ * (V2.0.16). Called from [renderRegularAction] *inside* the action group
+ * (the translate is already in effect, so all coordinates are box-local).
+ *
+ * Layout convention:
+ *  - **Input pins** — left edge, x = `-PIN_SIZE/2` so the square straddles
+ *    the action border (visual cue that the pin is a port, not a
+ *    decoration). Names render to the right of each square inside the
+ *    box edge, anchored at the start of the text.
+ *  - **Output pins** — right edge, x = `w - PIN_SIZE/2` symmetric to the
+ *    input side. Names render to the left of each square (`text-anchor =
+ *    end`) again inside the box edge.
+ *  - **Vertical distribution** — each side's pins are evenly distributed
+ *    in the vertical band `[PIN_VERTICAL_PAD … h - PIN_VERTICAL_PAD]` so
+ *    they don't overlap the box corners. Single pins land at the
+ *    vertical centre.
+ *
+ * Pins for non-Action kinds (Initial / Final / FlowFinal / Decision /
+ * Merge / Fork / Join) are filtered out at the metamodel level (the
+ * `pins` list is empty for those by spec), so this helper does not need a
+ * kind-discriminator.
+ */
+private fun SvgBuilder.renderActionPins(
+    pins: List<ActionPin>,
+    w: Float,
+    h: Float,
+) {
+    if (pins.isEmpty()) return
+    val inputs = pins.filter { it.direction == PinDirection.Input }
+    val outputs = pins.filter { it.direction == PinDirection.Output }
+    renderPinColumn(inputs, edgeX = -PIN_SIZE / 2f, h = h, labelOffsetX = PIN_SIZE + 4f, anchor = "start")
+    renderPinColumn(
+        outputs,
+        edgeX = w - PIN_SIZE / 2f,
+        h = h,
+        labelOffsetX = -4f,
+        anchor = "end",
+    )
+}
+
+/**
+ * Helper for [renderActionPins] — draws one column of pins (all inputs or
+ * all outputs) on a given x position with a kind-specific label anchor.
+ */
+private fun SvgBuilder.renderPinColumn(
+    pins: List<ActionPin>,
+    edgeX: Float,
+    h: Float,
+    labelOffsetX: Float,
+    anchor: String,
+) {
+    if (pins.isEmpty()) return
+    val usableH = h - 2f * PIN_VERTICAL_PAD
+    val step = if (pins.size == 1) 0f else usableH / (pins.size - 1)
+    for ((i, pin) in pins.withIndex()) {
+        val py =
+            if (pins.size == 1) {
+                h / 2f - PIN_SIZE / 2f
+            } else {
+                PIN_VERTICAL_PAD + step * i - PIN_SIZE / 2f
+            }
+        tag(
+            "rect",
+            mapOf(
+                "x" to fmt(edgeX),
+                "y" to fmt(py),
+                "width" to fmt(PIN_SIZE),
+                "height" to fmt(PIN_SIZE),
+                "class" to "kuml-class",
+                "fill" to "white",
+            ),
+        )
+        // Pin name as a small label adjacent to the square. The label
+        // sits at the vertical centre of the square so it lines up with
+        // the action's body text.
+        tag(
+            "text",
+            mapOf(
+                "class" to "kuml-body",
+                "x" to fmt(edgeX + PIN_SIZE / 2f + labelOffsetX),
+                "y" to fmt(py + PIN_SIZE / 2f + 3f),
+                "text-anchor" to anchor,
+            ),
+        ) { text(xmlEscapeText(pin.name)) }
+    }
+}
+
+/**
+ * Side length (px) of a single pin square on an action box edge (V2.0.16).
+ * Small enough to be visually a "port", not a decoration; large enough to
+ * accommodate a 1-2 character text label inside if a V2.x polish wave
+ * ever decides to put the name inside the square.
+ */
+internal const val PIN_SIZE: Float = 10f
+
+/**
+ * Vertical padding inside the action box where pins must not be placed
+ * (V2.0.16). Keeps pins clear of the action's rounded corners.
+ */
+private const val PIN_VERTICAL_PAD: Float = 12f
 
 /** Initial node — gefüllter Kreis zentriert in den Bounds. */
 private fun renderInitialNode(

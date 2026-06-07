@@ -3,7 +3,9 @@ package dev.kuml.sysml2.dsl
 import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
+import dev.kuml.sysml2.ActionPin
 import dev.kuml.sysml2.ActivityNodeKind
+import dev.kuml.sysml2.ActivityPartitionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
@@ -26,6 +28,7 @@ import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
+import dev.kuml.sysml2.PinDirection
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.ReqDiagram
@@ -828,6 +831,75 @@ class Sysml2DslTest :
             act.elementIds shouldContainExactly listOf("Initial", "Validate", "Final")
             // Flows are on the model, not on the diagram.
             model.usages.filterIsInstance<ControlFlowUsage>() shouldHaveSize 2
+        }
+
+        // ── V2.0.16 ACT Partitions + Pins ────────────────────────────────
+
+        "V2.0.16 activityPartition produces an ActivityPartitionDefinition with represents reference" {
+            val model =
+                sysml2Model("ActPartitionTest") {
+                    partDef("Customer")
+                    activityPartition(name = "CustomerLane", id = "CustomerLane", represents = "Customer")
+                }
+            val partition = model.definitions.filterIsInstance<ActivityPartitionDefinition>().single()
+            partition.id shouldBe "CustomerLane"
+            partition.name shouldBe "CustomerLane"
+            partition.represents shouldBe "Customer"
+        }
+
+        "V2.0.16 actionDef with partition assigns partitionId" {
+            val model =
+                sysml2Model("ActPartitionTest") {
+                    val customer = activityPartition("Customer")
+                    actionDef(name = "PlaceOrder", partition = customer)
+                }
+            val action = model.definitions.filterIsInstance<ActionDefinition>().single()
+            action.id shouldBe "PlaceOrder"
+            action.partitionId shouldBe "Customer"
+        }
+
+        "V2.0.16 actionDef with pins captures direction + typeId" {
+            val model =
+                sysml2Model("ActPinTest") {
+                    actionDef(
+                        name = "ValidateOrder",
+                        pins =
+                            listOf(
+                                ActionPin(name = "orderDetails", typeId = "Order", direction = PinDirection.Input),
+                                ActionPin(name = "validation", typeId = "Bool", direction = PinDirection.Output),
+                            ),
+                    )
+                }
+            val action = model.definitions.filterIsInstance<ActionDefinition>().single()
+            action.pins shouldHaveSize 2
+            action.pins[0].name shouldBe "orderDetails"
+            action.pins[0].typeId shouldBe "Order"
+            action.pins[0].direction shouldBe PinDirection.Input
+            action.pins[1].name shouldBe "validation"
+            action.pins[1].direction shouldBe PinDirection.Output
+        }
+
+        "V2.0.16 pseudo-node helpers (initialNode, finalNode, ...) accept partition" {
+            val model =
+                sysml2Model("ActPseudoPartitionTest") {
+                    val customer = activityPartition("Customer")
+                    val orderSys = activityPartition("OrderSystem")
+                    initialNode(partition = customer)
+                    finalNode(partition = orderSys)
+                    flowFinalNode(partition = orderSys)
+                    decisionNode("Valid?", partition = orderSys)
+                    mergeNode("Joined", partition = orderSys)
+                    forkNode("Split", partition = orderSys)
+                    joinNode("Sync", partition = orderSys)
+                }
+            val byName = model.definitions.filterIsInstance<ActionDefinition>().associateBy { it.name }
+            byName.getValue("Initial").partitionId shouldBe "Customer"
+            byName.getValue("Final").partitionId shouldBe "OrderSystem"
+            byName.getValue("FlowFinal").partitionId shouldBe "OrderSystem"
+            byName.getValue("Valid?").partitionId shouldBe "OrderSystem"
+            byName.getValue("Joined").partitionId shouldBe "OrderSystem"
+            byName.getValue("Split").partitionId shouldBe "OrderSystem"
+            byName.getValue("Sync").partitionId shouldBe "OrderSystem"
         }
 
         // ── V2.0.11 SEQ ──────────────────────────────────────────────────

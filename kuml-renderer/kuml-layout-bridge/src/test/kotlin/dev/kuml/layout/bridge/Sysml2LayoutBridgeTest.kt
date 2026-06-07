@@ -37,6 +37,7 @@ import dev.kuml.sysml2.UcInclude
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.dsl.sysml2Model
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.collections.shouldContainExactly
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
@@ -977,6 +978,103 @@ class Sysml2LayoutBridgeTest :
                 .intrinsicSize.height shouldBe Sysml2LayoutBridge.ACT_ACTION_HEIGHT
             // ActivityNodeKind enum-name matching against size-provider hint.
             ActivityNodeKind.Action.name shouldBe "Action"
+        }
+
+        // ── V2.0.16 ACT Partitions ────────────────────────────────────────
+
+        "ACT with 2 partitions and 3 actions emits 2 groups + 3 nodes" {
+            val model =
+                sysml2Model("OrderProcessing") {
+                    val customer = activityPartition("Customer")
+                    val warehouse = activityPartition("Warehouse")
+                    val place = actionDef("PlaceOrder", partition = customer)
+                    val reserve = actionDef("ReserveInventory", partition = warehouse)
+                    val ship = actionDef("ShipOrder", partition = warehouse)
+                    actDiagram("Workflow") {
+                        // V2.0.16: Partitions are auto-included via the
+                        // partitionId reference on the action node — no
+                        // explicit `include(...)` needed. Including them
+                        // explicitly via `includeById(...)` is also valid
+                        // (the bridge dedupes), but we exercise the implicit
+                        // path here.
+                        include(place)
+                        include(reserve)
+                        include(ship)
+                    }
+                }
+            val act = model.diagrams.filterIsInstance<ActDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            // Action nodes only — partitions are NOT layout nodes.
+            graph.nodes shouldHaveSize 3
+            graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("PlaceOrder", "ReserveInventory", "ShipOrder")
+            // Two groups in DSL-declaration order.
+            graph.groups shouldHaveSize 2
+            graph.groups.map { it.id.value } shouldContainExactly listOf("Customer", "Warehouse")
+            // groupId on each LayoutNode matches the partition assignment.
+            val nodesById = graph.nodes.associateBy { it.id.value }
+            nodesById.getValue("PlaceOrder").groupId?.value shouldBe "Customer"
+            nodesById.getValue("ReserveInventory").groupId?.value shouldBe "Warehouse"
+            nodesById.getValue("ShipOrder").groupId?.value shouldBe "Warehouse"
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/act-partitions-three-actions.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "ACT actions without partitionId stay outside groups" {
+            val model =
+                sysml2Model("Standalone") {
+                    val a = actionDef("FreeAction")
+                    actDiagram("D") {
+                        include(a)
+                    }
+                }
+            val act = model.diagrams.filterIsInstance<ActDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, act)
+            graph.nodes shouldHaveSize 1
+            graph.nodes.single().groupId shouldBe null
+            graph.groups shouldHaveSize 0
+        }
+
+        "ACT with partitionId referencing missing partition has the node outside groups (silent)" {
+            // The action carries a partitionId, but the referenced
+            // ActivityPartitionDefinition does NOT exist in the model — the
+            // bridge silently renders the node outside any lane (validator's
+            // job to flag the dangling reference). The MVP achieves this by
+            // constructing the ActionDefinition directly (the DSL would
+            // resolve through the partition reference and fail at compile
+            // time on a missing partition).
+            val model =
+                sysml2Model("Dangling") {
+                    val a =
+                        actionDef("OrphanAction") // No partition reference via DSL.
+                    actDiagram("D") {
+                        include(a)
+                    }
+                }
+            // Inject a partitionId on the action by replacing it in a fresh
+            // Sysml2Model — the DSL doesn't support dangling refs by design,
+            // so the test mutates the model directly.
+            val actionWithDangling =
+                model.definitions
+                    .filterIsInstance<ActionDefinition>()
+                    .single()
+                    .copy(partitionId = "DoesNotExist")
+            val mutated =
+                Sysml2Model(
+                    name = model.name,
+                    definitions = listOf(actionWithDangling),
+                    usages = model.usages,
+                    diagrams = model.diagrams,
+                )
+            val act = mutated.diagrams.filterIsInstance<ActDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(mutated, act)
+            graph.nodes shouldHaveSize 1
+            graph.nodes.single().groupId shouldBe null
+            // No partition exists in the model → no groups.
+            graph.groups shouldHaveSize 0
         }
 
         // ── V2.0.11 SEQ ─────────────────────────────────────────────────

@@ -4,7 +4,9 @@ import dev.kuml.kerml.KermlMultiplicity
 import dev.kuml.kerml.KermlSpecialization
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
+import dev.kuml.sysml2.ActionPin
 import dev.kuml.sysml2.ActivityNodeKind
+import dev.kuml.sysml2.ActivityPartitionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
@@ -516,6 +518,8 @@ class Sysml2ModelBuilder(
         action: String? = null,
         kind: ActivityNodeKind = ActivityNodeKind.Action,
         isAbstract: Boolean = false,
+        partition: ActivityPartitionDefinition? = null,
+        pins: List<ActionPin> = emptyList(),
         block: DefinitionBuilder.() -> Unit = {},
     ): ActionDefinition {
         val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
@@ -527,6 +531,8 @@ class Sysml2ModelBuilder(
                 features = builder.features(),
                 kind = kind,
                 action = action,
+                partitionId = partition?.id,
+                pins = pins,
             )
         definitions += def
         return def
@@ -537,84 +543,135 @@ class Sysml2ModelBuilder(
      *
      * Convenience wrapper around [actionDef] with `kind = Initial`. The
      * renderer draws a small filled circle; the [action] slot is ignored
-     * for pseudo-nodes.
+     * for pseudo-nodes. V2.0.16: accepts an optional [partition] so the
+     * initial node can be placed inside a swimlane.
      */
     fun initialNode(
         name: String = "Initial",
         id: String = name,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Initial)
+        partition: ActivityPartitionDefinition? = null,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Initial, partition = partition)
 
     /**
      * `final` — V2.0.10 final activity-node helper.
      *
      * Convenience wrapper around [actionDef] with `kind = Final`. The
      * renderer draws a donut (outer ring + inner filled disc); the [action]
-     * slot is ignored for pseudo-nodes.
+     * slot is ignored for pseudo-nodes. V2.0.16: accepts an optional
+     * [partition] so the final node can be placed inside a swimlane.
      */
     fun finalNode(
         name: String = "Final",
         id: String = name,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Final)
+        partition: ActivityPartitionDefinition? = null,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Final, partition = partition)
 
     /**
      * `flow final` — V2.0.10 flow-final activity-node helper.
      *
      * Convenience wrapper around [actionDef] with `kind = FlowFinal`. The
      * renderer draws a circle with an X inside (two diagonal lines), marking
-     * the end of a single token — other concurrent tokens continue.
+     * the end of a single token — other concurrent tokens continue. V2.0.16:
+     * accepts an optional [partition] so the flow-final can sit in a lane.
      */
     fun flowFinalNode(
         name: String = "FlowFinal",
         id: String = name,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.FlowFinal)
+        partition: ActivityPartitionDefinition? = null,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.FlowFinal, partition = partition)
 
     /**
      * `decide` — V2.0.10 decision activity-node helper.
      *
      * Convenience wrapper around [actionDef] with `kind = Decision`. The
      * renderer draws a diamond; the node branches on guards (1 incoming →
-     * N outgoing).
+     * N outgoing). V2.0.16: accepts an optional [partition].
      */
     fun decisionNode(
         name: String,
         id: String = name,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Decision)
+        partition: ActivityPartitionDefinition? = null,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Decision, partition = partition)
 
     /**
      * `merge` — V2.0.10 merge activity-node helper.
      *
      * Convenience wrapper around [actionDef] with `kind = Merge`. The
      * renderer draws a diamond; the node merges alternative branches
-     * (N incoming → 1 outgoing).
+     * (N incoming → 1 outgoing). V2.0.16: accepts an optional [partition].
      */
     fun mergeNode(
         name: String,
         id: String = name,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Merge)
+        partition: ActivityPartitionDefinition? = null,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Merge, partition = partition)
 
     /**
      * `fork` — V2.0.10 fork activity-node helper.
      *
      * Convenience wrapper around [actionDef] with `kind = Fork`. The
      * renderer draws a synchronisation bar; the node splits into parallel
-     * branches (1 incoming → N outgoing).
+     * branches (1 incoming → N outgoing). V2.0.16: accepts an optional
+     * [partition].
      */
     fun forkNode(
         name: String,
         id: String = name,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Fork)
+        partition: ActivityPartitionDefinition? = null,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Fork, partition = partition)
 
     /**
      * `join` — V2.0.10 join activity-node helper.
      *
      * Convenience wrapper around [actionDef] with `kind = Join`. The
      * renderer draws a synchronisation bar; the node synchronises parallel
-     * branches (N incoming → 1 outgoing).
+     * branches (N incoming → 1 outgoing). V2.0.16: accepts an optional
+     * [partition].
      */
     fun joinNode(
         name: String,
         id: String = name,
-    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Join)
+        partition: ActivityPartitionDefinition? = null,
+    ): ActionDefinition = actionDef(name = name, id = id, kind = ActivityNodeKind.Join, partition = partition)
+
+    /**
+     * `partition def Customer { … }` — V2.0.16 activity-partition (swimlane)
+     * definition. Closes the V2.0.10 deferred-item list.
+     *
+     * Declares an [ActivityPartitionDefinition] and registers it on the
+     * model's `definitions` list. The partition surfaces in the diagram as
+     * a vertical lane with a header bar containing [name]; actions assigned
+     * to the partition (via the `partition = …` argument on [actionDef] or
+     * the pseudo-node helpers) render inside that lane.
+     *
+     * Optional [represents] points at the represented entity — typically a
+     * [PartDefinition] id (`"Customer"`, `"OrderSystem"`). Read-only metadata
+     * in the V2.0.16 MVP; surfaces as a tooltip / link in V2.x polish.
+     *
+     * Partitions live on the model (not on the diagram) so the bridge can
+     * auto-include them in an `actDiagram(...)` projection as soon as any
+     * action assigned to them is visible — identical philosophy to control /
+     * object flows (V2.0.10).
+     */
+    fun activityPartition(
+        name: String,
+        id: String = name,
+        represents: String? = null,
+        isAbstract: Boolean = false,
+        block: DefinitionBuilder.() -> Unit = {},
+    ): ActivityPartitionDefinition {
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
+        val def =
+            ActivityPartitionDefinition(
+                id = id,
+                name = name,
+                isAbstract = isAbstract,
+                features = builder.features(),
+                represents = represents,
+            )
+        definitions += def
+        return def
+    }
 
     /**
      * `flow A → B [guard]` — V2.0.10 control-flow usage between two

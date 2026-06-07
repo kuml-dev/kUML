@@ -8,6 +8,7 @@ import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActivityNodeKind
+import dev.kuml.sysml2.ActivityPartitionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
@@ -106,6 +107,17 @@ internal object Sysml2DefLatexRenderer {
                 // Liste) ist V2.x-Polish, analog zur BDD/IBD/UC/REQ/STM/ACT/SEQ-
                 // Geschichte.
                 is ConstraintDefinition -> "constraint"
+                // V2.0.16: ACT-Diagramm — ActivityPartition (Swimlane).
+                // V2.0.16-MVP rendert die Partition als plain Rechteck mit
+                // `«activity partition»`-Stereotyp; die echte Lane-mit-
+                // Header-Bar-Darstellung im TikZ-Pendant (gestrichelter
+                // Rahmen + Header-Block + nested Action-Boxes) ist
+                // V2.x-Polish, analog zur BDD/IBD/UC/REQ/STM/ACT/SEQ/PAR-
+                // Geschichte. Pins werden ebenfalls nicht im TikZ-Output
+                // dargestellt (SVG-only in V2.0.16). Siehe
+                // KumlLatexRenderer-ACT-toLatex KDoc für den vollständigen
+                // V2.x-Deferred-Vermerk.
+                is ActivityPartitionDefinition -> "activity partition"
             }
         renderBox(definition, stereotype, nodeId, layout, options, out)
     }

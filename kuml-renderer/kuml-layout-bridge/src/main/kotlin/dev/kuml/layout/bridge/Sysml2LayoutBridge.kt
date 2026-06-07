@@ -3,13 +3,16 @@ package dev.kuml.layout.bridge
 import dev.kuml.layout.EdgeHints
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EndpointRef
+import dev.kuml.layout.GroupId
 import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
+import dev.kuml.layout.LayoutGroup
 import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActivityNodeKind
+import dev.kuml.sysml2.ActivityPartitionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
@@ -713,20 +716,82 @@ public object Sysml2LayoutBridge {
         diagram: ActDiagram,
         sizeProvider: SizeProvider = actDefaultSizeProvider(),
     ): LayoutGraph {
+        // V2.0.16: ActivityPartitionDefinitions sammeln, die im Diagramm
+        //          sichtbar sind. Eine Partition wird genau dann zur
+        //          LayoutGroup, wenn sie in `diagram.elementIds` steht ODER
+        //          mindestens ein sichtbarer ActionDefinition-Knoten sie
+        //          per `partitionId` referenziert. Das erlaubt zwei
+        //          DSL-Schreibweisen:
+        //           a) Partitionen explizit in `actDiagram { include(...) }`
+        //              auflisten (Vault-Convention für sehr explizite Modelle).
+        //           b) Partitionen nur über `actionDef(partition = …)`
+        //              referenzieren — der Bridge zieht sie automatisch in
+        //              die Group-Emission (analog zu Flows, die ebenfalls
+        //              automatisch aus dem Modell gezogen werden).
+        //          Beide Pfade landen im selben Group-Output.
+        val visiblePartitionIds: MutableSet<String> = mutableSetOf()
+        for (id in diagram.elementIds) {
+            val def = model.definitions.firstOrNull { it.id == id }
+            if (def is ActivityPartitionDefinition) {
+                visiblePartitionIds += def.id
+            }
+        }
+
         val nodes = mutableListOf<LayoutNode>()
         for (id in diagram.elementIds) {
             val def = model.definitions.firstOrNull { it.id == id } ?: continue
-            // ACT-Diagramme zeigen nur ActionDefinitions (alle Kinds); alles andere
-            // ist konzeptionell nicht vorgesehen und wird ignoriert.
+            // ACT-Diagramme zeigen ActionDefinitions als Knoten (alle Kinds);
+            // ActivityPartitions werden als LayoutGroup ausgegeben (NICHT als
+            // Knoten); alles andere ist konzeptionell nicht vorgesehen und
+            // wird ignoriert.
+            if (def is ActivityPartitionDefinition) continue
             if (def !is ActionDefinition) continue
             val kindHint = def.kind.name
+            // V2.0.16: Wenn der Action eine partitionId trägt und die
+            //          referenzierte Partition im Modell existiert,
+            //          ziehen wir sie automatisch in die sichtbaren
+            //          Partitionen — auch wenn das Diagramm sie nicht
+            //          explizit auflistet.
+            val partitionId = def.partitionId
+            if (partitionId != null) {
+                val partitionDef = model.definitions.firstOrNull { it.id == partitionId }
+                if (partitionDef is ActivityPartitionDefinition) {
+                    visiblePartitionIds += partitionDef.id
+                }
+            }
+            // V2.0.16: groupId auf dem LayoutNode setzen, wenn die
+            //          partitionId auf eine sichtbare Partition referenziert.
+            //          Dangling-partitionIds (Validator-Sache) führen zu
+            //          groupId=null — der Knoten landet außerhalb jeder Lane.
+            val nodeGroupId: GroupId? =
+                if (partitionId != null && partitionId in visiblePartitionIds) {
+                    GroupId(partitionId)
+                } else {
+                    null
+                }
             nodes +=
                 LayoutNode(
                     id = NodeId(def.id),
                     intrinsicSize = sizeProvider.sizeOf(def.id, kindHint),
+                    groupId = nodeGroupId,
                 )
         }
         val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
+
+        // V2.0.16: LayoutGroups für die sichtbaren Partitionen emittieren —
+        //          eine pro Partition. Die Engine (ELK) füllt
+        //          `layoutResult.groups` mit den berechneten Bounds, und der
+        //          SVG-Renderer iteriert darüber, um die gestrichelten
+        //          Swimlane-Rechtecke + die Header-Bars zu zeichnen.
+        //          Die Reihenfolge der Groups folgt der Reihenfolge der
+        //          Partition-Definition im `model.definitions`-Slot, damit
+        //          die Lane-Anordnung deterministisch ist (links-nach-rechts
+        //          in DSL-Deklarationsreihenfolge).
+        val groups: List<LayoutGroup> =
+            model.definitions
+                .filterIsInstance<ActivityPartitionDefinition>()
+                .filter { it.id in visiblePartitionIds }
+                .map { LayoutGroup(id = GroupId(it.id), parent = null) }
 
         // Flows aus dem Modell ziehen (nicht aus dem Diagramm) — siehe
         // KDoc-Begründung oben. Eine Flow wird zur Edge, wenn beide
@@ -761,7 +826,7 @@ public object Sysml2LayoutBridge {
                 )
         }
 
-        return LayoutGraph(nodes = nodes, edges = edges)
+        return LayoutGraph(nodes = nodes, edges = edges, groups = groups)
     }
 
     /**

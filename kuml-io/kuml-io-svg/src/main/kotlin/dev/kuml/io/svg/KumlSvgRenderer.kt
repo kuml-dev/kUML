@@ -12,6 +12,7 @@ import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
+import dev.kuml.sysml2.ActivityPartitionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.ConstraintDefinition
@@ -597,6 +598,12 @@ public object KumlSvgRenderer {
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): String {
         val visible = diagram.elementIds.toSet()
+        // V2.0.16: Include both ActionDefinitions and ActivityPartitionDefinitions
+        //          in the synthetic-elements list for cross-reference, but
+        //          only ActionDefinitions render as Layout-Nodes. Partitions
+        //          surface as LayoutGroups via the bridge; the renderer
+        //          iterates layoutResult.groups and draws each lane before
+        //          the node loop so action boxes sit on top of their lane.
         val elements =
             model.definitions
                 .filter { it.id in visible }
@@ -607,7 +614,69 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ActEdgeAdapter(model, diagram))
+        // V2.0.16: Partitions are looked up from the full model (not the
+        //          diagram-visible filter) so a partition that is referenced
+        //          only via `actionDef(partition = …)` — not explicitly
+        //          listed in the diagram — still surfaces. The bridge
+        //          auto-picks-up the partition via `groupId` on the action
+        //          node; the renderer just matches the group id to a
+        //          partition definition here.
+        val partitionsById: Map<String, ActivityPartitionDefinition> =
+            model.definitions
+                .filterIsInstance<ActivityPartitionDefinition>()
+                .associateBy { it.id }
+        val adapter = ActEdgeAdapter(model, diagram)
+
+        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+            val padding = options.paddingPx
+
+            // 1. V2.0.16: render swimlane outlines + header bars FIRST so
+            //    action nodes and edges layer on top.
+            for ((groupId, groupLayout) in layoutResult.groups) {
+                val partition = partitionsById[groupId.value] ?: continue
+                dev.kuml.io.svg.sysml2
+                    .renderActivityPartitionGroup(partition, groupLayout, padding, nodesBuilder)
+            }
+
+            // 2. Standard node loop (action boxes + pins, pseudo nodes,
+            //    diamonds, bars) — identical logic to renderSysml2Synthetic.
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val element = synthetic.elements.find { it.id == nodeId.value }
+                if (element != null) {
+                    val shifted =
+                        nodeLayout.copy(
+                            bounds =
+                                nodeLayout.bounds.copy(
+                                    origin =
+                                        nodeLayout.bounds.origin.copy(
+                                            x = nodeLayout.bounds.origin.x + padding,
+                                            y = nodeLayout.bounds.origin.y + padding,
+                                        ),
+                                ),
+                        )
+                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                }
+            }
+
+            // 3. Edges — adapter-aware three-way fallback (identical to
+            //    renderSysml2Synthetic).
+            val elementIndex = synthetic.elements.associateBy { it.id }
+            for ((edgeId, route) in layoutResult.edges) {
+                val shiftedRoute = shiftRoute(route, padding)
+                val element = elementIndex[edgeId.value]
+                if (element != null) {
+                    EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
+                } else {
+                    val meta = adapter.metadataFor(edgeId.value)
+                    if (meta != null) {
+                        Sysml2EdgeRenderer.render(shiftedRoute, meta, theme, edgesBuilder)
+                    } else {
+                        val (tag, attrs) = EdgePathBuilder.build(shiftedRoute)
+                        edgesBuilder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
+                    }
+                }
+            }
+        }
     }
 
     /** [toSvg]-Variante für SysML 2 ACT-Diagramme, schreibt direkt auf Platte. */
