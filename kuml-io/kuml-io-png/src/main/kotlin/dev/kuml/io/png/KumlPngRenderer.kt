@@ -7,6 +7,16 @@ import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.layout.LayoutResult
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
+import dev.kuml.sysml2.ActDiagram
+import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.ParDiagram
+import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.SeqDiagram
+import dev.kuml.sysml2.StmDiagram
+import dev.kuml.sysml2.Sysml2Diagram
+import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.UcDiagram
 import java.io.File
 import java.nio.file.Path
 
@@ -87,6 +97,91 @@ public object KumlPngRenderer {
     ): ByteArray {
         val svg = KumlSvgRenderer.toSvg(diagram, model, layoutResult, theme)
         return toPng(svg, options)
+    }
+
+    /**
+     * Convenience-Overload: Rendert ein SysML-2-Diagramm direkt zu PNG (V2.0.14).
+     *
+     * Diese **eine** Methode bedient alle acht SysML-2-Diagrammtypen — BDD, IBD,
+     * UC, REQ, STM, ACT, SEQ, PAR — via Dispatch auf den versiegelten
+     * [Sysml2Diagram]-Subtyp. Hintergrund: [KumlSvgRenderer] hat **keine**
+     * generische `toSvg(model, Sysml2Diagram, …)`-Variante (jede der acht
+     * Subtypen hat ein eigenes typisiertes Overload mit unterschiedlicher
+     * Renderpfad-Logik — z.B. PAR mit `ParEdgeAdapter`, SEQ mit direktem
+     * Message-Renderer). Wir dispatchen den Subtyp deshalb hier per
+     * `when (diagram)`-Block, der dank `sealed interface` vom Kotlin-Compiler
+     * exhaustivitäts-geprüft ist — kommt später ein neunter Subtyp dazu, muss
+     * diese Methode gepflegt werden, bevor das Modul kompiliert.
+     *
+     * Der eigentliche PNG-Pfad bleibt derselbe wie für UML/C4: SVG-String aus
+     * dem SVG-Renderer holen, an [PngTranscoderImpl] zur Rasterisierung
+     * weiterreichen. Es gibt keine SysML-2-spezifischen Render-Optionen — die
+     * vom SVG-Pfad eingebauten Stereotyp-Labels (`«part def»`, `«requirement»`,
+     * `«constraint»`, gestricheltes `«include»` / `«satisfy»` etc.,
+     * arrow-styled `«extend»`) sind im SVG bereits präsent, Batik
+     * rasterisiert sie ohne Sonderbehandlung.
+     *
+     * @param model das übergeordnete SysML-2-Modell (Definitionen + Usages)
+     * @param diagram der konkrete Diagramm-Subtyp; einer von
+     *   [BdDiagram], [IbdDiagram], [UcDiagram], [ReqDiagram], [StmDiagram],
+     *   [ActDiagram], [SeqDiagram], [ParDiagram]
+     * @param layoutResult berechnete Positionen und Routing-Pfade aus dem
+     *   [dev.kuml.layout.bridge.Sysml2LayoutBridge]
+     * @param theme visuelles Theme; Standard: [PlainTheme]
+     * @param options Render-Optionen; Standard: [PngRenderOptions.DEFAULT]
+     * @return PNG-Byte-Array (beginnt mit den PNG-Magic-Bytes `89 50 4E 47 ...`)
+     */
+    public fun toPng(
+        model: Sysml2Model,
+        diagram: Sysml2Diagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: PngRenderOptions = PngRenderOptions.DEFAULT,
+    ): ByteArray {
+        val svg =
+            when (diagram) {
+                is BdDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
+                is IbdDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
+                is UcDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
+                is ReqDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
+                is StmDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
+                is ActDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
+                is SeqDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
+                is ParDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
+            }
+        return toPng(svg, options)
+    }
+
+    /**
+     * Convenience-Overload: Rendert ein SysML-2-Diagramm zu PNG und schreibt
+     * es in eine Datei (V2.0.14).
+     *
+     * Spiegelt das UML/C4-`toPngFile`-Muster für die acht SysML-2-Diagramm-
+     * Subtypen. Erzeugt fehlende Eltern-Verzeichnisse mit `mkdirs()`, schreibt
+     * die PNG-Bytes binär.
+     *
+     * @param model das übergeordnete SysML-2-Modell
+     * @param diagram der konkrete Diagramm-Subtyp (siehe
+     *   [toPng]`(Sysml2Model, Sysml2Diagram, …)`)
+     * @param layoutResult berechnete Positionen und Routing-Pfade
+     * @param out Zieldatei-Pfad
+     * @param theme visuelles Theme; Standard: [PlainTheme]
+     * @param options Render-Optionen; Standard: [PngRenderOptions.DEFAULT]
+     * @return die geschriebene [File]
+     */
+    public fun toPngFile(
+        model: Sysml2Model,
+        diagram: Sysml2Diagram,
+        layoutResult: LayoutResult,
+        out: Path,
+        theme: KumlTheme = PlainTheme(),
+        options: PngRenderOptions = PngRenderOptions.DEFAULT,
+    ): File {
+        val bytes = toPng(model, diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeBytes(bytes)
+        return file
     }
 
     /**

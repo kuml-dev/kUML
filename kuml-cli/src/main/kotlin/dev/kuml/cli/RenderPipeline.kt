@@ -105,7 +105,7 @@ internal object RenderPipeline {
             when (extracted) {
                 is ExtractedDiagram.Uml -> renderUml(extracted, output, format, width, theme)
                 is ExtractedDiagram.C4 -> renderC4(extracted, output, format, width, theme)
-                is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, theme)
+                is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme)
             }
         } catch (e: IOException) {
             throw e
@@ -147,21 +147,30 @@ internal object RenderPipeline {
     }
 
     /**
-     * SysML 2 render-Branch (V2.0.4 BDD, V2.0.6 IBD).
+     * SysML 2 render-Branch (V2.0.4 BDD, V2.0.6 IBD, V2.0.7 UC, V2.0.8 REQ,
+     * V2.0.9 STM, V2.0.10 ACT, V2.0.11 SEQ, V2.0.12 PAR).
      *
-     * Bridge → ELK Layout → Render (SVG/LaTeX). Dispatch in zwei Stufen:
-     *  1. auf den Diagrammtyp (BDD vs. IBD) — Bridge-Aufruf + Renderer-Wahl.
+     * Bridge → ELK Layout → Render (SVG / LaTeX / PNG). Dispatch in zwei
+     * Stufen:
+     *  1. auf den Diagrammtyp (BDD/IBD/UC/REQ/STM/ACT/SEQ/PAR) — Bridge-Aufruf
+     *     + Renderer-Wahl.
      *  2. auf das Ausgabeformat (svg/latex/png).
      *
-     * PNG ist für beide Diagrammtypen V2.x — der Batik-PNG-Renderer braucht
-     * für SysML 2 noch ein paar Stereotyp-Style-Mappings, das lohnt eine
-     * eigene Welle. Bis dahin emittet die PNG-Code-Path einen klaren Fehler
-     * statt einer halben Render-Pipeline.
+     * Seit V2.0.14 unterstützen alle acht Diagramm-Typen den PNG-Export. Der
+     * SVG-Pfad ist seit V2.0.13 vollständig (Stereotyp-Labels, gestrichelte
+     * Linien, Pfeilköpfe), Batik rasterisiert den SVG-String unverändert zu
+     * PNG. Es gibt keine SysML-2-spezifischen Render-Optionen für PNG — die
+     * Stereotyp-Styles sind im SVG bereits vorhanden.
+     *
+     * Die acht Diagramm-Typ-Branches haben weitgehend dieselbe Form
+     * (Bridge → Layout → Format-Dispatch); das `width` für PNG wird
+     * durchgereicht.
      */
     private fun renderSysml2(
         extracted: ExtractedDiagram.Sysml2,
         output: Path,
         format: String,
+        width: Int,
         theme: KumlTheme,
     ) {
         val model = extracted.model
@@ -172,9 +181,7 @@ internal object RenderPipeline {
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
-                    "png" -> throw ScriptEvaluationException(
-                        "PNG-Export für SysML 2 BDDs ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
-                    )
+                    "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
                 }
             }
@@ -184,9 +191,7 @@ internal object RenderPipeline {
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
-                    "png" -> throw ScriptEvaluationException(
-                        "PNG-Export für SysML 2 IBDs ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
-                    )
+                    "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
                 }
             }
@@ -196,9 +201,7 @@ internal object RenderPipeline {
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
-                    "png" -> throw ScriptEvaluationException(
-                        "PNG-Export für SysML 2 UC-Diagramme ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
-                    )
+                    "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
                 }
             }
@@ -208,9 +211,7 @@ internal object RenderPipeline {
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
-                    "png" -> throw ScriptEvaluationException(
-                        "PNG-Export für SysML 2 REQ-Diagramme ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
-                    )
+                    "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
                 }
             }
@@ -220,9 +221,7 @@ internal object RenderPipeline {
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
-                    "png" -> throw ScriptEvaluationException(
-                        "PNG-Export für SysML 2 STM-Diagramme ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
-                    )
+                    "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
                 }
             }
@@ -232,9 +231,7 @@ internal object RenderPipeline {
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
-                    "png" -> throw ScriptEvaluationException(
-                        "PNG-Export für SysML 2 ACT-Diagramme ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
-                    )
+                    "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
                 }
             }
@@ -244,9 +241,7 @@ internal object RenderPipeline {
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
-                    "png" -> throw ScriptEvaluationException(
-                        "PNG-Export für SysML 2 SEQ-Diagramme ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
-                    )
+                    "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
                 }
             }
@@ -256,13 +251,35 @@ internal object RenderPipeline {
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
-                    "png" -> throw ScriptEvaluationException(
-                        "PNG-Export für SysML 2 PAR-Diagramme ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
-                    )
+                    "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
                 }
             }
         }
+    }
+
+    /**
+     * Gemeinsamer PNG-Helfer für alle acht SysML-2-Diagrammtypen (V2.0.14).
+     * Nutzt den generischen `toPng(Sysml2Model, Sysml2Diagram, …)`-Overload
+     * von [KumlPngRenderer], der intern auf den versiegelten Subtyp dispatcht.
+     */
+    private fun writeSysml2Png(
+        model: dev.kuml.sysml2.Sysml2Model,
+        diagram: dev.kuml.sysml2.Sysml2Diagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        width: Int,
+        output: Path,
+    ) {
+        val pngBytes =
+            KumlPngRenderer.toPng(
+                model,
+                diagram,
+                layoutResult,
+                theme,
+                PngRenderOptions(widthPx = width),
+            )
+        writeBinary(output, pngBytes)
     }
 
     private fun renderC4(
