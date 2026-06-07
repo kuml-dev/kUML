@@ -1,0 +1,9 @@
+{
+    "schema": "kuml.events.v1",
+    "events": [
+        { "name": "timer60s" },
+        { "name": "timer45s" },
+        { "name": "timer5s" },
+        { "name": "powerOff" }
+    ]
+}

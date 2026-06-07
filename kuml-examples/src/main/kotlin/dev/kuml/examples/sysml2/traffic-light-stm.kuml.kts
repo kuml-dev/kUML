@@ -3,7 +3,23 @@
 import dev.kuml.sysml2.dsl.sysml2Model
 
 /**
- * Traffic Light — SysML 2 State Transition Diagram example (V2.0.9 MVP).
+ * Traffic Light — SysML 2 State Transition Diagram example (V2.0.9 MVP, V2.0.17 runtime).
+ *
+ * **V2.0.17 update — runnable via `kuml simulate`.** This script is now
+ * runnable end-to-end through the Behaviour-Runtime via
+ * [dev.kuml.runtime.sysml2.Sysml2StateMachineAdapter]:
+ *
+ * ```
+ * kuml simulate traffic-light-stm.kuml.kts events.json --out trace.json
+ * ```
+ *
+ * with `events.json` containing a sequence like
+ * `[{"name":"timer60s"}, {"name":"timer45s"}, {"name":"timer5s"}]` to drive
+ * the Red → Green → Yellow → Red cycle, optionally followed by
+ * `{"name":"powerOff"}` to land in the `Off` final state. The adapter
+ * translates `StateDefinition` + `TransitionUsage` to the existing
+ * `UmlStateMachine` runtime input shape, so the trace output format matches
+ * the UML simulate path bit-for-bit.
  *
  * Illustriert die V2.0.9-Oberfläche end-to-end:
  *  - StateDefinitions als Knoten:
