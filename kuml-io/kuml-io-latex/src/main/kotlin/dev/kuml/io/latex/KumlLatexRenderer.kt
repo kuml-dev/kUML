@@ -14,10 +14,12 @@ import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
@@ -341,6 +343,41 @@ public object KumlLatexRenderer {
             model.definitions
                 .filter { it.id in visible }
                 .filter { it is ActionDefinition }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
+            )
+        return toLatex(synthetic, layoutResult, options)
+    }
+
+    /**
+     * Render a SysML 2 SEQ-Diagram as TikZ source (V2.0.11).
+     *
+     * **Architektur-Divergenz** wie in der SVG-Pipeline: SEQ-Nachrichten sind
+     * keine LayoutGraph-Edges. Im V2.0.11-MVP rendert der LaTeX-Renderer die
+     * sichtbaren [LifelineDefinition]s als Rechteckte mit `«lifeline»`-Stereotyp;
+     * Nachrichten werden bewusst nicht gezeichnet, weil die TikZ-Auto-Routing-
+     * Tools (z.B. `pgf-umlsd`) für eine vollwertige SEQ-Darstellung gebraucht
+     * werden — Symmetrie zur SVG-Pipeline würde hier separate TikZ-Pfad-
+     * Berechnung erfordern und ist auf V2.x verschoben.
+     *
+     * Edge-Styling: keine Edges im Output (Nachrichten sind nicht in
+     * `layoutResult.edges`). Die SEQ-Darstellung als vollwertiges TikZ-
+     * Sequence-Diagramm via `pgf-umlsd` ist V2.x-Polish.
+     */
+    public fun toLatex(
+        model: Sysml2Model,
+        diagram: SeqDiagram,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements =
+            model.definitions
+                .filter { it.id in visible }
+                .filter { it is LifelineDefinition }
         val synthetic =
             KumlDiagram(
                 name = diagram.name,

@@ -337,6 +337,92 @@ data class ObjectFlowUsage(
 ) : Sysml2Usage
 
 /**
+ * `lifeline browser : Browser` — V2.0.11 lifeline-usage, typed by a
+ * [dev.kuml.sysml2.LifelineDefinition].
+ *
+ * Carried for symmetry with [ActorUsage] / [UseCaseUsage] / [RequirementUsage]
+ * / [StateUsage] / [ActionUsage]. The V2.0.11 MVP renders
+ * [dev.kuml.sysml2.LifelineDefinition]s directly (via the diagram-level
+ * [dev.kuml.sysml2.SeqDiagram.elementIds]) and does not consume
+ * lifeline-usages from the bridge; the SVG renderer falls back to the generic
+ * usage-box dispatch.
+ *
+ * Lives in the metamodel for completeness so future polish waves (nested
+ * sub-interactions, lifeline specialisation, multi-actor scenarios) have a
+ * clean attachment point.
+ */
+@Serializable
+data class LifelineUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String,
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
+ * `message login(user, pwd) : Browser → AuthService [seqNo=2]` — V2.0.11
+ * message-usage between two [dev.kuml.sysml2.LifelineDefinition]s.
+ *
+ * Carries the four SysML 2 concrete-syntax slots of a sequence-diagram
+ * message:
+ *  - [sourceLifelineId] / [targetLifelineId] — the two endpoints. Self-calls
+ *    (`sourceLifelineId == targetLifelineId`) render as a small U-shape
+ *    arrow on the source lifeline (V2.0.11 MVP — richer execution-specification
+ *    visuals are V2.x).
+ *  - [seqNo] — primary ordering key. Determines the vertical Y position of
+ *    the message arrow in the SEQ diagram. The renderer sorts by [seqNo]
+ *    ascending; messages with the same [seqNo] are stably ordered by id.
+ *  - [messageLabel] — human-readable label rendered above the arrow
+ *    (e.g. `"login(user, pwd)"`, `"sessionToken"`). Raw string in V2.0.11
+ *    MVP — typed signature parsing is V2.x.
+ *  - [kind] — Sync / Async / Reply discriminator (see [MessageKind]).
+ *
+ * **Architecture note — Messages are NOT LayoutGraph edges.** Unlike STM
+ * transitions or ACT flows, SEQ messages do not produce [dev.kuml.layout.LayoutEdge]
+ * entries in the layout graph. The reason is that ELK's hierarchical layout
+ * is unfit for sequence diagrams: messages are not "edges to route" — they
+ * are horizontal arrows at sequence-indexed Y positions between fixed-X
+ * lifeline lanes. The Bridge therefore emits only the lifelines as nodes
+ * (ELK arranges them as a horizontal row), and the SVG renderer draws
+ * messages **directly** after the standard node loop, computing Y from
+ * [seqNo] and X from the source / target lifeline centres. See
+ * [dev.kuml.layout.bridge.Sysml2LayoutBridge.toLayoutGraph] (SEQ overload)
+ * and [dev.kuml.io.svg.sysml2.renderSysml2SeqMessage] for the full design.
+ *
+ * The default [definitionId] is the synthetic `"sysml2.message"` literal so
+ * the [Sysml2Usage]-contract is satisfied without forcing callers to declare
+ * a `MessageDefinition` — messages have no SysML 2 *definition* counterpart;
+ * they are pure usages between two lifeline definitions.
+ *
+ * Edge id convention (set by the DSL):
+ * `message:<sourceLifelineId>-<targetLifelineId>-<seqNo>` — deterministic,
+ * readable, collision-free for unique (source, target, seqNo) triples. The
+ * dash separator (vs `::`) keeps the id readable when the same lifeline pair
+ * exchanges many messages.
+ */
+@Serializable
+data class MessageUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.message",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    /** Source lifeline id (a [dev.kuml.sysml2.LifelineDefinition] id). */
+    val sourceLifelineId: String,
+    /** Target lifeline id (a [dev.kuml.sysml2.LifelineDefinition] id). */
+    val targetLifelineId: String,
+    /** Sequence index — primary ordering key for vertical position. */
+    val seqNo: Int,
+    /** Human-readable label rendered above the arrow (e.g. `"login(user, pwd)"`). */
+    val messageLabel: String,
+    /** Sync / Async / Reply. */
+    val kind: MessageKind = MessageKind.Sync,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
  * `transition Off → Red trigger 'powerOn' guard '…' effect '…'` — V2.0.9
  * transition usage between two [dev.kuml.sysml2.StateDefinition]s (or
  * pseudo-states).

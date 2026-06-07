@@ -14,9 +14,12 @@ import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.LifelineDefinition
+import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Model
@@ -533,6 +536,110 @@ public object KumlSvgRenderer {
     public fun toSvgFile(
         model: Sysml2Model,
         diagram: ActDiagram,
+        layoutResult: LayoutResult,
+        out: Path,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): File {
+        val svg = toSvg(model, diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(svg, Charsets.UTF_8)
+        return file
+    }
+
+    /**
+     * Rendert ein SysML-2 SEQ-Diagramm als SVG (V2.0.11).
+     *
+     * **Architektur-Divergenz** gegenüber den anderen sechs SysML-2-Diagramm-
+     * Overloads: SEQ verarbeitet Nachrichten **direkt im Renderer**, nicht
+     * über den [EdgeRendererDispatcher]. Die [dev.kuml.layout.bridge.Sysml2LayoutBridge]
+     * (SEQ-Overload) emittiert nur Lifelines als Layout-Knoten — keine Edges —
+     * weil ELKs hierarchisches Layout für Sequence-Diagramme strukturell
+     * ungeeignet ist (Lifelines = feste X-Spuren, Messages = horizontale
+     * Pfeile an seqNo-indizierten Y-Positionen). Siehe ausführliche
+     * Begründung in [SeqDiagram] und [dev.kuml.io.svg.sysml2.renderLifelineHead].
+     *
+     * **Render-Pipeline** (V2.0.11):
+     *  1. Synthetische [KumlDiagram]-Hülle mit den sichtbaren
+     *     [LifelineDefinition]s als `elements` — Standard-Knoten-Loop
+     *     rendert sie via [dev.kuml.io.svg.sysml2.renderLifelineHead]
+     *     (Kopf-Box + vertikale gestrichelte Zeit-Achse).
+     *  2. **Nach** dem Knoten-Loop: direkter Aufruf von
+     *     [dev.kuml.io.svg.sysml2.renderSysml2SeqMessages] mit allen
+     *     [MessageUsage]s aus `model.usages` — der Renderer filtert auf
+     *     sichtbare Endpunkte, sortiert nach seqNo und zeichnet jede
+     *     Nachricht als horizontalen Pfeil zwischen den Lifeline-
+     *     Mittelpunkten.
+     *
+     * Diese SVG-Methode unterscheidet sich strukturell von den anderen
+     * SysML-2-Overloads — sie kann nicht einfach `toSvg(synthetic, ...)`
+     * delegieren, weil sie nach dem `populate`-Callback der `SvgDocument.render`
+     * noch die Nachrichten in den Edges-Builder injizieren muss. Daher die
+     * direkte Verwendung von `SvgDocument.render` mit eigenem `populate`.
+     */
+    public fun toSvg(
+        model: Sysml2Model,
+        diagram: SeqDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String {
+        val visibleIds = diagram.elementIds.toSet()
+        val visibleLifelines: List<LifelineDefinition> =
+            diagram.elementIds.mapNotNull { id ->
+                model.definitions.firstOrNull { it.id == id } as? LifelineDefinition
+            }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = visibleLifelines,
+            )
+        val messages = model.usages.filterIsInstance<MessageUsage>()
+
+        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+            val padding = options.paddingPx
+
+            // 1. Standard-Knoten-Loop — rendert Lifeline-Köpfe + vertikale
+            //    gestrichelte Zeit-Achse pro sichtbarer Lifeline.
+            val shiftedLayouts = mutableMapOf<NodeId, dev.kuml.layout.NodeLayout>()
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val element = synthetic.elements.find { it.id == nodeId.value }
+                if (element != null) {
+                    val shifted =
+                        nodeLayout.copy(
+                            bounds =
+                                nodeLayout.bounds.copy(
+                                    origin =
+                                        nodeLayout.bounds.origin.copy(
+                                            x = nodeLayout.bounds.origin.x + padding,
+                                            y = nodeLayout.bounds.origin.y + padding,
+                                        ),
+                                ),
+                        )
+                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                    shiftedLayouts[nodeId] = shifted
+                }
+            }
+
+            // 2. Direkt-Render der Nachrichten — siehe Architektur-Divergenz
+            //    oben. Die geshifteten Layouts werden an den Sequence-Renderer
+            //    durchgereicht, damit X-/Y-Berechnungen mit dem Padding
+            //    konsistent bleiben.
+            dev.kuml.io.svg.sysml2.renderSysml2SeqMessages(
+                messages = messages,
+                visibleLifelineIds = visibleIds,
+                nodeLayouts = shiftedLayouts,
+                builder = edgesBuilder,
+            )
+        }
+    }
+
+    /** [toSvg]-Variante für SysML 2 SEQ-Diagramme, schreibt direkt auf Platte. */
+    public fun toSvgFile(
+        model: Sysml2Model,
+        diagram: SeqDiagram,
         layoutResult: LayoutResult,
         out: Path,
         theme: KumlTheme = PlainTheme(),

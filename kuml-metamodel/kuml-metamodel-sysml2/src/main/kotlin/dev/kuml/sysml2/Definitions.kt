@@ -252,6 +252,52 @@ data class ActionDefinition(
 ) : Sysml2Definition
 
 /**
+ * `LifelineDefinition` — V2.0.11 entry for the SysML 2 Sequence Diagram.
+ *
+ * Represents a participant in a sequence-diagram interaction: a system part,
+ * an external actor, a service component, a thread — anything that messages
+ * can be exchanged between. The lifeline carries the participant identity
+ * (head + dashed time-axis below); messages connect two lifelines at a
+ * time-ordered Y position.
+ *
+ * Structurally identical to [PartDefinition] (KerML type that owns features)
+ * plus an optional [represents] reference back to the *real* participant —
+ * typically a [PartDefinition] id, but the metamodel keeps the slot a string
+ * so an [ActorDefinition] / [UseCaseDefinition] / other definition kind can be
+ * referenced too without a type-system gymnastics. The reference is read-only
+ * in the V2.0.11 MVP (the renderer ignores it; it surfaces as a tooltip /
+ * link in V2.x polish).
+ *
+ * V2.0.11 MVP scope (per the wave plan):
+ *  - Lifeline head is a plain `«lifeline»`-stereotyped box; richer headers
+ *    (actor stick-figure for actor-typed lifelines, boundary / control / entity
+ *    icons in the Robustness-style) are V2.x.
+ *  - Execution Specifications (the activation rectangles drawn on the dashed
+ *    axis while the lifeline is "busy") are V2.x — separate wave because they
+ *    require activation-stack accounting.
+ *  - Combined Fragments (`alt` / `opt` / `loop` / `par` / `strict`) are V2.x
+ *    — separate wave because they require nested layout-engine work.
+ *  - `Create` and `Destroy` lifecycle messages are V2.x (see [MessageKind]).
+ */
+@Serializable
+data class LifelineDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    /**
+     * Optional reference to the represented participant — typically a
+     * [PartDefinition] id, but can also point at an [ActorDefinition] or
+     * other definition kind. Read-only metadata in the V2.0.11 MVP; surfaces
+     * as a tooltip / link in V2.x polish.
+     */
+    val represents: String? = null,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Definition
+
+/**
  * `StateDefinition` — V2.0.9 entry for the SysML 2 State Transition Diagram.
  *
  * Represents a *state* of the system under modelling: a discrete situation

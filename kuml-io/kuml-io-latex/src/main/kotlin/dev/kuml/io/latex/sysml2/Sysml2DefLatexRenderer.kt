@@ -11,6 +11,7 @@ import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
+import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.RequirementDefinition
@@ -92,6 +93,12 @@ internal object Sysml2DefLatexRenderer {
                         ActivityNodeKind.Fork -> "fork node"
                         ActivityNodeKind.Join -> "join node"
                     }
+                // V2.0.11: SEQ-Diagramm. V2.0.11-MVP rendert LifelineDefinitions
+                // als Rechteck mit `«lifeline»`-Stereotyp; das axis-orientierte
+                // TikZ-Pendant (Lifeline-Kopf + vertikale gestrichelte Zeit-Achse
+                // + horizontale Nachrichten-Pfeile) erfordert einen separaten
+                // TikZ-Pfad und ist V2.x-Polish, idealerweise via `pgf-umlsd`.
+                is LifelineDefinition -> "lifeline"
             }
         renderBox(definition, stereotype, nodeId, layout, options, out)
     }

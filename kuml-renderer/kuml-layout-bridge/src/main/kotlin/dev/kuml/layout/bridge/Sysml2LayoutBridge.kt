@@ -15,11 +15,14 @@ import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.LifelineDefinition
+import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
@@ -204,6 +207,41 @@ public object Sysml2LayoutBridge {
 
     /** Default-Höhe einer Fork-/Join-Synchronisations-Bar (V2.0.10). */
     public const val ACT_BAR_HEIGHT: Float = 10f
+
+    /**
+     * Default-Breite einer Lifeline-Box in einem Sequence-Diagramm (V2.0.11).
+     *
+     * Schmal — der Lifeline-Kopf trägt nur das `«lifeline»`-Stereotyp und
+     * den Namen; die eigentliche vertikale Zeit-Achse darunter braucht keine
+     * Breite. Eine Breite knapp über der eines IBD-Boxes reicht für die
+     * meisten Namen.
+     */
+    public const val SEQ_LIFELINE_WIDTH: Float = 140f
+
+    /**
+     * Default-Höhe des Lifeline-Kopfes — der Box-Anteil ganz oben auf der
+     * Lifeline (V2.0.11). Aufnahmebereich für die Stereotyp-Zeile +
+     * Namenszeile.
+     */
+    public const val SEQ_LIFELINE_HEAD_HEIGHT: Float = 40f
+
+    /**
+     * Default-Vertikalabstand pro Nachricht in einem Sequence-Diagramm
+     * (V2.0.11). Die Bridge berechnet die Gesamthöhe einer Lifeline als
+     * `LIFELINE_HEAD_HEIGHT + maxSeqNo * MESSAGE_ROW_HEIGHT +
+     * LIFELINE_TAIL_PADDING`, damit ELK genug vertikalen Platz für alle
+     * Nachrichten reserviert. Der Renderer nutzt denselben Wert beim
+     * Zeichnen der horizontalen Pfeile.
+     */
+    public const val SEQ_MESSAGE_ROW_HEIGHT: Float = 32f
+
+    /**
+     * Default-Padding unterhalb der letzten Nachricht in einem
+     * Sequence-Diagramm (V2.0.11). Sorgt für visuellen Atemraum am unteren
+     * Ende der gestrichelten Zeit-Achse — eine Lifeline endet nicht direkt
+     * unter dem letzten Pfeil.
+     */
+    public const val SEQ_LIFELINE_TAIL_PADDING: Float = 40f
 
     /** Diagnose-Helfer: extrahiert die in [diagram] referenzierten Definitionen aus [model]. */
     public fun resolveVisibleDefinitions(
@@ -699,6 +737,138 @@ public object Sysml2LayoutBridge {
 
         return LayoutGraph(nodes = nodes, edges = edges)
     }
+
+    /**
+     * Übersetzt das gegebene SEQ-Diagramm (V2.0.11) in einen [LayoutGraph].
+     *
+     * **Architektur-Divergenz** gegenüber den anderen sechs SysML-2-Diagrammen:
+     * SEQ ist *fundamental anders*. Statt eines freien Graphen, den ELK
+     * hierarchisch layoutet, hat SEQ eine zeit-geordnete, achsen-beschränkte
+     * Darstellung — Lifelines liegen auf einer horizontalen Achse oben, die
+     * Zeit fließt vertikal nach unten, Nachrichten sind horizontale Pfeile
+     * an seqNo-indizierten Y-Positionen. ELKs hierarchisches Layout passt
+     * darauf nicht: Nachrichten sind keine "zu routenden Edges" — sie sind
+     * horizontale Pfeile an festen Y-Positionen zwischen festen X-Spuren.
+     *
+     * **Konsequenz für die Bridge (V2.0.11 MVP)**:
+     *  1. Nur Lifelines werden als [LayoutNode]e ausgegeben — *keine
+     *     Edges*. Die unverbundenen Lifeline-Knoten ordnet ELK als
+     *     horizontale Reihe an, was genau der SEQ-Konvention entspricht.
+     *  2. Jede Lifeline-Box wird **vorab in der Höhe skaliert**, damit ELK
+     *     genug vertikalen Platz für alle Nachrichten reserviert. Die Höhe
+     *     ergibt sich aus dem maximalen `seqNo` aller sichtbaren Nachrichten:
+     *     `LIFELINE_HEIGHT = [SEQ_LIFELINE_HEAD_HEIGHT] +
+     *     (maxSeqNo + 1) * [SEQ_MESSAGE_ROW_HEIGHT] +
+     *     [SEQ_LIFELINE_TAIL_PADDING]`. Der `+1` lässt Platz für die erste
+     *     Nachricht unterhalb des Kopfes.
+     *  3. Nachrichten reichen den Renderer **direkt** — der SVG-Renderer
+     *     iteriert `model.usages.filterIsInstance<MessageUsage>()` nach
+     *     dem Standard-Knoten-Loop und zeichnet die horizontalen Pfeile
+     *     selbst. Siehe `Sysml2SequenceSvg.renderSysml2SeqMessage`.
+     *
+     * **Warum diese Divergenz?** Die anderen SysML-2-Diagramme sind
+     * fundamental Graphen — Box-und-Linie-Topologien, die ein
+     * Layout-Algorithmus sinnvoll positionieren kann. SEQ ist eine
+     * *axis-orientierte Tabelle* (Spalten = Lifelines, Zeilen =
+     * seqNo-indizierte Zeit-Schritte). Ein gemeinsamer Edge-Pfad würde
+     * SEQ-Nachrichten als generische Edges interpretieren, die der
+     * Layout-Algorithmus dann hierarchisch routet — das Ergebnis wäre
+     * weder lesbar noch SEQ-konventionsgerecht. Die Bridge → Renderer-
+     * Aufteilung respektiert die strukturelle Andersartigkeit von SEQ.
+     *
+     * Dies ist die **zweite bewusste Pattern-Divergenz** in der SysML-2-Linie;
+     * die erste war V2.0.9 STM, die Pattern A (Transitionen auf dem Modell)
+     * gegenüber UC / REQs Pattern B (Edges auf dem Diagramm) wählte.
+     *
+     * **MVP-Scope** (V2.0.11):
+     *  - Flache Interaktionen: keine Combined Fragments (`alt`/`opt`/`loop`/
+     *    `par`/`strict`).
+     *  - Keine Execution Specifications (Aktivierungs-Rechtecke).
+     *  - Keine `Create`/`Destroy`-Nachrichten.
+     *  - Keine Found/Lost-Nachrichten (von/nach außen).
+     *  - PNG-Export: V2.x.
+     *
+     * @param model Container mit allen Definitionen + Usages (Nachrichten
+     *   werden aus `model.usages` gelesen, aber nicht in den LayoutGraph
+     *   eingetragen — sie werden direkt vom Renderer konsumiert).
+     * @param diagram Das SEQ-Diagramm (`elementIds` selektiert die sichtbaren
+     *   Lifelines in Reihenfolge links → rechts).
+     * @param sizeProvider Liefert die intrinsische Breite pro Lifeline; die
+     *   Höhe wird pro Lifeline aus der Nachrichtenanzahl berechnet (siehe
+     *   oben) und überschreibt die vom SizeProvider gelieferte Höhe.
+     */
+    public fun toLayoutGraph(
+        model: Sysml2Model,
+        diagram: SeqDiagram,
+        sizeProvider: SizeProvider = seqDefaultSizeProvider(),
+    ): LayoutGraph {
+        // 1. Sichtbare Lifelines auflösen — nicht-LifelineDefinitions werden
+        //    stillschweigend übersprungen (Validator-Sache).
+        val visibleIds: Set<String> = diagram.elementIds.toSet()
+        val visibleLifelines: List<LifelineDefinition> =
+            diagram.elementIds
+                .mapNotNull { id ->
+                    model.definitions.firstOrNull { it.id == id } as? LifelineDefinition
+                }
+        val visibleLifelineIds: Set<String> = visibleLifelines.map { it.id }.toSet()
+
+        // 2. Maximalen seqNo bestimmen — Vorausberechnung für die
+        //    Lifeline-Höhe. Nur Nachrichten zählen, deren Endpunkte BEIDE
+        //    in den sichtbaren Lifelines liegen (Dangling-Endpunkte sollen
+        //    die Höhe nicht aufblähen).
+        val visibleMessages: List<MessageUsage> =
+            model.usages
+                .filterIsInstance<MessageUsage>()
+                .filter {
+                    it.sourceLifelineId in visibleLifelineIds &&
+                        it.targetLifelineId in visibleLifelineIds
+                }
+        val maxSeqNo: Int = visibleMessages.maxOfOrNull { it.seqNo } ?: -1
+
+        // 3. Gesamthöhe der Lifeline berechnen.
+        //    `maxSeqNo + 1` Zeilen Platz (eine pro Nachricht), `+1` zusätzlich
+        //    für den Abstand zwischen Kopf und erster Nachricht.
+        val rowCount: Int = if (maxSeqNo < 0) 0 else maxSeqNo + 1
+        val lifelineHeight: Float =
+            SEQ_LIFELINE_HEAD_HEIGHT +
+                (rowCount + 1) * SEQ_MESSAGE_ROW_HEIGHT +
+                SEQ_LIFELINE_TAIL_PADDING
+
+        // 4. LayoutNodes für die sichtbaren Lifelines — Breite vom SizeProvider,
+        //    Höhe von der Vorausberechnung (überschreibt SizeProvider-Höhe).
+        val nodes =
+            visibleLifelines.map { lifeline ->
+                val baseSize = sizeProvider.sizeOf(lifeline.id, "LifelineDefinition")
+                LayoutNode(
+                    id = NodeId(lifeline.id),
+                    intrinsicSize = dev.kuml.layout.Size(baseSize.width, lifelineHeight),
+                )
+            }
+
+        // 5. Keine Edges — Nachrichten werden vom Renderer direkt gezeichnet.
+        //    Siehe Architektur-Divergenz oben. `visibleIds` ist hier nur als
+        //    Sanity-Snapshot der sichtbaren Ids referenziert, wird sonst aber
+        //    nicht weiter konsumiert.
+        check(visibleIds.size >= visibleLifelineIds.size) { "Unreachable: visibleIds must cover all lifeline ids." }
+        return LayoutGraph(nodes = nodes, edges = emptyList())
+    }
+
+    /**
+     * Default-[SizeProvider] für SEQ-Diagramme (V2.0.11) — gibt die
+     * Lifeline-Standardbreite [SEQ_LIFELINE_WIDTH] mit
+     * [SEQ_LIFELINE_HEAD_HEIGHT] als Höhe zurück. Die *tatsächliche* Höhe
+     * berechnet die Bridge pro Lifeline aus der Nachrichtenanzahl und
+     * überschreibt damit den SizeProvider-Wert. Diese Form macht den
+     * SizeProvider-Pattern-Aufruf konsistent mit den anderen Diagrammtypen,
+     * auch wenn das Height-Feld hier nur als Fallback dient.
+     */
+    public fun seqDefaultSizeProvider(): SizeProvider =
+        SizeProvider { _, kindHint ->
+            when (kindHint) {
+                "LifelineDefinition" -> dev.kuml.layout.Size(SEQ_LIFELINE_WIDTH, SEQ_LIFELINE_HEAD_HEIGHT)
+                else -> dev.kuml.layout.Size(SEQ_LIFELINE_WIDTH, SEQ_LIFELINE_HEAD_HEIGHT)
+            }
+        }
 
     /**
      * Default-[SizeProvider] für ACT-Diagramme (V2.0.10) — gibt je nach

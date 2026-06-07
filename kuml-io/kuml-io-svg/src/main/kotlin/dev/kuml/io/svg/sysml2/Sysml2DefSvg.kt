@@ -10,6 +10,7 @@ import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
+import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.RequirementDefinition
@@ -63,6 +64,12 @@ internal fun renderSysml2Definition(
         // Decision/Merge-Raute oder Fork/Join-Bar — Dispatch über
         // ActionDefinition.kind.
         is ActionDefinition -> renderActionDefinition(element, layout, theme, builder)
+        // V2.0.11: SEQ-Diagramm — Lifeline-Kopf (Box mit «lifeline»-Stereotyp)
+        // plus vertikale gestrichelte Zeit-Achse unter dem Kopf bis zum
+        // unteren Ende der Bounds. Nachrichten werden NICHT hier gezeichnet
+        // — sie werden vom Sequence-Renderer direkt nach dem Standard-Knoten-
+        // Loop emittiert (siehe Sysml2SequenceSvg.kt).
+        is LifelineDefinition -> renderLifelineHead(element, layout, theme, builder)
     }
 }
 

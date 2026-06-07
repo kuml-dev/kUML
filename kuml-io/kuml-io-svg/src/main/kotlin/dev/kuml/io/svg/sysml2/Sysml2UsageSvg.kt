@@ -12,6 +12,8 @@ import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExtendUsage
 import dev.kuml.sysml2.IncludeUsage
+import dev.kuml.sysml2.LifelineUsage
+import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortUsage
@@ -89,6 +91,13 @@ internal fun renderSysml2Usage(
         is ActionUsage -> renderUsageBox(element, layout, builder, stereotype = "action")
         is ControlFlowUsage -> renderUsageBox(element, layout, builder, stereotype = "control flow")
         is ObjectFlowUsage -> renderUsageBox(element, layout, builder, stereotype = "object flow")
+        // V2.0.11: SEQ-Usage-Kinds. Die Bridge zeigt im V2.0.11-MVP keine
+        // LifelineUsages/MessageUsages auf der Node-Ebene (SEQ-Diagramme
+        // rendern LifelineDefinitions direkt; Nachrichten werden im Renderer
+        // direkt gezeichnet, keine Knoten), aber der Dispatcher braucht
+        // Branches, damit ein direkter Aufruf nicht in den UML-Fallback rutscht.
+        is LifelineUsage -> renderUsageBox(element, layout, builder, stereotype = "lifeline")
+        is MessageUsage -> renderUsageBox(element, layout, builder, stereotype = "message")
     }
 }
 

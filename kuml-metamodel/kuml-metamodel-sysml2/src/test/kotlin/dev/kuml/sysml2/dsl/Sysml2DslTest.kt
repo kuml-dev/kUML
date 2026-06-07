@@ -11,6 +11,9 @@ import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.LifelineDefinition
+import dev.kuml.sysml2.MessageKind
+import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
@@ -18,6 +21,7 @@ import dev.kuml.sysml2.PortDefinition
 import dev.kuml.sysml2.PortUsage
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.TransitionUsage
@@ -815,6 +819,96 @@ class Sysml2DslTest :
             act.elementIds shouldContainExactly listOf("Initial", "Validate", "Final")
             // Flows are on the model, not on the diagram.
             model.usages.filterIsInstance<ControlFlowUsage>() shouldHaveSize 2
+        }
+
+        // ── V2.0.11 SEQ ──────────────────────────────────────────────────
+
+        "V2.0.11 lifelineDef stores represents reference" {
+            val model =
+                sysml2Model("SeqTest") {
+                    partDef("Browser")
+                    lifelineDef(name = "browser", id = "browser", represents = "Browser")
+                }
+            val lifeline = model.definitions.filterIsInstance<LifelineDefinition>().single()
+            lifeline.id shouldBe "browser"
+            lifeline.name shouldBe "browser"
+            lifeline.represents shouldBe "Browser"
+        }
+
+        "V2.0.11 message registers a MessageUsage with sourceLifelineId/targetLifelineId/seqNo/messageLabel/kind" {
+            val model =
+                sysml2Model("SeqTest") {
+                    val user = lifelineDef("user")
+                    val browser = lifelineDef("browser")
+                    message(label = "login(user, pwd)", source = user, target = browser, seqNo = 1)
+                }
+            val msg = model.usages.filterIsInstance<MessageUsage>().single()
+            msg.id shouldBe "message:user-browser-1"
+            msg.sourceLifelineId shouldBe "user"
+            msg.targetLifelineId shouldBe "browser"
+            msg.seqNo shouldBe 1
+            msg.messageLabel shouldBe "login(user, pwd)"
+            msg.kind shouldBe MessageKind.Sync
+            msg.definitionId shouldBe "sysml2.message"
+        }
+
+        "V2.0.11 message kinds default to Sync; explicit Async / Reply are preserved" {
+            val model =
+                sysml2Model("SeqTest") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("syncCall", a, b, seqNo = 1) // default Sync
+                    message("asyncCall", a, b, seqNo = 2, kind = MessageKind.Async)
+                    message("reply", b, a, seqNo = 3, kind = MessageKind.Reply)
+                }
+            val messages = model.usages.filterIsInstance<MessageUsage>().sortedBy { it.seqNo }
+            messages shouldHaveSize 3
+            messages[0].kind shouldBe MessageKind.Sync
+            messages[1].kind shouldBe MessageKind.Async
+            messages[2].kind shouldBe MessageKind.Reply
+        }
+
+        "V2.0.11 seqDiagram captures lifeline ids in declaration order" {
+            val model =
+                sysml2Model("SeqTest") {
+                    val user = lifelineDef("user")
+                    val browser = lifelineDef("browser")
+                    val auth = lifelineDef("authService")
+                    message("enterCredentials", user, browser, seqNo = 1)
+                    message("login", browser, auth, seqNo = 2)
+                    seqDiagram("Login flow") {
+                        include(user)
+                        include(browser)
+                        include(auth)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            seq.name shouldBe "Login flow"
+            seq.elementIds shouldContainExactly listOf("user", "browser", "authService")
+            // Messages live on the model, not on the diagram.
+            model.usages.filterIsInstance<MessageUsage>() shouldHaveSize 2
+        }
+
+        "V2.0.11 messageById accepts id-only endpoints for forward refs" {
+            val model =
+                sysml2Model("ForwardRefSEQ") {
+                    lifelineDef("a")
+                    lifelineDef("b")
+                    messageById(
+                        label = "ping",
+                        sourceLifelineId = "a",
+                        targetLifelineId = "b",
+                        seqNo = 1,
+                        kind = MessageKind.Async,
+                    )
+                    seqDiagram("SEQ") {
+                        includeById("a")
+                        includeById("b")
+                    }
+                }
+            val msg = model.usages.filterIsInstance<MessageUsage>().single()
+            msg.id shouldBe "message:a-b-1"
+            msg.kind shouldBe MessageKind.Async
         }
 
         "DSL is sysml2Dsl-scoped — inner scopes can't reach outer builders accidentally" {

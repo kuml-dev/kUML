@@ -42,8 +42,8 @@ data class Sysml2Model(
 /**
  * Sealed root for every SysML 2 diagram kind. V2.0.3 implements [BdDiagram],
  * V2.0.6 adds [IbdDiagram], V2.0.7 adds [UcDiagram], V2.0.8 adds [ReqDiagram],
- * V2.0.9 adds [StmDiagram], V2.0.10 adds [ActDiagram] — the rest (PAR, SEQ)
- * follow as separate `data class` subtypes in later waves.
+ * V2.0.9 adds [StmDiagram], V2.0.10 adds [ActDiagram], V2.0.11 adds
+ * [SeqDiagram] — the remaining diagram kind (PAR) follows in a later wave.
  */
 @Serializable
 sealed interface Sysml2Diagram {
@@ -418,6 +418,65 @@ data class ReqDerive(
     /** Id of the *parent* [RequirementDefinition] the source derives from. */
     val targetRequirementId: String,
 )
+
+/**
+ * **Sequence Diagram** (SEQ) — V2.0.11 interaction view: the time-ordered
+ * exchange of messages between participants. Last of the seven SysML 2
+ * behavioural diagrams and **structurally different** from the other six:
+ * instead of a free-form graph, SEQ has a time-ordered, axis-constrained
+ * layout — lifelines on a horizontal axis at the top, time flowing
+ * vertically downward, messages as horizontal arrows ordered by sequence
+ * number.
+ *
+ * Shows:
+ *  - [dev.kuml.sysml2.LifelineDefinition]s as vertical lanes — a `«lifeline»`
+ *    box at the top with a dashed time-axis extending below.
+ *  - [dev.kuml.sysml2.MessageUsage]s as horizontal arrows between lifelines,
+ *    ordered by [dev.kuml.sysml2.MessageUsage.seqNo]. Auto-included from
+ *    `Sysml2Model.usages` whenever both endpoints are in [elementIds] — the
+ *    same **Pattern A** the V2.0.6 IBD / V2.0.9 STM / V2.0.10 ACT uses.
+ *    Messages live on the *model* (not on the diagram) because they ARE the
+ *    interaction's runtime identity, which the future Behaviour-Runtime
+ *    wave needs for replay.
+ *
+ * **Architecture divergence — Messages are Renderer-direct, not LayoutGraph
+ * edges.** Unlike STM transitions or ACT flows, SEQ messages do not produce
+ * [dev.kuml.layout.LayoutEdge] entries. The reason: ELK's hierarchical
+ * layout is unfit for sequence diagrams — messages are not "edges to route"
+ * but horizontal arrows at sequence-indexed Y positions between fixed-X
+ * lifeline lanes. The Bridge emits only the lifelines as nodes (so ELK
+ * arranges them as a horizontal row, which IS the SEQ convention), and the
+ * SVG renderer draws messages directly after the standard node loop. This
+ * is the **second deliberate pattern divergence** in the SysML 2 line; the
+ * first was V2.0.9 STM choosing Pattern A (transitions on the model) over
+ * UC / REQ's Pattern B (edges on the diagram). See
+ * [dev.kuml.layout.bridge.Sysml2LayoutBridge.toLayoutGraph] (SEQ overload)
+ * KDoc for the full reasoning.
+ *
+ * V2.0.11 MVP scope (per the wave plan):
+ *  - Flat interaction: no Combined Fragments (`alt` / `opt` / `loop` /
+ *    `par` / `strict`) — separate V2.x wave because layout-engine work.
+ *  - No Execution Specifications (the activation rectangles on a lifeline).
+ *  - No `Create` / `Destroy` message kinds (lifecycle messages).
+ *  - No Found / Lost messages (arrows to/from outside the diagram).
+ *  - No co-region / general-ordering constraints.
+ *  - No time / duration constraint annotations.
+ *  - PNG export: V2.x.
+ *  - Behaviour-Runtime replay: separate V2.x wave.
+ */
+@Serializable
+data class SeqDiagram(
+    override val name: String,
+    /**
+     * Ids of the [dev.kuml.sysml2.LifelineDefinition]s to display, in
+     * left-to-right order. Messages from [Sysml2Model.usages] whose
+     * [dev.kuml.sysml2.MessageUsage.sourceLifelineId] AND
+     * [dev.kuml.sysml2.MessageUsage.targetLifelineId] are both in this set
+     * are auto-included by the bridge. Order is preserved so layout /
+     * serialisation / diff stay deterministic.
+     */
+    override val elementIds: List<String> = emptyList(),
+) : Sysml2Diagram
 
 /**
  * **Contains** edge in a [ReqDiagram] — a parent [RequirementDefinition]

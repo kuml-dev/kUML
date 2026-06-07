@@ -13,6 +13,9 @@ import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.LifelineDefinition
+import dev.kuml.sysml2.MessageKind
+import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
@@ -24,6 +27,7 @@ import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.ReqSatisfy
 import dev.kuml.sysml2.ReqVerify
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Definition
@@ -729,6 +733,131 @@ class Sysml2ModelBuilder(
         return diagram
     }
 
+    // ── V2.0.11 SEQ ──────────────────────────────────────────────────────
+
+    /**
+     * `lifeline def User { … }` — V2.0.11 lifeline-typed definition for the
+     * SysML 2 Sequence Diagram.
+     *
+     * Mirrors [partDef] and adds one V2.0.11-specific slot:
+     *  - [represents] — optional id of the represented participant (typically
+     *    a [PartDefinition], but can also point at an [ActorDefinition] or
+     *    other definition kind). Read-only metadata in the V2.0.11 MVP;
+     *    surfaces as a tooltip / link in V2.x polish.
+     *
+     * Lifelines are nodes in a [SeqDiagram]; messages between them are
+     * captured separately via [message] / [messageById] which register a
+     * [MessageUsage] on the model's `usages` list (V2.0.6 architecture bonus).
+     */
+    fun lifelineDef(
+        name: String,
+        id: String = name,
+        represents: String? = null,
+        isAbstract: Boolean = false,
+        block: DefinitionBuilder.() -> Unit = {},
+    ): LifelineDefinition {
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
+        val def =
+            LifelineDefinition(
+                id = id,
+                name = name,
+                isAbstract = isAbstract,
+                features = builder.features(),
+                represents = represents,
+            )
+        definitions += def
+        return def
+    }
+
+    /**
+     * `message login(user, pwd) : Browser → AuthService [seqNo=2]` — V2.0.11
+     * message-usage between two [LifelineDefinition]s.
+     *
+     * Registers the resulting [MessageUsage] in [Sysml2Model.usages] (via
+     * [registerUsage] — the V2.0.6 architecture bonus). The bridge does NOT
+     * pick messages up as layout-graph edges (see [SeqDiagram] KDoc for the
+     * architecture divergence); the SVG renderer reads them directly from
+     * `model.usages` and draws horizontal arrows at sequence-indexed
+     * Y positions.
+     *
+     * Default [id] convention: `message:<source>-<target>-<seqNo>` —
+     * deterministic, readable, collision-free for unique (source, target,
+     * seqNo) triples. The dash separator (vs `::`) keeps the id readable
+     * when the same lifeline pair exchanges many messages.
+     */
+    fun message(
+        label: String,
+        source: LifelineDefinition,
+        target: LifelineDefinition,
+        seqNo: Int,
+        kind: MessageKind = MessageKind.Sync,
+        id: String = "message:${source.id}-${target.id}-$seqNo",
+        name: String = label,
+    ): MessageUsage =
+        messageById(
+            label = label,
+            sourceLifelineId = source.id,
+            targetLifelineId = target.id,
+            seqNo = seqNo,
+            kind = kind,
+            id = id,
+            name = name,
+        )
+
+    /**
+     * Id-only variant of [message] — for forward refs / id-only setups.
+     *
+     * Useful when a message needs to be wired between two lifelines whose
+     * [LifelineDefinition] references are not yet in scope (e.g. when
+     * reading the interaction from an external source and replaying it
+     * through the builder).
+     */
+    fun messageById(
+        label: String,
+        sourceLifelineId: String,
+        targetLifelineId: String,
+        seqNo: Int,
+        kind: MessageKind = MessageKind.Sync,
+        id: String = "message:$sourceLifelineId-$targetLifelineId-$seqNo",
+        name: String = label,
+    ): MessageUsage {
+        val usage =
+            MessageUsage(
+                id = id,
+                name = name,
+                qualifiedName = name,
+                sourceLifelineId = sourceLifelineId,
+                targetLifelineId = targetLifelineId,
+                seqNo = seqNo,
+                messageLabel = label,
+                kind = kind,
+            )
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * `seqDiagram("Login flow") { include(user); include(browser); … }` —
+     * V2.0.11 Sequence Diagram.
+     *
+     * The block declares which [LifelineDefinition]s participate
+     * (`include(...)` / `includeById(...)`), in left-to-right declaration
+     * order. Messages are *not* declared on the diagram — they live on the
+     * model via [message] / [messageById] and the renderer auto-includes
+     * them when both endpoints are visible. See [SeqDiagram] KDoc for the
+     * rationale (messages ARE the model + the architecture divergence on
+     * how they reach the renderer).
+     */
+    fun seqDiagram(
+        name: String,
+        block: SeqDiagramBuilder.() -> Unit = {},
+    ): SeqDiagram {
+        val builder = SeqDiagramBuilder().apply(block)
+        val diagram = SeqDiagram(name = name, elementIds = builder.ids())
+        diagrams += diagram
+        return diagram
+    }
+
     fun build(): Sysml2Model =
         Sysml2Model(
             name = name,
@@ -1225,6 +1354,35 @@ class ActDiagramBuilder internal constructor() {
     }
 
     /** Add a node by raw id — forward refs / id-only setups. */
+    fun includeById(id: String) {
+        ids += id
+    }
+
+    internal fun ids(): List<String> = ids.toList()
+}
+
+/**
+ * Scope for `seqDiagram("…") { include(user); include(browser); include(authService) }`
+ * — V2.0.11 Sequence Diagram.
+ *
+ * Mirrors [BdDiagramBuilder] / [StmDiagramBuilder] / [ActDiagramBuilder]
+ * (selects lifelines only — no edges on the diagram). Messages are
+ * auto-included by the renderer from `Sysml2Model.usages` whenever both
+ * endpoint lifeline-ids are in this builder's [ids] list. See [SeqDiagram]
+ * KDoc for the rationale (messages ARE the model, not a diagram-only
+ * assertion) plus the architecture divergence on how messages reach the
+ * renderer (directly, bypassing the LayoutGraph edge slot).
+ */
+@Sysml2Dsl
+class SeqDiagramBuilder internal constructor() {
+    private val ids = mutableListOf<String>()
+
+    /** Add a [LifelineDefinition] as a node (left-to-right declaration order). */
+    fun include(lifeline: LifelineDefinition) {
+        ids += lifeline.id
+    }
+
+    /** Add a lifeline by raw id — forward refs / id-only setups. */
     fun includeById(id: String) {
         ids += id
     }

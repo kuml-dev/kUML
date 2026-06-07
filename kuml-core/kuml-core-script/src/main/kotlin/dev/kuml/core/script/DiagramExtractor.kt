@@ -7,6 +7,7 @@ import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Diagram
 import dev.kuml.sysml2.Sysml2Model
@@ -193,6 +194,13 @@ object DiagramExtractor {
                 throw ScriptEvaluationException(
                     "Script '${input.name}' returned a bare ActDiagram. " +
                         "Wrap it inside `sysml2Model(\"…\") { actDiagram(\"…\") { … } }` " +
+                        "so the renderer has access to the surrounding Sysml2Model.",
+                )
+            }
+            if (value is SeqDiagram) {
+                throw ScriptEvaluationException(
+                    "Script '${input.name}' returned a bare SeqDiagram. " +
+                        "Wrap it inside `sysml2Model(\"…\") { seqDiagram(\"…\") { … } }` " +
                         "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }

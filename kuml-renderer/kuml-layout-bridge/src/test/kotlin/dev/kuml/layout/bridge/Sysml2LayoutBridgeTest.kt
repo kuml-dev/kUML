@@ -8,6 +8,9 @@ import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.LifelineDefinition
+import dev.kuml.sysml2.MessageKind
+import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.ReqContains
@@ -16,6 +19,7 @@ import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.ReqSatisfy
 import dev.kuml.sysml2.ReqVerify
 import dev.kuml.sysml2.RequirementDefinition
+import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Model
@@ -967,6 +971,171 @@ class Sysml2LayoutBridgeTest :
                 .intrinsicSize.height shouldBe Sysml2LayoutBridge.ACT_ACTION_HEIGHT
             // ActivityNodeKind enum-name matching against size-provider hint.
             ActivityNodeKind.Action.name shouldBe "Action"
+        }
+
+        // ── V2.0.11 SEQ ─────────────────────────────────────────────────
+
+        "SEQ with three lifelines and four messages → 3 nodes, 0 edges" {
+            val model =
+                sysml2Model("SeqDemo") {
+                    val user = lifelineDef("user")
+                    val browser = lifelineDef("browser")
+                    val auth = lifelineDef("authService")
+                    message("enterCredentials", user, browser, seqNo = 0)
+                    message("login", browser, auth, seqNo = 1)
+                    message("sessionToken", auth, browser, seqNo = 2, kind = MessageKind.Reply)
+                    message("welcomeScreen", browser, user, seqNo = 3, kind = MessageKind.Reply)
+                    seqDiagram("Login flow") {
+                        include(user)
+                        include(browser)
+                        include(auth)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+
+            graph.nodes shouldHaveSize 3
+            graph.nodes.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf("user", "browser", "authService")
+            // Crucially: SEQ produces NO edges — messages are renderer-direct.
+            graph.edges shouldHaveSize 0
+            // Visible messages still live on the model for the renderer.
+            model.usages.filterIsInstance<MessageUsage>() shouldHaveSize 4
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/seq-three-lifelines-four-messages.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "SEQ lifeline height scales with max seqNo" {
+            val model =
+                sysml2Model("SeqHeights") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    // maxSeqNo = 5 → rowCount = 6 → 6+1 message rows of vertical space
+                    message("m0", a, b, seqNo = 0)
+                    message("m1", b, a, seqNo = 1)
+                    message("m2", a, b, seqNo = 2)
+                    message("m3", b, a, seqNo = 3)
+                    message("m4", a, b, seqNo = 4)
+                    message("m5", b, a, seqNo = 5)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+
+            // height = HEAD (40) + (5+1+1) * 32 + TAIL (40) = 40 + 224 + 40 = 304
+            val expected =
+                Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
+                    (6 + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
+                    Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
+            for (n in graph.nodes) {
+                n.intrinsicSize.width shouldBe Sysml2LayoutBridge.SEQ_LIFELINE_WIDTH
+                n.intrinsicSize.height shouldBe expected
+            }
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/seq-height-scales-with-seqno.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "SEQ with no messages → minimum lifeline height (head + tail only)" {
+            val model =
+                sysml2Model("SeqEmpty") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+
+            // rowCount = 0 → height = HEAD + 1*ROW + TAIL  (one row of breathing space)
+            val expected =
+                Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
+                    1 * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
+                    Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
+            graph.nodes shouldHaveSize 2
+            for (n in graph.nodes) {
+                n.intrinsicSize.height shouldBe expected
+            }
+            graph.edges shouldHaveSize 0
+        }
+
+        "SEQ missing lifelines are skipped silently" {
+            val model =
+                sysml2Model("SeqMissing") {
+                    val a = lifelineDef("a")
+                    seqDiagram("S") {
+                        include(a)
+                        includeById("ghost") // not declared
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+
+            graph.nodes shouldHaveSize 1
+            graph.nodes
+                .single()
+                .id.value shouldBe "a"
+        }
+
+        "SEQ messages to dangling lifelines do not crash height calculation" {
+            // A message references a lifeline that is not in the SEQ's element set.
+            // The bridge must ignore that message for the maxSeqNo calculation
+            // — only visible-pair messages contribute to the lifeline height.
+            val a = LifelineDefinition(id = "a", name = "a")
+            val b = LifelineDefinition(id = "b", name = "b")
+            val ghost = LifelineDefinition(id = "ghost", name = "ghost")
+            val model =
+                Sysml2Model(
+                    name = "Dangle",
+                    definitions = listOf(a, b, ghost),
+                    usages =
+                        listOf(
+                            MessageUsage(
+                                id = "message:a-b-0",
+                                name = "visible",
+                                sourceLifelineId = "a",
+                                targetLifelineId = "b",
+                                seqNo = 0,
+                                messageLabel = "visible",
+                            ),
+                            MessageUsage(
+                                id = "message:a-ghost-99",
+                                name = "dangling",
+                                sourceLifelineId = "a",
+                                targetLifelineId = "ghost",
+                                seqNo = 99,
+                                messageLabel = "dangling",
+                            ),
+                        ),
+                )
+            val seq = SeqDiagram(name = "S", elementIds = listOf("a", "b"))
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+
+            // maxSeqNo = 0 (only visible pair) → rowCount = 1 → height = HEAD + 2*ROW + TAIL
+            val expected =
+                Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
+                    2 * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
+                    Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
+            graph.nodes shouldHaveSize 2
+            for (n in graph.nodes) {
+                n.intrinsicSize.height shouldBe expected
+            }
+            graph.edges shouldHaveSize 0
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/seq-dangling-messages-ignored.layout.json",
+                prettyJson.encodeToString(graph),
+            )
         }
 
         "IBD default size matches IBD_DEFAULT_WIDTH × IBD_DEFAULT_HEIGHT" {
