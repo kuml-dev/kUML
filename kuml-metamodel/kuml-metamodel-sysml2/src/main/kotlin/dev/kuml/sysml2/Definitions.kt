@@ -363,3 +363,78 @@ data class StateDefinition(
     val doAction: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Definition
+
+/**
+ * `ConstraintDefinition` — V2.0.12 entry for the SysML 2 Parametric Diagram (PAR).
+ *
+ * Represents a *constraint type* — a mathematical relationship that holds between
+ * a set of typed parameters. The classical example is Newton's second law,
+ * `F = m * a`, with three parameters `F` (Force, Out), `m` (Mass, In),
+ * `a` (Acceleration, In). In a PAR diagram, constraint definitions are the
+ * three-compartment boxes (`«constraint»` stereotype + name + expression body +
+ * parameter list) whose pins are connected to attribute references via
+ * [BindingConnectorUsage]s.
+ *
+ * Carries two V2.0.12-specific slots on top of the structural base:
+ *  - [expression] — the constraint body **as a raw string**, e.g. `"F = m * a"`.
+ *
+ *    **Architecture decision** for the V2.0.12 MVP: the expression is kept as
+ *    a raw string, matching the precedent set by [StateDefinition.entryAction],
+ *    [TransitionUsage.guard], [ControlFlowUsage.guard] — none of those have a
+ *    typed AST yet either. A typed constraint-expression surface (OCL-subset
+ *    AST, type-checked operands, side-effect classification) is a separate
+ *    V2.x wave that touches *every* SysML 2 feature with an expression slot
+ *    (state guards, action bodies, constraint expressions, transition
+ *    triggers). Bundling it into V2.0.12 would expand the wave by an order
+ *    of magnitude and delay the closing of the SysML 2 diagram-type series.
+ *    The raw-string MVP unblocks rendering immediately and the typed AST
+ *    lands as a coordinated cross-cutting wave when it's ready.
+ *
+ *  - [parameters] — list of [ConstraintParameter] pins on the constraint's
+ *    edge. Each parameter has a name, optional type-id reference, and a
+ *    [ConstraintParameterDirection]. The bindings ([BindingConnectorUsage])
+ *    reference parameters by the synthetic endpoint id
+ *    `"<constraintId>::<parameterName>"`.
+ *
+ * Constraints are nodes in a [ParDiagram]; bindings between constraint
+ * parameter pins and attribute references are captured separately via
+ * [BindingConnectorUsage], which is registered on the model's `usages` list
+ * (V2.0.6 architecture bonus). The bridge auto-includes bindings when both
+ * endpoints resolve to visible elements — **Pattern A**, the same convention
+ * as V2.0.6 IBD / V2.0.9 STM / V2.0.10 ACT.
+ *
+ * V2.0.12 MVP scope (per the wave plan):
+ *  - Raw-string expression body (see architecture note above).
+ *  - Three-compartment box rendering: `«constraint»` stereotype, name,
+ *    expression body (monospaced, truncated at ~30 chars with ellipsis if
+ *    longer), parameter list (one line per parameter with `«in»` / `«out»` /
+ *    `«inout»` direction stereotype prefix).
+ *  - Parameter-pin endpoint anchoring on bindings is V2.x polish — V2.0.12
+ *    renders bindings as plain edges between the two nodes (same
+ *    `EdgeRendererDispatcher` lookup-miss limitation as UC / REQ / STM / ACT).
+ *  - Composite constraints (one constraint includes another) are V2.x.
+ *  - Solver hookup (parametric value propagation, equation rewriting) belongs
+ *    to the Behaviour-Runtime line; V2.0.12 only captures the structural
+ *    projection.
+ *  - Equation rendering via MathJax / KaTeX is V2.x; today the expression
+ *    is monospaced raw text.
+ */
+@Serializable
+data class ConstraintDefinition(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val isAbstract: Boolean = false,
+    override val features: List<KermlFeature> = emptyList(),
+    override val specializations: List<KermlSpecialization> = emptyList(),
+    /**
+     * Raw expression body — e.g. `"F = m * a"`. Kept as a raw string in the
+     * V2.0.12 MVP; a typed constraint-expression AST lands in a separate
+     * V2.x wave that also covers state guards, action bodies, and the
+     * OCL-subset surface. See the class KDoc for the full rationale.
+     */
+    val expression: String = "",
+    /** Parameter pins of this constraint. */
+    val parameters: List<ConstraintParameter> = emptyList(),
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Definition

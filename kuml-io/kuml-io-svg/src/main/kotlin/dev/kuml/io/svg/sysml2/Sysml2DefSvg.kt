@@ -10,6 +10,7 @@ import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
+import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
@@ -70,6 +71,10 @@ internal fun renderSysml2Definition(
         // — sie werden vom Sequence-Renderer direkt nach dem Standard-Knoten-
         // Loop emittiert (siehe Sysml2SequenceSvg.kt).
         is LifelineDefinition -> renderLifelineHead(element, layout, theme, builder)
+        // V2.0.12: PAR-Diagramm — drei-Kompartiment-Box mit `«constraint»`-
+        // Stereotyp, Name, Expression-Body (monospaced, ggf. ellipsis-trunkiert)
+        // und Parameter-Liste mit `«in»`/`«out»`/`«inout»`-Stereotyp-Präfix.
+        is ConstraintDefinition -> renderConstraintDefinition(element, layout, theme, builder)
     }
 }
 

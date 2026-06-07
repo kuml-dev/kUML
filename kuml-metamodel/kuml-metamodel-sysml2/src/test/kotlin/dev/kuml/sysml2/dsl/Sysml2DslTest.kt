@@ -8,13 +8,18 @@ import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.ConstraintDefinition
+import dev.kuml.sysml2.ConstraintParameter
+import dev.kuml.sysml2.ConstraintParameterDirection
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
+import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDefinition
@@ -909,6 +914,105 @@ class Sysml2DslTest :
             val msg = model.usages.filterIsInstance<MessageUsage>().single()
             msg.id shouldBe "message:a-b-1"
             msg.kind shouldBe MessageKind.Async
+        }
+
+        // ───────────────────────────── V2.0.12 PAR ────────────────────────────
+
+        "V2.0.12 constraintDef stores expression and parameters" {
+            val model =
+                sysml2Model("PARExpression") {
+                    constraintDef(
+                        "NewtonsLaw",
+                        expression = "F = m * a",
+                        parameters =
+                            listOf(
+                                ConstraintParameter("F", typeId = "Force", direction = ConstraintParameterDirection.Out),
+                                ConstraintParameter("m", typeId = "Mass", direction = ConstraintParameterDirection.In),
+                                ConstraintParameter("a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
+                            ),
+                    )
+                }
+            val constraint = model.definitions.filterIsInstance<ConstraintDefinition>().single()
+            constraint.name shouldBe "NewtonsLaw"
+            constraint.expression shouldBe "F = m * a"
+            constraint.parameters shouldHaveSize 3
+            constraint.parameters[0].name shouldBe "F"
+            constraint.parameters[0].direction shouldBe ConstraintParameterDirection.Out
+            constraint.parameters[0].typeId shouldBe "Force"
+        }
+
+        "V2.0.12 ConstraintParameter direction defaults to Inout; explicit In / Out are preserved" {
+            val pDefault = ConstraintParameter("p")
+            pDefault.direction shouldBe ConstraintParameterDirection.Inout
+            pDefault.typeId shouldBe null
+
+            val pIn = ConstraintParameter("m", typeId = "Mass", direction = ConstraintParameterDirection.In)
+            pIn.direction shouldBe ConstraintParameterDirection.In
+            pIn.typeId shouldBe "Mass"
+
+            val pOut = ConstraintParameter("F", typeId = "Force", direction = ConstraintParameterDirection.Out)
+            pOut.direction shouldBe ConstraintParameterDirection.Out
+            pOut.typeId shouldBe "Force"
+        }
+
+        "V2.0.12 bind registers a BindingConnectorUsage in model.usages with both endpoint ids" {
+            val model =
+                sysml2Model("PARBinding") {
+                    val mass = attributeDef("Mass")
+                    constraintDef(
+                        "NewtonsLaw",
+                        expression = "F = m * a",
+                        parameters = listOf(ConstraintParameter("m", typeId = mass.id, direction = ConstraintParameterDirection.In)),
+                    )
+                    partDef("Vehicle") {
+                        attribute("mass", typeId = mass.id)
+                    }
+                    bind("bindMass", source = "NewtonsLaw::m", target = "Vehicle::mass")
+                }
+            val binding = model.usages.filterIsInstance<BindingConnectorUsage>().single()
+            binding.name shouldBe "bindMass"
+            binding.sourceEndId shouldBe "NewtonsLaw::m"
+            binding.targetEndId shouldBe "Vehicle::mass"
+            binding.id shouldBe "binding:NewtonsLaw::m::Vehicle::mass"
+            binding.definitionId shouldBe "sysml2.bindingConnector"
+        }
+
+        "V2.0.12 parDiagram captures element ids including a mix of constraints and parts" {
+            val model =
+                sysml2Model("PARMix") {
+                    val mass = attributeDef("Mass")
+                    val accel = attributeDef("Acceleration")
+                    val force = attributeDef("Force")
+                    val newton =
+                        constraintDef(
+                            "NewtonsLaw",
+                            expression = "F = m * a",
+                            parameters =
+                                listOf(
+                                    ConstraintParameter("F", typeId = force.id, direction = ConstraintParameterDirection.Out),
+                                    ConstraintParameter("m", typeId = mass.id, direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter("a", typeId = accel.id, direction = ConstraintParameterDirection.In),
+                                ),
+                        )
+                    val vehicle =
+                        partDef("Vehicle") {
+                            attribute("mass", typeId = mass.id)
+                            attribute("acceleration", typeId = accel.id)
+                            attribute("force", typeId = force.id)
+                        }
+                    bind("bindMass", source = "NewtonsLaw::m", target = "Vehicle::mass")
+                    bind("bindAccel", source = "NewtonsLaw::a", target = "Vehicle::acceleration")
+                    bind("bindForce", source = "NewtonsLaw::F", target = "Vehicle::force")
+                    parDiagram("Newton — F = m·a applied to Vehicle") {
+                        include(newton)
+                        include(vehicle)
+                    }
+                }
+            val par = model.diagrams.filterIsInstance<ParDiagram>().single()
+            par.name shouldBe "Newton — F = m·a applied to Vehicle"
+            par.elementIds shouldContainExactly listOf("NewtonsLaw", "Vehicle")
+            // Bindings live on the model, not on the diagram.
+            model.usages.filterIsInstance<BindingConnectorUsage>() shouldHaveSize 3
         }
 
         "DSL is sysml2Dsl-scoped — inner scopes can't reach outer builders accidentally" {

@@ -8,7 +8,9 @@ import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ActionUsage
 import dev.kuml.sysml2.ActorUsage
 import dev.kuml.sysml2.AttributeUsage
+import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.ExtendUsage
 import dev.kuml.sysml2.IncludeUsage
@@ -98,6 +100,13 @@ internal fun renderSysml2Usage(
         // Branches, damit ein direkter Aufruf nicht in den UML-Fallback rutscht.
         is LifelineUsage -> renderUsageBox(element, layout, builder, stereotype = "lifeline")
         is MessageUsage -> renderUsageBox(element, layout, builder, stereotype = "message")
+        // V2.0.12: PAR-Usage-Kinds. Die Bridge zeigt im V2.0.12-MVP keine
+        // ConstraintUsages/BindingConnectorUsages auf der Node-Ebene (PAR-
+        // Diagramme rendern ConstraintDefinitions direkt; Bindings werden
+        // Edges, keine Knoten), aber der Dispatcher braucht Branches, damit
+        // ein direkter Aufruf nicht in den UML-Fallback rutscht.
+        is ConstraintUsage -> renderUsageBox(element, layout, builder, stereotype = "constraint")
+        is BindingConnectorUsage -> renderUsageBox(element, layout, builder, stereotype = "binding")
     }
 }
 

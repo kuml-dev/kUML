@@ -13,9 +13,11 @@ import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageUsage
+import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.RequirementDefinition
@@ -640,6 +642,63 @@ public object KumlSvgRenderer {
     public fun toSvgFile(
         model: Sysml2Model,
         diagram: SeqDiagram,
+        layoutResult: LayoutResult,
+        out: Path,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): File {
+        val svg = toSvg(model, diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(svg, Charsets.UTF_8)
+        return file
+    }
+
+    /**
+     * Rendert ein SysML-2 PAR-Diagramm als SVG (V2.0.12) — die schließende
+     * achte Welle der SysML-2-Diagramm-Typ-Serie.
+     *
+     * Wickelt das PAR in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * [ConstraintDefinition]s und [PartDefinition]s als `elements`. Der
+     * [NodeRendererDispatcher] hat seit V2.0.12 einen Branch in
+     * [dev.kuml.io.svg.sysml2.renderSysml2Definition], der
+     * [ConstraintDefinition] als dreikompartimentige `«constraint»`-Box mit
+     * Expression-Body und Parameter-Pin-Liste rendert; PartDefinitions
+     * behalten ihren BDD-Renderpfad.
+     *
+     * **Edge-Styling**: der V2.0.12-MVP rendert Bindings als dieselbe einfache
+     * solide Linie. Die synthetische `KumlDiagram`-Hülle enthält keine
+     * `UmlRelationship`-Elemente für [dev.kuml.sysml2.BindingConnectorUsage],
+     * deshalb fällt der [EdgeRendererDispatcher] auf den Plain-Edge-Pfad
+     * zurück — das ist gut genug für die V2.0.12-Wave. Parameter-Pin-Endpunkt-
+     * Anchoring (Bindings docken direkt am Pin statt am Box-Mittelpunkt an)
+     * ist V2.x-Polish (siehe [[kUML V2.0]]-Roadmap).
+     */
+    public fun toSvg(
+        model: Sysml2Model,
+        diagram: ParDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements =
+            model.definitions
+                .filter { it.id in visible }
+                .filter { it is ConstraintDefinition || it is PartDefinition }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
+            )
+        return toSvg(synthetic, layoutResult, theme, options)
+    }
+
+    /** [toSvg]-Variante für SysML 2 PAR-Diagramme, schreibt direkt auf Platte. */
+    public fun toSvgFile(
+        model: Sysml2Model,
+        diagram: ParDiagram,
         layoutResult: LayoutResult,
         out: Path,
         theme: KumlTheme = PlainTheme(),

@@ -11,11 +11,13 @@ import kotlinx.serialization.Serializable
  * for rendering.
  *
  * For V2.0.3, "diagram" started with a Block Definition Diagram ([BdDiagram])
- * that selects which definitions to show; V2.0.6 adds [IbdDiagram] (Internal
- * Block Diagram) for the wiring view of a single [PartDefinition]. The
- * remaining SysML 2 diagram kinds (REQ, PAR, ACT, SEQ, STM, UC) land in
- * follow-up waves. The model itself is diagram-agnostic — a single model
- * can drive many diagrams.
+ * that selects which definitions to show; V2.0.6 added [IbdDiagram] (Internal
+ * Block Diagram) for the wiring view of a single [PartDefinition]; V2.0.7
+ * added [UcDiagram] (Use Case); V2.0.8 added [ReqDiagram] (Requirement);
+ * V2.0.9 added [StmDiagram] (State Transition); V2.0.10 added [ActDiagram]
+ * (Activity); V2.0.11 added [SeqDiagram] (Sequence); V2.0.12 closes the
+ * series at 8/8 with [ParDiagram] (Parametric Diagram). The model itself is
+ * diagram-agnostic — a single model can drive many diagrams.
  */
 @Serializable
 data class Sysml2Model(
@@ -43,7 +45,9 @@ data class Sysml2Model(
  * Sealed root for every SysML 2 diagram kind. V2.0.3 implements [BdDiagram],
  * V2.0.6 adds [IbdDiagram], V2.0.7 adds [UcDiagram], V2.0.8 adds [ReqDiagram],
  * V2.0.9 adds [StmDiagram], V2.0.10 adds [ActDiagram], V2.0.11 adds
- * [SeqDiagram] — the remaining diagram kind (PAR) follows in a later wave.
+ * [SeqDiagram], V2.0.12 closes the series at 8/8 with [ParDiagram] (Parametric
+ * Diagram). Polish topics (edge labels, PNG export, typed expression AST,
+ * Behaviour-Runtime hookup) remain as explicit V2.x or separate-line waves.
  */
 @Serializable
 sealed interface Sysml2Diagram {
@@ -497,3 +501,66 @@ data class ReqContains(
     /** Id of the *child* (contained) [RequirementDefinition]. */
     val childRequirementId: String,
 )
+
+/**
+ * **Parametric Diagram** (PAR) — V2.0.12 closing wave of the SysML 2
+ * diagram-type series at 8/8.
+ *
+ * Shows the *constraint topology* of a system — which mathematical
+ * relationships hold between attributes of different parts:
+ *  - [dev.kuml.sysml2.ConstraintDefinition]s appear as three-compartment
+ *    boxes (`«constraint»` stereotype + name + expression body + parameter
+ *    list). Each constraint exposes typed parameter *pins* on its edge with
+ *    [dev.kuml.sysml2.ConstraintParameterDirection] (in / out / inout).
+ *  - [PartDefinition]s appear as regular BDD-style boxes — they carry the
+ *    attribute references that the constraint pins bind to. Parametric
+ *    diagrams routinely include the constrained parts so attributes can be
+ *    referenced; without the parts visible, only constraint-to-constraint
+ *    bindings can be drawn (which is rare for an MVP).
+ *  - [dev.kuml.sysml2.BindingConnectorUsage]s are auto-included from
+ *    `Sysml2Model.usages` whenever both endpoints resolve (via
+ *    **longest-prefix-match**, the IBD convention from V2.0.6) to visible
+ *    elements — **Pattern A**, the same convention as V2.0.6 IBD /
+ *    V2.0.9 STM / V2.0.10 ACT. Bindings live on the *model* (not on the
+ *    diagram) because they ARE the constraint topology's runtime identity,
+ *    which the future parametric solver wave needs.
+ *
+ * Classical example: Newton's second law `F = m·a` parametrically bound to
+ * a vehicle's `force`, `mass`, `acceleration` attributes. Three bindings
+ * (`m ↔ Vehicle.mass`, `a ↔ Vehicle.acceleration`, `F ↔ Vehicle.force`)
+ * make the constraint topology explicit so a future parametric solver can
+ * propagate values from the inputs to the outputs.
+ *
+ * V2.0.12 MVP scope (per the wave plan):
+ *  - Flat constraint topology: no nested / composite constraints (one
+ *    constraint that includes another via a constraint-usage). The
+ *    [dev.kuml.sysml2.ConstraintUsage] metamodel type exists for that future
+ *    polish; the bridge does not currently consume it.
+ *  - Raw-string constraint expression (see [dev.kuml.sysml2.ConstraintDefinition]
+ *    KDoc for the architecture decision rationale — typed expression AST is
+ *    a separate cross-cutting V2.x wave).
+ *  - Bindings render as plain solid edges between the two nodes resolved by
+ *    longest-prefix-match. Parameter-pin endpoint anchoring (drawing the
+ *    edge directly to the pin position rather than the node centroid) is
+ *    V2.x polish — same `EdgeRendererDispatcher` lookup-miss limitation as
+ *    UC / REQ / STM / ACT.
+ *  - Equation rendering with MathJax / KaTeX in SVG is V2.x; today the
+ *    expression body is monospaced raw text.
+ *  - Solver hookup — parametric value propagation belongs to the
+ *    Behaviour-Runtime line; V2.0.12 only captures the structural projection.
+ *  - PNG export: V2.x (same as every other SysML 2 diagram type).
+ */
+@Serializable
+data class ParDiagram(
+    override val name: String,
+    /**
+     * Ids of [dev.kuml.sysml2.ConstraintDefinition]s and [PartDefinition]s
+     * (whose attributes are referenced by constraint parameters) to display.
+     * Bindings from [Sysml2Model.usages] whose
+     * [dev.kuml.sysml2.BindingConnectorUsage.sourceEndId] AND `targetEndId`
+     * both resolve via longest-prefix-match to elements in this set are
+     * auto-included by the bridge. Order is preserved so layout /
+     * serialisation / diff stay deterministic.
+     */
+    override val elementIds: List<String> = emptyList(),
+) : Sysml2Diagram

@@ -6,12 +6,17 @@ import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.BindingConnectorUsage
+import dev.kuml.sysml2.ConstraintDefinition
+import dev.kuml.sysml2.ConstraintParameter
+import dev.kuml.sysml2.ConstraintParameterDirection
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
+import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.ReqContains
 import dev.kuml.sysml2.ReqDerive
@@ -1134,6 +1139,165 @@ class Sysml2LayoutBridgeTest :
 
             SampleOutput.write(
                 "sysml2-layout-bridge/seq-dangling-messages-ignored.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        // ───────────────────────────── V2.0.12 PAR ────────────────────────────
+
+        "PAR with one constraint + one part + two bindings → 2 nodes + 2 edges" {
+            val model =
+                sysml2Model("PARTwoBindings") {
+                    val mass = attributeDef("Mass")
+                    val accel = attributeDef("Acceleration")
+                    val newton =
+                        constraintDef(
+                            "NewtonsLaw",
+                            expression = "F = m * a",
+                            parameters =
+                                listOf(
+                                    ConstraintParameter("m", typeId = mass.id, direction = ConstraintParameterDirection.In),
+                                    ConstraintParameter("a", typeId = accel.id, direction = ConstraintParameterDirection.In),
+                                ),
+                        )
+                    val vehicle =
+                        partDef("Vehicle") {
+                            attribute("mass", typeId = mass.id)
+                            attribute("acceleration", typeId = accel.id)
+                        }
+                    bind("bindMass", source = "NewtonsLaw::m", target = "Vehicle::mass")
+                    bind("bindAccel", source = "NewtonsLaw::a", target = "Vehicle::acceleration")
+                    parDiagram("PAR") {
+                        include(newton)
+                        include(vehicle)
+                    }
+                }
+            val par = model.diagrams.filterIsInstance<ParDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, par)
+            graph.nodes shouldHaveSize 2
+            graph.edges shouldHaveSize 2
+            graph.edges.map { it.id.value } shouldContainExactlyInAnyOrder
+                listOf(
+                    "binding:NewtonsLaw::m::Vehicle::mass",
+                    "binding:NewtonsLaw::a::Vehicle::acceleration",
+                )
+            SampleOutput.write(
+                "sysml2-layout-bridge/par-newton-two-bindings.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "PAR constraint sized as PAR_CONSTRAINT_WIDTH × PAR_CONSTRAINT_HEIGHT" {
+            val model =
+                sysml2Model("PARSize") {
+                    val newton = constraintDef("NewtonsLaw", expression = "F = m * a")
+                    parDiagram("PAR") { include(newton) }
+                }
+            val par = model.diagrams.filterIsInstance<ParDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, par)
+            val node = graph.nodes.single()
+            node.intrinsicSize.width shouldBe Sysml2LayoutBridge.PAR_CONSTRAINT_WIDTH
+            node.intrinsicSize.height shouldBe Sysml2LayoutBridge.PAR_CONSTRAINT_HEIGHT
+            SampleOutput.write(
+                "sysml2-layout-bridge/par-constraint-default-size.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "PAR drops bindings to dangling endpoints" {
+            val newton =
+                ConstraintDefinition(
+                    id = "NewtonsLaw",
+                    name = "NewtonsLaw",
+                    expression = "F = m * a",
+                    parameters = listOf(ConstraintParameter("m", direction = ConstraintParameterDirection.In)),
+                )
+            val vehicle = PartDefinition(id = "Vehicle", name = "Vehicle")
+            val model =
+                Sysml2Model(
+                    name = "PARDangling",
+                    definitions = listOf(newton, vehicle),
+                    usages =
+                        listOf(
+                            BindingConnectorUsage(
+                                id = "binding:NewtonsLaw::m::Vehicle::mass",
+                                name = "bindMass",
+                                sourceEndId = "NewtonsLaw::m",
+                                targetEndId = "Vehicle::mass",
+                            ),
+                            BindingConnectorUsage(
+                                id = "binding:NewtonsLaw::m::Ghost::x",
+                                name = "bindGhost",
+                                sourceEndId = "NewtonsLaw::m",
+                                targetEndId = "Ghost::x",
+                            ),
+                        ),
+                )
+            val par = ParDiagram(name = "PAR", elementIds = listOf("NewtonsLaw", "Vehicle"))
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, par)
+            graph.nodes shouldHaveSize 2
+            graph.edges shouldHaveSize 1
+            graph.edges
+                .single()
+                .id.value shouldBe "binding:NewtonsLaw::m::Vehicle::mass"
+            SampleOutput.write(
+                "sysml2-layout-bridge/par-dangling-bindings-dropped.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "PAR missing definitions are skipped silently" {
+            val model =
+                sysml2Model("PARMissing") {
+                    val newton = constraintDef("NewtonsLaw", expression = "F = m * a")
+                    parDiagram("PAR") {
+                        include(newton)
+                        includeById("DoesNotExist")
+                    }
+                }
+            val par = model.diagrams.filterIsInstance<ParDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, par)
+            graph.nodes shouldHaveSize 1
+            graph.nodes
+                .single()
+                .id.value shouldBe "NewtonsLaw"
+            SampleOutput.write(
+                "sysml2-layout-bridge/par-missing-definitions-skipped.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "PAR longest-prefix-match resolves `Vehicle::force` to Vehicle node" {
+            val model =
+                sysml2Model("PARLongestPrefix") {
+                    val force = attributeDef("Force")
+                    val newton =
+                        constraintDef(
+                            "NewtonsLaw",
+                            expression = "F = m * a",
+                            parameters = listOf(ConstraintParameter("F", typeId = force.id, direction = ConstraintParameterDirection.Out)),
+                        )
+                    val vehicle =
+                        partDef("Vehicle") {
+                            attribute("force", typeId = force.id)
+                        }
+                    // Endpoint id `Vehicle::force` does not exist as a top-level
+                    // element — the longest-prefix-match must resolve it to
+                    // the visible `Vehicle` node.
+                    bind("bindForce", source = "NewtonsLaw::F", target = "Vehicle::force")
+                    parDiagram("PAR") {
+                        include(newton)
+                        include(vehicle)
+                    }
+                }
+            val par = model.diagrams.filterIsInstance<ParDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, par)
+            graph.edges shouldHaveSize 1
+            val edge = graph.edges.single()
+            edge.source.nodeId.value shouldBe "NewtonsLaw"
+            edge.target.nodeId.value shouldBe "Vehicle"
+            SampleOutput.write(
+                "sysml2-layout-bridge/par-longest-prefix-match.layout.json",
                 prettyJson.encodeToString(graph),
             )
         }

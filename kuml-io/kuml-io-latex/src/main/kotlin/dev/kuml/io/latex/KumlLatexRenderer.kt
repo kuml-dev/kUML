@@ -13,8 +13,10 @@ import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
+import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.ReqDiagram
@@ -378,6 +380,42 @@ public object KumlLatexRenderer {
             model.definitions
                 .filter { it.id in visible }
                 .filter { it is LifelineDefinition }
+        val synthetic =
+            KumlDiagram(
+                name = diagram.name,
+                type = DiagramType.CLASS,
+                elements = elements,
+            )
+        return toLatex(synthetic, layoutResult, options)
+    }
+
+    /**
+     * Render a SysML 2 PAR-Diagram as TikZ source (V2.0.12) — die schließende
+     * achte Welle der SysML-2-Diagramm-Typ-Serie.
+     *
+     * Wickelt das PAR in ein synthetisches [KumlDiagram] mit den sichtbaren
+     * [ConstraintDefinition]s und [PartDefinition]s als `elements`. Im
+     * V2.0.12-MVP rendert `Sysml2DefLatexRenderer` Constraints als Rechteck mit
+     * `«constraint»`-Stereotyp; das dreikompartimentige TikZ-Pendant (Stereotyp
+     * + Name + Expression-Body + Parameter-Pin-Liste mit `«in»` / `«out»` /
+     * `«inout»`-Stereotyp-Präfix) ist V2.x-Polish, analog zur
+     * BDD/IBD/UC/REQ/STM/ACT/SEQ-Geschichte im LaTeX-Renderer.
+     *
+     * Edge-Styling: Bindings rendern als plain solide Linie (Default-Style des
+     * Edge-Renderers). Parameter-Pin-Endpunkt-Anchoring (Bindings docken
+     * direkt am Pin statt am Box-Mittelpunkt an) ist V2.x.
+     */
+    public fun toLatex(
+        model: Sysml2Model,
+        diagram: ParDiagram,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String {
+        val visible = diagram.elementIds.toSet()
+        val elements =
+            model.definitions
+                .filter { it.id in visible }
+                .filter { it is ConstraintDefinition || it is PartDefinition }
         val synthetic =
             KumlDiagram(
                 name = diagram.name,

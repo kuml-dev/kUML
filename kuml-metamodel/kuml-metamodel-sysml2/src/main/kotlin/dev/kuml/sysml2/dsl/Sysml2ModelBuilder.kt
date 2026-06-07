@@ -9,14 +9,18 @@ import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.ConstraintDefinition
+import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
+import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.PortDefinition
@@ -858,6 +862,113 @@ class Sysml2ModelBuilder(
         return diagram
     }
 
+    // ── V2.0.12 PAR ──────────────────────────────────────────────────────
+
+    /**
+     * `constraint def NewtonsLaw { expression = "F = m * a"; … }` — V2.0.12
+     * constraint-typed definition for the SysML 2 Parametric Diagram.
+     *
+     * Mirrors [partDef] and adds two V2.0.12-specific slots:
+     *  - [expression] — the constraint body **as a raw string**, e.g.
+     *    `"F = m * a"`. Raw-string MVP in V2.0.12; the typed
+     *    constraint-expression AST is a separate cross-cutting V2.x wave
+     *    (see [ConstraintDefinition] KDoc for the rationale).
+     *  - [parameters] — list of [ConstraintParameter] pins on the
+     *    constraint's edge. Each parameter has a name, optional type-id
+     *    reference, and a direction; bindings reference parameters by the
+     *    synthetic endpoint id `"<constraintId>::<parameterName>"`.
+     *
+     * Constraints are nodes in a [ParDiagram]; bindings between constraint
+     * parameter pins and attribute references are captured separately via
+     * [bind] / [bindById], which register a [BindingConnectorUsage] on the
+     * model's `usages` list (V2.0.6 architecture bonus).
+     */
+    fun constraintDef(
+        name: String,
+        id: String = name,
+        expression: String = "",
+        parameters: List<ConstraintParameter> = emptyList(),
+        isAbstract: Boolean = false,
+        block: DefinitionBuilder.() -> Unit = {},
+    ): ConstraintDefinition {
+        val builder = DefinitionBuilder(parentId = id, modelBuilder = this).apply(block)
+        val def =
+            ConstraintDefinition(
+                id = id,
+                name = name,
+                isAbstract = isAbstract,
+                features = builder.features(),
+                expression = expression,
+                parameters = parameters,
+            )
+        definitions += def
+        return def
+    }
+
+    /**
+     * `bind name : NewtonsLaw::m to Vehicle::mass` — V2.0.12 binding-connector
+     * usage between two endpoints (typically a constraint parameter pin and
+     * an attribute reference).
+     *
+     * Registers the resulting [BindingConnectorUsage] in [Sysml2Model.usages]
+     * (via [registerUsage] — the V2.0.6 architecture bonus). The bridge
+     * picks bindings back up from `model.usages` when projecting a
+     * [ParDiagram], so the surface does not need to declare them on the
+     * diagram itself — see [ParDiagram] KDoc for the rationale (bindings
+     * ARE the constraint topology, not a diagram-only assertion).
+     *
+     * Default [id] convention: `binding:<source>::<target>` — deterministic,
+     * readable, collision-free for unique (source, target) endpoint pairs.
+     * Callers can override the id when two distinct bindings connect the
+     * same endpoint pair.
+     *
+     * Endpoint ids follow the synthetic
+     * `"<elementId>::<member>"` convention — for a constraint parameter pin,
+     * `"NewtonsLaw::m"`; for an attribute on a part, `"Vehicle::mass"`. The
+     * bridge resolves both endpoints by **longest-prefix-match** against the
+     * visible-element ids (same heuristic as V2.0.6 IBD's [ConnectionUsage]).
+     */
+    fun bind(
+        name: String,
+        source: String,
+        target: String,
+        id: String = "binding:$source::$target",
+    ): BindingConnectorUsage {
+        val usage =
+            BindingConnectorUsage(
+                id = id,
+                name = name,
+                qualifiedName = name,
+                sourceEndId = source,
+                targetEndId = target,
+            )
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * `parDiagram("Newton — F = m·a applied to Vehicle") { include(newton);
+     * include(vehicle) }` — V2.0.12 Parametric Diagram, the closing entry of
+     * the 8/8 SysML 2 diagram-type series.
+     *
+     * The block declares which [ConstraintDefinition]s + [PartDefinition]s
+     * participate (`include(...)` / `includeById(...)`). Bindings are *not*
+     * declared on the diagram — they live on the model via [bind] / [bindById]
+     * and the bridge auto-includes them when both endpoints resolve via
+     * longest-prefix-match to visible elements. See [ParDiagram] KDoc for the
+     * rationale (bindings ARE the constraint topology, not a diagram-only
+     * assertion).
+     */
+    fun parDiagram(
+        name: String,
+        block: ParDiagramBuilder.() -> Unit = {},
+    ): ParDiagram {
+        val builder = ParDiagramBuilder().apply(block)
+        val diagram = ParDiagram(name = name, elementIds = builder.ids())
+        diagrams += diagram
+        return diagram
+    }
+
     fun build(): Sysml2Model =
         Sysml2Model(
             name = name,
@@ -1383,6 +1494,42 @@ class SeqDiagramBuilder internal constructor() {
     }
 
     /** Add a lifeline by raw id — forward refs / id-only setups. */
+    fun includeById(id: String) {
+        ids += id
+    }
+
+    internal fun ids(): List<String> = ids.toList()
+}
+
+/**
+ * Scope for `parDiagram("…") { include(newton); include(vehicle) }` —
+ * V2.0.12 Parametric Diagram, the closing entry of the 8/8 SysML 2
+ * diagram-type series.
+ *
+ * Mirrors [BdDiagramBuilder] / [StmDiagramBuilder] / [ActDiagramBuilder] /
+ * [SeqDiagramBuilder] (selects nodes only — no edges on the diagram).
+ * Bindings are auto-included by the bridge from `Sysml2Model.usages`
+ * whenever both endpoint ids resolve via longest-prefix-match to elements in
+ * this builder's [ids] list. See [ParDiagram] KDoc for the rationale
+ * (bindings ARE the constraint topology, not a diagram-only assertion).
+ *
+ * Includes BOTH constraint definitions and part definitions — parametric
+ * diagrams routinely show the constrained parts so the constraint pins have
+ * concrete attribute references to bind to.
+ */
+@Sysml2Dsl
+class ParDiagramBuilder internal constructor() {
+    private val ids = mutableListOf<String>()
+
+    /**
+     * Add a [Sysml2Definition] (typically a [ConstraintDefinition] or a
+     * [PartDefinition]) as a visible node in the PAR diagram.
+     */
+    fun include(definition: Sysml2Definition) {
+        ids += definition.id
+    }
+
+    /** Add a definition by raw id — forward refs / id-only setups. */
     fun includeById(id: String) {
         ids += id
     }

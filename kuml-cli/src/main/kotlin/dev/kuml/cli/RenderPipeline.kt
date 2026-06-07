@@ -21,6 +21,7 @@ import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StmDiagram
@@ -245,6 +246,18 @@ internal object RenderPipeline {
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
                     "png" -> throw ScriptEvaluationException(
                         "PNG-Export für SysML 2 SEQ-Diagramme ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
+                    )
+                    else -> throw ScriptEvaluationException("Unsupported format: $format")
+                }
+            }
+            is ParDiagram -> {
+                val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                when (format) {
+                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
+                    "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
+                    "png" -> throw ScriptEvaluationException(
+                        "PNG-Export für SysML 2 PAR-Diagramme ist V2.x — bis dahin bitte SVG oder LaTeX nutzen.",
                     )
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
                 }

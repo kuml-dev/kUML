@@ -467,3 +467,90 @@ data class TransitionUsage(
     val effect: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Usage
+
+/**
+ * `constraint c1 : ConstraintDef` — V2.0.12 constraint-usage, typed by a
+ * [dev.kuml.sysml2.ConstraintDefinition].
+ *
+ * Carried for symmetry with [ActorUsage] / [UseCaseUsage] / [RequirementUsage]
+ * / [StateUsage] / [ActionUsage] / [LifelineUsage]. The V2.0.12 MVP renders
+ * [dev.kuml.sysml2.ConstraintDefinition]s directly (via the diagram-level
+ * [dev.kuml.sysml2.ParDiagram.elementIds]) and does not consume
+ * constraint-usages from the bridge; the SVG renderer falls back to the
+ * generic usage-box dispatch.
+ *
+ * Lives in the metamodel for completeness so future polish waves (composite
+ * constraints — one constraint includes another via a constraint-usage,
+ * parametric solver hookups, OCL-subset constraint expressions) have a clean
+ * attachment point.
+ */
+@Serializable
+data class ConstraintUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String,
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
+ * `bind c.F = v.force` — V2.0.12 **binding-connector usage** between a
+ * constraint parameter pin and an attribute reference (or between two
+ * constraint parameters, when a composite constraint forwards values to a
+ * sub-constraint).
+ *
+ * Carries the SysML 2 concrete-syntax slots of a binding:
+ *  - [sourceEndId] / [targetEndId] — the two endpoints. Typically the source
+ *    is a constraint-parameter pin (`"NewtonsLaw::m"`) and the target is an
+ *    attribute reference on a part (`"Vehicle::mass"`); the metamodel keeps
+ *    both as raw strings so any endpoint shape works (composite-constraint
+ *    parameter chaining, attribute → attribute bindings, …).
+ *
+ *    Endpoint resolution follows the **longest-prefix-match** convention from
+ *    [ConnectionUsage] (V2.0.6 IBD): the bridge picks the longest visible
+ *    element id that is a prefix of the endpoint id. So
+ *    `"Vehicle::mass"` resolves to the visible `Vehicle` node (when the
+ *    bridge has the constrained part visible), and `"NewtonsLaw::m"` resolves
+ *    to the visible `NewtonsLaw` constraint node.
+ *
+ *    Dangling bindings (endpoints that resolve to nothing) are silently
+ *    dropped by the bridge — validator's job to flag them.
+ *
+ * The default [definitionId] is the synthetic `"sysml2.bindingConnector"`
+ * literal so the [Sysml2Usage]-contract is satisfied without forcing callers
+ * to declare a `BindingConnectorDefinition` — bindings have no SysML 2
+ * *definition* counterpart; they are pure usages between two endpoints.
+ *
+ * Edge id convention (set by the DSL):
+ * `binding:<sourceEndId>::<targetEndId>` — deterministic, readable,
+ * collision-free for unique (source, target) pairs. Callers can override the
+ * id when two distinct bindings connect the same pair.
+ *
+ * V2.0.12 MVP scope:
+ *  - Bindings render as plain edges between the two nodes resolved by
+ *    longest-prefix-match. Parameter-pin endpoint anchoring (drawing the
+ *    edge directly to the pin position rather than the node centroid) is
+ *    V2.x polish — same `EdgeRendererDispatcher` lookup-miss limitation as
+ *    UC / REQ / STM / ACT.
+ *  - No typed binding semantics; the future parametric solver wave will
+ *    introduce a typed BindingConnectorDefinition + propagation rules.
+ */
+@Serializable
+data class BindingConnectorUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.bindingConnector",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    /**
+     * Id of the source endpoint — typically a synthetic
+     * `"<constraintId>::<paramName>"` for a constraint-parameter pin, or
+     * a `"<partId>::<attrName>"` for an attribute usage. The bridge resolves
+     * by longest-prefix-match against the visible-element ids.
+     */
+    val sourceEndId: String,
+    /** Id of the target endpoint — same shape as [sourceEndId]. */
+    val targetEndId: String,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage

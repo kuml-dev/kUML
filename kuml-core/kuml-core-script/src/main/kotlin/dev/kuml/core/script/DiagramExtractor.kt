@@ -6,6 +6,7 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.ReqDiagram
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StmDiagram
@@ -201,6 +202,13 @@ object DiagramExtractor {
                 throw ScriptEvaluationException(
                     "Script '${input.name}' returned a bare SeqDiagram. " +
                         "Wrap it inside `sysml2Model(\"…\") { seqDiagram(\"…\") { … } }` " +
+                        "so the renderer has access to the surrounding Sysml2Model.",
+                )
+            }
+            if (value is ParDiagram) {
+                throw ScriptEvaluationException(
+                    "Script '${input.name}' returned a bare ParDiagram. " +
+                        "Wrap it inside `sysml2Model(\"…\") { parDiagram(\"…\") { … } }` " +
                         "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }

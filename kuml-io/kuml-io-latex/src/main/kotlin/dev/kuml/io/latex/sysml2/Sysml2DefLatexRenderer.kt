@@ -11,6 +11,7 @@ import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.ConnectionDefinition
+import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PortDefinition
@@ -99,6 +100,12 @@ internal object Sysml2DefLatexRenderer {
                 // + horizontale Nachrichten-Pfeile) erfordert einen separaten
                 // TikZ-Pfad und ist V2.x-Polish, idealerweise via `pgf-umlsd`.
                 is LifelineDefinition -> "lifeline"
+                // V2.0.12: PAR-Diagramm. V2.0.12-MVP rendert ConstraintDefinitions
+                // als Rechteck mit `«constraint»`-Stereotyp; das dreikompartimentige
+                // TikZ-Pendant (Stereotyp + Name + Expression-Body + Parameter-Pin-
+                // Liste) ist V2.x-Polish, analog zur BDD/IBD/UC/REQ/STM/ACT/SEQ-
+                // Geschichte.
+                is ConstraintDefinition -> "constraint"
             }
         renderBox(definition, stereotype, nodeId, layout, options, out)
     }

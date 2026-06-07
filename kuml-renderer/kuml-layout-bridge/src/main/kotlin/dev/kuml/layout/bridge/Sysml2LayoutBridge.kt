@@ -12,12 +12,15 @@ import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.BindingConnectorUsage
 import dev.kuml.sysml2.ConnectionUsage
+import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ControlFlowUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ObjectFlowUsage
+import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.PartUsage
 import dev.kuml.sysml2.ReqDiagram
@@ -207,6 +210,27 @@ public object Sysml2LayoutBridge {
 
     /** Default-Höhe einer Fork-/Join-Synchronisations-Bar (V2.0.10). */
     public const val ACT_BAR_HEIGHT: Float = 10f
+
+    /**
+     * Default-Breite einer [ConstraintDefinition]-Box in einem
+     * Parametric-Diagramm (V2.0.12). Etwas breiter als die BDD-Default-Größe,
+     * weil eine Constraint-Box drei Kompartimente trägt — `«constraint»`-
+     * Stereotyp + Name, Expression-Body (typischerweise einzeilige
+     * Gleichung), Parameterliste (eine Zeile pro Parameter mit `«in»`/`«out»`/
+     * `«inout»`-Stereotyp-Präfix). Die Breite muss Gleichungen wie `F = m * a`
+     * und Parameterzeilen wie `«in» m : Mass` bequem aufnehmen.
+     */
+    public const val PAR_CONSTRAINT_WIDTH: Float = 220f
+
+    /**
+     * Default-Höhe einer [ConstraintDefinition]-Box in einem
+     * Parametric-Diagramm (V2.0.12). Reserviert vertikalen Platz für die drei
+     * Kompartimente — Stereotyp/Name (~30px), Expression-Body (~20px),
+     * Parameterliste mit ein bis drei Parametern (~50px). Größere Parameter-
+     * Listen werden vom Renderer abgeschnitten; eine content-aware Höhe ist
+     * V2.x-Polish.
+     */
+    public const val PAR_CONSTRAINT_HEIGHT: Float = 100f
 
     /**
      * Default-Breite einer Lifeline-Box in einem Sequence-Diagramm (V2.0.11).
@@ -953,6 +977,118 @@ public object Sysml2LayoutBridge {
                 "ActorDefinition" -> dev.kuml.layout.Size(UC_ACTOR_WIDTH, UC_ACTOR_HEIGHT)
                 "UseCaseDefinition" -> dev.kuml.layout.Size(UC_USECASE_WIDTH, UC_USECASE_HEIGHT)
                 else -> dev.kuml.layout.Size(UC_USECASE_WIDTH, UC_USECASE_HEIGHT)
+            }
+        }
+
+    /**
+     * Übersetzt das gegebene PAR-Diagramm (V2.0.12) in einen [LayoutGraph] —
+     * die **achte** und **letzte** Übersetzung der SysML-2-Diagramm-Linie.
+     *
+     * MVP-Scope:
+     *  - Jede in [ParDiagram.elementIds] referenzierte [ConstraintDefinition]
+     *    wird ein [LayoutNode] mit den `PAR_CONSTRAINT_*`-Default-Maßen.
+     *  - Jede in [ParDiagram.elementIds] referenzierte [PartDefinition] wird
+     *    ein [LayoutNode] mit den `DEFAULT_*`-Maßen (BDD-Box-Größe). Andere
+     *    Definition-Kinds (AttributeDefinition, PortDefinition, ConnectionDefinition,
+     *    Actor, UseCase, Requirement, State, Action, Lifeline) sind im PAR-
+     *    Diagramm konzeptionell nicht vorgesehen und werden stillschweigend
+     *    übersprungen — Konsistenzprüfung ist Validator-Sache.
+     *  - Bindings werden aus `model.usages.filterIsInstance<BindingConnectorUsage>()`
+     *    gezogen — nicht aus dem Diagramm. Endpunkt-Resolution per
+     *    **Longest-Prefix-Match** (gleiche Heuristik wie V2.0.6 IBD-
+     *    [ConnectionUsage]): die längste sichtbare Element-ID, die ein Präfix
+     *    des Endpunkts ist, gilt als die enthaltende sichtbare Einheit. So
+     *    löst `"Vehicle::mass"` zum sichtbaren `Vehicle`-Knoten auf, und
+     *    `"NewtonsLaw::m"` zum sichtbaren `NewtonsLaw`-Constraint-Knoten.
+     *  - Eine Binding wird genau dann zur [LayoutEdge], wenn *beide* Endpunkte
+     *    auf sichtbare Elemente auflösen. Dangling-Bindings (Endpunkt löst
+     *    nicht auf) werden stillschweigend übersprungen.
+     *
+     * **Architektur-Begründung** für "Bindings leben auf dem Modell, nicht
+     * auf dem Diagramm" (wie V2.0.6 IBD / V2.0.9 STM / V2.0.10 ACT, anders
+     * als V2.0.7 UC / V2.0.8 REQ): Bindings sind ein integraler Teil der
+     * Constraint-Topologie (die zukünftige parametrische Solver-Welle braucht
+     * sie zur Laufzeit für die Wert-Propagation), während UC-/REQ-Edges
+     * reine Diagramm-Aussagen sind. Das PAR-Diagramm ist eine *Projektion*
+     * der Knoten; die Edges entstehen automatisch aus dem Modell.
+     *
+     * Edge-Stilunterscheidung: alle Bindings tragen [EdgeHints.NONE] — der
+     * Parameter-Pin-Anchor-Punkt (zeichne die Edge direkt am Pin statt am
+     * Knoten-Mittelpunkt) ist V2.x-Polish. Die synthetische `KumlDiagram`-
+     * Hülle hat keine `UmlRelationship`-Elemente für `BindingConnectorUsage`s,
+     * deshalb fällt der Edge-Renderer auf den Plain-Pfad zurück — gleiche
+     * Limitation wie UC / REQ / STM / ACT.
+     *
+     * **Edge-ID-Konvention**: jede Binding behält ihre `BindingConnectorUsage.id`
+     * als Edge-ID. Damit bleibt der Edge-Identifier stabil — auch wenn die
+     * gleiche Source/Target-Auflösung durch zwei verschiedene Bindings
+     * passiert (z.B. wenn ein Vehicle zwei verschiedene NewtonsLaw-
+     * Constraint-Instanzen erfüllt), bleiben die Edges unterscheidbar.
+     *
+     * @param model Container mit allen Definitionen + Usages (Bindings werden
+     *   aus `model.usages` gelesen).
+     * @param diagram Das PAR-Diagramm (`elementIds` selektiert die sichtbaren
+     *   Constraints + Parts; Bindings kommen vom Modell).
+     * @param sizeProvider Liefert die intrinsische Größe pro Definition.
+     *   Default nutzt die `PAR_CONSTRAINT_*`-Konstanten für ConstraintDefinitions
+     *   und die `DEFAULT_*`-Konstanten (BDD-Default) für PartDefinitions.
+     */
+    public fun toLayoutGraph(
+        model: Sysml2Model,
+        diagram: ParDiagram,
+        sizeProvider: SizeProvider = parDefaultSizeProvider(),
+    ): LayoutGraph {
+        val nodes = mutableListOf<LayoutNode>()
+        for (id in diagram.elementIds) {
+            val def = model.definitions.firstOrNull { it.id == id } ?: continue
+            // PAR-Diagramme zeigen Constraints (primär) + Parts (für deren
+            // Attribute-Referenzen). Alles andere ist konzeptionell nicht
+            // vorgesehen und wird ignoriert.
+            if (def !is ConstraintDefinition && def !is PartDefinition) continue
+            val kind = def::class.simpleName ?: "Sysml2Definition"
+            nodes +=
+                LayoutNode(
+                    id = NodeId(def.id),
+                    intrinsicSize = sizeProvider.sizeOf(def.id, kind),
+                )
+        }
+        val visibleNodeIds: Set<String> = nodes.map { it.id.value }.toSet()
+
+        // Bindings aus dem Modell ziehen (nicht aus dem Diagramm) — siehe
+        // KDoc-Begründung oben. Eine Binding wird zur Edge, wenn beide
+        // Endpunkte per Longest-Prefix-Match auf sichtbare Knoten auflösen;
+        // sonst stillschweigend übersprungen.
+        val edges = mutableListOf<LayoutEdge>()
+        for (binding in model.usages.filterIsInstance<BindingConnectorUsage>()) {
+            val srcNode = longestPrefixNodeId(binding.sourceEndId, visibleNodeIds) ?: continue
+            val tgtNode = longestPrefixNodeId(binding.targetEndId, visibleNodeIds) ?: continue
+            edges +=
+                LayoutEdge(
+                    id = EdgeId(binding.id),
+                    source = EndpointRef(nodeId = NodeId(srcNode)),
+                    target = EndpointRef(nodeId = NodeId(tgtNode)),
+                    hints = EdgeHints.NONE,
+                )
+        }
+
+        return LayoutGraph(nodes = nodes, edges = edges)
+    }
+
+    /**
+     * Default-[SizeProvider] für PAR-Diagramme (V2.0.12) — gibt je nach
+     * `kindHint` (`"ConstraintDefinition"` vs `"PartDefinition"`) die passenden
+     * Default-Maße zurück:
+     *  - `"ConstraintDefinition"` → [PAR_CONSTRAINT_WIDTH] × [PAR_CONSTRAINT_HEIGHT]
+     *  - `"PartDefinition"` → [DEFAULT_WIDTH] × [DEFAULT_HEIGHT] (BDD-Default)
+     *  - alles andere → fällt auf die Constraint-Größe zurück (defensive
+     *    Default, falls künftige Polish-Wellen weitere Kind-Hints einführen).
+     */
+    public fun parDefaultSizeProvider(): SizeProvider =
+        SizeProvider { _, kindHint ->
+            when (kindHint) {
+                "ConstraintDefinition" -> dev.kuml.layout.Size(PAR_CONSTRAINT_WIDTH, PAR_CONSTRAINT_HEIGHT)
+                "PartDefinition" -> dev.kuml.layout.Size(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+                else -> dev.kuml.layout.Size(PAR_CONSTRAINT_WIDTH, PAR_CONSTRAINT_HEIGHT)
             }
         }
 
