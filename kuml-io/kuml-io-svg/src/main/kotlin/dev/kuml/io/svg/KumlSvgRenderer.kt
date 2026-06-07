@@ -4,6 +4,7 @@ import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
@@ -27,6 +28,12 @@ import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
+import dev.kuml.sysml2.edge.ActEdgeAdapter
+import dev.kuml.sysml2.edge.ParEdgeAdapter
+import dev.kuml.sysml2.edge.ReqEdgeAdapter
+import dev.kuml.sysml2.edge.StmEdgeAdapter
+import dev.kuml.sysml2.edge.Sysml2EdgeAdapter
+import dev.kuml.sysml2.edge.UcEdgeAdapter
 import java.io.File
 import java.nio.file.Path
 
@@ -223,6 +230,75 @@ public object KumlSvgRenderer {
     }
 
     /**
+     * Renders a synthetic SysML 2 [KumlDiagram] hull with an adapter-driven
+     * edge dispatch (V2.0.13).
+     *
+     * Nodes follow the same shifted-bounds + [NodeRendererDispatcher.dispatch]
+     * path as [toSvg]. Edges, however, run through a three-way fallback:
+     *
+     *  1. If the synthetic hull has a `KumlElement` for the edge id, the
+     *     legacy [EdgeRendererDispatcher.dispatch] path renders it — keeps
+     *     the BDD KermlSpecialization / UML / C4 edges working unchanged.
+     *  2. Otherwise, the [Sysml2EdgeAdapter] is asked for metadata. If
+     *     present, [Sysml2EdgeRenderer.render] draws the line + dash +
+     *     arrow head + stereotype / label.
+     *  3. Otherwise, the plain solid line fallback used to be the V2.0.7—12
+     *     default behaviour — kept here for safety so unknown edges still
+     *     surface visually.
+     */
+    private fun renderSysml2Synthetic(
+        synthetic: KumlDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+        sysml2EdgeAdapter: Sysml2EdgeAdapter,
+    ): String =
+        SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+            val padding = options.paddingPx
+
+            // Nodes — same logic as the UML/C4 path.
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val element = synthetic.elements.find { it.id == nodeId.value }
+                if (element != null) {
+                    val shifted =
+                        nodeLayout.copy(
+                            bounds =
+                                nodeLayout.bounds.copy(
+                                    origin =
+                                        nodeLayout.bounds.origin.copy(
+                                            x = nodeLayout.bounds.origin.x + padding,
+                                            y = nodeLayout.bounds.origin.y + padding,
+                                        ),
+                                ),
+                        )
+                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                }
+            }
+
+            // Edges — adapter-aware three-way fallback.
+            val elementIndex = synthetic.elements.associateBy { it.id }
+            for ((edgeId, route) in layoutResult.edges) {
+                val shiftedRoute = shiftRoute(route, padding)
+                val element = elementIndex[edgeId.value]
+                if (element != null) {
+                    EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
+                } else {
+                    val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
+                    if (meta != null) {
+                        Sysml2EdgeRenderer.render(shiftedRoute, meta, theme, edgesBuilder)
+                    } else {
+                        // V2.0.7–12 fallback: plain solid line. Reached only if
+                        // the adapter doesn't claim the edge, which should not
+                        // happen for the five SysML-2 diagram kinds the
+                        // adapters cover — kept for safety.
+                        val (tag, attrs) = EdgePathBuilder.build(shiftedRoute)
+                        edgesBuilder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
+                    }
+                }
+            }
+        }
+
+    /**
      * Rendert ein SysML-2-BDD als SVG (V2.0.4).
      *
      * Wickelt das BDD in ein synthetisches [KumlDiagram] mit den sichtbaren
@@ -355,7 +431,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toSvg(synthetic, layoutResult, theme, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, UcEdgeAdapter(diagram))
     }
 
     /** [toSvg]-Variante für SysML 2 UC-Diagramme, schreibt direkt auf Platte. */
@@ -417,7 +493,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toSvg(synthetic, layoutResult, theme, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ReqEdgeAdapter(diagram))
     }
 
     /** [toSvg]-Variante für SysML 2 REQ-Diagramme, schreibt direkt auf Platte. */
@@ -473,7 +549,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toSvg(synthetic, layoutResult, theme, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, StmEdgeAdapter(model, diagram))
     }
 
     /** [toSvg]-Variante für SysML 2 STM-Diagramme, schreibt direkt auf Platte. */
@@ -531,7 +607,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toSvg(synthetic, layoutResult, theme, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ActEdgeAdapter(model, diagram))
     }
 
     /** [toSvg]-Variante für SysML 2 ACT-Diagramme, schreibt direkt auf Platte. */
@@ -692,7 +768,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toSvg(synthetic, layoutResult, theme, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ParEdgeAdapter(model, diagram))
     }
 
     /** [toSvg]-Variante für SysML 2 PAR-Diagramme, schreibt direkt auf Platte. */

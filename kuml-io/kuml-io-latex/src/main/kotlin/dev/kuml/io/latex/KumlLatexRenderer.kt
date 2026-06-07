@@ -4,6 +4,7 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
 import dev.kuml.io.latex.sysml2.Sysml2DefLatexRenderer
+import dev.kuml.io.latex.sysml2.edge.Sysml2EdgeLatexRenderer
 import dev.kuml.io.latex.uml.UmlClassLatexRenderer
 import dev.kuml.io.latex.uml.UmlEdgeLatexRenderer
 import dev.kuml.layout.EdgeRoute
@@ -28,6 +29,12 @@ import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
+import dev.kuml.sysml2.edge.ActEdgeAdapter
+import dev.kuml.sysml2.edge.ParEdgeAdapter
+import dev.kuml.sysml2.edge.ReqEdgeAdapter
+import dev.kuml.sysml2.edge.StmEdgeAdapter
+import dev.kuml.sysml2.edge.Sysml2EdgeAdapter
+import dev.kuml.sysml2.edge.UcEdgeAdapter
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClassifier
 import dev.kuml.uml.UmlDependency
@@ -109,6 +116,68 @@ public object KumlLatexRenderer {
             for ((edgeId, route) in layoutResult.edges) {
                 val rel = relationshipsById[edgeId.value]
                 renderEdge(rel, route, options)
+            }
+
+            appendPictureClose()
+
+            if (options.standalone) {
+                appendStandaloneCoda()
+            }
+        }
+
+    /**
+     * Render a synthetic SysML 2 [KumlDiagram] hull with an adapter-driven
+     * edge dispatch (V2.0.13).
+     *
+     * Nodes follow the same path as [toLatex]. Edges run through a
+     * three-way fallback parallel to the SVG renderer:
+     *
+     *  1. If the synthetic hull has an [UmlRelationship] for the edge id,
+     *     the legacy [renderEdge] path styles it (BDD KermlSpecializations
+     *     ride this branch).
+     *  2. Otherwise, the [Sysml2EdgeAdapter] is asked for metadata. If
+     *     present, [Sysml2EdgeLatexRenderer.render] draws the line + dash
+     *     + arrow head + stereotype / label.
+     *  3. Otherwise, the plain solid line fallback used to be the V2.0.7—12
+     *     default behaviour — kept here for safety.
+     */
+    private fun renderSysml2Synthetic(
+        synthetic: KumlDiagram,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions,
+        sysml2EdgeAdapter: Sysml2EdgeAdapter,
+    ): String =
+        buildString {
+            if (options.standalone) {
+                appendStandalonePreamble()
+            }
+
+            appendPictureOpen(options.scale)
+            appendTikzStyles(options.indent)
+
+            val nodesById: Map<String, KumlElement> = synthetic.elements.associateBy { it.id }
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val element = nodesById[nodeId.value] ?: continue
+                renderNode(element, nodeId, nodeLayout, options)
+            }
+
+            val relationshipsById: Map<String, UmlRelationship> =
+                synthetic.elements.filterIsInstance<UmlRelationship>().associateBy { it.id }
+
+            for ((edgeId, route) in layoutResult.edges) {
+                val rel = relationshipsById[edgeId.value]
+                if (rel != null) {
+                    renderEdge(rel, route, options)
+                    continue
+                }
+                val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
+                if (meta != null) {
+                    Sysml2EdgeLatexRenderer.render(route, meta, options, this)
+                } else {
+                    // V2.0.7–12 fallback: plain solid line. Reached only if
+                    // the adapter doesn't claim the edge.
+                    renderEdge(null, route, options)
+                }
             }
 
             appendPictureClose()
@@ -239,7 +308,7 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toLatex(synthetic, layoutResult, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, options, UcEdgeAdapter(diagram))
     }
 
     /**
@@ -279,7 +348,7 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toLatex(synthetic, layoutResult, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, options, ReqEdgeAdapter(diagram))
     }
 
     /**
@@ -314,7 +383,7 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toLatex(synthetic, layoutResult, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, options, StmEdgeAdapter(model, diagram))
     }
 
     /**
@@ -351,7 +420,7 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toLatex(synthetic, layoutResult, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, options, ActEdgeAdapter(model, diagram))
     }
 
     /**
@@ -422,7 +491,7 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toLatex(synthetic, layoutResult, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, options, ParEdgeAdapter(model, diagram))
     }
 
     // ─── Edge dispatch ────────────────────────────────────────────────────────
@@ -501,6 +570,20 @@ public object KumlLatexRenderer {
         appendLine("$indent  kuml-realization/.style={draw=black, line width=0.6pt, dashed, -{Triangle[length=3mm, open]}},")
         appendLine("$indent  kuml-dependency/.style={draw=black, line width=0.5pt, dashed, -{Stealth[length=2mm]}},")
         appendLine("$indent  kuml-edge-plain/.style={draw=black, line width=0.6pt, -{Stealth[length=2.2mm]}},")
+        // V2.0.13 — SysML 2 edge styles for UC / REQ / STM / ACT / PAR
+        // dispatched via `Sysml2EdgeLatexRenderer`. Solid + dashed variants
+        // cover the four arrow-bearing edge kinds (UC includes / extends,
+        // REQ traceability, STM transitions, ACT flows); the `binding`
+        // variant is plain solid with no arrow head for PAR bindings.
+        appendLine("$indent  kuml-sysml2-edge-solid/.style={draw=black, line width=0.6pt, -{Stealth[length=2.2mm]}},")
+        appendLine(
+            "$indent  kuml-sysml2-edge-dashed/.style={draw=black, line width=0.6pt, dashed," +
+                " -{Stealth[length=2.2mm]}},",
+        )
+        appendLine(
+            "$indent  kuml-sysml2-edge-dashed-noarrow/.style={draw=black, line width=0.6pt, dashed},",
+        )
+        appendLine("$indent  kuml-sysml2-edge-binding/.style={draw=black, line width=0.6pt},")
         appendLine("$indent}")
     }
 }
