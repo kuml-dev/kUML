@@ -4,6 +4,37 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.1] — 2026-06-07
+
+### SysML 2 polish (post-v0.5.0)
+
+#### Edge labels & arrowheads (V2.0.13)
+All five stereotype-bearing diagram types now render proper labels on edges:
+- UC: «include» (dashed + open angle) / «extend» (dashed + open angle)
+- REQ: «satisfy» / «verify» / «deriveReqt» / «containment» (all dashed + open angle)
+- STM: `trigger [guard] / effect` above transition arrows
+- ACT: `[guard]` on ControlFlow / `[ObjectType]` on ObjectFlow
+- PAR: binding connectors with correct solid line style
+
+Implemented via a shared `Sysml2EdgeAdapter` interface in `kuml-metamodel-sysml2` so both SVG and LaTeX renderers share the same metadata mapping.
+
+#### PNG export for all SysML 2 diagram types (V2.0.14)
+`kuml render --format png` no longer throws for SysML 2 scripts. All 8 diagram types produce valid PNG output via the existing Batik transcoder path.
+
+#### SEQ: Combined Fragments + Execution Specifications + Create/Destroy (V2.0.15)
+- Combined Fragments (`alt`, `opt`, `loop`, `par`, `break`, `critical`, `strict`, `seq`) rendered as dashed frames with operator-tag pentagon and operand guard labels
+- Execution Specifications rendered as thin vertical activation bars on lifelines
+- `Create` message kind: arrow to lifeline head box with «create» stereotype
+- `Destroy` message kind: arrow to lifeline with «destroy» stereotype + X marker
+
+#### ACT: Activity Partitions (Swimlanes) + Pins (V2.0.16)
+- Activity Partitions rendered as vertical lanes with dashed borders and header bars
+- Actions can be assigned to partitions via `partition = myPartition` parameter
+- Action Pins (typed input/output ports) rendered as small squares on action box edges
+
+#### STM: Behaviour-Runtime hookup (V2.0.17)
+`kuml simulate` now accepts SysML 2 scripts in addition to UML scripts. A new `Sysml2StateMachineAdapter` translates `StateDefinition` + `TransitionUsage` into the existing `StateMachineRuntime` — guards, triggers, entry/exit actions and trace output all work as expected.
+
 ## [0.5.0] — 2026-06-06
 
 ### SysML 2 — complete diagram-type series (8/8)
