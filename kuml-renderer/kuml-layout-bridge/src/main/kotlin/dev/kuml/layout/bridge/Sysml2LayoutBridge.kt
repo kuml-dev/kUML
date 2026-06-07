@@ -13,9 +13,11 @@ import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
+import dev.kuml.sysml2.CombinedFragmentUsage
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageUsage
@@ -804,13 +806,18 @@ public object Sysml2LayoutBridge {
      * die erste war V2.0.9 STM, die Pattern A (Transitionen auf dem Modell)
      * gegenüber UC / REQs Pattern B (Edges auf dem Diagramm) wählte.
      *
-     * **MVP-Scope** (V2.0.11):
-     *  - Flache Interaktionen: keine Combined Fragments (`alt`/`opt`/`loop`/
-     *    `par`/`strict`).
-     *  - Keine Execution Specifications (Aktivierungs-Rechtecke).
-     *  - Keine `Create`/`Destroy`-Nachrichten.
-     *  - Keine Found/Lost-Nachrichten (von/nach außen).
-     *  - PNG-Export: V2.x.
+     * **MVP-Scope** (V2.0.11 + V2.0.15-Polish):
+     *  - V2.0.11: flache Interaktionen ohne Combined Fragments / Execution
+     *    Specs / Create / Destroy.
+     *  - V2.0.15: Combined Fragments (alle 8 commonly-used Operatoren) +
+     *    Execution Specifications + Create / Destroy als renderer-direkte
+     *    Erweiterung. Die Bridge erweitert nur die Höhenrechnung, damit der
+     *    Rahmen / die Aktivierungs-Bar genug vertikalen Platz hat — die
+     *    eigentliche Darstellung übernimmt der SVG-Renderer direkt.
+     *  - Weiterhin V2.x: nested Combined Fragments, nested Execution Specs,
+     *    die restlichen 4 CF-Operatoren (assert / neg / consider / ignore),
+     *    Found / Lost Messages, LaTeX-Rendering für CF / ExecSpec /
+     *    Create / Destroy.
      *
      * @param model Container mit allen Definitionen + Usages (Nachrichten
      *   werden aus `model.usages` gelesen, aber nicht in den LayoutGraph
@@ -847,7 +854,28 @@ public object Sysml2LayoutBridge {
                     it.sourceLifelineId in visibleLifelineIds &&
                         it.targetLifelineId in visibleLifelineIds
                 }
-        val maxSeqNo: Int = visibleMessages.maxOfOrNull { it.seqNo } ?: -1
+        val maxMessageSeqNo: Int = visibleMessages.maxOfOrNull { it.seqNo } ?: -1
+
+        // 2b. V2.0.15: Combined-Fragments und Execution-Specifications können
+        //     ebenfalls über das letzte Nachrichten-seqNo hinausreichen
+        //     (z. B. ein `loop`-Frame, das auch Slot 5 abdeckt, obwohl die
+        //     letzte Nachricht bei seqNo=4 liegt; oder ein exec-spec, das
+        //     bis seqNo=6 aktiviert bleibt). Beide tragen zur
+        //     Höhen-Berechnung bei, damit der Renderer genug vertikalen Platz
+        //     bekommt. Wir nehmen das Maximum aller drei Quellen.
+        val maxFragmentSeqNo: Int =
+            model.usages
+                .filterIsInstance<CombinedFragmentUsage>()
+                .flatMap { it.operands }
+                .maxOfOrNull { it.endSeqNo }
+                ?: -1
+        val maxExecSpecSeqNo: Int =
+            model.usages
+                .filterIsInstance<ExecutionSpecificationUsage>()
+                .filter { it.lifelineId in visibleLifelineIds }
+                .maxOfOrNull { it.endSeqNo }
+                ?: -1
+        val maxSeqNo: Int = maxOf(maxMessageSeqNo, maxFragmentSeqNo, maxExecSpecSeqNo)
 
         // 3. Gesamthöhe der Lifeline berechnen.
         //    `maxSeqNo + 1` Zeilen Platz (eine pro Nachricht), `+1` zusätzlich

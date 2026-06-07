@@ -7,6 +7,8 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.sysml2.CombinedFragmentUsage
+import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
@@ -39,17 +41,31 @@ import dev.kuml.sysml2.MessageUsage
 // Renderer-direkte Implementierung respektiert die strukturelle
 // Andersartigkeit von SEQ.
 //
+// V2.0.15:
+//  - Combined Fragments (8 commonly-used operators — Alt / Opt / Loop / Par /
+//    Strict / Seq / Break / Critical) als gerahmte Bereiche mit
+//    Operator-Tag-Pentagon im oberen linken Frame-Eck. Renderer-direkt
+//    (siehe renderCombinedFragment).
+//  - Execution Specifications — thin vertical activation bars on a lifeline
+//    while it is actively processing a message. Renderer-direkt (siehe
+//    renderExecutionSpec).
+//  - `Create` / `Destroy` Lifecycle-Nachrichten — Create-Pfeil endet am
+//    Lifeline-Head-Box mit `«create»` Stereotyp; Destroy-Pfeil mit
+//    `«destroy»` Stereotyp + X-Marker auf der Target-Lifeline.
+//
 // V2.x:
-//  - Combined Fragments (`alt` / `opt` / `loop` / `par` / `strict`) als
-//    gerahmte Bereiche mit Header-Label.
-//  - Execution Specifications — Aktivierungsrechtecke entlang der
-//    Lifeline-Achse während ein Token aktiv ist.
-//  - `Create` / `Destroy` Lifecycle-Nachrichten (Stereotyp `«create»`, X-Marker
-//    am Ende der Lifeline).
+//  - Nested Combined Fragments (CF inside CF) — braucht Baum-Repräsentation
+//    und rekursiven Layout-Pass.
+//  - Nested Execution Specifications (overlapping activations auf derselben
+//    Lifeline).
+//  - Die restlichen 4 CF-Operatoren (assert, neg, consider, ignore).
 //  - Self-Call mit vollwertigem Activation-Marker (V2.0.11 MVP ist ein
 //    kleiner U-förmiger Pfeil — funktional, aber nicht hübsch).
 //  - Found / Lost Messages — Pfeile von / nach außerhalb des Diagrammrahmens.
-//  - Zeitachsen-Annotationen (Duration Constraints, Time Constraints).
+//  - Co-region / general-ordering constraints, Zeitachsen-Annotationen
+//    (Duration Constraints, Time Constraints).
+//  - LaTeX-Rendering für Fragments / ExecSpecs / Create / Destroy (V2.0.15
+//    ist SVG-only — siehe KumlLatexRenderer.toLatex(SeqDiagram)).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -221,6 +237,19 @@ internal fun renderMessage(
         return
     }
 
+    // V2.0.15: lifecycle messages need their own visual treatment.
+    when (msg.kind) {
+        MessageKind.Create -> {
+            renderCreateMessage(msg, srcCx, tgtCx, tgtLayout, y, builder)
+            return
+        }
+        MessageKind.Destroy -> {
+            renderDestroyMessage(msg, srcCx, tgtCx, tgtLayout, y, builder)
+            return
+        }
+        else -> Unit
+    }
+
     val isReply = msg.kind == MessageKind.Reply
     val strokeClass = if (isReply) "kuml-edge-dashed" else "kuml-edge"
 
@@ -249,6 +278,12 @@ internal fun renderMessage(
             MessageKind.Async,
             MessageKind.Reply,
             -> renderOpenArrowhead(tgtCx, y, arrowDx, this)
+            // Already handled above — the early-return for Create/Destroy
+            // means these branches are unreachable; the exhaustive `when`
+            // keeps the compiler happy when MessageKind grows again.
+            MessageKind.Create,
+            MessageKind.Destroy,
+            -> Unit
         }
 
         // 3. Label über dem Pfeil.
@@ -263,6 +298,353 @@ internal fun renderMessage(
                 "text-anchor" to "middle",
             ),
         ) { text(xmlEscapeText(msg.messageLabel)) }
+    }
+}
+
+/**
+ * Render a `Create` message — V2.0.15.
+ *
+ * Visual semantics per SysML 2 / UML convention:
+ *  - The arrow ends at the **mid-left (or mid-right) of the target lifeline's
+ *    head box** rather than at the target lifeline's vertical line, because
+ *    the `Create` semantically constructs the target object. The head box
+ *    appears "at the arrow's tip" rather than at the original top.
+ *  - The stereotype `«create»` appears above the arrow as the label prefix.
+ *  - Open arrowhead at the target end (per UML — `Create` is conventionally
+ *    rendered with an open arrowhead, regardless of sync/async).
+ *
+ * V2.0.15 MVP: the renderer does NOT actually shift the target lifeline's
+ * head box vertically — that would require a second layout pass. We anchor
+ * the arrow at the SAME Y as a regular message, with the «create» stereotype
+ * making the lifecycle semantics explicit textually. The target's head-box
+ * is rendered normally at the top by [renderLifelineHead]; the "head box at
+ * arrow tip" V2.x polish needs a target-Y override that's out of scope here.
+ */
+private fun renderCreateMessage(
+    msg: MessageUsage,
+    srcCx: Float,
+    tgtCx: Float,
+    tgtLayout: NodeLayout,
+    y: Float,
+    builder: SvgBuilder,
+) {
+    // Arrow ends at the side of the target head-box (mid-left if arrow points
+    // right, mid-right if arrow points left). This makes the `Create`
+    // semantics visually distinct from regular arrows that end at the
+    // lifeline's centre line.
+    val tgtBoxLeft = tgtLayout.bounds.origin.x
+    val tgtBoxRight = tgtLayout.bounds.origin.x + tgtLayout.bounds.size.width
+    val arrowEndX = if (tgtCx >= srcCx) tgtBoxLeft else tgtBoxRight
+    val arrowDx = if (tgtCx >= srcCx) -8f else 8f
+
+    builder.tag(
+        "g",
+        mapOf("id" to xmlEscapeAttr(msg.id)),
+    ) {
+        // 1. Arrow shaft — dashed (UML convention: «create» arrows are dashed).
+        tag(
+            "line",
+            mapOf(
+                "x1" to fmt(srcCx),
+                "y1" to fmt(y),
+                "x2" to fmt(arrowEndX),
+                "y2" to fmt(y),
+                "class" to "kuml-edge-dashed",
+            ),
+        )
+
+        // 2. Open arrowhead at the target box edge.
+        renderOpenArrowhead(arrowEndX, y, arrowDx, this)
+
+        // 3. Stereotype + label above the arrow.
+        val labelX = (srcCx + arrowEndX) / 2f
+        tag(
+            "text",
+            mapOf(
+                "class" to "kuml-stereotype",
+                "x" to fmt(labelX),
+                "y" to fmt(y - 16f),
+                "text-anchor" to "middle",
+            ),
+        ) { text("«create»") }
+        tag(
+            "text",
+            mapOf(
+                "class" to "kuml-body",
+                "x" to fmt(labelX),
+                "y" to fmt(y - 4f),
+                "text-anchor" to "middle",
+            ),
+        ) { text(xmlEscapeText(msg.messageLabel)) }
+    }
+}
+
+/**
+ * Render a `Destroy` message — V2.0.15.
+ *
+ * Visual semantics:
+ *  - Arrow runs to the target lifeline's centre line (like a regular sync
+ *    message), but with a filled arrowhead.
+ *  - Stereotype `«destroy»` appears above the arrow.
+ *  - A small **X marker** (two crossing diagonals) is drawn at the target
+ *    end of the arrow on the target lifeline — visually terminating the
+ *    lifeline at this seqNo.
+ *
+ * V2.0.15 MVP: the X-marker is drawn at the arrow's Y position. A full
+ * lifeline-shortening pass (the lifeline's vertical dashed line should
+ * stop at the X) is V2.x — that requires a renderer-level override of the
+ * lifeline-head's tail.
+ */
+private fun renderDestroyMessage(
+    msg: MessageUsage,
+    srcCx: Float,
+    tgtCx: Float,
+    @Suppress("UNUSED_PARAMETER") tgtLayout: NodeLayout,
+    y: Float,
+    builder: SvgBuilder,
+) {
+    val arrowDx = if (tgtCx >= srcCx) -8f else 8f
+    builder.tag(
+        "g",
+        mapOf("id" to xmlEscapeAttr(msg.id)),
+    ) {
+        // 1. Arrow shaft.
+        tag(
+            "line",
+            mapOf(
+                "x1" to fmt(srcCx),
+                "y1" to fmt(y),
+                "x2" to fmt(tgtCx),
+                "y2" to fmt(y),
+                "class" to "kuml-edge",
+            ),
+        )
+
+        // 2. Filled arrowhead.
+        renderFilledArrowhead(tgtCx, y, arrowDx, this)
+
+        // 3. X marker on the target lifeline — two crossing diagonals,
+        //    centred on (tgtCx, y + DESTROY_X_OFFSET).
+        val xCy = y + DESTROY_X_OFFSET
+        val half = DESTROY_X_SIZE / 2f
+        tag(
+            "line",
+            mapOf(
+                "x1" to fmt(tgtCx - half),
+                "y1" to fmt(xCy - half),
+                "x2" to fmt(tgtCx + half),
+                "y2" to fmt(xCy + half),
+                "class" to "kuml-edge",
+            ),
+        )
+        tag(
+            "line",
+            mapOf(
+                "x1" to fmt(tgtCx + half),
+                "y1" to fmt(xCy - half),
+                "x2" to fmt(tgtCx - half),
+                "y2" to fmt(xCy + half),
+                "class" to "kuml-edge",
+            ),
+        )
+
+        // 4. Stereotype + label above the arrow.
+        val labelX = (srcCx + tgtCx) / 2f
+        tag(
+            "text",
+            mapOf(
+                "class" to "kuml-stereotype",
+                "x" to fmt(labelX),
+                "y" to fmt(y - 16f),
+                "text-anchor" to "middle",
+            ),
+        ) { text("«destroy»") }
+        tag(
+            "text",
+            mapOf(
+                "class" to "kuml-body",
+                "x" to fmt(labelX),
+                "y" to fmt(y - 4f),
+                "text-anchor" to "middle",
+            ),
+        ) { text(xmlEscapeText(msg.messageLabel)) }
+    }
+}
+
+/**
+ * Render an Execution Specification — V2.0.15.
+ *
+ * A thin vertical "activation bar" (small filled rect) on a lifeline,
+ * spanning [ExecutionSpecificationUsage.startSeqNo] to [ExecutionSpecificationUsage.endSeqNo]
+ * (inclusive). The bar is centred horizontally on the lifeline's vertical
+ * line and offset half a row above the first message and half a row past
+ * the last so it brackets the active range without overlapping the arrow
+ * exactly.
+ *
+ * V2.0.15 MVP: flat — overlapping activations on the same lifeline are
+ * V2.x. The bar has a fixed width [EXEC_SPEC_WIDTH] and white fill so
+ * messages drawn after it stay visually on top.
+ */
+internal fun renderExecutionSpec(
+    execSpec: ExecutionSpecificationUsage,
+    lifelineLayout: NodeLayout,
+    builder: SvgBuilder,
+) {
+    val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
+    val headBottom = lifelineLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
+    val yStart = headBottom + (execSpec.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT
+    val yEnd = headBottom + (execSpec.endSeqNo + 1.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT
+    val w = EXEC_SPEC_WIDTH
+    val h = (yEnd - yStart).coerceAtLeast(SEQ_RENDERER_MESSAGE_ROW_HEIGHT / 2f)
+
+    builder.tag(
+        "g",
+        mapOf("id" to xmlEscapeAttr(execSpec.id)),
+    ) {
+        tag(
+            "rect",
+            mapOf(
+                "x" to fmt(cx - w / 2f),
+                "y" to fmt(yStart),
+                "width" to fmt(w),
+                "height" to fmt(h),
+                "class" to "kuml-class",
+                "fill" to "white",
+            ),
+        )
+    }
+}
+
+/**
+ * Render a Combined Fragment — V2.0.15.
+ *
+ * Drawn as a dashed rectangle enclosing the horizontal span of all visible
+ * lifelines and the vertical span of all the fragment's operands.
+ *
+ * Layout details:
+ *  - Frame X spans from the leftmost visible lifeline's left edge to the
+ *    rightmost visible lifeline's right edge, plus [FRAGMENT_PADDING] on
+ *    both sides for visual breathing room.
+ *  - Frame Y spans from the first operand's startSeqNo (half a row above) to
+ *    the last operand's endSeqNo (one and a half rows below the message
+ *    line) — same offsets the exec-spec uses, so frames + activation bars
+ *    line up visually.
+ *  - An operator-tag pentagon sits in the top-left corner of the frame,
+ *    containing the operator's name uppercased (`ALT`, `OPT`, ...).
+ *  - Between operands, a dashed horizontal separator appears at the boundary
+ *    seqNo, with the next operand's guard (`[guard]`) in its top-left corner.
+ *
+ * The frame is rendered without a fill so the lifeline lines + messages
+ * drawn after it remain visible inside.
+ */
+internal fun renderCombinedFragment(
+    fragment: CombinedFragmentUsage,
+    visibleLifelineLayouts: List<NodeLayout>,
+    builder: SvgBuilder,
+) {
+    if (visibleLifelineLayouts.isEmpty() || fragment.operands.isEmpty()) return
+    val minLifelineX = visibleLifelineLayouts.minOf { it.bounds.origin.x }
+    val maxLifelineX = visibleLifelineLayouts.maxOf { it.bounds.origin.x + it.bounds.size.width }
+    val anyLayout = visibleLifelineLayouts.first()
+    val headBottom = anyLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
+
+    val minStartSeqNo = fragment.operands.minOf { it.startSeqNo }
+    val maxEndSeqNo = fragment.operands.maxOf { it.endSeqNo }
+
+    val frameX = minLifelineX - FRAGMENT_PADDING
+    val frameW = (maxLifelineX - minLifelineX) + 2f * FRAGMENT_PADDING
+    val frameY = headBottom + (minStartSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT - FRAGMENT_PADDING
+    val frameBottom = headBottom + (maxEndSeqNo + 1.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + FRAGMENT_PADDING
+    val frameH = frameBottom - frameY
+
+    builder.tag(
+        "g",
+        mapOf("id" to xmlEscapeAttr(fragment.id)),
+    ) {
+        // 1. Dashed frame rectangle.
+        tag(
+            "rect",
+            mapOf(
+                "x" to fmt(frameX),
+                "y" to fmt(frameY),
+                "width" to fmt(frameW),
+                "height" to fmt(frameH),
+                "class" to "kuml-class",
+                "fill" to "none",
+                "stroke-dasharray" to "6 4",
+            ),
+        )
+
+        // 2. Operator-tag pentagon in the top-left corner. Five points: a
+        //    rectangle with a notched right edge so it looks like the UML
+        //    interaction-frame tag.
+        val tagX = frameX
+        val tagY = frameY
+        val tagW = FRAGMENT_OPERATOR_TAG_WIDTH
+        val tagH = FRAGMENT_OPERATOR_TAG_HEIGHT
+        val notch = 6f
+        val pentagonPoints =
+            "${fmt(tagX)},${fmt(tagY)} " +
+                "${fmt(tagX + tagW)},${fmt(tagY)} " +
+                "${fmt(tagX + tagW)},${fmt(tagY + tagH - notch)} " +
+                "${fmt(tagX + tagW - notch)},${fmt(tagY + tagH)} " +
+                "${fmt(tagX)},${fmt(tagY + tagH)}"
+        tag(
+            "polygon",
+            mapOf(
+                "points" to pentagonPoints,
+                "class" to "kuml-class",
+                "fill" to "white",
+            ),
+        )
+        tag(
+            "text",
+            mapOf(
+                "class" to "kuml-stereotype",
+                "x" to fmt(tagX + tagW / 2f),
+                "y" to fmt(tagY + tagH / 2f + 4f),
+                "text-anchor" to "middle",
+            ),
+        ) { text(fragment.operator.name.uppercase()) }
+
+        // 3. Operand guards — one per operand, in the top-left of each
+        //    operand's vertical slice.
+        for ((index, operand) in fragment.operands.withIndex()) {
+            val operandY =
+                if (index == 0) {
+                    tagY + tagH + 4f
+                } else {
+                    headBottom + (operand.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + 12f
+                }
+
+            // Dashed separator between operands.
+            if (index > 0) {
+                val sepY = headBottom + (operand.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT
+                tag(
+                    "line",
+                    mapOf(
+                        "x1" to fmt(frameX),
+                        "y1" to fmt(sepY),
+                        "x2" to fmt(frameX + frameW),
+                        "y2" to fmt(sepY),
+                        "class" to "kuml-divider",
+                        "stroke-dasharray" to "6 4",
+                    ),
+                )
+            }
+
+            val guard = operand.guard
+            if (guard != null) {
+                tag(
+                    "text",
+                    mapOf(
+                        "class" to "kuml-body",
+                        "x" to fmt(tagX + tagW + 6f),
+                        "y" to fmt(operandY),
+                    ),
+                ) { text("[" + xmlEscapeText(guard) + "]") }
+            }
+        }
     }
 }
 
@@ -302,6 +684,12 @@ private fun renderSelfCall(
             MessageKind.Sync -> renderFilledArrowhead(cx, y + h, +8f, this)
             MessageKind.Async,
             MessageKind.Reply,
+            -> renderOpenArrowhead(cx, y + h, +8f, this)
+            // Self-calls of kind Create / Destroy are conceptually unusual
+            // (a lifeline destroying itself); we fall back to an open
+            // arrowhead so the U-shape still looks coherent.
+            MessageKind.Create,
+            MessageKind.Destroy,
             -> renderOpenArrowhead(cx, y + h, +8f, this)
         }
 
@@ -389,6 +777,24 @@ private const val SELF_CALL_WIDTH: Float = 24f
 
 /** Self-Call U-Pfeil: Höhe des Ausschwungs nach unten. */
 private const val SELF_CALL_HEIGHT: Float = 16f
+
+/** Breite der Aktivierungs-Bar einer Execution Specification (V2.0.15). */
+private const val EXEC_SPEC_WIDTH: Float = 10f
+
+/** Breite der Operator-Tag-Pentagon-Form in der oberen linken Frame-Ecke (V2.0.15). */
+private const val FRAGMENT_OPERATOR_TAG_WIDTH: Float = 50f
+
+/** Höhe des Operator-Tag-Pentagons (V2.0.15). */
+private const val FRAGMENT_OPERATOR_TAG_HEIGHT: Float = 18f
+
+/** Horizontaler + vertikaler Atemraum zwischen Frame und Lifeline-Bounds (V2.0.15). */
+private const val FRAGMENT_PADDING: Float = 8f
+
+/** Vertikaler Abstand zwischen Arrow-Tip und X-Marker auf der Destroy-Lifeline (V2.0.15). */
+private const val DESTROY_X_OFFSET: Float = 8f
+
+/** Pixelgröße des X-Markers auf der Destroy-Lifeline (V2.0.15). */
+private const val DESTROY_X_SIZE: Float = 10f
 
 private fun fmt(v: Float): String =
     if (v == v.toInt().toFloat()) {

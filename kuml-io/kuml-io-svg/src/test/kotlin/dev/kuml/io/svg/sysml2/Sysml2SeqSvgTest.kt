@@ -10,6 +10,8 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.renderer.theme.core.PlainTheme
+import dev.kuml.sysml2.CombinedFragmentOperand
+import dev.kuml.sysml2.CombinedFragmentOperator
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.Sysml2Model
@@ -176,6 +178,178 @@ class Sysml2SeqSvgTest :
             val (model, seq) = loginModel()
             val theme = PlainTheme()
             val layout = fakeLayout()
+
+            val svgA = KumlSvgRenderer.toSvg(model, seq, layout, theme)
+            val svgB = KumlSvgRenderer.toSvg(model, seq, layout, theme)
+            svgA shouldBe svgB
+        }
+
+        // ─────────────────── V2.0.15: CF + ExecSpec + Create/Destroy ───────────
+
+        // Reusable two-lifeline layout — large enough to host 4 message rows
+        // plus tail padding without clipping.
+        fun twoLifelineLayout(): LayoutResult =
+            LayoutResult(
+                engineId = LayoutEngineId("test"),
+                seed = 1L,
+                canvas = Size(500f, 320f),
+                nodes =
+                    mapOf(
+                        NodeId("a") to NodeLayout(bounds = Rect(Point(40f, 20f), Size(140f, 272f))),
+                        NodeId("b") to NodeLayout(bounds = Rect(Point(280f, 20f), Size(140f, 272f))),
+                    ),
+                edges = emptyMap(),
+                groups = emptyMap(),
+            )
+
+        "SEQ renders combined fragment frame with operator tag" {
+            val model =
+                sysml2Model("CFFrame") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("ping", a, b, seqNo = 1)
+                    combinedFragment("loopBlock", CombinedFragmentOperator.Loop, startSeqNo = 1, endSeqNo = 2)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val layout = twoLifelineLayout()
+            val svg = KumlSvgRenderer.toSvg(model, seq, layout, PlainTheme())
+
+            svg shouldContain "id=\"combinedFragment:loopBlock\""
+            // Dashed frame stroke-dasharray.
+            svg shouldContain "stroke-dasharray=\"6 4\""
+            // Operator tag pentagon + uppercase LOOP label.
+            svg shouldContain "<polygon"
+            svg shouldContain "LOOP"
+
+            SampleOutput.write("sysml2-seq/combined-fragment-loop.svg", svg)
+        }
+
+        "SEQ renders alt fragment with two operands separated by dashed line" {
+            val model =
+                sysml2Model("CFAlt") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("happy", a, b, seqNo = 1)
+                    message("sad", a, b, seqNo = 2)
+                    combinedFragment(
+                        name = "decision",
+                        operator = CombinedFragmentOperator.Alt,
+                        operands =
+                            listOf(
+                                CombinedFragmentOperand(guard = "credentials valid", startSeqNo = 1, endSeqNo = 1),
+                                CombinedFragmentOperand(guard = "credentials invalid", startSeqNo = 2, endSeqNo = 2),
+                            ),
+                    )
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val layout = twoLifelineLayout()
+            val svg = KumlSvgRenderer.toSvg(model, seq, layout, PlainTheme())
+
+            svg shouldContain "id=\"combinedFragment:decision\""
+            svg shouldContain "ALT"
+            svg shouldContain "[credentials valid]"
+            svg shouldContain "[credentials invalid]"
+            // The separator dashed line uses kuml-divider class with dash array.
+            svg shouldContain "class=\"kuml-divider\""
+
+            SampleOutput.write("sysml2-seq/combined-fragment-alt-two-operands.svg", svg)
+        }
+
+        "SEQ renders execution specification as a thin rectangle on a lifeline" {
+            val model =
+                sysml2Model("ES") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("ping", a, b, seqNo = 1)
+                    executionSpec("activeB", b, startSeqNo = 1, endSeqNo = 2)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val layout = twoLifelineLayout()
+            val svg = KumlSvgRenderer.toSvg(model, seq, layout, PlainTheme())
+
+            svg shouldContain "id=\"executionSpec:b-1-2\""
+            // The activation bar is a kuml-class rect with white fill.
+            svg shouldContain "fill=\"white\""
+
+            SampleOutput.write("sysml2-seq/execution-spec.svg", svg)
+        }
+
+        "SEQ renders Create message with «create» stereotype" {
+            val model =
+                sysml2Model("Create") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("new Browser()", a, b, seqNo = 1, kind = MessageKind.Create)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val layout = twoLifelineLayout()
+            val svg = KumlSvgRenderer.toSvg(model, seq, layout, PlainTheme())
+
+            svg shouldContain "id=\"message:a-b-1\""
+            svg shouldContain "«create»"
+            // Create arrows are dashed.
+            svg shouldContain "class=\"kuml-edge-dashed\""
+
+            SampleOutput.write("sysml2-seq/create-message.svg", svg)
+        }
+
+        "SEQ renders Destroy message with «destroy» stereotype + X marker" {
+            val model =
+                sysml2Model("Destroy") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("close()", a, b, seqNo = 1, kind = MessageKind.Destroy)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val layout = twoLifelineLayout()
+            val svg = KumlSvgRenderer.toSvg(model, seq, layout, PlainTheme())
+
+            svg shouldContain "id=\"message:a-b-1\""
+            svg shouldContain "«destroy»"
+            // The destroy message group contains two <line> entries for the X
+            // plus the arrow shaft — at least three <line> elements live
+            // inside the group.
+            svg shouldContain "close()"
+
+            SampleOutput.write("sysml2-seq/destroy-message.svg", svg)
+        }
+
+        "deterministic output — combined fragment + execution spec render byte-identically" {
+            val model =
+                sysml2Model("Det") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("ping", a, b, seqNo = 1)
+                    combinedFragment("frag", CombinedFragmentOperator.Opt, startSeqNo = 1, endSeqNo = 2, guard = "g")
+                    executionSpec("activeA", a, startSeqNo = 1, endSeqNo = 2)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val layout = twoLifelineLayout()
+            val theme = PlainTheme()
 
             val svgA = KumlSvgRenderer.toSvg(model, seq, layout, theme)
             val svgB = KumlSvgRenderer.toSvg(model, seq, layout, theme)

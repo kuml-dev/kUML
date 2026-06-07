@@ -554,3 +554,83 @@ data class BindingConnectorUsage(
     val targetEndId: String,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Usage
+
+/**
+ * Combined Fragment usage — a framed sub-region of a sequence diagram that
+ * wraps a range of messages with an interaction operator (V2.0.15).
+ *
+ * V2.0.15 MVP: flat (no nesting). Nested CFs (alt within loop) are V2.x —
+ * they need a tree representation and a recursive layout pass.
+ *
+ * The frame is rendered as a dashed rectangle enclosing all lifelines'
+ * vertical lines from the first to the last operand's seqNo range, with
+ * an operator-tag pentagon at the top-left and a horizontal separator
+ * between operands.
+ *
+ * Architecture note — like [MessageUsage], CombinedFragments are NOT
+ * LayoutGraph edges. The bridge only uses them to extend the lifeline
+ * height calculation so the frame has vertical room. The SVG renderer
+ * reads them directly from `model.usages` after rendering exec-specs +
+ * before rendering messages (so messages appear on top of the frame).
+ *
+ * The default [definitionId] is the synthetic `"sysml2.combinedFragment"`
+ * literal so the [Sysml2Usage]-contract is satisfied without forcing
+ * callers to declare a `CombinedFragmentDefinition` — combined fragments
+ * have no SysML 2 *definition* counterpart.
+ *
+ * V2.x — out of scope:
+ *  - Nested combined fragments (CF inside CF).
+ *  - The remaining 4 operators (assert / neg / consider / ignore).
+ *  - LaTeX rendering — SVG-only in V2.0.15.
+ */
+@Serializable
+data class CombinedFragmentUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.combinedFragment",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    /** The interaction operator (`Alt` / `Opt` / `Loop` / etc.). */
+    val operator: CombinedFragmentOperator,
+    /** Operands ordered top-to-bottom. At least one is expected. */
+    val operands: List<CombinedFragmentOperand>,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage
+
+/**
+ * Execution Specification — the thin vertical "activation bar" rendered on
+ * a lifeline when it is actively processing a message (V2.0.15). Spans
+ * [startSeqNo] to [endSeqNo] (inclusive) on the named lifeline.
+ *
+ * V2.0.15 MVP: flat (no nested exec-specs). Nested activations are V2.x.
+ *
+ * Architecture note — like [MessageUsage] and [CombinedFragmentUsage], the
+ * exec-spec is NOT a LayoutGraph edge. The bridge only uses it to extend
+ * the lifeline height calculation; the SVG renderer reads it directly from
+ * `model.usages` before rendering messages so the activation bar sits
+ * underneath message arrows.
+ *
+ * The default [definitionId] is the synthetic `"sysml2.executionSpec"`
+ * literal so the [Sysml2Usage]-contract is satisfied without forcing
+ * callers to declare an `ExecutionSpecificationDefinition` —
+ * execution-specifications have no SysML 2 *definition* counterpart.
+ *
+ * V2.x — out of scope:
+ *  - Nested exec-specs (overlapping activations on the same lifeline).
+ *  - LaTeX rendering — SVG-only in V2.0.15.
+ */
+@Serializable
+data class ExecutionSpecificationUsage(
+    override val id: String,
+    override val name: String,
+    override val qualifiedName: String = name,
+    override val definitionId: String = "sysml2.executionSpec",
+    override val multiplicity: KermlMultiplicity = KermlMultiplicity.EXACTLY_ONE,
+    /** Id of the lifeline that owns this activation. */
+    val lifelineId: String,
+    /** Sequence number when the activation starts (inclusive). */
+    val startSeqNo: Int,
+    /** Sequence number when the activation ends (inclusive). */
+    val endSeqNo: Int,
+    override val metadata: Map<String, KumlMetaValue> = emptyMap(),
+) : Sysml2Usage

@@ -7,6 +7,7 @@ import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.ActorDefinition
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
+import dev.kuml.sysml2.CombinedFragmentOperator
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ConstraintParameterDirection
@@ -1139,6 +1140,108 @@ class Sysml2LayoutBridgeTest :
 
             SampleOutput.write(
                 "sysml2-layout-bridge/seq-dangling-messages-ignored.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        // ───────────────── V2.0.15 SEQ — CF + ExecSpec height ────────────────
+
+        "SEQ lifeline height extends to accommodate a combined fragment beyond the last message" {
+            // The last message is at seqNo=2, but the fragment's operand
+            // covers seqNo 1..5 → the lifeline must be tall enough for the
+            // fragment's endSeqNo, not just the last-message seqNo.
+            val model =
+                sysml2Model("CFHeight") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("ping", a, b, seqNo = 1)
+                    message("pong", b, a, seqNo = 2)
+                    combinedFragment("loopBlock", CombinedFragmentOperator.Loop, startSeqNo = 1, endSeqNo = 5)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+
+            // maxSeqNo = 5 (from CF) → rowCount = 6 → height = HEAD + (6+1)*ROW + TAIL
+            val expected =
+                Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
+                    (5 + 1 + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
+                    Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
+            for (n in graph.nodes) {
+                n.intrinsicSize.height shouldBe expected
+            }
+            graph.edges shouldHaveSize 0
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/seq-height-extended-by-fragment.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "SEQ lifeline height extends to accommodate an execution spec beyond the last message" {
+            val model =
+                sysml2Model("ESHeight") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("ping", a, b, seqNo = 1)
+                    executionSpec("activeB", b, startSeqNo = 1, endSeqNo = 7)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+
+            // maxSeqNo = 7 (from ExecSpec) → rowCount = 8 → height = HEAD + (8+1)*ROW + TAIL
+            val expected =
+                Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
+                    (7 + 1 + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
+                    Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
+            for (n in graph.nodes) {
+                n.intrinsicSize.height shouldBe expected
+            }
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/seq-height-extended-by-execspec.layout.json",
+                prettyJson.encodeToString(graph),
+            )
+        }
+
+        "SEQ with fragment AND messages picks the larger of the two maxima" {
+            // Messages reach seqNo=10 — that's the dominating maximum.
+            // The fragment covers only 1..3. Height must follow messages.
+            val model =
+                sysml2Model("MaxMix") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    for (i in 0..10) {
+                        message("m$i", if (i % 2 == 0) a else b, if (i % 2 == 0) b else a, seqNo = i)
+                    }
+                    combinedFragment("smallFrag", CombinedFragmentOperator.Opt, startSeqNo = 1, endSeqNo = 3)
+                    executionSpec("activeShort", a, startSeqNo = 0, endSeqNo = 2)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
+
+            // maxSeqNo = 10 (message > fragment 3 > execspec 2) → rowCount = 11
+            val expected =
+                Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
+                    (10 + 1 + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
+                    Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
+            for (n in graph.nodes) {
+                n.intrinsicSize.height shouldBe expected
+            }
+
+            SampleOutput.write(
+                "sysml2-layout-bridge/seq-height-picks-larger-max.layout.json",
                 prettyJson.encodeToString(graph),
             )
         }

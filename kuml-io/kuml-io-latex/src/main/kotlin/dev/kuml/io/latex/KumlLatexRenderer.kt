@@ -437,6 +437,12 @@ public object KumlLatexRenderer {
      * Edge-Styling: keine Edges im Output (Nachrichten sind nicht in
      * `layoutResult.edges`). Die SEQ-Darstellung als vollwertiges TikZ-
      * Sequence-Diagramm via `pgf-umlsd` ist V2.x-Polish.
+     *
+     * V2.x: Combined Fragments, Execution Specifications, and Create/Destroy
+     * messages are SVG-only in V2.0.15; LaTeX polish is V2.x. The Lifeline-
+     * rectangle fallback keeps the LaTeX output structurally consistent with
+     * the V2.0.11 baseline while the SVG side delivers the full V2.0.15
+     * polish (dashed fragment frames, activation bars, lifecycle stereotypes).
      */
     public fun toLatex(
         model: Sysml2Model,

@@ -10,11 +10,15 @@ import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
+import dev.kuml.sysml2.CombinedFragmentOperand
+import dev.kuml.sysml2.CombinedFragmentOperator
+import dev.kuml.sysml2.CombinedFragmentUsage
 import dev.kuml.sysml2.ConnectionDefinition
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageKind
@@ -860,6 +864,113 @@ class Sysml2ModelBuilder(
         val diagram = SeqDiagram(name = name, elementIds = builder.ids())
         diagrams += diagram
         return diagram
+    }
+
+    // ── V2.0.15 SEQ Combined Fragments + Execution Specs ────────────────
+
+    /**
+     * `alt { credentials valid → 4..5; credentials invalid → … }` — V2.0.15
+     * Combined-Fragment usage that wraps a range of messages in a sequence
+     * diagram with an interaction operator.
+     *
+     * Registers the resulting [CombinedFragmentUsage] in [Sysml2Model.usages]
+     * (via [registerUsage] — the V2.0.6 architecture bonus). The SVG renderer
+     * reads fragments back from `model.usages` after the lifeline-head loop
+     * and draws the dashed frame + operator-tag pentagon + per-operand
+     * dividers directly. The bridge does NOT emit a LayoutGraph node/edge
+     * for fragments — they are renderer-direct, same pattern as
+     * [MessageUsage] in V2.0.11.
+     *
+     * V2.0.15 MVP: flat fragments only (no CF inside CF). The [operands]
+     * list must be non-empty; the builder does not validate ordering or
+     * seqNo-range overlap — that's the validator's job.
+     *
+     * Default [id] convention: `combinedFragment:<name>` — deterministic,
+     * readable, collision-free for unique fragment names. Callers can
+     * override the id when two fragments share a name (e.g. when reading
+     * the model from an external source).
+     */
+    fun combinedFragment(
+        name: String,
+        operator: CombinedFragmentOperator,
+        operands: List<CombinedFragmentOperand>,
+        id: String = "combinedFragment:$name",
+    ): CombinedFragmentUsage {
+        val usage =
+            CombinedFragmentUsage(
+                id = id,
+                name = name,
+                qualifiedName = name,
+                operator = operator,
+                operands = operands,
+            )
+        registerUsage(usage)
+        return usage
+    }
+
+    /**
+     * Single-operand convenience overload for [combinedFragment] — typical
+     * for `Opt` / `Loop` / `Break` / `Critical` operators where one operand
+     * with one guard covers the whole frame range.
+     *
+     * Delegates to the list-form overload after packaging the single
+     * operand. The default [id] mirrors the list-form convention so the
+     * resulting [CombinedFragmentUsage.id] is deterministic across overload
+     * choices for the same name.
+     */
+    fun combinedFragment(
+        name: String,
+        operator: CombinedFragmentOperator,
+        startSeqNo: Int,
+        endSeqNo: Int,
+        guard: String? = null,
+        id: String = "combinedFragment:$name",
+    ): CombinedFragmentUsage =
+        combinedFragment(
+            name = name,
+            operator = operator,
+            operands = listOf(CombinedFragmentOperand(guard = guard, startSeqNo = startSeqNo, endSeqNo = endSeqNo)),
+            id = id,
+        )
+
+    /**
+     * `execution validate on AuthService 3..3` — V2.0.15 Execution-Specification
+     * usage that places a thin vertical activation bar on a lifeline between
+     * two sequence numbers (inclusive).
+     *
+     * Registers the resulting [ExecutionSpecificationUsage] in
+     * [Sysml2Model.usages] (via [registerUsage]). The SVG renderer reads
+     * exec-specs back from `model.usages` and draws the activation bar
+     * before drawing message arrows, so messages appear visually on top of
+     * the bar. The bridge does NOT emit a LayoutGraph node/edge for
+     * exec-specs — they are renderer-direct.
+     *
+     * V2.0.15 MVP: no nested activations (overlapping exec-specs on the
+     * same lifeline are V2.x). The builder does not validate range
+     * ordering — that's the validator's job.
+     *
+     * Default [id] convention: `executionSpec:<lifelineId>-<startSeqNo>-<endSeqNo>`
+     * — deterministic, readable, collision-free for unique
+     * (lifelineId, startSeqNo, endSeqNo) triples.
+     */
+    fun executionSpec(
+        name: String,
+        lifeline: LifelineDefinition,
+        startSeqNo: Int,
+        endSeqNo: Int,
+        id: String = "executionSpec:${lifeline.id}-$startSeqNo-$endSeqNo",
+    ): ExecutionSpecificationUsage {
+        val usage =
+            ExecutionSpecificationUsage(
+                id = id,
+                name = name,
+                qualifiedName = name,
+                lifelineId = lifeline.id,
+                startSeqNo = startSeqNo,
+                endSeqNo = endSeqNo,
+            )
+        registerUsage(usage)
+        return usage
     }
 
     // ── V2.0.12 PAR ──────────────────────────────────────────────────────

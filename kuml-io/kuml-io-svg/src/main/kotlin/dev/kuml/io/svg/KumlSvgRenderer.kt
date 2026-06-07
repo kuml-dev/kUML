@@ -675,6 +675,15 @@ public object KumlSvgRenderer {
                 elements = visibleLifelines,
             )
         val messages = model.usages.filterIsInstance<MessageUsage>()
+        // V2.0.15: Combined Fragments + Execution Specs — auch renderer-direkt
+        // (analog zu Messages, keine LayoutGraph-Edges). Werden vor den
+        // Messages gezeichnet, damit Message-Pfeile visuell über
+        // Aktivierungs-Bars / Frames liegen.
+        val fragments = model.usages.filterIsInstance<dev.kuml.sysml2.CombinedFragmentUsage>()
+        val execSpecs =
+            model.usages
+                .filterIsInstance<dev.kuml.sysml2.ExecutionSpecificationUsage>()
+                .filter { it.lifelineId in visibleIds }
 
         return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
@@ -701,10 +710,33 @@ public object KumlSvgRenderer {
                 }
             }
 
-            // 2. Direkt-Render der Nachrichten — siehe Architektur-Divergenz
+            // 2. V2.0.15: Execution Specs FIRST — die Aktivierungs-Bar liegt
+            //    *unter* den Message-Pfeilen, damit Pfeile durchgehend
+            //    sichtbar bleiben.
+            for (es in execSpecs) {
+                val lifelineLayout = shiftedLayouts[NodeId(es.lifelineId)] ?: continue
+                dev.kuml.io.svg.sysml2
+                    .renderExecutionSpec(es, lifelineLayout, edgesBuilder)
+            }
+
+            // 3. V2.0.15: Combined Fragments — gestrichelter Rahmen + Operator-
+            //    Tag-Pentagon. Reihenfolge nach Frame-Größe absteigend, damit
+            //    bei zukünftigen Nested-CFs (V2.x) die äußeren zuerst kommen.
+            val visibleLifelineLayouts: List<dev.kuml.layout.NodeLayout> =
+                visibleLifelines.mapNotNull { shiftedLayouts[NodeId(it.id)] }
+            for (fragment in fragments) {
+                dev.kuml.io.svg.sysml2.renderCombinedFragment(
+                    fragment = fragment,
+                    visibleLifelineLayouts = visibleLifelineLayouts,
+                    builder = edgesBuilder,
+                )
+            }
+
+            // 4. Direkt-Render der Nachrichten — siehe Architektur-Divergenz
             //    oben. Die geshifteten Layouts werden an den Sequence-Renderer
             //    durchgereicht, damit X-/Y-Berechnungen mit dem Padding
-            //    konsistent bleiben.
+            //    konsistent bleiben. Nachrichten kommen ZULETZT, damit
+            //    Pfeile visuell über Frames + Aktivierungs-Bars liegen.
             dev.kuml.io.svg.sysml2.renderSysml2SeqMessages(
                 messages = messages,
                 visibleLifelineIds = visibleIds,

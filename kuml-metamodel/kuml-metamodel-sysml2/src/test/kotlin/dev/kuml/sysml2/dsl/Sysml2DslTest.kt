@@ -9,11 +9,15 @@ import dev.kuml.sysml2.AttributeDefinition
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
+import dev.kuml.sysml2.CombinedFragmentOperand
+import dev.kuml.sysml2.CombinedFragmentOperator
+import dev.kuml.sysml2.CombinedFragmentUsage
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ConstraintParameterDirection
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageKind
@@ -1013,6 +1017,111 @@ class Sysml2DslTest :
             par.elementIds shouldContainExactly listOf("NewtonsLaw", "Vehicle")
             // Bindings live on the model, not on the diagram.
             model.usages.filterIsInstance<BindingConnectorUsage>() shouldHaveSize 3
+        }
+
+        // ───────────────────────── V2.0.15 SEQ polish ─────────────────────────
+
+        "MessageKind has Create and Destroy" {
+            // V2.0.15 closes two of the three deferred V2.0.11 items: the
+            // Create/Destroy lifecycle message kinds. The enum exposes them
+            // alongside Sync/Async/Reply; the renderer dispatches on `kind`.
+            val kinds = MessageKind.entries.map { it.name }.toSet()
+            kinds shouldContain "Create"
+            kinds shouldContain "Destroy"
+            kinds shouldHaveSize 5
+        }
+
+        "combinedFragment with multiple operands captures operator + operands" {
+            val model =
+                sysml2Model("CF") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("ping", a, b, seqNo = 1)
+                    message("pong", b, a, seqNo = 2)
+                    combinedFragment(
+                        name = "altBlock",
+                        operator = CombinedFragmentOperator.Alt,
+                        operands =
+                            listOf(
+                                CombinedFragmentOperand(guard = "ok", startSeqNo = 1, endSeqNo = 1),
+                                CombinedFragmentOperand(guard = "fail", startSeqNo = 2, endSeqNo = 2),
+                            ),
+                    )
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val cf = model.usages.filterIsInstance<CombinedFragmentUsage>().single()
+            cf.id shouldBe "combinedFragment:altBlock"
+            cf.operator shouldBe CombinedFragmentOperator.Alt
+            cf.operands shouldHaveSize 2
+            cf.operands.map { it.guard } shouldContainExactly listOf("ok", "fail")
+            cf.operands.map { it.startSeqNo to it.endSeqNo } shouldContainExactly listOf(1 to 1, 2 to 2)
+        }
+
+        "combinedFragment single-operand convenience produces one Opt with no guard" {
+            val model =
+                sysml2Model("CF") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("ping", a, b, seqNo = 1)
+                    combinedFragment("optBlock", CombinedFragmentOperator.Opt, startSeqNo = 1, endSeqNo = 1)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val cf = model.usages.filterIsInstance<CombinedFragmentUsage>().single()
+            cf.operator shouldBe CombinedFragmentOperator.Opt
+            cf.operands shouldHaveSize 1
+            cf.operands.single().guard shouldBe null
+            cf.operands.single().startSeqNo shouldBe 1
+            cf.operands.single().endSeqNo shouldBe 1
+        }
+
+        "executionSpec captures lifelineId + start/end seqNo" {
+            val model =
+                sysml2Model("ES") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("ping", a, b, seqNo = 1)
+                    executionSpec("activeA", a, startSeqNo = 1, endSeqNo = 3)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            val es = model.usages.filterIsInstance<ExecutionSpecificationUsage>().single()
+            es.id shouldBe "executionSpec:a-1-3"
+            es.lifelineId shouldBe "a"
+            es.startSeqNo shouldBe 1
+            es.endSeqNo shouldBe 3
+            es.name shouldBe "activeA"
+        }
+
+        "all Sysml2 usages register on model.usages including CombinedFragmentUsage and ExecutionSpecificationUsage" {
+            val model =
+                sysml2Model("Mixed") {
+                    val a = lifelineDef("a")
+                    val b = lifelineDef("b")
+                    message("ping", a, b, seqNo = 1)
+                    message("destroyB", a, b, seqNo = 2, kind = MessageKind.Destroy)
+                    combinedFragment("loopBlock", CombinedFragmentOperator.Loop, startSeqNo = 1, endSeqNo = 2)
+                    executionSpec("activeB", b, startSeqNo = 1, endSeqNo = 2)
+                    seqDiagram("S") {
+                        include(a)
+                        include(b)
+                    }
+                }
+            model.usages.filterIsInstance<MessageUsage>() shouldHaveSize 2
+            model.usages.filterIsInstance<CombinedFragmentUsage>() shouldHaveSize 1
+            model.usages.filterIsInstance<ExecutionSpecificationUsage>() shouldHaveSize 1
+            // Destroy kind survives the DSL plumbing.
+            model.usages
+                .filterIsInstance<MessageUsage>()
+                .single { it.seqNo == 2 }
+                .kind shouldBe MessageKind.Destroy
         }
 
         "DSL is sysml2Dsl-scoped — inner scopes can't reach outer builders accidentally" {

@@ -9,9 +9,11 @@ import dev.kuml.sysml2.ActionUsage
 import dev.kuml.sysml2.ActorUsage
 import dev.kuml.sysml2.AttributeUsage
 import dev.kuml.sysml2.BindingConnectorUsage
+import dev.kuml.sysml2.CombinedFragmentUsage
 import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ConstraintUsage
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.ExtendUsage
 import dev.kuml.sysml2.IncludeUsage
 import dev.kuml.sysml2.LifelineUsage
@@ -107,6 +109,15 @@ internal fun renderSysml2Usage(
         // ein direkter Aufruf nicht in den UML-Fallback rutscht.
         is ConstraintUsage -> renderUsageBox(element, layout, builder, stereotype = "constraint")
         is BindingConnectorUsage -> renderUsageBox(element, layout, builder, stereotype = "binding")
+        // V2.0.15: SEQ-Combined-Fragment / Execution-Spec. Diese Usages
+        // rendert der SEQ-Renderer normalerweise *direkt* (renderer-direct,
+        // siehe Sysml2SequenceSvg) — sie tauchen nie als LayoutGraph-Knoten
+        // auf. Der Dispatcher braucht trotzdem Branches, damit ein direkter
+        // Aufruf — z. B. aus einem Unit-Test — nicht in den UML-Fallback rutscht.
+        is CombinedFragmentUsage ->
+            renderUsageBox(element, layout, builder, stereotype = "combined fragment")
+        is ExecutionSpecificationUsage ->
+            renderUsageBox(element, layout, builder, stereotype = "execution spec")
     }
 }
 
