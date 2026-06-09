@@ -99,6 +99,8 @@ jobs:
   #                                                available on the free tier)
   #   - macos-latest             → darwin-arm64   (Apple Silicon)
   #   - ubuntu-latest            → linux-x86_64   (Linuxbrew + bare Linux installs)
+  #   - windows-latest           → windows-x86_64 (WinGet + direct download)
+  #   - ubuntu-latest + QEMU     → linux-aarch64  (server hardware, SBCs, CI ARM64)
   # ─────────────────────────────────────────────────────────────────────────
   package-runtime:
     name: Package runtime (${{ matrix.target }})
@@ -116,9 +118,22 @@ jobs:
           - os: ubuntu-latest
             target: linux-x86_64
             jdk_arch: x64
+          - os: windows-latest
+            target: windows-x86_64
+            jdk_arch: x64
+          - os: ubuntu-latest
+            target: linux-aarch64
+            jdk_arch: aarch64
+            qemu: true           # QEMU cross-build; slower but no self-hosted runner needed
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up QEMU (linux-aarch64 only)
+        if: ${{ matrix.qemu == true }}
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
       - name: Set up JDK 21 (${{ matrix.jdk_arch }})
         uses: actions/setup-java@v4
@@ -208,6 +223,9 @@ jobs:
               kv = dict(line.strip().split("=", 1) for line in p.read_text().splitlines() if line.strip())
               out[kv["target"]] = {"url": kv["url"], "sha256": kv["sha256"]}
 
+          # Homebrew formula requires exactly these three platforms (Intel Mac,
+          # Apple Silicon, Linux x86_64). Windows and Linux ARM64 are SDKMAN!-
+          # only and do not gate the Homebrew tap dispatch.
           required = {"darwin-x86_64", "darwin-arm64", "linux-x86_64"}
           missing = sorted(required - out.keys())
           complete = not missing
@@ -245,7 +263,9 @@ jobs:
             fi
             echo ""
             if [ "$COMPLETE" = "true" ] && [ "$HAS_TOKEN" = "true" ]; then
-              echo "✅ All three platform artefacts present — dispatching to \`kuml-dev/homebrew-kuml\`. See its Actions tab for the formula bump."
+              echo "✅ All three Homebrew platform artefacts present (darwin-x86_64, darwin-arm64, linux-x86_64) — dispatching to \`kuml-dev/homebrew-kuml\`. See its Actions tab for the formula bump."
+              echo ""
+              echo "> Windows and Linux ARM64 are published to SDKMAN! only (not Homebrew)."
             elif [ "$COMPLETE" = "true" ] && [ "$HAS_TOKEN" != "true" ]; then
               echo "⚠ \`HOMEBREW_TAP_TOKEN\` is not set — auto-dispatch skipped. Trigger manually:"
               echo ""
@@ -326,6 +346,10 @@ jobs:
             sdkman_platform: MAC_OSX
           - target: linux-x86_64
             sdkman_platform: LINUX_64
+          - target: windows-x86_64
+            sdkman_platform: WINDOWS_64
+          - target: linux-aarch64
+            sdkman_platform: LINUX_ARM64
     steps:
       - name: Detect token presence
         id: gate
