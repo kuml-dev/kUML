@@ -1,6 +1,6 @@
 [versions]
 kotlin                 = "2.3.21"
-shadow                 = "8.3.6"
+shadow                 = "9.4.2"
 batik                  = "1.19"
 compose-multiplatform  = "1.9.0"
 kuiver                 = "0.3.0"
