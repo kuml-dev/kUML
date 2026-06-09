@@ -136,6 +136,7 @@ internal object SvgDocument {
                 )
                 append(".kuml-divider { stroke: ${c.border.toHex()}; stroke-width: ${bo.thinPx}; }\n")
                 append(".kuml-actor { stroke: ${c.foreground.toHex()}; stroke-width: ${bo.regularPx}; fill: none; }\n")
+                append(".kuml-frame { fill: none; stroke: ${c.border.toHex()}; stroke-width: ${bo.regularPx}; }\n")
             }
 
         b.tag("style") {

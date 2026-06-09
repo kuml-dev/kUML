@@ -37,6 +37,8 @@ import dev.kuml.sysml2.edge.ReqEdgeAdapter
 import dev.kuml.sysml2.edge.StmEdgeAdapter
 import dev.kuml.sysml2.edge.Sysml2EdgeAdapter
 import dev.kuml.sysml2.edge.UcEdgeAdapter
+import dev.kuml.uml.UmlInteraction
+import dev.kuml.uml.UmlStateMachine
 import java.io.File
 import java.nio.file.Path
 
@@ -70,8 +72,16 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
-    ): String =
-        SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+    ): String {
+        // SEQ diagrams have their own renderer-direct path (no edge routing through ELK)
+        if (diagram.type == DiagramType.SEQUENCE) {
+            return renderUmlSequence(diagram, layoutResult, theme, options)
+        }
+        // STATE diagrams have their own renderer-direct path (vertex/transition dispatch)
+        if (diagram.type == DiagramType.STATE) {
+            return renderUmlStateDiagram(diagram, layoutResult, theme, options)
+        }
+        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
             // Groups FIRST — paint backgrounds before children so node boxes
@@ -130,6 +140,7 @@ public object KumlSvgRenderer {
                 }
             }
         }
+    }
 
     /**
      * Rendert ein C4-Diagramm + Layout-Ergebnis als SVG-String.
@@ -232,6 +243,144 @@ public object KumlSvgRenderer {
         file.parentFile?.mkdirs()
         file.writeText(svg, Charsets.UTF_8)
         return file
+    }
+
+    private fun renderUmlSequence(
+        diagram: KumlDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+    ): String {
+        val interaction = diagram.elements.filterIsInstance<UmlInteraction>().firstOrNull()
+            ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> } // fallback
+
+        val visibleIds = interaction.lifelines.map { it.id }.toSet()
+
+        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+            val padding = options.paddingPx
+            val shiftedLayouts = mutableMapOf<dev.kuml.layout.NodeId, dev.kuml.layout.NodeLayout>()
+
+            // 1. Render lifeline heads
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val lifeline = interaction.lifelines.find { it.id == nodeId.value } ?: continue
+                val shifted = nodeLayout.copy(
+                    bounds = nodeLayout.bounds.copy(
+                        origin = nodeLayout.bounds.origin.copy(
+                            x = nodeLayout.bounds.origin.x + padding,
+                            y = nodeLayout.bounds.origin.y + padding,
+                        ),
+                    ),
+                )
+                NodeRendererDispatcher.dispatch(lifeline, shifted, theme, nodesBuilder)
+                shiftedLayouts[nodeId] = shifted
+            }
+
+            // 2. Render combined fragments (before messages so they appear behind)
+            val visibleLifelineLayouts = interaction.lifelines
+                .mapNotNull { shiftedLayouts[dev.kuml.layout.NodeId(it.id)] }
+            dev.kuml.io.svg.uml.renderUmlCombinedFragments(
+                interaction.fragments,
+                interaction,
+                visibleLifelineLayouts,
+                edgesBuilder,
+            )
+
+            // 3. Render messages directly
+            dev.kuml.io.svg.uml.renderUmlSeqMessages(
+                interaction.messages,
+                visibleIds,
+                shiftedLayouts,
+                edgesBuilder,
+            )
+        }
+    }
+
+    /**
+     * Rendert ein UML STATE-Diagramm als SVG.
+     *
+     * Flat-layout: der [UmlStateMachine]-Rahmen wird als LayoutGroup gerendert,
+     * alle Vertices (States, Pseudostates, FinalStates) und Transitionen
+     * als Nodes + Edges. Dieser Pfad wird aufgerufen wenn
+     * [DiagramType.STATE] erkannt wird, bevor der generische UML-Pfad greift.
+     */
+    private fun renderUmlStateDiagram(
+        diagram: KumlDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+    ): String {
+        val sm = diagram.elements.filterIsInstance<UmlStateMachine>().firstOrNull()
+            ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> } // fallback
+
+        // Flatten all vertices (including substates) into a lookup map
+        val vertexIndex = mutableMapOf<String, dev.kuml.uml.UmlVertex>()
+        fun collectVertices(vertices: List<dev.kuml.uml.UmlVertex>) {
+            for (v in vertices) {
+                vertexIndex[v.id] = v
+                if (v is dev.kuml.uml.UmlState && v.substates.isNotEmpty()) collectVertices(v.substates)
+            }
+        }
+        collectVertices(sm.vertices)
+
+        // Transition lookup by ID
+        val transitionIndex = sm.transitions.associateBy { it.id }
+
+        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+            val padding = options.paddingPx
+
+            // 1. Render state machine frame (group background)
+            for ((groupId, groupLayout) in layoutResult.groups) {
+                if (groupId.value != sm.id) continue
+                val gx = groupLayout.bounds.origin.x + padding
+                val gy = groupLayout.bounds.origin.y + padding
+                val gw = groupLayout.bounds.size.width
+                val gh = groupLayout.bounds.size.height
+                val smLayout = dev.kuml.layout.NodeLayout(
+                    bounds = dev.kuml.layout.Rect(
+                        origin = dev.kuml.layout.Point(gx, gy),
+                        size = dev.kuml.layout.Size(gw, gh),
+                    ),
+                )
+                NodeRendererDispatcher.dispatch(sm, smLayout, theme, nodesBuilder)
+            }
+
+            // 2. Render vertices (states, pseudostates, final states)
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val vertex = vertexIndex[nodeId.value] ?: continue
+                val shifted = nodeLayout.copy(
+                    bounds = nodeLayout.bounds.copy(
+                        origin = nodeLayout.bounds.origin.copy(
+                            x = nodeLayout.bounds.origin.x + padding,
+                            y = nodeLayout.bounds.origin.y + padding,
+                        ),
+                    ),
+                )
+                NodeRendererDispatcher.dispatch(vertex, shifted, theme, nodesBuilder)
+            }
+
+            // 3. Render transitions with labels
+            for ((edgeId, route) in layoutResult.edges) {
+                val transition = transitionIndex[edgeId.value] ?: continue
+                val shiftedRoute = shiftRoute(route, padding)
+
+                // Build label text: "trigger [guard] / effect"
+                val parts = buildList {
+                    if (transition.trigger != null) add(transition.trigger)
+                    // Guard is stored as-is from DSL (may already include "[...]" brackets)
+                    if (transition.guard != null) add(transition.guard)
+                    if (transition.effect != null) add("/ ${transition.effect}")
+                }
+                val label = parts.joinToString(" ")
+
+                val meta = dev.kuml.sysml2.edge.Sysml2EdgeMetadata(
+                    stereotype = null,
+                    label = label.ifEmpty { null },
+                    dashArray = null,
+                    arrowHead = dev.kuml.sysml2.edge.Sysml2ArrowHead.OpenAngle,
+                )
+                dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.render(shiftedRoute, meta, theme, edgesBuilder)
+            }
+        }
     }
 
     /**

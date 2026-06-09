@@ -11,10 +11,19 @@ import dev.kuml.layout.LayoutGroup
 import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.PortId
+import dev.kuml.layout.Size
+import dev.kuml.layout.Insets
+import dev.kuml.layout.NodeHints
 import dev.kuml.uml.UmlComponent
+import dev.kuml.uml.UmlFinalState
+import dev.kuml.uml.UmlInteraction
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlPackage
+import dev.kuml.uml.UmlPseudostate
 import dev.kuml.uml.UmlRelationship
+import dev.kuml.uml.UmlState
+import dev.kuml.uml.UmlStateMachine
+import dev.kuml.uml.UmlVertex
 
 /**
  * Übersetzt ein UML-Diagramm in einen [LayoutGraph].
@@ -116,6 +125,64 @@ public object UmlLayoutBridge {
                     val endpoints = EndpointResolver.resolveWithPorts(element, componentPorts)
                     if (endpoints != null) {
                         edges.add(toEdge(element.id, endpoints))
+                    }
+                }
+                is UmlInteraction -> {
+                    // SEQ: one LayoutNode per lifeline, height from message count. No edges —
+                    // messages and fragments are rendered directly by KumlSvgRenderer.
+                    val maxSeq = element.messages.maxOfOrNull { it.sequence } ?: 0
+                    val rowCount = if (maxSeq < 1) 1 else maxSeq
+                    val nodeH = Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
+                        (rowCount + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
+                        Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
+                    for (lifeline in element.lifelines) {
+                        nodes.add(
+                            LayoutNode(
+                                id = NodeId(lifeline.id),
+                                intrinsicSize = Size(Sysml2LayoutBridge.SEQ_LIFELINE_WIDTH, nodeH),
+                            )
+                        )
+                    }
+                }
+                is UmlStateMachine -> {
+                    // Create a group for the state machine frame so ELK encloses all vertices
+                    val smGroupId = GroupId(element.id)
+                    groups.add(LayoutGroup(id = smGroupId, parent = null, padding = Insets(32f, 16f, 24f, 16f)))
+
+                    // Collect all vertices flat (including substates) and add as LayoutNodes
+                    fun collectVertices(vertices: List<UmlVertex>) {
+                        for (vertex in vertices) {
+                            val size = when (vertex) {
+                                is UmlPseudostate -> Size(24f, 24f)
+                                is UmlFinalState -> Size(28f, 28f)
+                                is UmlState -> sizeProvider.sizeOf(vertex.id, "UmlState")
+                            }
+                            nodes.add(
+                                LayoutNode(
+                                    id = NodeId(vertex.id),
+                                    intrinsicSize = size,
+                                    hints = HintsReader.read(vertex.metadata),
+                                    groupId = smGroupId,
+                                ),
+                            )
+                            // Recurse into composite state substates (flat — same group)
+                            if (vertex is UmlState && vertex.substates.isNotEmpty()) {
+                                collectVertices(vertex.substates)
+                            }
+                        }
+                    }
+                    collectVertices(element.vertices)
+
+                    // Transitions as edges
+                    for (transition in element.transitions) {
+                        edges.add(
+                            LayoutEdge(
+                                id = EdgeId(transition.id),
+                                source = EndpointRef(nodeId = NodeId(transition.sourceId)),
+                                target = EndpointRef(nodeId = NodeId(transition.targetId)),
+                                hints = EdgeHints.NONE,
+                            ),
+                        )
                     }
                 }
                 is UmlNamedElement -> {

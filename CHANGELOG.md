@@ -15,7 +15,8 @@ Four new transformers join `uml-to-jpa` (V2.0.21):
 `kuml transform --list-transformers` now lists all five.
 
 ### Layout (V2.0.26)
-Grid layout is now the default engine for Class, Component, UseCase, and State diagrams.
+Grid layout is now the default engine for Class, Component, and UseCase diagrams.
+State diagrams continue to use ELK for compact vertical layouts with curved back-edges.
 `kuml render --layout=grid|elk|auto` overrides the per-diagram default.
 New `LayoutHintWriter` API for drag-and-drop editor round-trips.
 
@@ -50,6 +51,14 @@ The `package-runtime` matrix and SDKMAN! release matrix now include:
 ### Showcases (V2.0.29, V2.0.19)
 - Keysight Car2x V2X intersection scenario: 5-state SysML 2 STM with V2X message exchanges, three event files, runnable via `kuml simulate`
 - Pepela Smart Home thermostat: STM + ACT, Golden-Trace tests
+
+### UML Sequence and State Machine renderer
+Native UML `sequenceDiagram` and `stateDiagram` scripts now render correctly end-to-end:
+
+- **SEQ**: `UmlInteraction` bridge computes lifeline heights from message count (reusing SysML 2 SEQ constants). Renderer uses the same renderer-direct path as SysML 2 SEQ — messages, combined fragments, and execution specs are drawn without edge routing through ELK.
+- **STATE**: `UmlStateMachine` bridge creates a LayoutGroup frame + LayoutNodes for all vertices (states, pseudostates, final states) + LayoutEdges for transitions. Renderer dispatches per vertex kind: filled circle (initial), donut (final), rounded box (state), with `trigger [guard] / effect` transition labels.
+- `NodeRendererDispatcher` extended with `UmlLifeline`, `UmlPseudostate`, `UmlFinalState` dispatch cases.
+- New `.kuml-frame` CSS class for SVG state machine frame borders.
 
 ### Handbook
 All reference documentation updated for V2.x: SysML 2 diagram types, runtime-MCP tools, `kuml validate` page, CLI command table, IntelliJ plugin sections.

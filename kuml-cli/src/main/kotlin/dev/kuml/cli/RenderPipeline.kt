@@ -13,6 +13,7 @@ import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.io.svg.KumlSvgRenderer
+import dev.kuml.io.svg.SvgRenderOptions
 import dev.kuml.layout.DiagramKind
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutEngineRegistry
@@ -63,7 +64,8 @@ private val GRID_DEFAULT_KINDS =
         DiagramKind.UmlClass,
         DiagramKind.UmlComponent,
         DiagramKind.UmlUseCase,
-        DiagramKind.UmlState,
+        // UmlState intentionally excluded: state machines need ELK's hierarchical
+        // routing to produce compact vertical layouts with curved back-edges.
     )
 
 /**
@@ -324,7 +326,7 @@ internal object RenderPipeline {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
                 val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
-                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
+                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(paddingPx = 64f)))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
                     "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
@@ -334,7 +336,7 @@ internal object RenderPipeline {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
                 val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
-                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
+                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(paddingPx = 64f)))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
                     "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")

@@ -21,7 +21,10 @@ import dev.kuml.io.svg.uml.renderUmlEnum
 import dev.kuml.io.svg.uml.renderUmlInstance
 import dev.kuml.io.svg.uml.renderUmlInteractionOverviewFrame
 import dev.kuml.io.svg.uml.renderUmlInterface
+import dev.kuml.io.svg.uml.renderUmlLifelineHead
 import dev.kuml.io.svg.uml.renderUmlNode
+import dev.kuml.io.svg.uml.renderUmlFinalState
+import dev.kuml.io.svg.uml.renderUmlPseudostate
 import dev.kuml.io.svg.uml.renderUmlState
 import dev.kuml.io.svg.uml.renderUmlStateMachine
 import dev.kuml.io.svg.uml.renderUmlStereotype
@@ -41,7 +44,10 @@ import dev.kuml.uml.UmlEnumeration
 import dev.kuml.uml.UmlInstanceSpecification
 import dev.kuml.uml.UmlInteractionOverviewFrame
 import dev.kuml.uml.UmlInterface
+import dev.kuml.uml.UmlLifeline
+import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlNode
+import dev.kuml.uml.UmlPseudostate
 import dev.kuml.uml.UmlState
 import dev.kuml.uml.UmlStateMachine
 import dev.kuml.uml.UmlStereotype
@@ -83,12 +89,15 @@ internal object NodeRendererDispatcher {
             is UmlCollaboration -> renderUmlCollaboration(element, layout, theme, builder)
             is UmlStateMachine -> renderUmlStateMachine(element, layout, theme, builder)
             is UmlState -> renderUmlState(element, layout, theme, builder)
+            is UmlPseudostate -> renderUmlPseudostate(element, layout, theme, builder)
+            is UmlFinalState -> renderUmlFinalState(element, layout, theme, builder)
             is UmlInstanceSpecification -> renderUmlInstance(element, layout, theme, builder)
             is UmlNode -> renderUmlNode(element, layout, theme, builder)
             is UmlArtifact -> renderUmlArtifact(element, layout, theme, builder)
             is UmlStereotype -> renderUmlStereotype(element, layout, theme, builder)
             is UmlActivityNode -> renderUmlActivityNode(element, layout, theme, builder)
             is UmlTimingLifeline -> renderUmlTimingLifeline(element, layout, theme, builder)
+            is UmlLifeline -> renderUmlLifelineHead(element, layout, theme, builder)
             is UmlInteractionOverviewFrame -> renderUmlInteractionOverviewFrame(element, layout, theme, builder)
             is C4Person -> renderC4Person(element, layout, theme, builder)
             is C4SoftwareSystem -> renderC4SoftwareSystem(element, layout, theme, builder)
