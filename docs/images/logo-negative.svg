@@ -1,0 +1,39 @@
+<svg
+   width="68.5mm"
+   height="68.5mm"
+   viewBox="0 0 68.5 68.499999"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg">
+  <defs id="defs1">
+    <style>@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,500;0,700;1,400&amp;display=swap');</style>
+  </defs>
+  <g
+     id="layer1"
+     transform="translate(-37.703868,-34.872265)">
+    <text
+       xml:space="preserve"
+       style="font-weight:bold;font-size:19.7556px;line-height:0;font-family:Inter;text-align:center;letter-spacing:0px;text-anchor:middle;fill:#0d1525;fill-opacity:1;stroke-width:0.264583"
+       x="71.208443"
+       y="66.817642"
+       id="text1"><tspan
+         id="tspan1"
+         style="font-style:normal;font-variant:normal;font-weight:500;font-stretch:normal;font-size:42.3333px;line-height:1.05;font-family:Inter;letter-spacing:0px;fill:#1d2b4f;fill-opacity:1;stroke-width:0.264583"
+         x="71.208443"
+         y="66.817642"><tspan
+           style="letter-spacing:7.9375px;fill:#ffffff"
+           id="tspan6">{</tspan><tspan
+           style="font-style:italic;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:42.3333px;font-family:Inter;letter-spacing:7.9375px;fill:#c49a2e;fill-opacity:1"
+           id="tspan4">k</tspan><tspan
+           style="fill:#ffffff"
+           id="tspan7">}</tspan></tspan><tspan
+         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:25.4px;line-height:1.5;font-family:Inter;letter-spacing:0px;fill:#0d1525;fill-opacity:1;stroke-width:0.264583"
+         x="71.208443"
+         y="103.00468"
+         id="tspan2"><tspan
+           style="line-height:1.5;letter-spacing:0px;fill:#c49a2e;fill-opacity:1"
+           id="tspan5">k</tspan><tspan
+           style="line-height:1.5;letter-spacing:0px;fill:#ffffff;fill-opacity:1"
+           id="tspan3">UML</tspan></tspan></text>
+  </g>
+</svg>
