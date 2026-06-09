@@ -1,0 +1,94 @@
+name: Release Installers
+
+# Triggered on version tags — e.g. v0.5.1, v2.0.32
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  # ── Linux: DEB + RPM + Docker image ─────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # required to push to ghcr.io
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build shadow JAR
+        run: ./gradlew :kuml-cli:shadowJar
+
+      - name: Build DEB
+        run: ./gradlew :kuml-packaging:packageDeb
+
+      - name: Build RPM
+        run: ./gradlew :kuml-packaging:packageRpm
+
+      - name: Upload DEB + RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-installers
+          path: kuml-packaging/build/dist/*.{deb,rpm}
+
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build Docker CLI image
+        run: ./gradlew :kuml-packaging:dockerBuildCli
+
+      - name: Push Docker image (version tag + latest)
+        run: |
+          docker push ghcr.io/kuml-dev/kuml-cli:latest
+          docker push ghcr.io/kuml-dev/kuml-cli:${{ github.ref_name }}
+
+  # ── macOS: DMG (unsigned — Phase 2 adds Apple Developer signing) ─────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build shadow JAR
+        run: ./gradlew :kuml-cli:shadowJar
+
+      - name: Build DMG (unsigned)
+        run: ./gradlew :kuml-packaging:packageDmg
+
+      - name: Upload DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: kuml-packaging/build/dist/*.dmg
+
+  # ── Windows: MSI (unsigned — Phase 2 adds WiX/Authenticode signing) ──────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Build shadow JAR
+        run: ./gradlew :kuml-cli:shadowJar
+
+      - name: Build MSI (unsigned)
+        run: ./gradlew :kuml-packaging:packageMsi
+
+      - name: Upload MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-msi
+          path: kuml-packaging/build/dist/*.msi

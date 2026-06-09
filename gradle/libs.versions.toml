@@ -1,5 +1,6 @@
 [versions]
 kotlin                 = "2.3.21"
+shadow                 = "8.3.6"
 batik                  = "1.19"
 compose-multiplatform  = "1.9.0"
 kuiver                 = "0.3.0"
@@ -76,3 +77,4 @@ ktlint                  = { id = "org.jlleitschuh.gradle.ktlint",               
 graalvm-native          = { id = "org.graalvm.buildtools.native",                 version.ref = "graalvm-native" }
 vanniktech-publish      = { id = "com.vanniktech.maven.publish",                  version.ref = "vanniktech-publish" }
 intellij-platform       = { id = "org.jetbrains.intellij.platform",               version.ref = "intellij-platform" }
+shadow                  = { id = "com.gradleup.shadow",                            version.ref = "shadow" }

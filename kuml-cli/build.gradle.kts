@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     application
     alias(libs.plugins.graalvm.native)
+    alias(libs.plugins.shadow)
 }
 
 kotlin {
@@ -66,6 +67,19 @@ dependencies {
 
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shadow JAR — fat JAR bundling all runtime dependencies.
+// Used as input for jpackage native installers and the Docker CLI image.
+// MergeServiceFiles is required for Kotlin Scripting (META-INF/services entries).
+// ─────────────────────────────────────────────────────────────────────────────
+tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+    archiveClassifier.set("all")
+    mergeServiceFiles()
+    manifest {
+        attributes["Main-Class"] = "dev.kuml.cli.MainKt"
+    }
 }
 
 tasks.withType<Test>().configureEach {
