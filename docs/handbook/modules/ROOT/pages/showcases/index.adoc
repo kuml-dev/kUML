@@ -1,0 +1,18 @@
+= Showcases
+:description: Real-world kUML models demonstrating the Behaviour-Runtime end-to-end
+
+The showcase section contains polished, runnable examples that demonstrate the
+kUML Behaviour-Runtime with realistic modelling domains.
+
+Each showcase ships with:
+
+* A `.kuml.kts` source script (SysML 2 model)
+* A companion events JSON file
+* CLI commands to execute and produce a trace
+
+== Available Showcases
+
+xref:showcases/pepela-thermostat.adoc[Pepela Smart Home — Thermostat]::
+  First end-user-facing demo of the executable behaviour runtime. A smart-home
+  thermostat modelled as a SysML 2 state machine (heating/cooling control) and
+  a boot-calibration activity diagram. Both models run via `kuml simulate`.

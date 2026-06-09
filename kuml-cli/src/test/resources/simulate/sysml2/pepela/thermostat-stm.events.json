@@ -1,0 +1,14 @@
+{
+    "schema": "kuml.events.v1",
+    "events": [
+        { "name": "powerOn" },
+        { "name": "tick", "payload": { "temperature": 16, "targetTemperature": 21 } },
+        { "name": "tick", "payload": { "temperature": 19, "targetTemperature": 21 } },
+        { "name": "tick", "payload": { "temperature": 21, "targetTemperature": 21 } },
+        { "name": "tick", "payload": { "temperature": 24, "targetTemperature": 21 } },
+        { "name": "tick", "payload": { "temperature": 21, "targetTemperature": 21 } },
+        { "name": "ecoMode" },
+        { "name": "normalMode" },
+        { "name": "powerOff" }
+    ]
+}

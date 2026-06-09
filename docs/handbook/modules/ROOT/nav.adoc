@@ -2,3 +2,5 @@
 * xref:install.adoc[Installation]
 * xref:quickstart.adoc[Quick Start]
 * xref:concepts.adoc[Core Concepts]
+* xref:showcases/index.adoc[Showcases]
+** xref:showcases/pepela-thermostat.adoc[Pepela Thermostat]

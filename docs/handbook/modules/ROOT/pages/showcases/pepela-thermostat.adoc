@@ -1,0 +1,126 @@
+= Pepela Smart Home — Thermostat Showcase
+:description: End-to-end demo: SysML 2 state machine + activity diagram executed by the kUML Behaviour-Runtime
+
+This showcase demonstrates kUML's executable behaviour runtime using a smart-home
+thermostat as the modelling domain. The same model that produces renderable diagrams
+can also be *run* via `kuml simulate`.
+
+Both scripts live in `kuml-examples/src/main/kotlin/dev/kuml/examples/pepela/`.
+
+== State Machine: Temperature Control Logic
+
+The thermostat's heating/cooling control is captured as a five-state machine:
+
+* **Off** — relays shut down; transitions to Idle on `powerOn`
+* **Idle** — monitoring; transitions to Heating, Cooling, or Eco depending on
+  temperature and explicit triggers
+* **Heating** — `relay.heat(true)`; returns to Idle once target reached
+* **Cooling** — `relay.cool(true)`; returns to Idle once target reached
+* **Eco** — low-power mode at 18 °C setpoint; returns to Idle on `normalMode`
+
+Temperature-based transitions use `tick` events that carry integer °C values in
+their JSON payload. The kUML OCL subset operates on integer arithmetic, so the
+1 °C hysteresis band is expressed as:
+
+[source,kuml]
+----
+// (excerpt — see full script in kuml-examples/pepela/)
+sysml2Model("Thermostat") {
+    val idle    = stateDef("Idle",    entryAction = "display.show('idle')")
+    val heating = stateDef("Heating", entryAction = "relay.heat(true)",
+                                      exitAction  = "relay.heat(false)")
+    val cooling = stateDef("Cooling", entryAction = "relay.cool(true)",
+                                      exitAction  = "relay.cool(false)")
+
+    transition("startHeating", idle, heating,
+        trigger = "tick",
+        guard   = "event.temperature < event.targetTemperature - 1")
+
+    transition("heatDone", heating, idle,
+        trigger = "tick",
+        guard   = "event.temperature >= event.targetTemperature")
+    // ... cooling, eco, power transitions follow the same pattern
+}
+----
+
+Run it:
+
+[source,bash]
+----
+kuml simulate pepela-thermostat-stm.kuml.kts \
+  --events pepela-thermostat-stm-events.json \
+  --out /tmp/thermostat-trace.json
+----
+
+The events file drives the full heating → idle → cooling → eco → idle → off cycle:
+
+[source,json]
+----
+{ "schema": "kuml.events.v1", "events": [
+    { "name": "powerOn" },
+    { "name": "tick", "payload": { "temperature": 16, "targetTemperature": 21 } },
+    { "name": "tick", "payload": { "temperature": 21, "targetTemperature": 21 } },
+    { "name": "tick", "payload": { "temperature": 24, "targetTemperature": 21 } },
+    { "name": "tick", "payload": { "temperature": 21, "targetTemperature": 21 } },
+    { "name": "ecoMode" },
+    { "name": "normalMode" },
+    { "name": "powerOff" }
+] }
+----
+
+Expected state sequence in the trace:
+`Off → Idle → Heating → Idle → Cooling → Idle → Eco → Idle → Off`
+
+== Activity Diagram: Boot Sequence
+
+The thermostat's power-on self-test and sensor calibration are captured as an
+activity diagram. The happy path fans out in parallel via Fork/Join:
+
+[source,kuml]
+----
+// (excerpt — see full script in kuml-examples/pepela/)
+sysml2Model("ThermostatBoot") {
+    val readSensors    = actionDef("ReadSensors",    action = "sensors.readAll()")
+    val decide         = decisionNode("sensors valid?")
+    val calibrate      = actionDef("Calibrate",      action = "calibration.run()")
+    val fork           = forkNode("bootFork")
+    val updateDisplay  = actionDef("UpdateDisplay",  action = "display.update()")
+    val logReady       = actionDef("LogReady",       action = "log.info('Thermostat ready')")
+    val join           = joinNode("bootJoin")
+
+    controlFlow("validPath",  decide, calibrate,    guard = "sensorsValid")
+    controlFlow("toFork",     calibrate, fork)
+    controlFlow("forkToDisplay", fork, updateDisplay)
+    controlFlow("forkToLog",  fork, logReady)
+    controlFlow("displayToJoin", updateDisplay, join)
+    controlFlow("logToJoin",  logReady, join)
+    // ...
+}
+----
+
+Run it:
+
+[source,bash]
+----
+kuml simulate pepela-thermostat-flow.kuml.kts \
+  --events pepela-thermostat-flow-events.json \
+  --out /tmp/thermostat-flow-trace.json
+----
+
+The trace will contain `ForkSplit`, `JoinReached`, and finally `ActivityTerminated`.
+
+== Try It Yourself
+
+Both scripts and their companion event files are in:
+
+----
+kuml-examples/src/main/kotlin/dev/kuml/examples/pepela/
+  pepela-thermostat-stm.kuml.kts        ← state machine
+  pepela-thermostat-stm-events.json     ← 16-event sequence
+  pepela-thermostat-flow.kuml.kts       ← boot activity
+  pepela-thermostat-flow-events.json    ← single start event
+----
+
+The CLI smoke tests (6 tests in `PepelaThermostatSmokeTest`) run as part of
+`./gradlew :kuml-cli:check` and verify both the state sequence and ActivityTerminated
+are reached on every build.
