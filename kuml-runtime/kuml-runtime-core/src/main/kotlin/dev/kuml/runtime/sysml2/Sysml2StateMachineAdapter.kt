@@ -126,10 +126,27 @@ public object Sysml2StateMachineAdapter {
         transitions.forEach { tr ->
             if (!tr.guard.isNullOrBlank()) {
                 val errors = mutableListOf<dev.kuml.expr.ParseError>()
-                val result = OclLikeExpressionParser.tryParse(tr.guard!!, errors)
-                if (result == null && errors.isNotEmpty()) {
-                    // Debug: guard could not be pre-parsed — legacy path will handle it.
-                    // System.err.println("[kUML V2.0.20a] Guard pre-parse failed for '${tr.guard}': ${errors.first().message}")
+                OclLikeExpressionParser.tryParse(tr.guard!!, errors)
+                // Parse failures are intentionally not logged to avoid noise;
+                // the legacy evaluator will handle them at runtime.
+            }
+        }
+
+        // V2.0.20b — pre-parse STM effect/action strings using the effect sub-grammar.
+        // Covers transition effects and state entry/exit/do action bodies.
+        // Parse failures are silently ignored — action bodies are informational
+        // in the MVP (side-effecting execution is V2.x) and must not disrupt runtime.
+        transitions.forEach { tr ->
+            if (!tr.effect.isNullOrBlank()) {
+                val errors = mutableListOf<dev.kuml.expr.ParseError>()
+                OclLikeExpressionParser.tryParseEffects(tr.effect!!, errors)
+            }
+        }
+        visibleStates.forEach { state ->
+            listOfNotNull(state.entryAction, state.exitAction, state.doAction).forEach { action ->
+                if (action.isNotBlank()) {
+                    val errors = mutableListOf<dev.kuml.expr.ParseError>()
+                    OclLikeExpressionParser.tryParseEffects(action, errors)
                 }
             }
         }

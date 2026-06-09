@@ -60,6 +60,202 @@ public object OclLikeExpressionParser {
             null
         }
 
+    /**
+     * Parses [input] as a list of [KumlEffect]s.
+     *
+     * Multiple effects are separated by `;`.  Each segment is parsed as:
+     *  - [CallEffect]   if the segment matches `attrPath '(' argList ')'`
+     *  - [AssignEffect] if the segment matches `attrPath '=' expr`
+     *    (single `=`, not `==`)
+     *  - [ExpressionEffect] otherwise (bare expression fallback)
+     *
+     * An empty [input] returns an empty list.
+     *
+     * @throws ParseException if any segment cannot be parsed.
+     */
+    public fun parseEffects(input: String): List<KumlEffect> {
+        if (input.isBlank()) return emptyList()
+        return input.split(";").mapNotNull { segment ->
+            val trimmed = segment.trim()
+            if (trimmed.isEmpty()) null else parseOneEffect(trimmed)
+        }
+    }
+
+    /**
+     * Attempts to parse [input] as a list of [KumlEffect]s. Returns null
+     * (and optionally appends errors) if any segment fails to parse.
+     * Does NOT throw.
+     */
+    public fun tryParseEffects(
+        input: String,
+        errors: MutableList<ParseError> = mutableListOf(),
+    ): List<KumlEffect>? =
+        try {
+            parseEffects(input)
+        } catch (e: ParseException) {
+            errors += e.error
+            null
+        } catch (_: Exception) {
+            errors += ParseError("Internal parse error in effects", 0)
+            null
+        }
+
+    /**
+     * Parse a single (already-trimmed, semicolon-free) effect segment.
+     *
+     * Detection order — uses raw-string heuristics before falling back to
+     * the full expression parser, to handle dotted-receiver calls which the
+     * OCL expression grammar does not directly support:
+     *
+     *  1. Assignment: segment matches `dottedPath '=' expr` (bare `=`, not `==`)
+     *     → [AssignEffect].
+     *  2. Dotted call: segment matches `dottedPath '(' args ')'`
+     *     → [CallEffect] with multi-segment receiver path.
+     *  3. Simple function call: expression parser produces [FunctionCall]
+     *     → [CallEffect] with single-element receiver path.
+     *  4. Otherwise: wrap full-expression parse result in [ExpressionEffect].
+     */
+    private fun parseOneEffect(segment: String): KumlEffect {
+        val preprocessed = stripComments(segment)
+
+        // ── 1. Assignment detection ───────────────────────────────────────────
+        val assignIdx = findAssignmentIndex(preprocessed)
+        if (assignIdx >= 0) {
+            val lhsText = preprocessed.substring(0, assignIdx).trim()
+            val rhsText = preprocessed.substring(assignIdx + 1).trim()
+            val lhsPath = extractDottedPath(lhsText)
+            if (lhsPath != null && lhsPath.isNotEmpty()) {
+                val rhsExpr = parse(rhsText)
+                return AssignEffect(lhsPath, rhsExpr)
+            }
+            // LHS was not a simple dotted path → fall through
+        }
+
+        // ── 2. Dotted-receiver call detection ────────────────────────────────
+        // Pattern: `ident ('.' ident)+ '(' args ')'`
+        // The expression parser cannot handle this (IDENT path is an AttributeRef
+        // and the trailing '(' causes an "unexpected token" error).
+        val dottedCallMatch = dottedCallPattern.matchEntire(preprocessed.trim())
+        if (dottedCallMatch != null) {
+            val receiverPath = dottedCallMatch.groupValues[1].split(".").map { it.trim() }
+            val argsText = dottedCallMatch.groupValues[2].trim()
+            val args =
+                if (argsText.isEmpty()) {
+                    emptyList()
+                } else {
+                    parseArgList(argsText)
+                }
+            return CallEffect(receiverPath, args)
+        }
+
+        // ── 3. / 4. Parse as expression, lift FunctionCall ───────────────────
+        val expr = parse(segment)
+        return when (expr) {
+            is FunctionCall -> CallEffect(listOf(expr.name), expr.args)
+            else -> ExpressionEffect(expr)
+        }
+    }
+
+    /**
+     * Parse a comma-separated argument list string into a list of [KumlExpression]s.
+     * Used when extracting arguments from a dotted-call effect segment.
+     */
+    private fun parseArgList(argsText: String): List<KumlExpression> {
+        // Split on commas that are not inside parentheses or string literals.
+        val args = mutableListOf<KumlExpression>()
+        var depth = 0
+        var inString = false
+        var stringChar = ' '
+        var start = 0
+        var i = 0
+        while (i < argsText.length) {
+            val c = argsText[i]
+            when {
+                inString -> {
+                    if (c == '\\') {
+                        i += 2
+                        continue
+                    }
+                    if (c == stringChar) inString = false
+                }
+                c == '\'' || c == '"' -> {
+                    inString = true
+                    stringChar = c
+                }
+                c == '(' -> depth++
+                c == ')' -> depth--
+                c == ',' && depth == 0 -> {
+                    args += parse(argsText.substring(start, i).trim())
+                    start = i + 1
+                }
+            }
+            i++
+        }
+        val last = argsText.substring(start).trim()
+        if (last.isNotEmpty()) args += parse(last)
+        return args
+    }
+
+    /**
+     * Returns the index of the first bare `=` (assignment operator) in [src],
+     * or -1 if none exists.
+     *
+     * "Bare" means the `=` is not part of `==`, `!=`, `<=`, `>=`.
+     * Characters inside string literals are skipped.
+     */
+    private fun findAssignmentIndex(src: String): kotlin.Int {
+        var i = 0
+        while (i < src.length) {
+            val c = src[i]
+            // Skip string literals to avoid finding '=' inside strings
+            if (c == '\'' || c == '"') {
+                val q = c
+                i++
+                while (i < src.length && src[i] != q) {
+                    if (src[i] == '\\') i++ // skip escape char
+                    i++
+                }
+                if (i < src.length) i++ // consume closing quote
+                continue
+            }
+            if (c == '=') {
+                val prev = if (i > 0) src[i - 1] else ' '
+                val next = if (i + 1 < src.length) src[i + 1] else ' '
+                // Not part of ==, !=, <=, >=
+                if (next != '=' && prev != '!' && prev != '<' && prev != '>' && prev != '=') {
+                    return i
+                }
+            }
+            i++
+        }
+        return -1
+    }
+
+    /**
+     * Attempts to parse [text] as a dotted IDENT path (e.g. "a", "a.b.c").
+     * Returns the path as a list of strings, or null if [text] is not a
+     * pure dotted-IDENT expression.
+     */
+    private fun extractDottedPath(text: String): List<String>? {
+        if (text.isBlank()) return null
+        val parts = text.trim().split(".")
+        if (parts.any { it.isBlank() || !it.trim().matches(Regex("[a-zA-Z_][a-zA-Z0-9_]*")) }) {
+            return null
+        }
+        return parts.map { it.trim() }
+    }
+
+    /**
+     * Matches a dotted-receiver call: `receiver '(' args ')'` where receiver
+     * is a dotted IDENT path containing at least one dot.
+     * Group 1 = receiver path string, Group 2 = args string (may be empty).
+     *
+     * Note: This is a structural pattern match on the whole segment; it requires
+     * the call to span the entire segment (trimmed).
+     */
+    private val dottedCallPattern: Regex =
+        Regex("""^([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)\((.*)\)$""")
+
     // ── Comment preprocessing ─────────────────────────────────────────────────
 
     private fun stripComments(src: String): String {

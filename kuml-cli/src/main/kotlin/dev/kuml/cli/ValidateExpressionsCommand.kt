@@ -50,7 +50,9 @@ internal class ValidateExpressionsCommand : CliktCommand(name = "validate-expres
         help = "Output results as a JSON array",
     ).flag()
 
-    override fun help(context: Context): String = "Validate guard/effect expressions in a kUML or SysML 2 script (V2.0.20a)."
+    override fun help(context: Context): String =
+        "DEPRECATED: use 'kuml validate --strict' instead. Will be removed in v0.7. " +
+            "Validate guard/effect expressions in a kUML or SysML 2 script (V2.0.20a)."
 
     override fun run() {
         // 1. Evaluate script

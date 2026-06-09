@@ -1,5 +1,6 @@
 package dev.kuml.runtime.sysml2
 
+import dev.kuml.expr.OclLikeExpressionParser
 import dev.kuml.runtime.OclGuardEvaluator
 import dev.kuml.runtime.activity.ActivityEdgeSpec
 import dev.kuml.runtime.activity.ActivityNodeSpec
@@ -47,6 +48,21 @@ public object Sysml2ActivityAdapter {
         diagram: ActDiagram,
     ): ActivityRuntime {
         val spec = toSpec(model, diagram)
+
+        // V2.0.20b — pre-parse ACT ControlFlow guards at construction time.
+        // Mirrors what Sysml2StateMachineAdapter.toUmlStateMachine does for STM
+        // guards in V2.0.20a.  Parse failures are silently ignored: the
+        // OclGuardEvaluator already has a transparent legacy fallback, and
+        // errors here would surface as false-negative guard results at runtime.
+        spec.edges.forEach { edge ->
+            if (!edge.guard.isNullOrBlank()) {
+                val errors = mutableListOf<dev.kuml.expr.ParseError>()
+                OclLikeExpressionParser.tryParse(edge.guard!!, errors)
+                // Parse failures are intentionally not logged to avoid noise;
+                // the legacy evaluator will handle them at runtime.
+            }
+        }
+
         return ActivityRuntime(spec = spec, guardEvaluator = OclGuardEvaluator())
     }
 

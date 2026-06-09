@@ -218,6 +218,55 @@ class Sysml2ActivityAdapterTest :
             initialNodes shouldHaveSize 2
         }
 
+        // ── V2.0.20b: ACT guard pre-parse tests ──────────────────────────────
+
+        test("adapter pre-parses ControlFlow guards — parseable guard does not throw") {
+            val model =
+                sysml2Model("PreParseGuard") {
+                    val init = initialNode()
+                    val act = actionDef("A")
+                    val fin = finalNode()
+                    // "valid" is a simple IDENT — parseable by OclLikeExpressionParser
+                    controlFlow("c1", init, act, guard = "valid")
+                    controlFlow("c2", act, fin)
+                    actDiagram("PreParse ACT") {
+                        include(init)
+                        include(act)
+                        include(fin)
+                    }
+                }
+            val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
+
+            // runtimeFor must not throw even when guards are pre-parsed
+            val runtime = Sysml2ActivityAdapter.runtimeFor(model, diagram)
+            // Spec is correctly built with the guard on the edge
+            val guardedEdge = runtime.spec.edges.first { it.guard != null }
+            guardedEdge.guard shouldBe "valid"
+        }
+
+        test("adapter tolerates unparseable guard at construction — does not throw") {
+            val model =
+                sysml2Model("UnparseableGuard") {
+                    val init = initialNode()
+                    val act = actionDef("A")
+                    val fin = finalNode()
+                    // "@@@" cannot be parsed — should not throw at adapter construction time
+                    controlFlow("c1", init, act, guard = "@@@")
+                    controlFlow("c2", act, fin)
+                    actDiagram("Unparseable ACT") {
+                        include(init)
+                        include(act)
+                        include(fin)
+                    }
+                }
+            val diagram = model.diagrams.first() as dev.kuml.sysml2.ActDiagram
+
+            // Must NOT throw — unparseable guards are silently ignored at construction
+            val runtime = Sysml2ActivityAdapter.runtimeFor(model, diagram)
+            val guardedEdge = runtime.spec.edges.first { it.guard != null }
+            guardedEdge.guard shouldBe "@@@"
+        }
+
         // ── bonus: full run-to-termination via runtimeFor ─────────────────────
 
         test("runtimeFor produces a runtime that runs order-processing to termination") {

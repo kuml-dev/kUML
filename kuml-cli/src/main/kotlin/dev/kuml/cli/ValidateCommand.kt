@@ -13,8 +13,17 @@ import dev.kuml.core.ocl.KumlValidationResult
 import dev.kuml.core.ocl.KumlViolation
 import dev.kuml.core.ocl.OclValidator
 import dev.kuml.core.ocl.StereotypeValidator
+import dev.kuml.core.script.DiagramExtractor
+import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.expr.ExpressionTypeChecker
+import dev.kuml.expr.OclLikeExpressionParser
 import dev.kuml.profile.ProfileRegistry
+import dev.kuml.sysml2.ConstraintDefinition
+import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.ParDiagram
+import dev.kuml.sysml2.TransitionUsage
+import dev.kuml.sysml2.constraint.Sysml2ConstraintChecker
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -46,6 +55,11 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         help = "Additionally validate stereotype applications (required properties, OCL constraints). Default: off.",
     ).flag(default = false)
 
+    private val strict by option(
+        "--strict",
+        help = "Fail on any expression parse warning in addition to OCL violations (V2.0.20b).",
+    ).flag(default = false)
+
     override fun help(context: Context): String = "Validate OCL constraints in a kUML script."
 
     override fun run() {
@@ -63,28 +77,70 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                 }
 
-        // 2. Extract diagram
-        val diagram =
+        // 2. Extract diagram — try the unified extractAny path first (handles UML, C4, SysML2),
+        //    then fall back to the legacy UML-only path for backward compatibility.
+        val extracted: ExtractedDiagram? =
             try {
-                DiagramExtractor.extract(success.value.returnValue, input)
-            } catch (e: ScriptEvaluationException) {
-                echo("Script error: ${e.message}", err = true)
-                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                DiagramExtractor.extractAny(success.value.returnValue, input)
+            } catch (_: Throwable) {
+                null
             }
 
-        // 3. Model OCL validation
-        val modelResult = OclValidator.validate(diagram)
+        // For OCL validation we need a UML diagram (legacy path).
+        // SysML 2 and C4 scripts skip OCL validation gracefully.
+        val umlDiagram =
+            when (extracted) {
+                is ExtractedDiagram.Uml -> extracted.diagram
+                else -> null
+            } ?: run {
+                // Attempt the legacy extract for backward compat — errors are silently swallowed
+                // when the script is SysML 2 / C4 (those don't have OCL constraints).
+                try {
+                    DiagramExtractor.extract(success.value.returnValue, input)
+                } catch (_: Throwable) {
+                    null
+                }
+            }
 
-        // 4. Stereotype validation (opt-in)
+        // 3. Model OCL validation — only if a UML diagram was extracted.
+        val modelResult =
+            if (umlDiagram != null) {
+                OclValidator.validate(umlDiagram)
+            } else {
+                KumlValidationResult(valid = true, violations = emptyList())
+            }
+
+        // 4. Stereotype validation (opt-in, UML only)
         val stereotypeResult =
-            if (checkStereotypes) {
+            if (checkStereotypes && umlDiagram != null) {
                 ProfileRegistry.loadFromClasspath()
-                StereotypeValidator.validate(diagram)
+                StereotypeValidator.validate(umlDiagram)
             } else {
                 null
             }
 
-        // 5. Output
+        // 5. Expression validation (V2.0.20b — always runs; strict controls exit code)
+        val exprErrors = validateExpressions(extracted)
+        if (exprErrors.isNotEmpty()) {
+            echo("\nExpression validation:")
+            for (msg in exprErrors) {
+                echo("  WARN  $msg")
+            }
+            if (strict) {
+                echo("\n${exprErrors.size} expression issue(s) found (--strict mode).")
+            }
+        }
+
+        // 6. PAR constraint type-check (V2.0.20b)
+        val constraintErrors = validateConstraints(extracted)
+        if (constraintErrors.isNotEmpty()) {
+            echo("\nConstraint type-check:")
+            for (err in constraintErrors) {
+                echo("  FAIL  [${err.constraintId}] '${err.expression}': ${err.message}")
+            }
+        }
+
+        // 7. Output
         val allViolations =
             modelResult.violations + (stereotypeResult?.violations ?: emptyList())
         val combined =
@@ -115,6 +171,84 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         }
 
         if (!combined.valid) throw ProgramResult(ExitCodes.VALIDATION_VIOLATIONS)
+        if (strict && (exprErrors.isNotEmpty() || constraintErrors.isNotEmpty())) {
+            throw ProgramResult(ExitCodes.VALIDATION_VIOLATIONS)
+        }
+    }
+
+    /**
+     * Collects and attempts to parse all guard/effect expression strings in the
+     * extracted diagram (STM guards, ACT ControlFlow guards, state entry/exit/do,
+     * transition effects).
+     *
+     * Returns a list of human-readable error messages for expressions that could
+     * not be parsed.  In non-strict mode these are warnings only; in strict mode
+     * any non-empty result causes a non-zero exit.
+     */
+    private fun validateExpressions(extracted: ExtractedDiagram?): List<String> {
+        if (extracted == null || extracted !is ExtractedDiagram.Sysml2) return emptyList()
+        val model = extracted.model
+        val messages = mutableListOf<String>()
+
+        // STM transition guards and effects
+        model.usages.filterIsInstance<TransitionUsage>().forEach { tu ->
+            tu.guard?.let { guard ->
+                val errs = mutableListOf<dev.kuml.expr.ParseError>()
+                val parsed = OclLikeExpressionParser.tryParse(guard, errs)
+                if (parsed != null) {
+                    val type = ExpressionTypeChecker.infer(parsed)
+                    if (type is dev.kuml.expr.KumlType.TypeError) {
+                        messages +=
+                            "transition:${tu.id} guard '$guard': ${type.message}"
+                    }
+                } else {
+                    messages +=
+                        "transition:${tu.id} guard '$guard': ${errs.firstOrNull()?.message ?: "parse error"}"
+                }
+            }
+            tu.effect?.let { effect ->
+                val errs = mutableListOf<dev.kuml.expr.ParseError>()
+                OclLikeExpressionParser.tryParseEffects(effect, errs)
+                if (errs.isNotEmpty()) {
+                    messages +=
+                        "transition:${tu.id} effect '$effect': ${errs.first().message}"
+                }
+            }
+        }
+
+        // ACT ControlFlow guards
+        model.usages.filterIsInstance<ControlFlowUsage>().forEach { cf ->
+            cf.guard?.let { guard ->
+                val errs = mutableListOf<dev.kuml.expr.ParseError>()
+                val parsed = OclLikeExpressionParser.tryParse(guard, errs)
+                if (parsed == null && errs.isNotEmpty()) {
+                    messages +=
+                        "controlFlow:${cf.id} guard '$guard': ${errs.first().message}"
+                }
+            }
+        }
+
+        return messages
+    }
+
+    /**
+     * Runs [Sysml2ConstraintChecker] over all PAR [ConstraintDefinition]s in the
+     * extracted diagram.  Returns constraint type errors for display.
+     */
+    private fun validateConstraints(extracted: ExtractedDiagram?): List<Sysml2ConstraintChecker.ConstraintTypeError> {
+        if (extracted == null || extracted !is ExtractedDiagram.Sysml2) return emptyList()
+        val model = extracted.model
+        // Find all PAR diagrams and check each
+        val parDiagrams = model.diagrams.filterIsInstance<ParDiagram>()
+        if (parDiagrams.isEmpty()) {
+            // No diagram filter — check all constraint definitions in model
+            val allConstraints = model.definitions.filterIsInstance<ConstraintDefinition>()
+            if (allConstraints.isEmpty()) return emptyList()
+            return Sysml2ConstraintChecker.check(model, null)
+        }
+        return parDiagrams.flatMap { diagram ->
+            Sysml2ConstraintChecker.check(model, diagram)
+        }
     }
 
     private fun printText(
