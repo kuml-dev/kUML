@@ -19,6 +19,8 @@ dependencies {
     testImplementation(libs.kotest.assertions.core)
     // V1.1: stereotype render tests use KumlStereotypeApplication from kuml-profile-api
     testImplementation(project(":kuml-profile:kuml-profile-api"))
+    // PNG co-generation in SampleOutput: converts each SVG sample to PNG for visual regression
+    testImplementation(project(":kuml-io:kuml-io-png"))
 }
 
 tasks.withType<Test>().configureEach { useJUnitPlatform() }
