@@ -112,6 +112,51 @@ class Sysml2ActSvgTest :
                                 source = Point(240f, 190f),
                                 target = Point(280f, 195f),
                             ),
+                        EdgeId("yes") to
+                            EdgeRoute.Direct(
+                                source = Point(330f, 195f),
+                                target = Point(380f, 185f),
+                            ),
+                        EdgeId("fToP") to
+                            EdgeRoute.Direct(
+                                source = Point(500f, 182f),
+                                target = Point(540f, 130f),
+                            ),
+                        EdgeId("fToR") to
+                            EdgeRoute.Direct(
+                                source = Point(500f, 188f),
+                                target = Point(540f, 270f),
+                            ),
+                        EdgeId("pToJ") to
+                            EdgeRoute.Direct(
+                                source = Point(700f, 130f),
+                                target = Point(740f, 183f),
+                            ),
+                        EdgeId("rToJ") to
+                            EdgeRoute.Direct(
+                                source = Point(700f, 270f),
+                                target = Point(740f, 187f),
+                            ),
+                        EdgeId("jToS") to
+                            EdgeRoute.Direct(
+                                source = Point(860f, 185f),
+                                target = Point(900f, 190f),
+                            ),
+                        EdgeId("end") to
+                            EdgeRoute.Direct(
+                                source = Point(1060f, 190f),
+                                target = Point(1100f, 194f),
+                            ),
+                        EdgeId("no") to
+                            EdgeRoute.Direct(
+                                source = Point(305f, 220f),
+                                target = Point(380f, 350f),
+                            ),
+                        EdgeId("cancelEnd") to
+                            EdgeRoute.Direct(
+                                source = Point(540f, 350f),
+                                target = Point(580f, 354f),
+                            ),
                     ),
                 groups = emptyMap(),
             )
@@ -263,7 +308,19 @@ class Sysml2ActSvgTest :
                         NodeId("ValidateOrder") to NodeLayout(bounds = Rect(Point(280f, 80f), Size(160f, 60f))),
                         NodeId("ProcessPayment") to NodeLayout(bounds = Rect(Point(280f, 200f), Size(160f, 60f))),
                     ),
-                edges = emptyMap(),
+                edges =
+                    mapOf(
+                        EdgeId("p2v") to
+                            EdgeRoute.Direct(
+                                source = Point(200f, 110f),
+                                target = Point(280f, 110f),
+                            ),
+                        EdgeId("v2p") to
+                            EdgeRoute.Direct(
+                                source = Point(360f, 140f),
+                                target = Point(360f, 200f),
+                            ),
+                    ),
                 groups =
                     mapOf(
                         GroupId("Customer") to GroupLayout(bounds = Rect(Point(20f, 20f), Size(220f, 340f))),

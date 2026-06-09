@@ -62,8 +62,8 @@ class Sysml2BddSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(280f, 200f),
-                    nodes = mapOf(NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(240f, 160f)))),
+                    canvas = Size(280f, 140f),
+                    nodes = mapOf(NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(20f, 20f), Size(240f, 94f)))),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
@@ -93,8 +93,8 @@ class Sysml2BddSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(200f, 140f),
-                    nodes = mapOf(NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(180f, 120f)))),
+                    canvas = Size(200f, 90f),
+                    nodes = mapOf(NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(180f, 60f)))),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
@@ -127,8 +127,8 @@ class Sysml2BddSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(260f, 160f),
-                    nodes = mapOf(NodeId("V8Engine") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(240f, 140f)))),
+                    canvas = Size(260f, 110f),
+                    nodes = mapOf(NodeId("V8Engine") to NodeLayout(bounds = Rect(Point(10f, 10f), Size(240f, 80f)))),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
@@ -154,18 +154,18 @@ class Sysml2BddSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(420f, 320f),
+                    canvas = Size(420f, 220f),
                     nodes =
                         mapOf(
-                            NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(120f, 20f), Size(180f, 100f))),
-                            NodeId("HybridVehicle") to NodeLayout(bounds = Rect(Point(120f, 180f), Size(180f, 100f))),
+                            NodeId("Vehicle") to NodeLayout(bounds = Rect(Point(120f, 20f), Size(180f, 60f))),
+                            NodeId("HybridVehicle") to NodeLayout(bounds = Rect(Point(120f, 140f), Size(180f, 60f))),
                         ),
                     edges =
                         mapOf(
                             EdgeId("gen:HybridVehicle::Vehicle") to
                                 EdgeRoute.OrthogonalRounded(
-                                    source = Point(210f, 180f),
-                                    target = Point(210f, 120f),
+                                    source = Point(210f, 140f),
+                                    target = Point(210f, 80f),
                                     waypoints = emptyList(),
                                     cornerRadiusPx = 4f,
                                 ),
@@ -190,8 +190,8 @@ class Sysml2BddSvgTest :
                 LayoutResult(
                     engineId = LayoutEngineId("test"),
                     seed = 1L,
-                    canvas = Size(200f, 140f),
-                    nodes = mapOf(NodeId("V") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(200f, 140f)))),
+                    canvas = Size(200f, 80f),
+                    nodes = mapOf(NodeId("V") to NodeLayout(bounds = Rect(Point(0f, 0f), Size(200f, 60f)))),
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )

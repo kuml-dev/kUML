@@ -59,20 +59,20 @@ class Sysml2ReqSvgTest :
             LayoutResult(
                 engineId = LayoutEngineId("test"),
                 seed = 1L,
-                canvas = Size(600f, 240f),
+                canvas = Size(680f, 240f),
                 nodes =
                     mapOf(
                         NodeId("TopSpeedRequirement") to
-                            NodeLayout(bounds = Rect(Point(40f, 40f), Size(220f, 120f))),
+                            NodeLayout(bounds = Rect(Point(40f, 40f), Size(280f, 120f))),
                         NodeId("Vehicle") to
-                            NodeLayout(bounds = Rect(Point(340f, 60f), Size(220f, 140f))),
+                            NodeLayout(bounds = Rect(Point(380f, 60f), Size(280f, 140f))),
                     ),
                 edges =
                     mapOf(
                         EdgeId("satisfy:Vehicle::TopSpeedRequirement") to
                             EdgeRoute.OrthogonalRounded(
-                                source = Point(340f, 130f),
-                                target = Point(260f, 100f),
+                                source = Point(380f, 130f),
+                                target = Point(320f, 100f),
                                 waypoints = emptyList(),
                                 cornerRadiusPx = 4f,
                             ),
