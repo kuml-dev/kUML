@@ -3,8 +3,10 @@ package dev.kuml.cli
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.ProgramResult
+import com.github.ajalt.clikt.core.UsageError
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.default
+import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
@@ -51,15 +53,35 @@ internal class RenderCommand : CliktCommand(name = "render") {
     private val configFile by option("--config", help = "Path to kuml.config.kts")
         .file(mustExist = true, canBeDir = false)
 
+    private val latexStandalone by option(
+        "--latex-standalone",
+        help =
+            "Emit a complete LaTeX document (\\documentclass{standalone} + preamble) " +
+                "instead of a bare tikzpicture snippet. Only valid with --format=latex.",
+    ).flag()
+
     override fun help(context: Context): String = "Render a kUML script (UML or C4) to SVG, PNG, or LaTeX/TikZ source."
 
     override fun run() {
         try {
             val resolvedFormat = FormatResolver.resolve(format, output, input)
+            // --latex-standalone is only meaningful for latex output
+            if (latexStandalone && resolvedFormat != "latex" && resolvedFormat != "tex") {
+                throw UsageError("--latex-standalone is only valid with --format=latex (current format: $resolvedFormat)")
+            }
             val resolvedOutput = output ?: FormatResolver.defaultOutput(input, resolvedFormat)
             val config: KumlConfig = ConfigLoader.load(configFile)
             val layoutOverride = layoutEngine.takeUnless { it == "auto" }
-            RenderPipeline.run(input, resolvedOutput, resolvedFormat, width, themeName, config, layoutOverride)
+            RenderPipeline.run(
+                input,
+                resolvedOutput,
+                resolvedFormat,
+                width,
+                themeName,
+                config,
+                layoutOverride,
+                latexStandalone,
+            )
             echo("Wrote $resolvedOutput")
         } catch (e: ScriptEvaluationException) {
             System.err.println("Script error: ${e.message}")

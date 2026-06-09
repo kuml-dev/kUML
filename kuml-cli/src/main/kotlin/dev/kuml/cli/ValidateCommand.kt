@@ -9,6 +9,8 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
+import dev.kuml.cli.validate.StructuralValidator
+import dev.kuml.cli.validate.StructuralViolation
 import dev.kuml.core.ocl.KumlValidationResult
 import dev.kuml.core.ocl.KumlViolation
 import dev.kuml.core.ocl.OclValidator
@@ -58,6 +60,11 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
     private val strict by option(
         "--strict",
         help = "Fail on any expression parse warning in addition to OCL violations (V2.0.20b).",
+    ).flag(default = false)
+
+    private val noCheckStructure by option(
+        "--no-check-structure",
+        help = "Skip structural checks (duplicate IDs, circular inheritance, dangling references). Default: structural checks are ON.",
     ).flag(default = false)
 
     override fun help(context: Context): String = "Validate OCL constraints in a kUML script."
@@ -140,19 +147,49 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
             }
         }
 
-        // 7. Output
+        // 7. Structural validation (V2.0.31) — runs on UML diagrams; skip with --no-check-structure.
+        //    Check 4 (missing required stereotype properties) requires profiles to be loaded.
+        //    It is gated behind --check-stereotypes to stay backward-compatible with the existing
+        //    contract that stereotype-related output is opt-in.
+        val structuralViolations: List<StructuralViolation> =
+            if (!noCheckStructure && umlDiagram != null) {
+                val rawViolations = StructuralValidator.validate(umlDiagram)
+                if (!checkStereotypes) {
+                    // Without --check-stereotypes, suppress the stereotype-property check
+                    // (MISSING_REQUIRED_STEREOTYPE_PROPERTY) to keep backward compatibility.
+                    rawViolations.filter { it.id != "MISSING_REQUIRED_STEREOTYPE_PROPERTY" }
+                } else {
+                    rawViolations
+                }
+            } else {
+                emptyList()
+            }
+        val structuralErrors = structuralViolations.filter { it.severity == "error" }
+        val structuralWarnings = structuralViolations.filter { it.severity == "warning" }
+
+        if (structuralViolations.isNotEmpty()) {
+            echo("\nStructural validation:")
+            for (sv in structuralErrors) {
+                echo("  ERROR [${sv.id}] ${sv.message}")
+            }
+            for (sv in structuralWarnings) {
+                echo("  WARN  [${sv.id}] ${sv.message}")
+            }
+        }
+
+        // 8. Output
         val allViolations =
             modelResult.violations + (stereotypeResult?.violations ?: emptyList())
         val combined =
             KumlValidationResult(
-                valid = allViolations.isEmpty(),
+                valid = allViolations.isEmpty() && structuralErrors.isEmpty(),
                 violations = allViolations,
             )
 
         when (outputFormat) {
             "json" -> {
                 if (checkStereotypes) {
-                    // Split violations into model / stereotype sections for scriptability (D22)
+                    // Split violations into model / stereotype / structural sections
                     val splitOutput =
                         ValidateJsonOutput(
                             valid = combined.valid,
@@ -160,6 +197,20 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                                 ValidateViolationSplit(
                                     model = modelResult.violations,
                                     stereotype = stereotypeResult?.violations ?: emptyList(),
+                                    structural = structuralViolations.map { it.toJsonViolation() },
+                                ),
+                        )
+                    echo(Json { prettyPrint = true }.encodeToString(splitOutput))
+                } else if (structuralViolations.isNotEmpty()) {
+                    // Emit combined JSON with structural section
+                    val splitOutput =
+                        ValidateJsonOutput(
+                            valid = combined.valid,
+                            violations =
+                                ValidateViolationSplit(
+                                    model = modelResult.violations,
+                                    stereotype = emptyList(),
+                                    structural = structuralViolations.map { it.toJsonViolation() },
                                 ),
                         )
                     echo(Json { prettyPrint = true }.encodeToString(splitOutput))
@@ -167,7 +218,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                     echo(Json { prettyPrint = true }.encodeToString(KumlValidationResult.serializer(), modelResult))
                 }
             }
-            else -> printText(combined, modelResult.violations, stereotypeResult?.violations)
+            else -> printText(combined, modelResult.violations, stereotypeResult?.violations, structuralViolations)
         }
 
         if (!combined.valid) throw ProgramResult(ExitCodes.VALIDATION_VIOLATIONS)
@@ -255,8 +306,9 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
         combined: KumlValidationResult,
         modelViolations: List<KumlViolation>,
         stereotypeViolations: List<KumlViolation>?,
+        structuralViolations: List<StructuralViolation> = emptyList(),
     ) {
-        if (combined.valid) {
+        if (combined.valid && structuralViolations.isEmpty()) {
             echo("${input.name}: valid — no violations.")
             return
         }
@@ -275,8 +327,20 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                 echo("  ${v.message}\n")
             }
         }
-        echo("${combined.violations.size} violation(s) found.")
+        val totalCount = combined.violations.size + structuralViolations.size
+        echo("$totalCount violation(s) found.")
     }
+
+    // ── Structural violation JSON helper ──────────────────────────────────────
+
+    private fun StructuralViolation.toJsonViolation(): StructuralJsonViolation =
+        StructuralJsonViolation(
+            id = id,
+            severity = severity,
+            message = message,
+            location = location,
+            category = category,
+        )
 }
 
 // ── JSON output types for --check-stereotypes + --output json ────────────────
@@ -291,4 +355,21 @@ internal data class ValidateJsonOutput(
 internal data class ValidateViolationSplit(
     @SerialName("model") val model: List<KumlViolation>,
     @SerialName("stereotype") val stereotype: List<KumlViolation>,
+    @SerialName("structural") val structural: List<StructuralJsonViolation> = emptyList(),
+)
+
+/**
+ * JSON-serializable representation of a [dev.kuml.cli.validate.StructuralViolation].
+ *
+ * Carries a [category] field (`"structural"`) so JSON consumers can
+ * distinguish structural violations from OCL / stereotype violations
+ * (`"ocl"` / `"stereotype"`) by field inspection.
+ */
+@Serializable
+internal data class StructuralJsonViolation(
+    val id: String,
+    val severity: String,
+    val message: String,
+    val location: String? = null,
+    val category: String = "structural",
 )

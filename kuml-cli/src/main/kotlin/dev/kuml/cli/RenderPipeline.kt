@@ -143,12 +143,15 @@ internal object RenderPipeline {
      *
      * @param input Path to the `*.kuml.kts` script file.
      * @param output Destination path for the rendered output file.
-     * @param format Output format: `"svg"` or `"png"`.
+     * @param format Output format: `"svg"`, `"png"`, or `"latex"`.
      * @param width Width in pixels (used only for PNG output).
      * @param themeName Optional theme name from CLI; takes precedence over config.
      * @param config Loaded `kuml.config.kts` configuration (or [KumlConfig.DEFAULT]).
      * @param layoutEngineOverride Optional CLI `--layout` flag value (`"auto"`, `"grid"`, `"elk"`).
      *   `"auto"` or `null` → per-diagram-type default (grid for class/component/use-case/state).
+     * @param latexStandalone When `true` and format is `"latex"`, emit a complete
+     *   `\documentclass{standalone}` document instead of a bare tikzpicture snippet.
+     *   Only meaningful for LaTeX output — ignored for SVG / PNG.
      * @throws ScriptEvaluationException if the script fails to compile or evaluate.
      * @throws IOException if the output file cannot be written.
      */
@@ -160,6 +163,7 @@ internal object RenderPipeline {
         themeName: String?,
         config: KumlConfig = KumlConfig.DEFAULT,
         layoutEngineOverride: String? = null,
+        latexStandalone: Boolean = false,
     ) {
         // 1. Evaluate script
         val evalResult = KumlScriptHost.eval(input)
@@ -200,7 +204,8 @@ internal object RenderPipeline {
         // 4–6. Branch on diagram kind: layout → render → write
         try {
             when (extracted) {
-                is ExtractedDiagram.Uml -> renderUml(extracted, output, format, width, theme, layoutEngineOverride)
+                is ExtractedDiagram.Uml ->
+                    renderUml(extracted, output, format, width, theme, layoutEngineOverride, latexStandalone)
                 is ExtractedDiagram.C4 -> renderC4(extracted, output, format, width, theme)
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme)
             }
@@ -219,6 +224,7 @@ internal object RenderPipeline {
         width: Int,
         theme: KumlTheme,
         layoutEngineOverride: String? = null,
+        latexStandalone: Boolean = false,
     ) {
         val diagram = extracted.diagram
         val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
@@ -232,13 +238,8 @@ internal object RenderPipeline {
                 writeBinary(output, pngBytes)
             }
             "latex" -> {
-                // V2.0.2 MVP: snippet mode (`\begin{tikzpicture}…\end{tikzpicture}`).
-                // Standalone mode (`\documentclass{standalone}`) is reachable today
-                // via the library API; a CLI `--latex-standalone` flag lands later
-                // when the V2.x options pipeline grows. The theme is implicit —
-                // the renderer ships a plain monochrome `\tikzset{…}` block that
-                // users can override in their preamble.
-                val tex = KumlLatexRenderer.toLatex(diagram, layoutResult, LatexRenderOptions.DEFAULT)
+                val opts = LatexRenderOptions(standalone = latexStandalone)
+                val tex = KumlLatexRenderer.toLatex(diagram, layoutResult, opts)
                 writeText(output, tex)
             }
             else -> throw ScriptEvaluationException("Unsupported format: $format")
