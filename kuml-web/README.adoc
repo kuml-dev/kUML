@@ -1,0 +1,113 @@
+= kuml-web
+:description: Ktor/Netty HTTP server with live SVG preview for kUML scripts
+
+`kuml-web` is the browser-based live-preview module for kUML.
+It provides a single-page web application with a CodeMirror 6 editor,
+real-time SVG rendering, theme/layout selection, and SVG/PNG download.
+
+== Quick Start
+
+[source,bash]
+----
+# Start via the kuml CLI (recommended)
+kuml serve
+
+# Or run directly via Gradle
+./gradlew :kuml-web:run
+
+# Custom port
+kuml serve --port 9090
+----
+
+Then open http://localhost:8080 in your browser.
+
+== API Endpoints
+
+[cols="1,1,3"]
+|===
+| Method | Path | Description
+
+| `POST`
+| `/api/render`
+| Render a kUML script to SVG or PNG. Body: `RenderRequest` JSON.
+
+| `GET`
+| `/api/themes`
+| List all available theme names.
+
+| `GET`
+| `/api/examples`
+| List bundled example scripts (name + title).
+
+| `GET`
+| `/api/examples/{name}`
+| Fetch source of a named example script.
+
+| `GET`
+| `/api/health`
+| Server health check. Returns `{"status":"ok","version":"..."}`.
+
+| `GET`
+| `/`
+| Single-page web application (HTML + CSS + JS).
+|===
+
+=== POST /api/render
+
+Request body:
+
+[source,json]
+----
+{
+  "script": "classDiagram(name = \"Example\") { classOf(name = \"Foo\") }",
+  "format": "svg",
+  "theme": null,
+  "layout": "auto",
+  "widthPx": 1024
+}
+----
+
+Response body:
+
+[source,json]
+----
+{
+  "ok": true,
+  "format": "svg",
+  "svg": "<svg ...>...</svg>",
+  "pngBase64": null,
+  "durationMs": 42,
+  "error": null
+}
+----
+
+`format` may be `"svg"` (default) or `"png"`. For PNG, the response contains `pngBase64` (Base64-encoded PNG bytes).
+
+== Build
+
+[source,bash]
+----
+# Compile only
+./gradlew :kuml-web:compileKotlin
+
+# Run all tests
+./gradlew :kuml-web:test
+
+# Build runnable distribution
+./gradlew :kuml-web:installDist
+----
+
+== Configuration
+
+[cols="1,1,3"]
+|===
+| Option | Default | Description
+
+| `--port`
+| `8080`
+| HTTP port the server listens on.
+
+| `--host`
+| `0.0.0.0`
+| Host/interface to bind to. Use `127.0.0.1` for localhost-only access.
+|===

@@ -26,6 +26,7 @@ application {
 
 dependencies {
     implementation(libs.clikt)
+    implementation(project(":kuml-web")) // V2.0.34 — kuml serve subcommand
     implementation(project(":kuml-codegen:kuml-codegen-api"))
     implementation(project(":kuml-codegen:kuml-codegen-m2m")) // V2.0.21 — M2M transformer track
     implementation(project(":kuml-codegen:kuml-gen-kotlin"))

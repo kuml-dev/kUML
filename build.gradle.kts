@@ -56,6 +56,7 @@ val nonPublishedModules =
         "kuml-tests",
         "kuml-examples",
         "kuml-packaging",
+        "kuml-web",
         // Test sub-modules (path-aware listing — Gradle subprojects iteration
         // sees them as separate projects with these leaf names).
         "kuml-cli-tests",

@@ -21,6 +21,7 @@ internal class KumlCli : CliktCommand(name = "kuml") {
 
         subcommands(
             RenderCommand(),
+            ServeCommand(),
             WatchCommand(),
             ValidateCommand(),
             ValidateExpressionsCommand(),

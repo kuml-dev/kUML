@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kUML Web — Live Preview</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header>
+    <h1>kUML Web</h1>
+    <div class="controls">
+      <select id="examples-select"><option value="">Examples...</option></select>
+      <select id="theme-select"><option value="">Theme: auto</option></select>
+      <select id="layout-select">
+        <option value="auto">Layout: auto</option>
+        <option value="grid">grid</option>
+        <option value="elk">elk</option>
+      </select>
+      <button id="download-svg">&#8595; SVG</button>
+      <button id="download-png">&#8595; PNG</button>
+    </div>
+    <span id="render-time"></span>
+  </header>
+  <main>
+    <div id="editor-container">
+      <div id="editor"></div>
+    </div>
+    <div id="preview-container">
+      <div id="preview"><em>Type a kUML script to preview...</em></div>
+      <div id="error-banner" class="hidden"></div>
+    </div>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

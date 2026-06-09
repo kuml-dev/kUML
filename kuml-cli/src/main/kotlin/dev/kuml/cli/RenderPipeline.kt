@@ -326,7 +326,11 @@ internal object RenderPipeline {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
                 val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
-                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(paddingPx = 64f)))
+                    "svg" ->
+                        writeText(
+                            output,
+                            KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(paddingPx = 64f)),
+                        )
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
                     "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
@@ -336,7 +340,11 @@ internal object RenderPipeline {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
                 val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
-                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(paddingPx = 64f)))
+                    "svg" ->
+                        writeText(
+                            output,
+                            KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(paddingPx = 64f)),
+                        )
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
                     "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")

@@ -4,6 +4,39 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] — V2.0.34
+
+### Web UI — `kuml-web` (V2.0.34)
+New executable module `kuml-web` provides a Ktor/Netty HTTP server with a browser-based
+editing and preview environment for kUML scripts.
+
+**REST API**:
+- `POST /api/render` — evaluates a `*.kuml.kts` script source (UML, C4, or SysML 2) and
+  returns SVG or PNG; supports `theme` and `layout` overrides
+- `GET /api/themes` — lists registered theme names
+- `GET /api/examples` / `GET /api/examples/{name}` — three bundled example scripts
+  (UML class diagram, C4 container diagram, SysML 2 BDD)
+- `GET /api/health`
+
+**Browser SPA**:
+- CodeMirror 6 editor (ESM from esm.sh CDN — no build step required)
+- Live SVG preview with 300 ms debounce
+- Theme and layout (auto / grid / elk) dropdowns
+- One-click SVG and PNG download
+- Examples picker to load any bundled script into the editor
+
+**CLI**:
+- `kuml serve [--port N] [--host H]` — new subcommand that starts the web server
+
+**Architecture notes**:
+- `WebRenderPipeline` mirrors `RenderPipeline` engine-selection logic (grid default for
+  class/component/use-case diagrams, ELK otherwise) but produces String/ByteArray output
+  instead of writing to files — no breaking changes to existing modules
+- Module is excluded from Maven Central publication (executable application)
+- Documentation in AsciiDoc (`kuml-web/README.adoc`) per project convention
+- 12 tests: 5 unit (`WebRenderPipelineTest`) + 7 integration (`ApiRoutesTest` via Ktor
+  `testApplication`)
+
 ## [0.6.0] — 2026-06-09
 
 ### M2M Transformation (V2.0.22–V2.0.25)

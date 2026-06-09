@@ -112,6 +112,9 @@ include("kuml-packaging")           // Phase 2 — GraalVM Native, Homebrew, DEB
 // ── Examples ─────────────────────────────────────────── Phase 2 ──
 include("kuml-examples")            // Phase 2 — Vollständige Beispielprojekte
 
+// ── Web UI ───────────────────────────────────────────── V2.0.34 ──
+include("kuml-web")  // V2.0.34 — Ktor server with live SVG preview
+
 // ── Tests ────────────────────────────────────────────────────────
 include(
     "kuml-tests:kuml-dsl-tests",        // Phase 1  — DSL Unit Tests (alle Diagrammtypen)
