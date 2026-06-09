@@ -4,3 +4,4 @@
 * xref:concepts.adoc[Core Concepts]
 * xref:showcases/index.adoc[Showcases]
 ** xref:showcases/pepela-thermostat.adoc[Pepela Thermostat]
+** xref:showcases/car2x-intersection.adoc[Car2X Intersection]

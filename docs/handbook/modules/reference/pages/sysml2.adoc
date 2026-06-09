@@ -1,0 +1,343 @@
+= SysML 2 DSL Reference
+:description: Every SysML 2 diagram type supported by kUML, with the DSL syntax and simulation notes.
+
+SysML 2 is kUML's second modelling language — a domain-specific language for systems
+engineering defined by OMG SysML v2.0. While the UML DSL focuses on software structure
+and behaviour, SysML 2 is purpose-built for modelling physical and cyber-physical systems:
+requirements, functional breakdown, parametric constraints, and executable state behaviour.
+
+The SysML 2 DSL entry point is `sysml2Model`:
+
+[source,kotlin]
+----
+sysml2Model("SystemName") {
+    // diagram builders go here
+}
+----
+
+Every diagram builder is also usable at top level without the `sysml2Model` wrapper — the
+wrapper is only needed when a single script contains multiple SysML 2 diagrams.
+
+== Diagram types at a glance
+
+[cols="1,2,2,1"]
+|===
+| Abbreviation | Full name | Builder | Use it for
+
+| BDD
+| Block Definition Diagram
+| `blockDef(name) { ... }`
+| Structural decomposition: blocks, value properties, ports, part/reference associations.
+
+| IBD
+| Internal Block Diagram
+| `internalBlock(name) { ... }`
+| Internal wiring: parts within a block, connectors between ports, item flows.
+
+| UC
+| Use Case Diagram
+| `useCaseDiagram(name) { ... }`
+| Actor goals: system actors, use cases, include/extend relationships.
+
+| REQ
+| Requirements Diagram
+| `requirementDiagram(name) { ... }`
+| Stakeholder requirements: requirements, derives, refines, satisfies, verifies links.
+
+| STM
+| State Machine Diagram
+| `stateDef(name) { ... }` inside `sysml2Model`
+| Executable discrete behaviour: states, transitions, trigger/guard/action triples.
+
+| ACT
+| Activity Diagram
+| `actionDef(name) { ... }` + control flow inside `sysml2Model`
+| Executable workflow: actions, decisions, forks/joins, item flows, object flows.
+
+| SEQ
+| Sequence Diagram
+| `sequenceDiagram(name) { ... }`
+| Time-ordered interaction between blocks: lifelines, messages, combined fragments.
+
+| PAR
+| Parametric Diagram
+| `parametricDiagram(name) { ... }`
+| Constraint properties: parameters, equations, numerical constraints.
+|===
+
+== Block Definition Diagrams (BDD)
+
+BDD is the SysML 2 analogue of the UML class diagram. The central classifier is `block`.
+
+[source,kotlin]
+----
+sysml2Model("Vehicle Propulsion") {
+    blockDef("Propulsion System") {
+        val engine = block("Engine") {
+            valueProperty("displacement", type = "Real", unit = "cc")
+            valueProperty("powerKw",      type = "Real")
+            port("throttle", direction = PortDirection.In)
+            port("shaft",    direction = PortDirection.Out)
+        }
+        val transmission = block("Transmission") {
+            valueProperty("gearCount", type = "Integer")
+            port("shaftIn",  direction = PortDirection.In)
+            port("driveOut", direction = PortDirection.Out)
+        }
+
+        composition(parent = "Propulsion System", child = engine,  roleName = "engine")
+        composition(parent = "Propulsion System", child = transmission, roleName = "tx")
+    }
+}
+----
+
+Key BDD elements:
+
+[cols="1,2"]
+|===
+| Element | Notes
+
+| `block(name)`
+| The top-level SysML 2 classifier. Supports `valueProperty`, `partProperty`, `referenceProperty`, `port`, `operation`, `constraint`.
+
+| `valueProperty(name, type)`
+| A typed scalar or structured value. `unit` is optional — attaches a unit annotation.
+
+| `partProperty(name, type)`
+| A typed part (composition by reference to another block type).
+
+| `port(name, direction)`
+| `PortDirection.In`, `.Out`, or `.InOut`.
+
+| `composition(parent, child, roleName)`
+| Whole/part relationship. Renders as filled diamond.
+
+| `association(source, target)`
+| Non-ownership association. Block args or string names.
+|===
+
+== Internal Block Diagrams (IBD)
+
+IBD shows the internal wiring of a single block context.
+
+[source,kotlin]
+----
+sysml2Model("Propulsion IBD") {
+    internalBlock("Propulsion System") {
+        val eng = partRef("engine", type = "Engine")
+        val tx  = partRef("tx",     type = "Transmission")
+
+        connector(eng.port("shaft"), tx.port("shaftIn"),
+                  label = "mechanical coupling")
+    }
+}
+----
+
+== Use Case Diagrams (UC)
+
+SysML 2 use case syntax is identical to UML use case. The builder is `useCaseDiagram`.
+
+[source,kotlin]
+----
+sysml2Model("Charging System") {
+    useCaseDiagram("BEV Charging") {
+        val driver  = actor("Driver")
+        val station = actor("ChargingStation")
+
+        val plug    = useCase("Plug In")
+        val auth    = useCase("Authenticate")
+        val charge  = useCase("Transfer Energy")
+
+        driver.uses(plug)
+        driver.uses(auth)
+        station.uses(charge)
+
+        plug.includes(auth)
+        charge.extends(auth)
+    }
+}
+----
+
+== Requirements Diagrams (REQ)
+
+Requirements diagrams trace stakeholder needs through derivation, refinement, and satisfaction.
+
+[source,kotlin]
+----
+sysml2Model("Safety Requirements") {
+    requirementDiagram("Functional Safety") {
+        val r1 = requirement("REQ-001") {
+            text = "The system shall detect pedestrians within 30 m."
+            category = "functional"
+        }
+        val r2 = requirement("REQ-002") {
+            text = "Detection latency shall be ≤ 100 ms."
+            category = "performance"
+        }
+        val impl = block("PedestrianDetector")
+
+        derives(child = r2, parent = r1)
+        satisfies(element = impl, requirement = r1)
+        satisfies(element = impl, requirement = r2)
+    }
+}
+----
+
+== State Machine Diagrams (STM)
+
+STM is the primary entry point for executable behaviour in SysML 2. kUML implements
+SysML 2 state machines on top of the same runtime as UML state machines — `kuml simulate`
+works for both.
+
+[source,kotlin]
+----
+sysml2Model("Thermostat") {
+    val off     = stateDef("Off")
+    val idle    = stateDef("Idle",    entryAction = "display.show('idle')")
+    val heating = stateDef("Heating", entryAction = "relay.heat(true)",
+                                      exitAction  = "relay.heat(false)")
+    val cooling = stateDef("Cooling", entryAction = "relay.cool(true)",
+                                      exitAction  = "relay.cool(false)")
+    val eco     = stateDef("Eco",     entryAction = "setpoint.set(18)")
+
+    initialState(off)
+
+    transition("powerOn",       off,     idle)
+    transition("startHeating",  idle,    heating,
+        trigger = "tick",
+        guard   = "event.temperature < event.targetTemperature - 1")
+    transition("heatDone",      heating, idle,
+        trigger = "tick",
+        guard   = "event.temperature >= event.targetTemperature")
+    transition("startCooling",  idle,    cooling,
+        trigger = "tick",
+        guard   = "event.temperature > event.targetTemperature + 1")
+    transition("coolDone",      cooling, idle,
+        trigger = "tick",
+        guard   = "event.temperature <= event.targetTemperature")
+    transition("ecoMode",       idle,    eco,    trigger = "ecoMode")
+    transition("normalMode",    eco,     idle,   trigger = "normalMode")
+    transition("powerOff",      idle,    off,    trigger = "powerOff")
+}
+----
+
+Run the machine with a JSON events file:
+
+[source,bash]
+----
+kuml simulate thermostat.kuml.kts --events thermostat-events.json
+----
+
+See xref:simulate.adoc[State-Machine Simulation] for the full events/trace format, golden
+trace verification, and interactive REPL mode.
+
+NOTE: `kuml simulate` supports both UML `stateDiagram { stateMachine { ... } }` and
+SysML 2 `sysml2Model { stateDef / transition }` syntaxes. The underlying runtime is shared.
+
+== Activity Diagrams (ACT)
+
+Activity diagrams in SysML 2 model executable workflows with actions, control flow,
+and parallel branches.
+
+[source,kotlin]
+----
+sysml2Model("Boot Sequence") {
+    val readSensors   = actionDef("ReadSensors",   action = "sensors.readAll()")
+    val decide        = decisionNode("sensors valid?")
+    val calibrate     = actionDef("Calibrate",     action = "calibration.run()")
+    val fork          = forkNode("bootFork")
+    val updateDisplay = actionDef("UpdateDisplay", action = "display.update()")
+    val logReady      = actionDef("LogReady",      action = "log.info('ready')")
+    val join          = joinNode("bootJoin")
+    val done          = activityFinal("done")
+
+    initialNode("start")
+
+    controlFlow("toSensors",      "start",        readSensors)
+    controlFlow("toDecision",     readSensors,    decide)
+    controlFlow("validPath",      decide,         calibrate,     guard = "sensorsValid")
+    controlFlow("toFork",         calibrate,      fork)
+    controlFlow("forkToDisplay",  fork,           updateDisplay)
+    controlFlow("forkToLog",      fork,           logReady)
+    controlFlow("displayToJoin",  updateDisplay,  join)
+    controlFlow("logToJoin",      logReady,       join)
+    controlFlow("toDone",         join,           done)
+}
+----
+
+Activity diagrams are also runnable via `kuml simulate`. The trace contains `ForkSplit`,
+`JoinReached`, `ActionExecuted`, and `ActivityTerminated` entries.
+
+NOTE: `kuml simulate` currently supports STM and ACT diagram types for SysML 2 models.
+Other diagram types (BDD, IBD, REQ, SEQ, PAR) produce renderable output only.
+
+== Sequence Diagrams (SEQ)
+
+[source,kotlin]
+----
+sysml2Model("ECU Handshake") {
+    sequenceDiagram("CAN Bus Init") {
+        val ecu1  = lifeline("ECU-1",  classifier = "EngineControlUnit")
+        val ecu2  = lifeline("ECU-2",  classifier = "TransmissionControlUnit")
+        val bus   = lifeline("CAN Bus", classifier = "BusController")
+
+        message(from = ecu1, to = bus,  label = "requestAccess(arbitrationId)")
+        message(from = bus,  to = ecu2, label = "grantToken()")
+        message(from = ecu2, to = bus,  label = "releaseToken()")
+        message(from = bus,  to = ecu1, label = "grantToken()")
+    }
+}
+----
+
+== Parametric Diagrams (PAR)
+
+Parametric diagrams connect constraint properties to value properties, expressing
+numerical relationships.
+
+[source,kotlin]
+----
+sysml2Model("Thermal Budget") {
+    parametricDiagram("PowerDissipation") {
+        val totalPower = param("P_total",  unit = "W")
+        val cpuPower   = param("P_cpu",    unit = "W")
+        val gpuPower   = param("P_gpu",    unit = "W")
+        val coolerCop  = param("COP",      unit = "1")
+
+        constraint("TotalBudget", expression = "P_total = P_cpu + P_gpu")
+        constraint("CoolerLoad",  expression = "P_total / COP <= 45")
+
+        bindParam(totalPower, "TotalBudget", "P_total")
+        bindParam(cpuPower,   "TotalBudget", "P_cpu")
+        bindParam(gpuPower,   "TotalBudget", "P_gpu")
+    }
+}
+----
+
+== M2M transforms from UML to SysML 2
+
+`kuml transform` supports model-to-model (M2M) transformations. As of V2.x, UML models
+can be used as a source for SysML 2 transformer targets:
+
+[source,bash]
+----
+kuml transform uml-order-domain.kuml.kts \
+    --transformer uml-to-sysml2-requirements \
+    --output sysml2-req-view.kuml.kts
+----
+
+List all available transformers:
+
+[source,bash]
+----
+kuml transform --list-transformers
+----
+
+NOTE: The SysML 2 transformer targets were introduced in V2.x. Earlier CLI versions only
+supported code generation via `kuml generate`. See xref:cli.adoc[CLI Reference] for the
+full `transform` subcommand documentation.
+
+== Cross-references
+
+* xref:simulate.adoc[State-Machine Simulation] — events format, trace format, golden traces, interactive REPL
+* xref:cli.adoc[CLI Reference] — `kuml simulate`, `kuml transform`, `kuml render` subcommands
+* xref:uml-dsl.adoc[UML DSL Reference] — the parallel UML 2.x language

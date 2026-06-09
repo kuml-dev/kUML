@@ -33,7 +33,12 @@ Options:
 * `--format svg|png` — default `svg`
 * `--theme <name>` — theme name (e.g. `plain`, `kuml`, `elegant`, `playful`)
 * `--engine <id>` — layout engine ID (e.g. `elk.layered`, `kuml.grid`)
+* `--layout grid|elk|auto` — shorthand layout selector added in V2.0.26; `auto` lets
+  kUML choose based on diagram type. Equivalent to `--engine kuml.grid`, `--engine elk.layered`,
+  or engine auto-detection respectively.
 * `--width <pixels>` — PNG width (height is derived from aspect ratio)
+* `--latex-standalone` — wrap the SVG output in a `\begin{figure}...\end{figure}` block
+  suitable for direct inclusion in LaTeX documents (added in V2.0.31).
 
 If the script contains a `umlModel { ... }` with multiple diagrams, each diagram renders
 to its own file using the diagram name as the file stem.
@@ -64,7 +69,7 @@ kuml generate model.kuml.kts --plugin sql --options dialect=mysql,sql-drop=true
 
 == `kuml validate`
 
-Validate OCL constraints. Exits non-zero on the first failed constraint.
+Validate expressions and structure. Exits non-zero on any violation.
 
 [source,bash]
 ----
@@ -73,10 +78,15 @@ kuml validate [options] <script>...
 
 Options:
 
-* `--strict` — also fail on profile-level constraints (default: only element constraints)
+* `--strict` — also evaluate profile-level stereotype constraints (default: only element-level constraints)
+* `--no-check-structure` — skip structural checks (duplicate IDs, circular inheritance); OCL only
+* `--json` — emit violations as a JSON array to stdout instead of human-readable text
 
 Output is structured: every violation prints constraint name, host classifier, OCL body,
-and a short failure message. Suitable as a CI step.
+and a short failure message. Exit code 3 on violations, 0 on clean. Suitable as a CI step.
+
+See xref:reference:validate.adoc[Validation Reference] for full flag details, exit codes,
+and a GitHub Actions integration example.
 
 == `kuml simulate`
 
@@ -96,6 +106,49 @@ Options:
 * `--expected <path>` — diff trace against an expected file; exit code 6 on mismatch
 * `--epoch-clock` — replace wall-clock timestamps with monotonic epoch ms from 0
 * `--machine <name>` — pick a machine by name when the script contains multiple
+
+== `kuml transform`
+
+Model-to-model (M2M) code generation. Applies a named transformer to a kUML source
+script and writes the result to a file.
+
+[source,bash]
+----
+kuml transform [options] <script>
+----
+
+Options:
+
+* `--transformer <name>` — transformer ID (e.g. `uml-to-sysml2-requirements`, `uml-to-openapi`)
+* `--list-transformers` — list all registered transformers and exit (no script required)
+* `--output <path>` — output file path; if omitted, writes to stdout
+
+Examples:
+
+[source,bash]
+----
+kuml transform --list-transformers
+kuml transform domain.kuml.kts --transformer uml-to-sysml2-requirements \
+    --output sysml2-req.kuml.kts
+----
+
+SysML 2 transformer targets are supported as of V2.x. See xref:reference:sysml2.adoc[SysML 2 DSL Reference].
+
+== `kuml version`
+
+Print kUML version information.
+
+[source,bash]
+----
+kuml version [--json]
+----
+
+Options:
+
+* `--json` — emit version info as a JSON object (`{ "version": "...", "buildDate": "...", "commit": "..." }`)
+
+Without flags, prints the same human-readable version string as `kuml --version`.
+Useful in CI to record the exact kUML version used for a build artefact.
 
 == `kuml export`
 

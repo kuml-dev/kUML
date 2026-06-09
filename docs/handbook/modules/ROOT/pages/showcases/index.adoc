@@ -16,3 +16,10 @@ xref:showcases/pepela-thermostat.adoc[Pepela Smart Home — Thermostat]::
   First end-user-facing demo of the executable behaviour runtime. A smart-home
   thermostat modelled as a SysML 2 state machine (heating/cooling control) and
   a boot-calibration activity diagram. Both models run via `kuml simulate`.
+
+xref:showcases/car2x-intersection.adoc[Car2X Intersection Negotiation]::
+  V2X/ETSI ITS intersection negotiation scenario drawn from automotive testing practice.
+  A vehicle progresses through five states (Idle → Approaching → Negotiating → Crossing →
+  Departed) driven by CAM and DENM messages. Three event files cover the happy path, a
+  denied/retry scenario, and an RSU timeout. Demonstrates complex guard conditions and
+  MCP-driven interactive simulation.

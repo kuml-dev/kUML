@@ -1,0 +1,190 @@
+= Validation Reference
+:description: kuml validate — exit codes, flags, output format, OCL violations, CI integration.
+
+`kuml validate` checks a `.kuml.kts` script for structural integrity and OCL constraint
+violations. It exits non-zero on the first failed constraint, making it suitable as a
+blocking CI step.
+
+== Synopsis
+
+[source,bash]
+----
+kuml validate [options] <script>...
+----
+
+Multiple scripts can be passed in a single invocation — all are evaluated before the
+process exits.
+
+== Flag reference
+
+[cols="1,1,2"]
+|===
+| Flag | Default | Effect
+
+| `--strict`
+| off
+| Also evaluate profile-level stereotype constraints (e.g. `MustHaveIdAttribute` from a
+  custom profile). Without `--strict`, only element-level `constraint(name, body)` calls
+  in the script are checked.
+
+| `--no-check-structure`
+| off
+| Skip structural checks (duplicate element IDs, circular inheritance, missing
+  classifier references). Evaluate OCL constraints only. Useful when the structural
+  issues are known and you only care about OCL correctness.
+
+| `--json`
+| off
+| Emit all violations as a JSON array to stdout instead of human-readable text. Exit
+  code semantics are unchanged. Useful for tooling integration (IDE plugins, custom
+  reporters).
+|===
+
+== Exit codes
+
+[cols="1,2"]
+|===
+| Code | Meaning
+
+| 0
+| All checks passed — no structural violations, no OCL violations.
+
+| 1
+| Script error — compilation failed, missing imports, or the script threw at build time.
+
+| 2
+| User error — bad argument combination, file not found.
+
+| 3
+| Validation error — at least one structural or OCL violation found.
+|===
+
+These codes are stable across kUML versions. CI scripts can branch on them.
+
+== Structural violation output
+
+Structural checks run before OCL evaluation. They catch problems that would make OCL
+evaluation meaningless.
+
+Example — duplicate element ID:
+
+[source]
+----
+STRUCTURAL VIOLATION (duplicate-id)
+  Element  : Class 'Order'
+  Location : classDiagram("Domain") → classOf("Order")
+  Message  : Duplicate element id 'Order' — another classifier with the same name exists
+             in the same namespace.
+----
+
+Example — circular inheritance:
+
+[source]
+----
+STRUCTURAL VIOLATION (circular-inheritance)
+  Element  : Class 'A'
+  Location : classDiagram("Cycle") → generalization(A → B → C → A)
+  Message  : Circular generalisation detected: A → B → C → A
+----
+
+== OCL violation output
+
+OCL violations appear after structural checks pass. Each violation prints:
+
+* The constraint name
+* The host classifier (the element that owns the constraint)
+* The OCL body
+* A short reason why evaluation returned false
+
+Example:
+
+[source]
+----
+OCL VIOLATION
+  Constraint : PositiveTotal
+  Host       : Class 'Order'
+  Body       : self.total >= 0
+  Reason     : Invariant evaluated to false for instance 'order42' (total = -5.00)
+----
+
+== JSON output (`--json`)
+
+With `--json`, all violations are written to stdout as a JSON array:
+
+[source,json]
+----
+[
+  {
+    "kind": "structural",
+    "code": "duplicate-id",
+    "element": "Order",
+    "location": "classDiagram(\"Domain\") → classOf(\"Order\")",
+    "message": "Duplicate element id 'Order' ..."
+  },
+  {
+    "kind": "ocl",
+    "constraint": "PositiveTotal",
+    "host": "Order",
+    "body": "self.total >= 0",
+    "reason": "Invariant evaluated to false ..."
+  }
+]
+----
+
+An empty array `[]` is written when all checks pass (exit code 0).
+
+== CI integration example
+
+The following GitHub Actions step fails the build on any validation violation:
+
+[source,yaml]
+----
+- name: Validate kUML models
+  run: |
+    kuml validate --strict --json \
+      docs/architecture/domain.kuml.kts \
+      docs/architecture/services.kuml.kts \
+      | tee /tmp/kuml-violations.json
+    # Exit code from kuml validate propagates — non-zero fails the step.
+----
+
+To capture structured output for a custom reporter:
+
+[source,yaml]
+----
+- name: Validate and upload report
+  run: kuml validate --json src/**/*.kuml.kts > kuml-violations.json || true
+- name: Upload violation report
+  uses: actions/upload-artifact@v4
+  with:
+    name: kuml-validation-report
+    path: kuml-violations.json
+----
+
+TIP: Using `|| true` prevents the step from failing so the artifact upload always runs.
+The next step or the overall job can be configured to fail on a non-empty violations file.
+
+== Relationship to OCL constraints in scripts
+
+Constraints are declared inside classifier or stereotype blocks:
+
+[source,kotlin]
+----
+classDiagram("Domain") {
+    val order = classOf("Order") {
+        attribute("total", "BigDecimal")
+        // Element-level constraint — evaluated by default
+        constraint("PositiveTotal", body = "self.total >= 0")
+    }
+}
+----
+
+Profile-level constraints (in a `KumlStereotype.constraints` list) are only evaluated
+when `--strict` is passed. See xref:profiles.adoc[Profiles] for how to author
+stereotype constraints.
+
+== See also
+
+* xref:profiles.adoc[Profiles] — authoring stereotype constraints evaluated with `--strict`
+* xref:ocl.adoc[OCL constraints] — the OCL subset supported by kUML
+* xref:cli.adoc[CLI Reference] — full CLI flag reference

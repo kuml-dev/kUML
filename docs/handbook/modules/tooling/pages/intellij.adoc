@@ -40,6 +40,87 @@ Then *Settings → Plugins → ⚙ → Install Plugin from Disk…* and pick the
 * *Custom file icon* — `*.kuml.kts` files are visually distinct in the project view
   and editor tabs.
 
+== Annotator and Quick Fixes (V2.0.28a)
+
+The plugin highlights `.kuml.kts` errors inline using the same validation engine as
+`kuml validate` — no external process required. Errors and warnings appear as red/yellow
+wave underlines directly in the editor; hover to read the constraint name and OCL body.
+
+Four quick-fix types are offered via the intention-action bulb (Alt+Enter):
+
+[cols="1,2"]
+|===
+| Quick fix | What it does
+
+| *Add missing constraint body*
+| Inserts a placeholder OCL expression `self.todo = true` inside an empty
+  `constraint(name, body = ...)` call so the file compiles.
+
+| *Remove duplicate element*
+| Deletes the duplicate `classOf` / `interfaceOf` / `stereotype` call that caused a
+  `duplicate-id` structural violation.
+
+| *Add required port direction*
+| Inserts `direction = PortDirection.In` (or `.Out`) on a `port(...)` call that is
+  missing the direction argument.
+
+| *Break circular inheritance*
+| Removes the `generalization(child = ..., parent = ...)` edge that closes a cycle.
+|===
+
+Quick fixes are applied in-editor, with full undo history. The annotator re-evaluates
+on every keystroke (debounced at 300 ms) so the underlines clear as soon as the violation
+is resolved.
+
+NOTE: The annotator runs the kUML structural checker synchronously in the IDE's background
+thread pool. For scripts with many elements, the first annotation pass may take 1–2 seconds
+on a cold editor open. Subsequent passes are sub-100 ms because the compiled model is cached
+by the IDE's Kotlin scripting host.
+
+== Live SVG Preview (V2.0.28b / V2.0.30)
+
+Opening any `.kuml.kts` file activates a split editor: the source is on the left, a live
+SVG preview panel on the right. The preview updates automatically — changes in the source
+trigger a re-render after a 300 ms debounce, so the SVG stays in sync without blocking
+the typing flow.
+
+The preview toolbar provides:
+
+* *Zoom in / Zoom out* — incrementally scale the SVG (shortcut: Cmd+= / Cmd+–).
+* *Fit to panel* — reset zoom so the entire diagram is visible.
+* *Pan mode* — toggle hand-drag panning (click and drag the SVG canvas).
+* *Refresh* — force a re-render even if the file has not changed on disk.
+* *Copy SVG* — copy the current SVG source to the clipboard.
+* *Open in browser* — save a temporary file and open the system browser for full-resolution inspection.
+
+The live preview is rendered by the same kUML rendering engine as `kuml render` — the
+SVG is byte-identical to the CLI output for the same theme and engine settings. Theme and
+layout engine are read from `kuml.config.kts` in the project root if present.
+
+NOTE: If the SVG preview panel is not visible after opening a `.kuml.kts` file, toggle it
+via *View → Tool Windows → kUML Preview*, or split the editor manually with the preview
+button in the gutter (the kUML file-type icon on the right edge of the editor).
+
+== Structure View (V2.0.28b)
+
+The IntelliJ *Structure* tool window (Alt+7) shows the diagram element tree for any open
+`.kuml.kts` file. The tree mirrors the DSL nesting:
+
+* Diagram node (e.g. *classDiagram "Domain"*)
+** Classifiers (classes, interfaces, enums)
+*** Attributes and operations
+** Relationships (generalisations, associations, realisations)
+
+Clicking any tree node navigates the cursor to the corresponding DSL call in the source.
+The tree updates in sync with the live preview — the same 300 ms debounce applies.
+
+The Structure view is particularly useful for large scripts with many elements: use
+Ctrl+F (or the search field in the tool window header) to filter the tree by element name.
+
+NOTE: The Structure view is provided by kUML's own `StructureViewBuilder` extension,
+not by IntelliJ's default Kotlin structure provider. It shows kUML model semantics
+(classifiers, ports, state machines) rather than raw Kotlin symbols.
+
 == Under the hood
 
 The plugin registers a `ScriptDefinitionsProvider` (Kotlin scripting extension point)
@@ -63,20 +144,17 @@ shows KDoc, *Go to Declaration* opens the metamodel class.
 
 == What's deliberately NOT in scope
 
-* *Custom Annotator / Inspection* (V2) — no inline OCL validation, no kUML-specific
-  warnings. Use `kuml validate` or the Gradle plugin's `kumlValidate` task instead.
+* *Language Server Protocol* — pure platform-plugin implementation, no LSP layer.
+  Not planned until there is user demand from non-JetBrains editors.
 
-* *Live-preview panel* (V2) — no embedded SVG preview that updates as you type.
-  Use the VS Code extension's *kUML: Render to SVG* command, or run `kuml render`
-  manually.
-
-* *Language Server Protocol* (V2) — pure platform-plugin implementation, no LSP layer.
-
-* *Refactoring helpers beyond Kotlin* (V2) — no "Extract package", no "Rename diagram",
+* *Refactoring helpers beyond Kotlin* — no "Extract package", no "Rename diagram",
   no "Convert class to interface". Kotlin's general-purpose refactoring still works.
 
-The trade-off is intentional: a minimal plugin ships now, the heavyweight features wait
-until there's enough user demand to justify the maintenance cost.
+Features that were originally listed as V2 aspirations and have since shipped:
+
+* *Inline annotator + quick fixes* — shipped in V2.0.28a (see above).
+* *Live SVG preview panel* — shipped in V2.0.28b / V2.0.30 (see above).
+* *Structure view* — shipped in V2.0.28b (see above).
 
 == Configuration
 

@@ -1,0 +1,173 @@
+= Car2X Intersection Negotiation Showcase
+:description: End-to-end demo — V2X/ETSI ITS intersection negotiation modelled as a SysML 2 state machine and executed by the kUML Behaviour-Runtime.
+
+This showcase models a Vehicle-to-Everything (V2X) intersection negotiation scenario
+using the ETSI ITS standard messaging stack. A vehicle approaches a signalised intersection,
+negotiates right-of-way via Cooperative Awareness Messages (CAM) and Decentralised
+Environmental Notification Messages (DENM), crosses, and departs — all as a SysML 2
+state machine executed by `kuml simulate`.
+
+The scenario is drawn from the Car2X domain that Irakli Betchvaia works on at Keysight
+Technologies. It serves as a realistic, standards-based test of the kUML Behaviour-Runtime
+under complex guard conditions and branching event sequences.
+
+All scripts and event files live in `kuml-examples/src/main/kotlin/dev/kuml/examples/car2x/`.
+
+== Domain context
+
+[cols="1,2"]
+|===
+| Concept | Meaning in this scenario
+
+| V2X
+| Vehicle-to-Everything — wireless communication between vehicles, infrastructure, and cloud.
+
+| ETSI ITS
+| European Telecommunications Standards Institute Intelligent Transport Systems —
+  defines the CAM/DENM message stack used in EU and worldwide.
+
+| CAM
+| Cooperative Awareness Message — broadcast by every ITS station at 1–10 Hz.
+  Carries position, speed, heading, station type.
+
+| DENM
+| Decentralised Environmental Notification Message — triggered event; carries hazard or
+  manoeuvre intent, with an `eventType` discriminator.
+
+| RSU
+| Road Side Unit — infrastructure ITS station at the intersection; manages the right-of-way
+  grant protocol.
+|===
+
+== The five-state machine
+
+The vehicle's intersection protocol is captured as a five-state SysML 2 state machine:
+
+* **Idle** — vehicle is not near any managed intersection. Transitions to Approaching on a
+  `cam` event with `distanceToIntersection < 300`.
+* **Approaching** — vehicle is within 300 m. Broadcasts an intention DENM
+  (`eventType = "INTERSECTION_APPROACH"`). Transitions to Negotiating on `denm` from the RSU
+  with `eventType = "ROW_REQUEST_ACK"`.
+* **Negotiating** — right-of-way grant in progress. The RSU may send `denm` with
+  `eventType = "ROW_GRANTED"` (→ Crossing) or `eventType = "ROW_DENIED"` (→ Approaching,
+  retry). Timeout guard `event.elapsed > 5000` returns to Approaching.
+* **Crossing** — vehicle is traversing the intersection. Exit condition: `cam` with
+  `distanceToIntersection > 50` (vehicle has cleared). Transitions to Departed.
+* **Departed** — vehicle has left the intersection zone. A final `cam` with
+  `distanceToIntersection > 500` resets to Idle.
+
+[source,kotlin]
+----
+// (excerpt — see full script in kuml-examples/car2x/)
+sysml2Model("Car2X Intersection") {
+    val idle        = stateDef("Idle")
+    val approaching = stateDef("Approaching",  entryAction = "denm.send('INTERSECTION_APPROACH')")
+    val negotiating = stateDef("Negotiating",  entryAction = "log.info('awaiting ROW grant')")
+    val crossing    = stateDef("Crossing",     entryAction = "hmi.show('crossing')")
+    val departed    = stateDef("Departed",     entryAction = "denm.send('INTERSECTION_CLEARED')")
+
+    initialState(idle)
+
+    transition("startApproach",  idle,        approaching,
+        trigger = "cam",
+        guard   = "event.distanceToIntersection < 300")
+    transition("rowRequested",   approaching, negotiating,
+        trigger = "denm",
+        guard   = "event.eventType = 'ROW_REQUEST_ACK'")
+    transition("rowGranted",     negotiating, crossing,
+        trigger = "denm",
+        guard   = "event.eventType = 'ROW_GRANTED'")
+    transition("rowDenied",      negotiating, approaching,
+        trigger = "denm",
+        guard   = "event.eventType = 'ROW_DENIED'")
+    transition("rowTimeout",     negotiating, approaching,
+        trigger = "cam",
+        guard   = "event.elapsed > 5000")
+    transition("crossed",        crossing,   departed,
+        trigger = "cam",
+        guard   = "event.distanceToIntersection > 50")
+    transition("fullyDeparted",  departed,   idle,
+        trigger = "cam",
+        guard   = "event.distanceToIntersection > 500")
+}
+----
+
+== How to render
+
+[source,bash]
+----
+kuml render car2x-scenario-stm.kuml.kts --format svg
+----
+
+This produces `car2x-scenario-stm.svg` in the current directory — a state machine diagram
+showing all five states and seven transitions with their guard labels.
+
+== How to run
+
+[source,bash]
+----
+kuml simulate car2x-scenario-stm.kuml.kts \
+    --events car2x-events-happy.json \
+    --epoch-clock \
+    --output /tmp/car2x-trace.json
+----
+
+`--epoch-clock` ensures the trace timestamps are monotonic from 0 — required for golden
+trace comparisons in CI.
+
+== The three event files
+
+[cols="1,3"]
+|===
+| File | Scenario it tests
+
+| `car2x-events-happy.json`
+| Happy path: vehicle approaches, ROW granted on first request, crosses, departs.
+  Expected state sequence: `Idle → Approaching → Negotiating → Crossing → Departed → Idle`.
+
+| `car2x-events-denied-retry.json`
+| Contested intersection: RSU denies first ROW request, retries after 2 s, granted on
+  second attempt.
+  Expected sequence: `Idle → Approaching → Negotiating → Approaching → Negotiating → Crossing → Departed → Idle`.
+
+| `car2x-events-timeout.json`
+| RSU silent / unreachable: vehicle waits 5 s in Negotiating, timeout guard fires, retries.
+  Intended for testing the `elapsed > 5000` guard and the back-off behaviour.
+|===
+
+Example happy-path event file (abbreviated):
+
+[source,json]
+----
+{ "schema": "kuml.events.v1", "events": [
+    { "name": "cam",  "payload": { "distanceToIntersection": 280, "speed": 50 } },
+    { "name": "denm", "payload": { "eventType": "ROW_REQUEST_ACK", "rsuId": "RSU-042" } },
+    { "name": "denm", "payload": { "eventType": "ROW_GRANTED",     "rsuId": "RSU-042" } },
+    { "name": "cam",  "payload": { "distanceToIntersection": 60,  "speed": 30 } },
+    { "name": "cam",  "payload": { "distanceToIntersection": 600, "speed": 50 } }
+] }
+----
+
+== MCP walkthrough via Claude Desktop
+
+With the kUML MCP server configured (see xref:reference:runtime-mcp.adoc[Runtime-MCP Reference]),
+you can drive the scenario interactively from Claude Desktop:
+
+. *Start the machine*: call `kuml.run.start` with the script path. Claude receives
+  `initialState: "Idle"`.
+. *Fire a CAM event*: `kuml.run.event` with `{ "name": "cam", "payload": { "distanceToIntersection": 280 } }`.
+  Claude observes the transition to `Approaching`.
+. *Fire a DENM grant*: `kuml.run.event` with the ROW_GRANTED payload.
+  Claude observes the transition to `Crossing`.
+. *Snapshot*: `kuml.run.snapshot` to read the full trace so far.
+. *Complete and stop*: fire the remaining CAM events, then `kuml.run.stop`.
+
+This interactive session is how the Car2X scenario was originally validated before the
+golden trace files were committed — Claude Desktop served as the manual tester.
+
+== See also
+
+* xref:showcases/pepela-thermostat.adoc[Pepela Smart Home — Thermostat] — the first behaviour-runtime showcase
+* xref:reference:runtime-mcp.adoc[Behaviour-Runtime MCP Interface] — full MCP tool reference
+* xref:reference:simulate.adoc[State-Machine Simulation] — batch simulation and trace format
+* xref:reference:sysml2.adoc[SysML 2 DSL Reference] — the full SysML 2 language reference

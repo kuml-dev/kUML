@@ -1,0 +1,216 @@
+= Behaviour-Runtime MCP Interface
+:description: kUML's MCP server exposes the Behaviour-Runtime as five tool calls — start, event, snapshot, patch, stop.
+
+kUML exposes its Behaviour-Runtime via the Model Context Protocol (MCP). This allows
+any MCP-compatible client — Claude Desktop, VS Code Copilot, or your own agent — to
+*run* kUML state machines and activity diagrams interactively, without writing a single
+line of integration code.
+
+The MCP server is started via:
+
+[source,bash]
+----
+kuml ai mcp-stdio
+----
+
+Claude Desktop (and other clients) connect to this process over stdio.
+
+== The five runtime tools
+
+[cols="1,2,2,2"]
+|===
+| Tool | Purpose | Arguments | Return shape
+
+| `kuml.run.start`
+| Compile a `.kuml.kts` script and start a new runtime instance.
+| `{ "script": "<path>", "machine"?: "<name>", "epochClock"?: true }`
+| `{ "instanceId": "<uuid>", "initialState": "<vertex>" }`
+
+| `kuml.run.event`
+| Fire a named event at a running instance.
+| `{ "instanceId": "<uuid>", "name": "<event>", "payload"?: { ... } }`
+| `{ "transitioned": true|false, "currentState": "<vertex>", "trace": [ ... ] }`
+
+| `kuml.run.snapshot`
+| Read the current state and accumulated trace without firing an event.
+| `{ "instanceId": "<uuid>" }`
+| `{ "currentState": "<vertex>", "isTerminated": false, "trace": [ ... ] }`
+
+| `kuml.run.patch`
+| Forcibly set a context variable (for testing guard conditions).
+| `{ "instanceId": "<uuid>", "key": "<var>", "value": <json> }`
+| `{ "ok": true }`
+
+| `kuml.run.stop`
+| Terminate an instance and free runtime resources.
+| `{ "instanceId": "<uuid>" }`
+| `{ "finalState": "<vertex>", "terminated": true|false }`
+|===
+
+`instanceId` is a UUID assigned by `kuml.run.start`. All subsequent calls on the same
+session pass this ID. The server keeps instances alive in memory until `kuml.run.stop`
+is called or the MCP session closes.
+
+== Claude Desktop configuration
+
+Add the following block to your Claude Desktop `claude_desktop_config.json` (typically at
+`~/Library/Application\ Support/Claude/claude_desktop_config.json` on macOS):
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "kuml": {
+      "command": "kuml",
+      "args": ["ai", "mcp-stdio"],
+      "env": {}
+    }
+  }
+}
+----
+
+Restart Claude Desktop after editing the config. You should see `kuml` appear in the
+toolbox icon in the composer. kUML is now available as a first-class tool for every
+Claude Desktop conversation.
+
+== Full walkthrough: Pepela thermostat in Claude Desktop
+
+This walkthrough drives the Pepela thermostat model through its full heating → idle →
+cooling → eco → idle → off cycle via MCP tool calls.
+
+=== Step 1: Start the machine
+
+[source,json]
+----
+// kuml.run.start
+{
+  "script": "kuml-examples/src/main/kotlin/dev/kuml/examples/pepela/pepela-thermostat-stm.kuml.kts",
+  "epochClock": true
+}
+----
+
+Response:
+[source,json]
+----
+{
+  "instanceId": "f4a2e891-3c10-4b7f-9d8e-2a1f5c6b7e0d",
+  "initialState": "Off"
+}
+----
+
+=== Step 2: Fire `powerOn`
+
+[source,json]
+----
+// kuml.run.event
+{
+  "instanceId": "f4a2e891-3c10-4b7f-9d8e-2a1f5c6b7e0d",
+  "name": "powerOn"
+}
+----
+
+Response:
+[source,json]
+----
+{
+  "transitioned": true,
+  "currentState": "Idle",
+  "trace": [
+    { "type": "EventReceived",  "event": { "name": "powerOn" } },
+    { "type": "Transitioned",   "trigger": "powerOn", "from": "Off", "to": "Idle" },
+    { "type": "Entered",        "vertex": "Idle" }
+  ]
+}
+----
+
+=== Step 3: Fire a `tick` event to trigger heating
+
+[source,json]
+----
+// kuml.run.event
+{
+  "instanceId": "f4a2e891-3c10-4b7f-9d8e-2a1f5c6b7e0d",
+  "name": "tick",
+  "payload": { "temperature": 16, "targetTemperature": 21 }
+}
+----
+
+Response: `currentState: "Heating"` — the guard `event.temperature < event.targetTemperature - 1`
+evaluated to true (16 < 20).
+
+=== Step 4: Snapshot without firing an event
+
+[source,json]
+----
+// kuml.run.snapshot
+{ "instanceId": "f4a2e891-3c10-4b7f-9d8e-2a1f5c6b7e0d" }
+----
+
+Response:
+[source,json]
+----
+{
+  "currentState": "Heating",
+  "isTerminated": false,
+  "trace": [ /* all entries so far */ ]
+}
+----
+
+=== Step 5: Complete the cycle and stop
+
+Continue firing `tick` events with rising temperature to drive the machine through Idle →
+Cooling → Idle → Eco → Idle → Off, then stop:
+
+[source,json]
+----
+// kuml.run.stop
+{ "instanceId": "f4a2e891-3c10-4b7f-9d8e-2a1f5c6b7e0d" }
+----
+
+Response:
+[source,json]
+----
+{
+  "finalState": "Off",
+  "terminated": false
+}
+----
+
+NOTE: `terminated` is `true` only when the machine reaches a UML/SysML final state via
+the runtime's own termination rule. A `kuml.run.stop` call always succeeds regardless.
+
+== Payload schema for guards
+
+Guard expressions in the DSL use `event.<key>` to read payload fields. The MCP `payload`
+object maps directly to these keys — what you pass in `kuml.run.event` is what OCL sees:
+
+[source,json]
+----
+{
+  "name": "tick",
+  "payload": {
+    "temperature": 19,
+    "targetTemperature": 21,
+    "humidity": 55
+  }
+}
+----
+
+A guard of `event.temperature < event.targetTemperature - 1` receives `19 < 20 = true`.
+
+== Using `kuml.run.patch` for guard testing
+
+`kuml.run.patch` injects a context variable that guards can read. This is intended for
+automated tests that need to reach a specific state without constructing a full event
+sequence:
+
+[source,json]
+----
+// Force the overrideEco flag so the eco-mode guard fires immediately
+{ "instanceId": "...", "key": "overrideEco", "value": true }
+----
+
+== See also
+
+* xref:simulate.adoc[State-Machine Simulation] — batch simulation via `kuml simulate`, trace format
+* xref:cli.adoc[CLI Reference] — `kuml ai mcp-stdio` command
