@@ -1,0 +1,144 @@
+= kUML Examples
+:toc:
+:toc-placement: preamble
+:icons: font
+
+This directory contains runnable kUML example scripts demonstrating the full feature surface — rendering, simulation, and model-to-model code generation.
+
+== Directory Overview
+
+[cols="1,2,2,3", options="header"]
+|===
+| Directory | Domain | Diagram types | Special notes
+
+| `autosar/`
+| AUTOSAR Classic Platform (R22-11)
+| Class (with AUTOSAR profile stereotypes)
+| `«SoftwareComponent»`, `«ComInterface»`, `«Runnable»`, `«BehaviorSpec»`; AUTOSAR port direction D17 convention
+
+| `c4/`
+| Generic system architecture
+| C4 Container, C4 Landscape
+| Demonstrates kUML's C4 first-class support
+
+| `javaee/`
+| JavaEE / Jakarta EE applications
+| Class (JavaEE profile)
+| Persistence context, user domain with `«Entity»`, `«SessionBean»` stereotypes
+
+| `jpa/`
+| JPA entity generation
+| Class (UML → JPA M2M)
+| `blog-domain.kuml.kts` is the canonical `kuml transform` target; generates Kotlin JPA entity files via `--transformer uml-to-jpa`
+
+| `openapi/`
+| REST API specification
+| Class (OpenAPI profile)
+| Feature operations, user resource with `«Resource»`, `«Operation»` stereotypes
+
+| `pepela/`
+| Pepela Smart Home (thermostat)
+| SysML 2 STM + SysML 2 ACT
+| Thermostat state machine and boot-flow activity; *both* are runnable via `kuml simulate`
+
+| `soaml/`
+| Service-oriented architecture
+| Class (SoaML profile)
+| Order processing service composition with `«ServiceInterface»`, `«Service»` stereotypes
+
+| `spring/`
+| Spring Framework applications
+| Class (Spring profile)
+| Payment service and scheduled tasks with `«Component»`, `«Service»`, `«Scheduled»` stereotypes
+
+| `sysml2/`
+| SysML 2 across all supported diagram types
+| BDD, UC, PAR, ACT, STM, SEQ, REQ
+| Covers all 7 simulatable/renderable SysML 2 diagram types; ACT and STM are runnable via `kuml simulate`
+|===
+
+== Runnable Categories
+
+=== `kuml render` — all examples
+
+Every `.kuml.kts` file in this tree can be rendered to SVG or PNG:
+
+[source,bash]
+----
+kuml render autosar/autosar-engine-control.kuml.kts --format svg
+kuml render sysml2/hybrid-vehicle.kuml.kts --format svg
+kuml render pepela/pepela-thermostat-stm.kuml.kts --format png
+----
+
+=== `kuml simulate` — behavioural execution
+
+Simulation is supported for STM (state-machine semantics) and ACT (token-flow activity semantics) in both UML and SysML 2.
+
+[cols="2,2,2", options="header"]
+|===
+| Script | Events file | What it exercises
+
+| `pepela/pepela-thermostat-stm.kuml.kts`
+| `pepela/pepela-thermostat-stm-events.json`
+| SysML 2 STM — thermostat state machine (Off → Heating → Idle → Cooling)
+
+| `pepela/pepela-thermostat-flow.kuml.kts`
+| `pepela/pepela-thermostat-flow-events.json`
+| SysML 2 ACT — thermostat boot-flow with token propagation
+
+| `sysml2/traffic-light-stm.kuml.kts`
+| _(inline initial event)_
+| SysML 2 STM — classic traffic light cycle
+
+| `sysml2/order-processing-act.kuml.kts`
+| `sysml2/order-processing-act-events.json`
+| SysML 2 ACT — order processing activity with expected trace verification
+|===
+
+[source,bash]
+----
+kuml simulate pepela/pepela-thermostat-stm.kuml.kts \
+    --events pepela/pepela-thermostat-stm-events.json
+
+kuml simulate sysml2/order-processing-act.kuml.kts \
+    --events sysml2/order-processing-act-events.json
+----
+
+=== `kuml transform` — M2M code generation
+
+[cols="2,2,2", options="header"]
+|===
+| Script | Transformer | Output
+
+| `jpa/blog-domain.kuml.kts`
+| `uml-to-jpa`
+| Kotlin JPA entity files (one `.kt` per class in the diagram)
+|===
+
+[source,bash]
+----
+kuml transform jpa/blog-domain.kuml.kts \
+    --transformer uml-to-jpa \
+    --output generated/
+
+# List all registered transformers:
+kuml transform --list-transformers
+----
+
+== Quick Start
+
+Three one-liners to see kUML in action immediately:
+
+[source,bash]
+----
+# 1. Render a SysML 2 hybrid-vehicle block definition diagram to SVG
+kuml render sysml2/hybrid-vehicle.kuml.kts --format svg
+
+# 2. Simulate a thermostat state machine end-to-end
+kuml simulate pepela/pepela-thermostat-stm.kuml.kts \
+    --events pepela/pepela-thermostat-stm-events.json
+
+# 3. Generate Kotlin JPA entities from a UML class diagram
+kuml transform jpa/blog-domain.kuml.kts \
+    --transformer uml-to-jpa --output /tmp/jpa-gen/
+----

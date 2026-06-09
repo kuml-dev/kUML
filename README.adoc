@@ -82,7 +82,7 @@ kuml render order-domain.kuml.kts --format svg
 | Named parameters, canonical formatter, structured JSON errors, MCP server — designed for reliable LLM code generation.
 
 | *Model Driven Architecture*
-| M2M transformations (Design → Implementation → Deployment) and M2T code generation.
+| M2M transformations (Design → Implementation → Deployment) and M2T code generation. `kuml transform --transformer uml-to-jpa` generates Kotlin JPA entities from UML class diagrams; additional transformers registered via ServiceLoader.
 
 | *Pure Kotlin metamodel*
 | No EMF in the core — `sealed`/`data class` hierarchy only. XMI interop available as optional `kuml-io-emf` module.
@@ -93,6 +93,31 @@ kuml render order-domain.kuml.kts --format svg
 | *Built-in UML profiles*
 | Five profiles ship with v0.3.0 — *AUTOSAR* (Classic Platform R22-11), JavaEE / Jakarta EE, Spring, OpenAPI, SoaML. Discovered through `ServiceLoader`; add your own without touching the CLI.
 |===
+
+== SysML 2 Support
+
+kUML implements all 8 SysML 2 diagram types as first-class peers alongside UML 2.x and C4:
+
+[cols="1,3,1"]
+|===
+| Diagram type | Description | Simulate
+
+| *BDD* — Block Definition Diagram | System structure, blocks, value properties, associations | —
+| *IBD* — Internal Block Diagram | Internal connections and port bindings | —
+| *UC* — Use Case Diagram | Actor/use-case relationships in system context | —
+| *REQ* — Requirements Diagram | Requirement hierarchy, satisfy/refine/derive traces | —
+| *STM* — State Machine Diagram | Hierarchical state machines with guards and effects | ✅ `kuml simulate`
+| *ACT* — Activity Diagram | Token-flow activity semantics with partitions (swimlanes) | ✅ `kuml simulate`
+| *SEQ* — Sequence Diagram | Lifeline interactions with Combined Fragments | —
+| *PAR* — Parametric Diagram | Constraint blocks and parametric equations | —
+|===
+
+Notable features added since v0.5.0:
+
+* `kuml simulate` supports SysML 2 *STM* (V2.0.17) and *ACT* (V2.0.18) end-to-end — event-driven state-machine execution and token-flow activity simulation.
+* *Combined Fragments* (alt, opt, loop, par, …) in SEQ diagrams (V2.0.15).
+* *Activity Partitions / Swimlanes* in ACT diagrams (V2.0.16).
+* *Typed expression validation* (`kuml validate --strict`) parses OCL-like guards, effects, and PAR constraints through a typed AST with type inference (V2.0.20b).
 
 == How kUML compares
 
@@ -118,7 +143,9 @@ kuml render order-domain.kuml.kts --format svg
 | Built-in UML profiles (5)    | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌
 | Code generation (M2T)        | ✅ | ❌ | ❌ | ❌ | ⚠️ | ✅ | ✅ | ❌
 | MDA transforms (M2M)         | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ⚠️ | ❌
-| Executable behaviour         | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌
+| Executable behaviour simulation | ✅ | ❌ | ❌ | ❌ | ❌ | ◐ | ❌ | ❌
+| M2M code generation (transformers) | ✅ | ❌ | ❌ | ❌ | ❌ | ◐ | ◐ | ❌
+| Typed expression validation  | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌
 | Git-native                   | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ⚠️ | ✅
 | Open source                  | ✅ | ✅ | ✅ | ✅ | ⚠️ | ❌ | ✅ | ✅
 | LLM-first design             | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌
@@ -126,7 +153,7 @@ kuml render order-domain.kuml.kts --format svg
 | Beautiful auto-layouts       | ✅ | ❌ | ⚠️ | ✅ | ✅ | ⚠️ | ⚠️ | ✅
 |===
 
-✅ present · ⚠️ limited or partial · ❌ absent
+✅ present · ⚠️ limited or partial · ◐ proprietary/closed · ❌ absent
 
 === Where kUML wins
 
@@ -172,6 +199,15 @@ kuml render order-domain.kuml.kts --format svg
 
 | `kuml completion`
 | Emit shell completion scripts for `bash`, `zsh`, or `fish` (Clikt built-in).
+
+| `kuml simulate <script> --events <file>`
+| Execute a simulation trace against a UML or SysML 2 behavioural model. Supports STM (state-machine semantics) and ACT (token-flow activity semantics) for both UML and SysML 2. SysML 2 STM added in V2.0.17; SysML 2 ACT added in V2.0.18.
+
+| `kuml transform <script> --transformer <name> --output <dir>`
+| M2M transformation: transform a source model to a target artefact. Built-in transformer `uml-to-jpa` generates Kotlin JPA entity files from a UML class diagram. `--list-transformers` lists all registered transformers (discovered via ServiceLoader). Added in V2.0.21.
+
+| `kuml validate --strict <script>`
+| Extended validation mode (V2.0.20b): in addition to model consistency checks, parses and type-checks typed expressions — OCL-like guards, effects, and PAR constraints — through a typed AST with type inference.
 |===
 
 == Roadmap
@@ -213,8 +249,10 @@ Gradle plugin, AsciiDoc, IDE plugin, `kuml simulate`
 | 🚧 In progress — all 9 diagram types shipped
 
 | *V2*
-| SysML 2 + KerML, M2M transformations, reverse engineering, XMI, Web UI, Compose Desktop
-| 📋 Planned
+| SysML 2 (all 8 diagram types ✅) + `kuml simulate` for STM + ACT ✅ +
+`kuml transform` (uml-to-jpa) ✅ + `kuml validate --strict` typed expressions ✅ +
+KerML, reverse engineering, XMI, Web UI, Compose Desktop 🚧
+| 🚧 In progress — V2.0.21 on master, unreleased (target v0.6.0)
 |===
 
 == Modules
@@ -246,12 +284,14 @@ kuml-io/
 kuml-cli/            ✅  Command-line interface
   render             ✅  kuml render model.kuml.kts [--format svg|png]
   watch              ✅  kuml watch model.kuml.kts  (live-reload, 500ms polling)
-  validate           ✅  kuml validate model.kuml.kts --output text|json
+  validate           ✅  kuml validate model.kuml.kts --output text|json [--strict]
   fmt                ✅  kuml fmt model.kuml.kts [--check]
   generate           ✅  kuml generate --plugin kotlin model.kuml.kts
   completion         ✅  kuml completion bash|zsh|fish
   import             ✅  kuml import --format structurizr workspace.dsl
   markdown           ✅  kuml markdown --input in.md --output out.md --mode inline|linked-svg|linked-png
+  simulate           ✅  kuml simulate model.kuml.kts --events events.json  (UML + SysML 2 STM/ACT)
+  transform          ✅  kuml transform model.kuml.kts --transformer uml-to-jpa --output gen/
 
 kuml-mcp/            ✅  MCP server — stdio JSON-RPC 2.0, Protocol 2024-11-05, 5 tools
 
