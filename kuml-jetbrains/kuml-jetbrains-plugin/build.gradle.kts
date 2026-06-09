@@ -33,6 +33,10 @@ dependencies {
     // Kotlin Scripting Common / Annotations — wird transitive zwar mitkommen,
     // hier explizit, damit der Plugin-Classpath stabil bleibt.
     implementation(libs.kotlin.scripting.common)
+    // Apache Batik Swing — JSVGCanvas for the live SVG preview panel (V2.0.30).
+    // batik-transcoder/codec are already on the classpath via kuml-io-png;
+    // batik-swing adds the Swing widget on top.
+    implementation(libs.batik.swing)
 
     intellijPlatform {
         intellijIdea(

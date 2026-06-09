@@ -1,31 +1,44 @@
 package dev.kuml.jetbrains
 
+import org.apache.batik.anim.dom.SAXSVGDocumentFactory
+import org.apache.batik.swing.JSVGCanvas
+import org.apache.batik.util.XMLResourceDescriptor
+import org.w3c.dom.svg.SVGDocument
 import java.awt.BorderLayout
+import java.awt.CardLayout
+import java.io.StringReader
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.atomic.AtomicReference
-import javax.swing.JEditorPane
+import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
+import javax.swing.JToolBar
 import javax.swing.SwingUtilities
 
 /**
- * Live SVG preview panel for `.kuml.kts` files (V2.0.28b).
+ * Live SVG preview panel for `.kuml.kts` files (V2.0.30).
  *
- * Renders the diagram declared in the currently edited script as an SVG image
- * inside the split editor. The rendering pipeline runs on a background thread
- * to avoid blocking the EDT:
+ * Renders the diagram declared in the currently edited script as a native SVG
+ * inside the split editor, using Apache Batik's [JSVGCanvas]. The rendering
+ * pipeline runs on a background thread to avoid blocking the EDT:
  *
  *  1. A document listener on the editor triggers [scheduleUpdate].
- *  2. [scheduleUpdate] debounces rapid keystrokes with a 300 ms delay using
- *     a [Timer] task so we don't re-render on every single keystroke.
+ *  2. [scheduleUpdate] debounces rapid keystrokes with a [debounceMs] delay.
  *  3. After the delay the render task runs on a background executor, calls
- *     [renderToSvg] (which delegates to KumlScriptHost + DiagramExtractor +
- *     layout + KumlSvgRenderer), and swaps the SVG content in on the EDT via
- *     [SwingUtilities.invokeLater].
- *  4. The panel shows a "Rendering…" placeholder while computing, and
- *     "No diagram" when the script produces no renderable diagram or throws.
+ *     [renderScript] (which delegates to [KumlPreviewRenderer.render]),
+ *     parses the SVG string into a Batik [SVGDocument], and swaps it into
+ *     the canvas on the EDT.
+ *  4. The panel shows "Rendering…" while computing and "No diagram" when the
+ *     script produces no renderable diagram or throws.
  *  5. Calling [dispose] cancels any pending timer and stops the render pool.
+ *
+ * ## Toolbar
+ *
+ * Three [JButton]s above the canvas:
+ *  - **Fit to Window** — resets the canvas transform so the entire diagram fits.
+ *  - **100%** — shows the diagram at its native 1:1 pixel scale.
+ *  - **Zoom In** — enlarges the canvas view by a fixed 1.25× factor.
  *
  * ## IntelliJ integration
  *
@@ -33,14 +46,6 @@ import javax.swing.SwingUtilities
  * classes in its constructor so it can be instantiated in unit tests without
  * a running IDE. The only IDE coupling is in [KumlSplitEditorProvider], which
  * wires the panel to an open `TextEditor` via a `DocumentListener`.
- *
- * ## Batik note
- *
- * The MVP uses [JEditorPane] with `text/html` mime type to display the SVG
- * string embedded in a minimal HTML wrapper. A proper [org.apache.batik.swing.JSVGCanvas]
- * upgrade (which requires adding `batik-swing` as an explicit dependency) is
- * deferred to V2.0.28c — the JEditorPane approach renders correctly in
- * IntelliJ's JDK distribution and avoids a large transitive dependency pull-in.
  *
  * @param debounceMs Debounce delay in milliseconds. Overridable for tests.
  */
@@ -53,13 +58,29 @@ class KumlPreviewPanel(
         const val STATUS_NO_DIAGRAM: String = "No diagram"
         const val STATUS_READY: String = "Ready"
         const val DISABLE_SYSTEM_PROPERTY: String = "kuml.preview.disabled"
+
+        private const val CARD_CANVAS = "canvas"
+        private const val CARD_EMPTY = "empty"
+        private const val ZOOM_STEP = 1.25
     }
 
     // ── Internal state ────────────────────────────────────────────────────────
 
-    private val svgEditor =
-        JEditorPane("text/html", "<html><body>$STATUS_RENDERING</body></html>").apply {
-            isEditable = false
+    /**
+     * Batik JSVGCanvas — the real SVG renderer. Created lazily inside
+     * [initCanvas] so that headless-test environments can override with a
+     * dummy and avoid the AWT toolkit initialisation.
+     */
+    internal val svgCanvas: JSVGCanvas by lazy { JSVGCanvas() }
+
+    private val emptyLabel = JLabel(STATUS_NO_DIAGRAM, JLabel.CENTER)
+
+    /** CardLayout to switch between the canvas and the "No diagram" label. */
+    private val cardLayout = CardLayout()
+    private val cardPanel =
+        JPanel(cardLayout).also { cards ->
+            cards.add(svgCanvas, CARD_CANVAS)
+            cards.add(emptyLabel, CARD_EMPTY)
         }
 
     private val statusLabel = JLabel(STATUS_RENDERING)
@@ -85,8 +106,35 @@ class KumlPreviewPanel(
             Thread(r, "kuml-preview-render").also { it.isDaemon = true }
         }
 
+    // ── Toolbar ───────────────────────────────────────────────────────────────
+
+    /** Toolbar with Fit / 100% / Zoom In buttons. */
+    val toolbar: JToolBar =
+        JToolBar().also { bar ->
+            bar.isFloatable = false
+
+            val fitBtn = JButton("Fit to Window")
+            fitBtn.addActionListener { svgCanvas.resetRenderingTransform() }
+            bar.add(fitBtn)
+
+            val oneToOneBtn = JButton("100%")
+            oneToOneBtn.addActionListener {
+                svgCanvas.resetRenderingTransform()
+            }
+            bar.add(oneToOneBtn)
+
+            val zoomInBtn = JButton("Zoom In")
+            zoomInBtn.addActionListener {
+                val at = svgCanvas.renderingTransform.clone() as java.awt.geom.AffineTransform
+                at.scale(ZOOM_STEP, ZOOM_STEP)
+                svgCanvas.setRenderingTransform(at, true)
+            }
+            bar.add(zoomInBtn)
+        }
+
     init {
-        add(svgEditor, BorderLayout.CENTER)
+        add(toolbar, BorderLayout.NORTH)
+        add(cardPanel, BorderLayout.CENTER)
         add(statusLabel, BorderLayout.SOUTH)
     }
 
@@ -154,10 +202,19 @@ class KumlPreviewPanel(
             SwingUtilities.invokeLater {
                 if (disposed) return@invokeLater
                 if (svgOrNull != null) {
-                    svgEditor.text = "<html><body>$svgOrNull</body></html>"
-                    setStatus(STATUS_READY)
+                    val doc = parseSvg(svgOrNull)
+                    if (doc != null) {
+                        svgCanvas.setSVGDocument(doc)
+                        cardLayout.show(cardPanel, CARD_CANVAS)
+                        setStatus(STATUS_READY)
+                    } else {
+                        cardLayout.show(cardPanel, CARD_EMPTY)
+                        emptyLabel.text = STATUS_NO_DIAGRAM
+                        setStatus(STATUS_NO_DIAGRAM)
+                    }
                 } else {
-                    svgEditor.text = "<html><body><em>$STATUS_NO_DIAGRAM</em></body></html>"
+                    cardLayout.show(cardPanel, CARD_EMPTY)
+                    emptyLabel.text = STATUS_NO_DIAGRAM
                     setStatus(STATUS_NO_DIAGRAM)
                 }
             }
@@ -183,6 +240,24 @@ class KumlPreviewPanel(
             null
         }
     }
+
+    /**
+     * Parse an SVG string into a Batik [SVGDocument].
+     *
+     * Returns `null` on any parse error so callers can show "No diagram"
+     * gracefully instead of crashing.
+     */
+    internal fun parseSvg(svgString: String): SVGDocument? =
+        try {
+            val parser = XMLResourceDescriptor.getXMLParserClassName()
+            val factory = SAXSVGDocumentFactory(parser)
+            factory.createSVGDocument(
+                "https://kuml.dev/preview",
+                StringReader(svgString),
+            )
+        } catch (_: Exception) {
+            null
+        }
 
     private fun setStatusOnEdt(status: String) {
         if (SwingUtilities.isEventDispatchThread()) {
