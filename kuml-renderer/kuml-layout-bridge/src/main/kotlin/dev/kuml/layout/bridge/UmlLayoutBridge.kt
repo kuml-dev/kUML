@@ -10,6 +10,8 @@ import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutGroup
 import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
+import dev.kuml.layout.PortId
+import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlRelationship
@@ -51,6 +53,11 @@ public object UmlLayoutBridge {
         val edges = mutableListOf<LayoutEdge>()
         val groups = mutableListOf<LayoutGroup>()
 
+        // Pre-pass: collect port names per component for connector-endpoint
+        // splitting (componentId::portName → nodeId+portId). Walks packages,
+        // sub-packages and nested components transitively.
+        val componentPorts: Map<String, Set<String>> = collectComponentPorts(diagram)
+
         for (element in diagram.elements) {
             when (element) {
                 is UmlPackage -> {
@@ -82,16 +89,9 @@ public object UmlLayoutBridge {
                             }
                             is UmlRelationship -> {
                                 // Relationships inside packages are treated as edges
-                                val endpoints = EndpointResolver.resolve(member)
+                                val endpoints = EndpointResolver.resolveWithPorts(member, componentPorts)
                                 if (endpoints != null) {
-                                    edges.add(
-                                        LayoutEdge(
-                                            id = EdgeId(member.id),
-                                            source = EndpointRef(nodeId = NodeId(endpoints.first)),
-                                            target = EndpointRef(nodeId = NodeId(endpoints.second)),
-                                            hints = EdgeHints.NONE,
-                                        ),
-                                    )
+                                    edges.add(toEdge(member.id, endpoints))
                                 }
                             }
                             else -> {
@@ -113,16 +113,9 @@ public object UmlLayoutBridge {
                     }
                 }
                 is UmlRelationship -> {
-                    val endpoints = EndpointResolver.resolve(element)
+                    val endpoints = EndpointResolver.resolveWithPorts(element, componentPorts)
                     if (endpoints != null) {
-                        edges.add(
-                            LayoutEdge(
-                                id = EdgeId(element.id),
-                                source = EndpointRef(nodeId = NodeId(endpoints.first)),
-                                target = EndpointRef(nodeId = NodeId(endpoints.second)),
-                                hints = EdgeHints.NONE,
-                            ),
-                        )
+                        edges.add(toEdge(element.id, endpoints))
                     }
                 }
                 is UmlNamedElement -> {
@@ -147,5 +140,67 @@ public object UmlLayoutBridge {
         }
 
         return LayoutGraph(nodes = nodes, edges = edges, groups = groups)
+    }
+
+    private fun toEdge(
+        edgeId: String,
+        endpoints: ResolvedEndpoints,
+    ): LayoutEdge =
+        LayoutEdge(
+            id = EdgeId(edgeId),
+            source =
+                EndpointRef(
+                    nodeId = NodeId(endpoints.sourceNodeId),
+                    portId = endpoints.sourcePortId?.let(::PortId),
+                ),
+            target =
+                EndpointRef(
+                    nodeId = NodeId(endpoints.targetNodeId),
+                    portId = endpoints.targetPortId?.let(::PortId),
+                ),
+            hints = EdgeHints.NONE,
+        )
+
+    /**
+     * Walks the diagram and collects, per component ID, the set of declared port
+     * names. Required so [EndpointResolver.resolveWithPorts] can split
+     * qualified connector endpoint IDs (`"compId::portName"`) into node + port.
+     *
+     * Handles components at top level, inside packages (incl. sub-packages),
+     * and nested components inside other components.
+     */
+    private fun collectComponentPorts(diagram: KumlDiagram): Map<String, Set<String>> {
+        val result = mutableMapOf<String, Set<String>>()
+        for (element in diagram.elements) {
+            when (element) {
+                is UmlComponent -> collectFromComponent(element, result)
+                is UmlPackage -> collectFromPackage(element, result)
+                else -> {} // ignore
+            }
+        }
+        return result
+    }
+
+    private fun collectFromPackage(
+        pkg: UmlPackage,
+        out: MutableMap<String, Set<String>>,
+    ) {
+        for (member in pkg.members) {
+            when (member) {
+                is UmlComponent -> collectFromComponent(member, out)
+                is UmlPackage -> collectFromPackage(member, out)
+                else -> {}
+            }
+        }
+    }
+
+    private fun collectFromComponent(
+        component: UmlComponent,
+        out: MutableMap<String, Set<String>>,
+    ) {
+        out[component.id] = component.ports.map { it.name }.toSet()
+        for (nested in component.nestedComponents) {
+            collectFromComponent(nested, out)
+        }
     }
 }

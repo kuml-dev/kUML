@@ -120,6 +120,32 @@ class RenderPipelineTest :
             outputDir.toFile().delete()
         }
 
+        test("RenderPipeline renders V1.1 component-diagram script with port-qualified connectors") {
+            // Regression guard for the UmlLayoutBridge connector port-ID split fix:
+            // ComponentDsl.connect(port1, port2) writes "<componentId>::<portName>" into
+            // UmlConnector.endNId — the bridge must split those into EndpointRef(nodeId, portId)
+            // so the Grid engine can resolve the source/target nodes without throwing.
+            val fixture = File("src/test/resources/component-architecture.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-component-test")
+            val outputFile = outputDir.resolve("component-architecture.svg")
+
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "svg",
+                width = 1024,
+                themeName = "plain",
+            )
+
+            val content = outputFile.toFile().readText()
+            content shouldStartWith "<?xml"
+            content shouldContain "OrderService"
+            content shouldContain "MessageBroker"
+
+            outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
         test("RenderPipeline writes PNG file from C4 system-context script") {
             val fixture = File("src/test/resources/minimal-c4.kuml.kts")
             val outputDir = Files.createTempDirectory("kuml-c4-png-test")
