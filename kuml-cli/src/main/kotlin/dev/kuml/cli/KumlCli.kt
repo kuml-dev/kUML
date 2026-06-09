@@ -26,6 +26,7 @@ internal class KumlCli : CliktCommand(name = "kuml") {
             ValidateExpressionsCommand(),
             FmtCommand(),
             GenerateCommand(),
+            TransformCommand(),
             ImportCommand(),
             ExportCommand(),
             MarkdownCommand(),
