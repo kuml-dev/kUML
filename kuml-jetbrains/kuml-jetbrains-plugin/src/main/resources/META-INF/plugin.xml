@@ -72,5 +72,7 @@
         -->
         <fileIconProvider
             implementation="dev.kuml.jetbrains.KumlFileIconProvider"/>
+
+        <externalAnnotator language="kotlin" implementationClass="dev.kuml.jetbrains.KumlAnnotator"/>
     </extensions>
 </idea-plugin>
