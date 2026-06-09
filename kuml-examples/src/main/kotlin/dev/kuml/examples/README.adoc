@@ -55,6 +55,31 @@ This directory contains runnable kUML example scripts demonstrating the full fea
 | SysML 2 across all supported diagram types
 | BDD, UC, PAR, ACT, STM, SEQ, REQ
 | Covers all 7 simulatable/renderable SysML 2 diagram types; ACT and STM are runnable via `kuml simulate`
+
+| `rest/`
+| REST API code generation
+| Class (UML → OpenAPI)
+| `blog-api.kuml.kts` generates an OpenAPI 3.0 YAML spec via `--transformer uml-to-rest`
+
+| `k8s/`
+| Kubernetes deployment generation
+| Component (UML → K8s)
+| `order-system-k8s.kuml.kts` generates Deployment + Service manifests via `--transformer uml-to-k8s`
+
+| `docker/`
+| Dockerfile generation
+| Component (UML → Docker)
+| `order-system-docker.kuml.kts` generates a Dockerfile per component via `--transformer uml-to-docker`
+
+| `c4-to-uml/`
+| C4 → UML round-trip
+| C4 → UML class diagram script
+| `banking-to-uml.kuml.kts` converts a C4 model to a UML class diagram script via `--transformer c4-to-uml`
+
+| `keysight/`
+| Keysight Car2x / V2X automotive scenario
+| SysML 2 STM + SysML 2 BDD
+| V2X intersection scenario (Idle → Approaching → Negotiating → Crossing → Departed); three event files; runnable via `kuml simulate`
 |===
 
 == Runnable Categories
@@ -93,6 +118,18 @@ Simulation is supported for STM (state-machine semantics) and ACT (token-flow ac
 | `sysml2/order-processing-act.kuml.kts`
 | `sysml2/order-processing-act-events.json`
 | SysML 2 ACT — order processing activity with expected trace verification
+
+| `keysight/car2x-scenario-stm.kuml.kts`
+| `keysight/car2x-events-happy.json`
+| SysML 2 STM — V2X intersection: Idle → Approaching → Negotiating → Crossing → Departed (happy path)
+
+| `keysight/car2x-scenario-stm.kuml.kts`
+| `keysight/car2x-events-conflict.json`
+| SysML 2 STM — V2X conflict path (yields back to Idle)
+
+| `keysight/car2x-scenario-stm.kuml.kts`
+| `keysight/car2x-events-late-detection.json`
+| SysML 2 STM — late detection (TTC guard fails, stays in Idle)
 |===
 
 [source,bash]
@@ -112,22 +149,46 @@ kuml simulate sysml2/order-processing-act.kuml.kts \
 
 | `jpa/blog-domain.kuml.kts`
 | `uml-to-jpa`
-| Kotlin JPA entity files (one `.kt` per class in the diagram)
+| Kotlin JPA `@Entity` files (one `.kt` per class)
+
+| `rest/blog-api.kuml.kts`
+| `uml-to-rest`
+| OpenAPI 3.0 YAML (`openapi.yaml`) with CRUD endpoints per class
+
+| `k8s/order-system-k8s.kuml.kts`
+| `uml-to-k8s`
+| Kubernetes `deployment.yaml` per component (Deployment + Service)
+
+| `docker/order-system-docker.kuml.kts`
+| `uml-to-docker`
+| `Dockerfile` per component (eclipse-temurin:21-jre-alpine base)
+
+| `c4-to-uml/banking-to-uml.kuml.kts`
+| `c4-to-uml`
+| `.kuml.kts` script reproducing the C4 model as a UML class diagram
 |===
 
 [source,bash]
 ----
 kuml transform jpa/blog-domain.kuml.kts \
-    --transformer uml-to-jpa \
-    --output generated/
+    --transformer uml-to-jpa --output generated/jpa/
 
-# List all registered transformers:
+kuml transform rest/blog-api.kuml.kts \
+    --transformer uml-to-rest --output generated/rest/
+
+kuml transform k8s/order-system-k8s.kuml.kts \
+    --transformer uml-to-k8s --output generated/k8s/
+
+kuml transform docker/order-system-docker.kuml.kts \
+    --transformer uml-to-docker --output generated/docker/
+
+# List all registered transformers (shows uml-to-jpa, uml-to-rest, uml-to-k8s, uml-to-docker, c4-to-uml):
 kuml transform --list-transformers
 ----
 
 == Quick Start
 
-Three one-liners to see kUML in action immediately:
+Five one-liners to see kUML in action immediately:
 
 [source,bash]
 ----
@@ -141,4 +202,12 @@ kuml simulate pepela/pepela-thermostat-stm.kuml.kts \
 # 3. Generate Kotlin JPA entities from a UML class diagram
 kuml transform jpa/blog-domain.kuml.kts \
     --transformer uml-to-jpa --output /tmp/jpa-gen/
+
+# 4. Simulate a real-world automotive V2X intersection scenario
+kuml simulate keysight/car2x-scenario-stm.kuml.kts \
+    --events keysight/car2x-events-happy.json
+
+# 5. Generate OpenAPI 3.0 YAML from a UML class diagram
+kuml transform rest/blog-api.kuml.kts \
+    --transformer uml-to-rest --output /tmp/rest-gen/
 ----
