@@ -76,7 +76,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: BdDiagram,
-        sizeProvider: SizeProvider = SizeProvider.constant(width = DEFAULT_WIDTH, height = DEFAULT_HEIGHT),
+        sizeProvider: SizeProvider = bddContentAwareSizeProvider(model),
     ): LayoutGraph {
         // Snapshot der sichtbaren Definitionen — ein Set für O(1)-Edge-Filter weiter unten.
         val visibleIds: Set<String> = diagram.elementIds.toSet()
@@ -120,6 +120,29 @@ public object Sysml2LayoutBridge {
     public const val DEFAULT_WIDTH: Float = 220f
     public const val DEFAULT_HEIGHT: Float = 140f
 
+    // ── Content-aware sizing constants ────────────────────────────────────────
+
+    /** Height of the stereotype line (e.g. `«part def»`) in a BDD box. */
+    public const val STEREOTYPE_LINE_H: Float = 16f
+
+    /** Height of the name line in a BDD/REQ/STM box. */
+    public const val NAME_LINE_H: Float = 18f
+
+    /** Height per feature line in the BDD attribute compartment. */
+    public const val FEATURE_LINE_H: Float = 14f
+
+    /** Height per action line in an STM state box. */
+    public const val ACTION_LINE_H: Float = 13f
+
+    /** Vertical padding (top + bottom) inside a node box. */
+    public const val BOX_V_PADDING: Float = 16f
+
+    /** Vertical gap before the feature/action compartment divider. */
+    public const val DIVIDER_GAP: Float = 6f
+
+    /** Height per word-wrapped text line in a REQ box. */
+    public const val WRAP_LINE_H: Float = 13f
+
     /**
      * Default-Größe pro IBD-Box (V2.0.6). Kleiner als die BDD-Default-Größe,
      * weil IBD-Boxen nur `name : Type [mult]` zeigen — keine Compartments für
@@ -152,7 +175,7 @@ public object Sysml2LayoutBridge {
      * Präfix, und das eigentliche Anforderungstext-Kompartment mit ein bis
      * drei wortgewrappten Zeilen).
      */
-    public const val REQ_DEFAULT_WIDTH: Float = 220f
+    public const val REQ_DEFAULT_WIDTH: Float = 280f
     public const val REQ_DEFAULT_HEIGHT: Float = 120f
 
     /**
@@ -272,6 +295,79 @@ public object Sysml2LayoutBridge {
      */
     public const val SEQ_LIFELINE_TAIL_PADDING: Float = 40f
 
+    /**
+     * Content-aware [SizeProvider] for BDD nodes. Computes node height from
+     * the number of features in the definition.
+     */
+    public fun bddContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
+        SizeProvider { id, _ ->
+            val def = model.definitions.firstOrNull { it.id == id }
+            val featureCount = def?.features?.size ?: 0
+            val h =
+                STEREOTYPE_LINE_H + NAME_LINE_H +
+                    (if (featureCount > 0) DIVIDER_GAP + featureCount * FEATURE_LINE_H else 0f) +
+                    BOX_V_PADDING
+            dev.kuml.layout.Size(DEFAULT_WIDTH, maxOf(h, 70f))
+        }
+
+    /**
+     * Content-aware [SizeProvider] for IBD nodes. Uses a fixed height based
+     * on the two-line IBD box (stereotype + name).
+     */
+    public fun ibdContentAwareSizeProvider(): SizeProvider =
+        SizeProvider { _, _ ->
+            val h = STEREOTYPE_LINE_H + NAME_LINE_H + BOX_V_PADDING
+            dev.kuml.layout.Size(IBD_DEFAULT_WIDTH, maxOf(h, 50f))
+        }
+
+    /**
+     * Content-aware [SizeProvider] for STM nodes. Pseudo-states keep the
+     * fixed square size; regular states grow with their action count.
+     */
+    public fun stmContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
+        SizeProvider { id, kindHint ->
+            when {
+                kindHint?.contains("Pseudo") == true ||
+                    kindHint?.contains("Initial") == true ||
+                    kindHint?.contains("Final") == true ->
+                    dev.kuml.layout.Size(STM_PSEUDO_SIZE, STM_PSEUDO_SIZE)
+                else -> {
+                    val def = model.definitions.firstOrNull { it.id == id } as? StateDefinition
+                    val actionCount =
+                        listOfNotNull(def?.entryAction, def?.exitAction, def?.doAction)
+                            .count { it.isNotBlank() }
+                    val h =
+                        NAME_LINE_H +
+                            (if (actionCount > 0) DIVIDER_GAP + actionCount * ACTION_LINE_H else 0f) +
+                            BOX_V_PADDING
+                    dev.kuml.layout.Size(STM_STATE_WIDTH, maxOf(h, 44f))
+                }
+            }
+        }
+
+    /**
+     * Content-aware [SizeProvider] for REQ nodes. RequirementDefinitions grow
+     * with their text content; other definition kinds use fixed sizes.
+     */
+    public fun reqContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
+        SizeProvider { id, kindHint ->
+            when (kindHint) {
+                "RequirementDefinition" -> {
+                    val req = model.definitions.firstOrNull { it.id == id } as? RequirementDefinition
+                    val reqText = req?.text?.takeIf { it.isNotEmpty() }
+                    val textLineCount = reqText?.let { (it.length + 24) / 25 } ?: 0
+                    val h =
+                        STEREOTYPE_LINE_H + NAME_LINE_H +
+                            (if (textLineCount > 0) DIVIDER_GAP + textLineCount * WRAP_LINE_H else 0f) +
+                            BOX_V_PADDING
+                    dev.kuml.layout.Size(REQ_DEFAULT_WIDTH, maxOf(h, 70f))
+                }
+                "ActorDefinition" -> dev.kuml.layout.Size(UC_ACTOR_WIDTH, UC_ACTOR_HEIGHT)
+                "UseCaseDefinition" -> dev.kuml.layout.Size(UC_USECASE_WIDTH, UC_USECASE_HEIGHT)
+                else -> dev.kuml.layout.Size(REQ_DEFAULT_WIDTH, REQ_DEFAULT_HEIGHT)
+            }
+        }
+
     /** Diagnose-Helfer: extrahiert die in [diagram] referenzierten Definitionen aus [model]. */
     public fun resolveVisibleDefinitions(
         model: Sysml2Model,
@@ -308,7 +404,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: IbdDiagram,
-        sizeProvider: SizeProvider = SizeProvider.constant(width = IBD_DEFAULT_WIDTH, height = IBD_DEFAULT_HEIGHT),
+        sizeProvider: SizeProvider = ibdContentAwareSizeProvider(),
     ): LayoutGraph {
         // 1. Owner auflösen — fehlt der Owner, ist der Graph leer (analog BDD).
         val owner =
@@ -502,7 +598,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: ReqDiagram,
-        sizeProvider: SizeProvider = reqDefaultSizeProvider(),
+        sizeProvider: SizeProvider = reqContentAwareSizeProvider(model),
     ): LayoutGraph {
         val visibleIds: Set<String> = diagram.elementIds.toSet()
 
@@ -621,7 +717,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: StmDiagram,
-        sizeProvider: SizeProvider = stmDefaultSizeProvider(),
+        sizeProvider: SizeProvider = stmContentAwareSizeProvider(model),
     ): LayoutGraph {
         val nodes = mutableListOf<LayoutNode>()
         for (id in diagram.elementIds) {

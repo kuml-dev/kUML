@@ -2,7 +2,6 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ActionDefinition
@@ -107,15 +106,15 @@ private fun renderRegularAction(
         val hasAction = !element.action.isNullOrEmpty()
         val nameY = if (hasAction) h / 2f - 2f else h / 2f + 4f
         val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
-        tag(
-            "text",
-            mapOf(
-                "class" to nameClass,
-                "x" to fmt(w / 2f),
-                "y" to fmt(nameY),
-                "text-anchor" to "middle",
-            ),
-        ) { text(xmlEscapeText(element.name)) }
+        val nameAttrs =
+            buildMap<String, String> {
+                put("class", nameClass)
+                put("x", fmt(w / 2f))
+                put("y", fmt(nameY))
+                put("text-anchor", "middle")
+                if (element.isAbstract) put("font-style", "italic")
+            }
+        tag("text", nameAttrs) { text(element.name) }
 
         if (hasAction) {
             val truncated = truncate(element.action!!, ACT_BODY_MAX_LEN)
@@ -127,7 +126,7 @@ private fun renderRegularAction(
                     "y" to fmt(h / 2f + 14f),
                     "text-anchor" to "middle",
                 ),
-            ) { text(xmlEscapeText(truncated)) }
+            ) { text(truncated) }
         }
 
         // V2.0.16: render pins on the action box edge. Input pins land on
@@ -171,13 +170,15 @@ private fun SvgBuilder.renderActionPins(
     if (pins.isEmpty()) return
     val inputs = pins.filter { it.direction == PinDirection.Input }
     val outputs = pins.filter { it.direction == PinDirection.Output }
-    renderPinColumn(inputs, edgeX = -PIN_SIZE / 2f, h = h, labelOffsetX = PIN_SIZE + 4f, anchor = "start")
+    // Input pins: label OUTSIDE the box to the LEFT (text-anchor="end")
+    renderPinColumn(inputs, edgeX = -PIN_SIZE / 2f, h = h, labelOffsetX = -(PIN_SIZE / 2f + 4f), anchor = "end")
+    // Output pins: label OUTSIDE the box to the RIGHT (text-anchor="start")
     renderPinColumn(
         outputs,
         edgeX = w - PIN_SIZE / 2f,
         h = h,
-        labelOffsetX = -4f,
-        anchor = "end",
+        labelOffsetX = PIN_SIZE / 2f + 4f,
+        anchor = "start",
     )
 }
 
@@ -224,7 +225,7 @@ private fun SvgBuilder.renderPinColumn(
                 "y" to fmt(py + PIN_SIZE / 2f + 3f),
                 "text-anchor" to anchor,
             ),
-        ) { text(xmlEscapeText(pin.name)) }
+        ) { text(pin.name) }
     }
 }
 

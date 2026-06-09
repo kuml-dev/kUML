@@ -107,11 +107,14 @@ internal fun xmlEscapeAttr(s: String): String =
         .replace("\"", "&quot;")
         .replace("'", "&apos;")
 
-/** XML-escaped einen String für die Verwendung als Textinhalt. */
-internal fun xmlEscapeText(s: String): String =
-    s
-        .replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace("\"", "&quot;")
-        .replace("'", "&apos;")
+/**
+ * No-op identity function. SvgBuilder.text() escapes automatically — passing
+ * xmlEscapeText() here causes double escaping. Pass raw strings directly to
+ * builder.text(...).
+ */
+@Deprecated(
+    "SvgBuilder.text() escapes automatically — passing xmlEscapeText() here causes double escaping. " +
+        "Pass raw strings directly to builder.text(...).",
+    ReplaceWith("s"),
+)
+internal fun xmlEscapeText(s: String): String = s

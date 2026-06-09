@@ -2,7 +2,6 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.StateDefinition
@@ -182,15 +181,15 @@ private fun renderRegularState(
 
         // Zustands-Name zentriert oben.
         val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
-        tag(
-            "text",
-            mapOf(
-                "class" to nameClass,
-                "x" to fmt(w / 2f),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
-        ) { text(xmlEscapeText(element.name)) }
+        val nameAttrs =
+            buildMap<String, String> {
+                put("class", nameClass)
+                put("x", fmt(w / 2f))
+                put("y", fmt(cy))
+                put("text-anchor", "middle")
+                if (element.isAbstract) put("font-style", "italic")
+            }
+        tag("text", nameAttrs) { text(element.name) }
         cy += 8f
 
         if (hasActions) {
@@ -210,21 +209,21 @@ private fun renderRegularState(
                 tag(
                     "text",
                     mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-                ) { text(xmlEscapeText("entry / $action")) }
+                ) { text("entry / $action") }
                 cy += 13f
             }
             element.exitAction?.takeIf { it.isNotEmpty() }?.let { action ->
                 tag(
                     "text",
                     mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-                ) { text(xmlEscapeText("exit / $action")) }
+                ) { text("exit / $action") }
                 cy += 13f
             }
             element.doAction?.takeIf { it.isNotEmpty() }?.let { action ->
                 tag(
                     "text",
                     mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-                ) { text(xmlEscapeText("do / $action")) }
+                ) { text("do / $action") }
                 cy += 13f
             }
         }

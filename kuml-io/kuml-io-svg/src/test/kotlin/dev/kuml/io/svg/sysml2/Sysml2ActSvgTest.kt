@@ -2,6 +2,8 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SampleOutput
+import dev.kuml.layout.EdgeId
+import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.GroupLayout
 import dev.kuml.layout.LayoutEngineId
@@ -98,7 +100,19 @@ class Sysml2ActSvgTest :
                         NodeId("CancelOrder") to NodeLayout(bounds = Rect(Point(380f, 320f), Size(160f, 60f))),
                         NodeId("FlowFinal") to NodeLayout(bounds = Rect(Point(580f, 340f), Size(28f, 28f))),
                     ),
-                edges = emptyMap(),
+                edges =
+                    mapOf(
+                        EdgeId("start") to
+                            EdgeRoute.Direct(
+                                source = Point(48f, 194f),
+                                target = Point(80f, 190f),
+                            ),
+                        EdgeId("vToD") to
+                            EdgeRoute.Direct(
+                                source = Point(240f, 190f),
+                                target = Point(280f, 195f),
+                            ),
+                    ),
                 groups = emptyMap(),
             )
 
@@ -187,6 +201,13 @@ class Sysml2ActSvgTest :
             val svg1 = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
             val svg2 = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
             svg1 shouldBe svg2
+        }
+
+        "ACT control-flow edges surface as rendered paths in the SVG output" {
+            val (model, act) = orderModel()
+            val svg = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
+            // fakeLayout has two control-flow edges; each lowers to a <path> or <line>
+            svg shouldContain "<path"
         }
 
         // ── V2.0.16 Partitions + Pins ─────────────────────────────────────

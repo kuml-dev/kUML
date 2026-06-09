@@ -2,7 +2,6 @@ package dev.kuml.io.svg.sysml2.edge
 
 import dev.kuml.io.svg.EdgePathBuilder
 import dev.kuml.io.svg.SvgBuilder
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -105,6 +104,20 @@ internal object Sysml2EdgeRenderer {
         y: Float,
         cssClass: String,
     ) {
+        // Background rect for readability when labels overlap
+        val approxW = content.length * 6.2f + 6f
+        val approxH = 12f
+        builder.tag(
+            "rect",
+            mapOf(
+                "x" to fmt(x - approxW / 2f),
+                "y" to fmt(y - approxH + 2f),
+                "width" to fmt(approxW),
+                "height" to fmt(approxH),
+                "fill" to "white",
+                "stroke" to "none",
+            ),
+        )
         builder.tag(
             "text",
             mapOf(
@@ -114,7 +127,7 @@ internal object Sysml2EdgeRenderer {
                 "text-anchor" to "middle",
             ),
         ) {
-            text(xmlEscapeText(content))
+            text(content)
         }
     }
 

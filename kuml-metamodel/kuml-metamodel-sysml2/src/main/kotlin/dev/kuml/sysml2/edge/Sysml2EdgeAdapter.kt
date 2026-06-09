@@ -1,8 +1,11 @@
 package dev.kuml.sysml2.edge
 
 import dev.kuml.sysml2.ActDiagram
+import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.BindingConnectorUsage
+import dev.kuml.sysml2.ConnectionUsage
 import dev.kuml.sysml2.ControlFlowUsage
+import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.ObjectFlowUsage
 import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.ReqContains
@@ -383,4 +386,56 @@ public class ParEdgeAdapter(
         public val METADATA_BINDING: Sysml2EdgeMetadata =
             Sysml2EdgeMetadata(arrowHead = Sysml2ArrowHead.None)
     }
+}
+
+// ─── BDD ─────────────────────────────────────────────────────────────────
+
+/**
+ * Block Definition Diagram edge adapter. Maps `gen:<child>::<parent>` edge ids
+ * (written by [dev.kuml.layout.bridge.Sysml2LayoutBridge]) to generalisation
+ * arrow metadata — solid line, OpenTriangle arrow head (classical UML hollow
+ * generalisation triangle), no stereotype label.
+ */
+public class BddEdgeAdapter(
+    model: Sysml2Model,
+    diagram: BdDiagram,
+) : Sysml2EdgeAdapter {
+    private val index: Map<String, Sysml2EdgeMetadata> =
+        buildMap {
+            val visible = diagram.elementIds.toSet()
+            for (def in model.definitions) {
+                if (def.id !in visible) continue
+                for (spec in def.specializations) {
+                    if (spec.specificId !in visible || spec.generalId !in visible) continue
+                    put(
+                        "gen:${spec.specificId}::${spec.generalId}",
+                        Sysml2EdgeMetadata(arrowHead = Sysml2ArrowHead.OpenTriangle),
+                    )
+                }
+            }
+        }
+
+    override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? = index[edgeId]
+}
+
+// ─── IBD ─────────────────────────────────────────────────────────────────
+
+/**
+ * Internal Block Diagram edge adapter. Maps `conn:<connectionUsageId>` edge ids
+ * (written by [dev.kuml.layout.bridge.Sysml2LayoutBridge] IBD overload) to
+ * connection-line metadata — solid line, no arrowhead, no label (SysML 2
+ * internal connection lines are bidirectional structural links).
+ */
+public class IbdEdgeAdapter(
+    model: Sysml2Model,
+    @Suppress("UNUSED_PARAMETER") diagram: IbdDiagram,
+) : Sysml2EdgeAdapter {
+    private val index: Map<String, Sysml2EdgeMetadata> =
+        buildMap {
+            for (conn in model.usages.filterIsInstance<ConnectionUsage>()) {
+                put("conn:${conn.id}", Sysml2EdgeMetadata(arrowHead = Sysml2ArrowHead.None))
+            }
+        }
+
+    override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? = index[edgeId]
 }

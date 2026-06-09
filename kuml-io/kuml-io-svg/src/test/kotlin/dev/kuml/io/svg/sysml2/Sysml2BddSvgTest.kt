@@ -102,6 +102,7 @@ class Sysml2BddSvgTest :
             val svg = KumlSvgRenderer.toSvg(model, bdd, layout, PlainTheme())
 
             svg shouldContain "kuml-title kuml-title-abstract"
+            svg shouldContain "font-style=\"italic\""
             SampleOutput.write("sysml2-bdd/abstract-part.svg", svg)
         }
 

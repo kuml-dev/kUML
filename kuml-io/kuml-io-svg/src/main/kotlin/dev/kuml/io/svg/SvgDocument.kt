@@ -114,6 +114,7 @@ internal object SvgDocument {
                 append(" stroke-width: ${bo.thinPx}; }\n")
                 append(".kuml-title { font-family: ${ty.title.family}; font-size: ${ty.title.sizePt}px;")
                 append(" font-weight: ${ty.title.weight}; fill: ${c.foreground.toHex()}; }\n")
+                append(".kuml-title-abstract { font-style: italic; }\n")
                 append(".kuml-subtitle { font-family: ${ty.subtitle.family}; font-size: ${ty.subtitle.sizePt}px;")
                 append(" font-weight: ${ty.subtitle.weight}; fill: ${c.foreground.toHex()}; }\n")
                 append(".kuml-body { font-family: ${ty.body.family}; font-size: ${ty.body.sizePt}px;")

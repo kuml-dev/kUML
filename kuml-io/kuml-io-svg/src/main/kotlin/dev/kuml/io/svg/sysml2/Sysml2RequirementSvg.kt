@@ -2,7 +2,6 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.RequirementDefinition
@@ -42,8 +41,9 @@ internal fun renderSysml2Requirement(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
 
-    val titleText =
+    val rawTitle =
         if (element.reqId.isNotEmpty()) "${element.reqId} :: ${element.name}" else element.name
+    val titleText = truncateTitle(rawTitle)
     val hasText = element.text.isNotEmpty()
     val textLines: List<String> = if (hasText) wrapWords(element.text, WRAP_WIDTH) else emptyList()
 
@@ -69,15 +69,15 @@ internal fun renderSysml2Requirement(
 
         // Compartment 2 — Name, optional mit `R-NNN ::`-Präfix.
         val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
-        tag(
-            "text",
-            mapOf(
-                "class" to nameClass,
-                "x" to fmt(w / 2f),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
-        ) { text(xmlEscapeText(titleText)) }
+        val nameAttrs =
+            buildMap<String, String> {
+                put("class", nameClass)
+                put("x", fmt(w / 2f))
+                put("y", fmt(cy))
+                put("text-anchor", "middle")
+                if (element.isAbstract) put("font-style", "italic")
+            }
+        tag("text", nameAttrs) { text(titleText) }
         cy += 12f
 
         // Compartment 3 — Anforderungstext (nur wenn vorhanden).
@@ -98,7 +98,7 @@ internal fun renderSysml2Requirement(
                 tag(
                     "text",
                     mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
-                ) { text(xmlEscapeText(line)) }
+                ) { text(line) }
                 cy += 13f
             }
         }
@@ -137,5 +137,9 @@ internal fun wrapWords(
 }
 
 private const val WRAP_WIDTH = 25
+
+private const val REQ_TITLE_MAX_CHARS = 35
+
+private fun truncateTitle(s: String): String = if (s.length <= REQ_TITLE_MAX_CHARS) s else s.substring(0, REQ_TITLE_MAX_CHARS - 1) + "…"
 
 private fun fmt(v: Float): String = if (v == v.toInt().toFloat()) v.toInt().toString() else String.format(java.util.Locale.US, "%.3f", v)

@@ -793,3 +793,34 @@ cd ~/workspace/kuml
 - [[03 Bereiche/kUML/Plugin-API Design]]
 - [[03 Bereiche/kUML/Tests und Beispiele]]
 - [[03 Bereiche/kUML/Roadmap]]
+
+## Renderer/Layout Validation Procedure
+
+Run this procedure whenever the SVG renderer, PNG renderer, layout bridge, or layout engine is modified.
+
+### 1. Generate PNGs
+```bash
+./gradlew :kuml-io:kuml-io-svg:test --rerun-tasks
+```
+All SVG sample-output tests auto-write PNG alongside each SVG via `SampleOutput.write(path, svg)`.
+PNGs appear under `kuml-io/kuml-io-svg/build/sample-output/`.
+
+### 2. Visual inspection
+Inspect all PNG files. For each diagram type verify:
+- All expected nodes are visible (no blank canvases)
+- All expected edges/arrows are present and correctly styled
+- Labels are legible and not overlapping critical content
+- No raw XML entities (`&apos;`, `&amp;lt;`, etc.) in rendered text
+- Node sizes fit their content (no excessive empty space)
+- Stereotype labels, arrow heads, and line styles are correct
+
+### 3. Model round-trip check
+For each PNG, visually reconstruct the source kUML model and compare against the
+`.kuml.kts` script or test fixture. The visual output must be a faithful representation
+of the source model with no structural information loss.
+
+### 4. Fix → retest cycle
+Plan fixes with Opus, implement with Sonnet, re-run step 1, re-inspect PNGs.
+
+### 5. Regression guard
+After fixes: `./gradlew check` must pass.

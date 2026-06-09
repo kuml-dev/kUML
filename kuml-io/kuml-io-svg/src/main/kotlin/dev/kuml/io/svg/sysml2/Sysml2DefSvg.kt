@@ -2,7 +2,6 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.kerml.KermlFeature
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -129,15 +128,15 @@ private fun renderBox(
 
         // Type name (bold, centered). Abstract definitions get the italics-via-style hint.
         val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
-        tag(
-            "text",
-            mapOf(
-                "class" to nameClass,
-                "x" to fmt(w / 2f),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
-        ) { text(xmlEscapeText(element.name)) }
+        val nameAttrs =
+            buildMap<String, String> {
+                put("class", nameClass)
+                put("x", fmt(w / 2f))
+                put("y", fmt(cy))
+                put("text-anchor", "middle")
+                if (element.isAbstract) put("font-style", "italic")
+            }
+        tag("text", nameAttrs) { text(element.name) }
         cy += 12f
 
         if (element.features.isNotEmpty()) {
@@ -157,7 +156,7 @@ private fun renderBox(
                 tag(
                     "text",
                     mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
-                ) { text(xmlEscapeText(feature.formatBdd())) }
+                ) { text(feature.formatBdd()) }
                 cy += 13f
             }
         }

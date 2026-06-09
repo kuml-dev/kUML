@@ -30,6 +30,8 @@ import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.edge.ActEdgeAdapter
+import dev.kuml.sysml2.edge.BddEdgeAdapter
+import dev.kuml.sysml2.edge.IbdEdgeAdapter
 import dev.kuml.sysml2.edge.ParEdgeAdapter
 import dev.kuml.sysml2.edge.ReqEdgeAdapter
 import dev.kuml.sysml2.edge.StmEdgeAdapter
@@ -72,26 +74,8 @@ public object KumlSvgRenderer {
         SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
-            // Nodes
-            for ((nodeId, nodeLayout) in layoutResult.nodes) {
-                val element = diagram.elements.find { it.id == nodeId.value }
-                if (element != null) {
-                    val shifted =
-                        nodeLayout.copy(
-                            bounds =
-                                nodeLayout.bounds.copy(
-                                    origin =
-                                        nodeLayout.bounds.origin.copy(
-                                            x = nodeLayout.bounds.origin.x + padding,
-                                            y = nodeLayout.bounds.origin.y + padding,
-                                        ),
-                                ),
-                        )
-                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
-                }
-            }
-
-            // Groups (C4 SoftwareSystem groupings)
+            // Groups FIRST — paint backgrounds before children so node boxes
+            // appear on top of the group rectangle.
             for ((groupId, groupLayout) in layoutResult.groups) {
                 val gx = groupLayout.bounds.origin.x + padding
                 val gy = groupLayout.bounds.origin.y + padding
@@ -114,6 +98,25 @@ public object KumlSvgRenderer {
                             "ry" to fmt(theme.borders.cornerRadiusPx),
                         ),
                     )
+                }
+            }
+
+            // Nodes
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val element = diagram.elements.find { it.id == nodeId.value }
+                if (element != null) {
+                    val shifted =
+                        nodeLayout.copy(
+                            bounds =
+                                nodeLayout.bounds.copy(
+                                    origin =
+                                        nodeLayout.bounds.origin.copy(
+                                            x = nodeLayout.bounds.origin.x + padding,
+                                            y = nodeLayout.bounds.origin.y + padding,
+                                        ),
+                                ),
+                        )
+                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
                 }
             }
 
@@ -151,26 +154,8 @@ public object KumlSvgRenderer {
             val elementIndex = model.elements.associateBy { it.id }
             val relationshipIndex = model.relationships.associateBy { it.id }
 
-            // Nodes
-            for ((nodeId, nodeLayout) in layoutResult.nodes) {
-                val element = elementIndex[nodeId.value]
-                if (element != null) {
-                    val shifted =
-                        nodeLayout.copy(
-                            bounds =
-                                nodeLayout.bounds.copy(
-                                    origin =
-                                        nodeLayout.bounds.origin.copy(
-                                            x = nodeLayout.bounds.origin.x + padding,
-                                            y = nodeLayout.bounds.origin.y + padding,
-                                        ),
-                                ),
-                        )
-                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
-                }
-            }
-
-            // Groups (C4 SoftwareSystem groupings)
+            // Groups FIRST — paint backgrounds before children so node boxes
+            // appear on top of the group rectangle.
             for ((groupId, groupLayout) in layoutResult.groups) {
                 val gx = groupLayout.bounds.origin.x + padding
                 val gy = groupLayout.bounds.origin.y + padding
@@ -193,6 +178,25 @@ public object KumlSvgRenderer {
                             "ry" to fmt(theme.borders.cornerRadiusPx),
                         ),
                     )
+                }
+            }
+
+            // Nodes
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val element = elementIndex[nodeId.value]
+                if (element != null) {
+                    val shifted =
+                        nodeLayout.copy(
+                            bounds =
+                                nodeLayout.bounds.copy(
+                                    origin =
+                                        nodeLayout.bounds.origin.copy(
+                                            x = nodeLayout.bounds.origin.x + padding,
+                                            y = nodeLayout.bounds.origin.y + padding,
+                                        ),
+                                ),
+                        )
+                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
                 }
             }
 
@@ -328,7 +332,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toSvg(synthetic, layoutResult, theme, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, BddEdgeAdapter(model, diagram))
     }
 
     /** [toSvg]-Variante für SysML 2 BDDs, schreibt direkt auf Platte. */
@@ -377,7 +381,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = visible,
             )
-        return toSvg(synthetic, layoutResult, theme, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, IbdEdgeAdapter(model, diagram))
     }
 
     /** [toSvg]-Variante für SysML 2 IBDs, schreibt direkt auf Platte. */

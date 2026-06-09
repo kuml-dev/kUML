@@ -30,6 +30,8 @@ import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
 import dev.kuml.sysml2.UseCaseDefinition
 import dev.kuml.sysml2.edge.ActEdgeAdapter
+import dev.kuml.sysml2.edge.BddEdgeAdapter
+import dev.kuml.sysml2.edge.IbdEdgeAdapter
 import dev.kuml.sysml2.edge.ParEdgeAdapter
 import dev.kuml.sysml2.edge.ReqEdgeAdapter
 import dev.kuml.sysml2.edge.StmEdgeAdapter
@@ -238,7 +240,7 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return toLatex(synthetic, layoutResult, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, options, BddEdgeAdapter(model, diagram))
     }
 
     /**
@@ -275,7 +277,7 @@ public object KumlLatexRenderer {
                 type = DiagramType.CLASS,
                 elements = visible,
             )
-        return toLatex(synthetic, layoutResult, options)
+        return renderSysml2Synthetic(synthetic, layoutResult, options, IbdEdgeAdapter(model, diagram))
     }
 
     /**

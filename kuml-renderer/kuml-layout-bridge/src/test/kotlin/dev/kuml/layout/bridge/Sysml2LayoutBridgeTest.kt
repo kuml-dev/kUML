@@ -130,7 +130,15 @@ class Sysml2LayoutBridgeTest :
             val v = PartDefinition(id = "V", name = "V")
             val model = Sysml2Model(name = "M", definitions = listOf(v))
             val bdd = BdDiagram(name = "D", elementIds = listOf("V"))
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, bdd)
+            val graph =
+                Sysml2LayoutBridge.toLayoutGraph(
+                    model,
+                    bdd,
+                    SizeProvider.constant(
+                        width = Sysml2LayoutBridge.DEFAULT_WIDTH,
+                        height = Sysml2LayoutBridge.DEFAULT_HEIGHT,
+                    ),
+                )
             graph.nodes
                 .single()
                 .intrinsicSize.width shouldBe Sysml2LayoutBridge.DEFAULT_WIDTH
@@ -599,7 +607,12 @@ class Sysml2LayoutBridgeTest :
                     }
                 }
             val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, req)
+            val graph =
+                Sysml2LayoutBridge.toLayoutGraph(
+                    model,
+                    req,
+                    Sysml2LayoutBridge.reqDefaultSizeProvider(),
+                )
             graph.nodes
                 .single()
                 .intrinsicSize.width shouldBe Sysml2LayoutBridge.REQ_DEFAULT_WIDTH
@@ -655,7 +668,9 @@ class Sysml2LayoutBridgeTest :
                     }
                 }
             val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+            // Use fixed default size provider to keep this test as a regression guard
+            // for the constant values (content-aware sizing is tested separately).
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm, Sysml2LayoutBridge.stmDefaultSizeProvider())
 
             val initialNode = graph.nodes.single { it.id.value == "Initial" }
             val finalNode = graph.nodes.single { it.id.value == "Final" }
@@ -1514,7 +1529,15 @@ class Sysml2LayoutBridgeTest :
                     ibd("D", owner = vehicle)
                 }
             val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
-            val graph = Sysml2LayoutBridge.toLayoutGraph(model, ibd)
+            val graph =
+                Sysml2LayoutBridge.toLayoutGraph(
+                    model,
+                    ibd,
+                    SizeProvider.constant(
+                        width = Sysml2LayoutBridge.IBD_DEFAULT_WIDTH,
+                        height = Sysml2LayoutBridge.IBD_DEFAULT_HEIGHT,
+                    ),
+                )
             graph.nodes
                 .single()
                 .intrinsicSize.width shouldBe Sysml2LayoutBridge.IBD_DEFAULT_WIDTH
