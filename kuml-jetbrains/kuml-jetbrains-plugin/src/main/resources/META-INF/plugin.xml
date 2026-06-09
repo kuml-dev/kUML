@@ -74,5 +74,20 @@
             implementation="dev.kuml.jetbrains.KumlFileIconProvider"/>
 
         <externalAnnotator language="kotlin" implementationClass="dev.kuml.jetbrains.KumlAnnotator"/>
+
+        <!--
+            V2.0.28b: Split-editor — shows the diagram SVG alongside the code editor.
+            Registered with editorTypeId = "kuml-split-editor".
+        -->
+        <fileEditorProvider implementation="dev.kuml.jetbrains.KumlSplitEditorProvider"/>
+
+        <!--
+            V2.0.28b: Structure view — shows DSL elements (states, parts, classes …)
+            extracted from the script text in the Structure panel.
+            Registered for the Kotlin language since *.kuml.kts are parsed as Kotlin scripts.
+        -->
+        <lang.psiStructureViewFactory
+            language="kotlin"
+            implementationClass="dev.kuml.jetbrains.KumlStructureViewBuilderProvider"/>
     </extensions>
 </idea-plugin>
