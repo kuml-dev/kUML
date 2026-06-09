@@ -59,6 +59,16 @@ class TransformerRegistryTest :
             TransformerRegistry.ids() shouldContain "uml-to-jpa"
         }
 
+        test("loadFromClasspath discovers UmlToRestTransformerProvider via ServiceLoader") {
+            TransformerRegistry.loadFromClasspath()
+            TransformerRegistry.ids() shouldContain "uml-to-rest"
+        }
+
+        test("loadFromClasspath discovers both uml-to-jpa and uml-to-rest") {
+            TransformerRegistry.loadFromClasspath()
+            TransformerRegistry.ids() shouldContainAll listOf("uml-to-jpa", "uml-to-rest")
+        }
+
         test("get with unknown id returns null") {
             val result = TransformerRegistry.get<String, String>("no-such-transformer")
             result.shouldBeNull()

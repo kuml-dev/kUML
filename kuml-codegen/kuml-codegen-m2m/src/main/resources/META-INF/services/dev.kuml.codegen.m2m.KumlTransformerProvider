@@ -1,1 +1,2 @@
 dev.kuml.codegen.m2m.jpa.UmlToJpaTransformerProvider
+dev.kuml.codegen.m2m.rest.UmlToRestTransformerProvider
