@@ -105,6 +105,77 @@ public sealed class TraceEntry {
         override val timestamp: String,
         public val finalVertexId: String,
     ) : TraceEntry()
+
+    // ── Activity-Runtime trace entries (V2.0.18) ──────────────────────────────
+
+    @Serializable
+    public data class TokenPlaced(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val nodeId: String,
+        public val clock: Long,
+    ) : TraceEntry()
+
+    @Serializable
+    public data class TokenConsumed(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val nodeId: String,
+        public val clock: Long,
+    ) : TraceEntry()
+
+    @Serializable
+    public data class DecisionTaken(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val nodeId: String,
+        public val chosenEdgeId: String,
+        public val guard: String?,
+        public val clock: Long,
+    ) : TraceEntry()
+
+    @Serializable
+    public data class ForkSplit(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val nodeId: String,
+        public val targetNodeIds: List<String>,
+        public val clock: Long,
+    ) : TraceEntry()
+
+    @Serializable
+    public data class JoinReached(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val nodeId: String,
+        public val awaitingEdgeIds: List<String>,
+        public val isReady: Boolean,
+        public val clock: Long,
+    ) : TraceEntry()
+
+    @Serializable
+    public data class ActivityActionInvoked(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val nodeId: String,
+        public val body: String?,
+        public val clock: Long,
+    ) : TraceEntry()
+
+    @Serializable
+    public data class FlowFinalConsumed(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val nodeId: String,
+        public val clock: Long,
+    ) : TraceEntry()
+
+    @Serializable
+    public data class ActivityTerminated(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val clock: Long,
+    ) : TraceEntry()
 }
 
 /**

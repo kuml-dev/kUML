@@ -5,9 +5,11 @@ import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.file
+import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
@@ -19,45 +21,58 @@ import dev.kuml.runtime.StateMachineInstance
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.runtime.StepResult
 import dev.kuml.runtime.TraceDiff
+import dev.kuml.runtime.activity.ActivityDeadlockException
 import dev.kuml.runtime.loadEvents
 import dev.kuml.runtime.loadTrace
+import dev.kuml.runtime.sysml2.Sysml2ActivityAdapter
 import dev.kuml.runtime.sysml2.Sysml2StateMachineAdapter
 import dev.kuml.runtime.writeTrace
+import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.uml.UmlStateMachine
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import java.io.IOException
 import java.time.Instant
+import kotlin.script.experimental.api.EvaluationResult
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
 
 /**
- * The `simulate` subcommand — V1.1.5 (UML) + V2.0.17 (SysML 2).
+ * The `simulate` subcommand — V1.1.5 (UML) + V2.0.17 (SysML 2 STM) + V2.0.18 (SysML 2 ACT).
  *
  * Two modes:
  *  - File mode: `kuml simulate <script> <events.json> --out <trace.json>`
- *  - Interactive mode: `kuml simulate <script> --interactive`
+ *  - Interactive mode: `kuml simulate <script> --interactive` (STM only)
  *
  * Optional `--expected <trace.json>` compares the produced trace to a goldfile.
  * `--epoch-clock` makes timestamps deterministic for reproducible Goldfile-Tests.
+ * `--max-steps <N>` guards against infinite-loop ACT models (default 1000).
  *
  * ## Script flavours
  *
  *  * **UML scripts** — top-level expression is a `umlModel { … stateMachine { … } }`
  *    DSL that produces a [dev.kuml.uml.UmlStateMachine]. Loaded via
  *    [DiagramExtractor.extract] and passed directly to [StateMachineRuntime].
- *  * **SysML 2 scripts** — top-level expression is
+ *  * **SysML 2 STM scripts** — top-level expression is
  *    `sysml2Model("…") { … stmDiagram("…") { … } }`. V2.0.17 translates the
  *    selected [dev.kuml.sysml2.StateDefinition]s + [dev.kuml.sysml2.TransitionUsage]s
  *    to a [dev.kuml.uml.UmlStateMachine] via
  *    [Sysml2StateMachineAdapter.toUmlStateMachine] and runs them through the
- *    same [StateMachineRuntime]. The CLI's input / output contract (events
- *    file in, trace file out) is identical.
+ *    same [StateMachineRuntime].
+ *  * **SysML 2 ACT scripts** — top-level expression is
+ *    `sysml2Model("…") { … actDiagram("…") { … } }`. V2.0.18 builds an
+ *    [dev.kuml.runtime.activity.ActivityRuntime] via [Sysml2ActivityAdapter]
+ *    and runs the token-flow interpreter to completion. The events file
+ *    provides the eventContext for guard evaluation; the first event's payload
+ *    fields are used as the context map.
  *
- * If a SysML 2 script declares multiple diagrams, the **first [StmDiagram]**
- * in declaration order is used. Non-STM diagrams (BDD, IBD, UC, REQ, ACT,
- * SEQ, PAR) are not simulatable and cause a script-error exit.
+ * If a SysML 2 script declares multiple diagrams, priority is:
+ *  1. First [ActDiagram] (V2.0.18 — activity takes precedence over STM when both present)
+ *  2. First [StmDiagram] (V2.0.17)
+ *
+ * The CLI's input / output contract (events file in, trace file out) is
+ * identical across all flavours.
  */
 internal class SimulateCommand : CliktCommand(name = "simulate") {
     private val script by argument(help = "Path to *.kuml.kts state-machine script")
@@ -80,10 +95,34 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
         help = "Use deterministic epoch clock for reproducible tests",
     ).flag()
 
-    override fun help(context: Context): String = "Execute a kUML or SysML 2 state machine against an event sequence (file or REPL)."
+    private val maxSteps by option(
+        "--max-steps",
+        help = "Maximum steps for ACT activity execution (default 1000 — guard against infinite loops)",
+    ).int().default(1000)
+
+    override fun help(context: Context): String =
+        "Execute a kUML or SysML 2 state machine / activity against an event sequence (file or REPL)."
 
     override fun run() {
-        val sm = loadStateMachine(script)
+        // Evaluate script and dispatch to the appropriate runtime
+        val scriptResult = evalScript(script)
+        val extracted = extractDiagram(scriptResult, script)
+
+        // Check if this is an ACT diagram — route to activity runtime
+        if (extracted is ExtractedDiagram.Sysml2) {
+            val actDiagram =
+                extracted.diagram as? ActDiagram
+                    ?: extracted.model.diagrams
+                        .filterIsInstance<ActDiagram>()
+                        .firstOrNull()
+            if (actDiagram != null) {
+                runActivity(extracted, actDiagram)
+                return
+            }
+        }
+
+        // STM / UML path (existing)
+        val sm = resolveStateMachine(extracted, script)
         val clock: () -> Instant =
             if (epochClock) {
                 val counter =
@@ -138,54 +177,127 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
         }
     }
 
-    /**
-     * Load a [UmlStateMachine] from a script file, transparently handling
-     * both UML and SysML 2 flavours (V2.0.17).
-     *
-     * Dispatch order:
-     *  1. Try [dev.kuml.core.script.DiagramExtractor.extractAny] — this
-     *     yields either an [ExtractedDiagram.Uml], [ExtractedDiagram.C4] or
-     *     [ExtractedDiagram.Sysml2].
-     *  2. UML branch: pull the single [UmlStateMachine] out of the
-     *     extracted [dev.kuml.core.model.KumlDiagram].
-     *  3. SysML 2 branch: require an [StmDiagram] (other SysML 2 diagram
-     *     kinds are not simulatable) and translate via
-     *     [Sysml2StateMachineAdapter.toUmlStateMachine]. If the matched
-     *     SysML 2 diagram is not the first declared one, the model's
-     *     `diagrams` list is scanned for the first [StmDiagram] in
-     *     declaration order so authors can mix STM with structural
-     *     diagrams in the same script.
-     *  4. C4 branch: hard error — C4 diagrams have no executable behaviour.
-     */
-    private fun loadStateMachine(file: java.io.File): UmlStateMachine {
+    // ── ACT execution path ────────────────────────────────────────────────────
+
+    private fun runActivity(
+        extracted: ExtractedDiagram.Sysml2,
+        diagram: ActDiagram,
+    ) {
+        val eventFile =
+            events ?: run {
+                System.err.println("EVENTS argument required to run an ACT activity.")
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
+
+        val evs =
+            try {
+                loadEvents(eventFile)
+            } catch (e: Exception) {
+                System.err.println("Failed to load events: ${e.message}")
+                throw ProgramResult(ExitCodes.IO_ERROR)
+            }
+
+        // Build event context from the first event's payload (flat map)
+        val eventContext: Map<String, Any> =
+            evs.firstOrNull()?.let { firstEvent ->
+                firstEvent.payload.mapValues { (_, v) ->
+                    when {
+                        v is kotlinx.serialization.json.JsonPrimitive && v.isString -> v.content
+                        v is kotlinx.serialization.json.JsonPrimitive ->
+                            v.content.toBooleanStrictOrNull()
+                                ?: v.content.toLongOrNull()
+                                ?: v.content.toDoubleOrNull()
+                                ?: v.content
+                        else -> v.toString()
+                    }
+                }
+            } ?: emptyMap()
+
+        val runtime =
+            try {
+                Sysml2ActivityAdapter.runtimeFor(extracted.model, diagram)
+            } catch (ex: IllegalArgumentException) {
+                System.err.println("SysML 2 ACT adapter error: ${ex.message}")
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
+
+        val (initialInstance, startTrace) = runtime.start(eventContext)
+
+        val (finalInstance, runTrace) =
+            try {
+                runtime.run(
+                    initial = initialInstance,
+                    eventContext = eventContext,
+                    maxSteps = maxSteps,
+                    failOnDeadlock = true,
+                )
+            } catch (ex: ActivityDeadlockException) {
+                System.err.println("Activity error: ${ex.message}")
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
+
+        val allTrace = startTrace + runTrace
+        val steps = finalInstance.clock
+
+        echo("Activity terminated after $steps steps, ${allTrace.size} trace entries")
+
+        outputTrace?.let {
+            try {
+                writeTrace(allTrace, it.toFile(), modelId = diagram.name)
+                echo("Wrote ${allTrace.size} trace entries to $it")
+            } catch (e: IOException) {
+                System.err.println("I/O error: ${e.message}")
+                throw ProgramResult(ExitCodes.IO_ERROR)
+            }
+        }
+
+        expectedTrace?.let { exp ->
+            val expected = loadTrace(exp).entries
+            val report = TraceDiff.compare(allTrace, expected)
+            if (!report.isMatch) {
+                System.err.println(report.toHumanReadable())
+                throw ProgramResult(ExitCodes.TRACE_DIFF)
+            } else {
+                echo("Trace matches expected (${report.matched} entries).")
+            }
+        }
+    }
+
+    // ── script evaluation helpers ─────────────────────────────────────────────
+
+    private fun evalScript(file: java.io.File): ResultWithDiagnostics.Success<EvaluationResult> {
         val result = KumlScriptHost.eval(file)
         val errors = result.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
         if (errors.isNotEmpty() || result is ResultWithDiagnostics.Failure) {
             System.err.println("Script error:\n" + errors.joinToString("\n") { it.message })
             throw ProgramResult(ExitCodes.SCRIPT_ERROR)
         }
-        val success = result as ResultWithDiagnostics.Success
+        @Suppress("UNCHECKED_CAST")
+        return result as ResultWithDiagnostics.Success<EvaluationResult>
+    }
 
-        val extracted =
-            try {
-                dev.kuml.core.script.DiagramExtractor
-                    .extractAny(success.value.returnValue, file)
-            } catch (_: Throwable) {
-                // Fall back to the V1.1.5 path: pure UML scripts whose
-                // top-level expression isn't yet a `KumlDiagram` (e.g. older
-                // `stateMachine { … }` shapes) are still loadable by the
-                // legacy extractor.
-                val diagram = DiagramExtractor.extract(success.value.returnValue, file)
-                return diagram.elements.singleOrNull() as? UmlStateMachine ?: run {
-                    System.err.println(
-                        "Script must produce exactly one UmlStateMachine in its diagram. " +
-                            "Got: ${diagram.elements.map { it::class.simpleName }}",
-                    )
-                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
-                }
-            }
+    private fun extractDiagram(
+        result: ResultWithDiagnostics.Success<EvaluationResult>,
+        file: java.io.File,
+    ): ExtractedDiagram =
+        try {
+            dev.kuml.core.script.DiagramExtractor
+                .extractAny(result.value.returnValue, file)
+        } catch (_: Throwable) {
+            // Legacy UML path: older `stateMachine { … }` scripts that don't wrap in sysml2Model
+            val diagram = DiagramExtractor.extract(result.value.returnValue, file)
+            ExtractedDiagram.Uml(diagram)
+        }
 
-        return when (extracted) {
+    /**
+     * Resolve a [UmlStateMachine] from an [ExtractedDiagram]. Used for STM/UML paths only.
+     * ACT paths are handled separately by [runActivity].
+     */
+    private fun resolveStateMachine(
+        extracted: ExtractedDiagram,
+        file: java.io.File,
+    ): UmlStateMachine =
+        when (extracted) {
             is ExtractedDiagram.Uml -> {
                 val diagram = extracted.diagram
                 diagram.elements.singleOrNull() as? UmlStateMachine ?: run {
@@ -197,10 +309,8 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
                 }
             }
             is ExtractedDiagram.Sysml2 -> {
-                // The first diagram in declaration order may not be an STM —
-                // a script can declare a BDD then an STM. Scan for the first
-                // STM so authors can mix structural + behavioural diagrams
-                // in the same script.
+                // ACT diagrams were already handled in run() before reaching here.
+                // Here we only handle STM diagrams.
                 val stm =
                     extracted.diagram as? StmDiagram
                         ?: extracted.model.diagrams
@@ -208,9 +318,9 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
                             .firstOrNull()
                         ?: run {
                             System.err.println(
-                                "SysML 2 script '${file.name}' declares no StmDiagram. " +
-                                    "`kuml simulate` requires an `stmDiagram(\"…\") { … }` block " +
-                                    "to identify which states to simulate.",
+                                "SysML 2 script '${file.name}' declares no StmDiagram or ActDiagram. " +
+                                    "`kuml simulate` requires a `stmDiagram(\"…\") { … }` or " +
+                                    "`actDiagram(\"…\") { … }` block to identify which diagram to simulate.",
                             )
                             throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                         }
@@ -224,12 +334,11 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
             is ExtractedDiagram.C4 -> {
                 System.err.println(
                     "C4 diagrams have no executable behaviour and cannot be simulated. " +
-                        "Use a UML or SysML 2 STM script instead.",
+                        "Use a UML or SysML 2 STM/ACT script instead.",
                 )
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
         }
-    }
 
     private fun runInteractive(
         runtime: StateMachineRuntime,

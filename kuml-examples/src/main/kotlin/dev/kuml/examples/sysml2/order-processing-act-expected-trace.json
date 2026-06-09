@@ -1,0 +1,268 @@
+{
+    "modelId": "Order Processing — workflow",
+    "entries": [
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 0,
+            "timestamp": "",
+            "nodeId": "Initial",
+            "clock": 0
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 0,
+            "timestamp": "",
+            "nodeId": "Initial",
+            "clock": 0
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 0,
+            "timestamp": "",
+            "nodeId": "PlaceOrder",
+            "clock": 0
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 1,
+            "timestamp": "",
+            "nodeId": "PlaceOrder",
+            "clock": 1
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.ActivityActionInvoked",
+            "seqNo": 1,
+            "timestamp": "",
+            "nodeId": "PlaceOrder",
+            "body": "submit(order)",
+            "clock": 1
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 1,
+            "timestamp": "",
+            "nodeId": "ValidateOrder",
+            "clock": 1
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 1,
+            "timestamp": "",
+            "nodeId": "ValidateOrder",
+            "clock": 1
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 2,
+            "timestamp": "",
+            "nodeId": "ValidateOrder",
+            "clock": 2
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.ActivityActionInvoked",
+            "seqNo": 2,
+            "timestamp": "",
+            "nodeId": "ValidateOrder",
+            "body": "validate(order)",
+            "clock": 2
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 2,
+            "timestamp": "",
+            "nodeId": "valid?",
+            "clock": 2
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 3,
+            "timestamp": "",
+            "nodeId": "ValidateOrder",
+            "clock": 3
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.ActivityActionInvoked",
+            "seqNo": 3,
+            "timestamp": "",
+            "nodeId": "ValidateOrder",
+            "body": "validate(order)",
+            "clock": 3
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 3,
+            "timestamp": "",
+            "nodeId": "valid?",
+            "clock": 3
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 3,
+            "timestamp": "",
+            "nodeId": "valid?",
+            "clock": 3
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.DecisionTaken",
+            "seqNo": 3,
+            "timestamp": "",
+            "nodeId": "valid?",
+            "chosenEdgeId": "controlFlow:valid?::ProcessPayment",
+            "guard": "valid",
+            "clock": 3
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 3,
+            "timestamp": "",
+            "nodeId": "ProcessPayment",
+            "clock": 3
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 4,
+            "timestamp": "",
+            "nodeId": "ProcessPayment",
+            "clock": 4
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.ActivityActionInvoked",
+            "seqNo": 4,
+            "timestamp": "",
+            "nodeId": "ProcessPayment",
+            "body": "charge(order.total)",
+            "clock": 4
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 4,
+            "timestamp": "",
+            "nodeId": "ReserveInventory",
+            "clock": 4
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 4,
+            "timestamp": "",
+            "nodeId": "valid?",
+            "clock": 4
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.DecisionTaken",
+            "seqNo": 4,
+            "timestamp": "",
+            "nodeId": "valid?",
+            "chosenEdgeId": "controlFlow:valid?::ProcessPayment",
+            "guard": "valid",
+            "clock": 4
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 4,
+            "timestamp": "",
+            "nodeId": "ProcessPayment",
+            "clock": 4
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 5,
+            "timestamp": "",
+            "nodeId": "ProcessPayment",
+            "clock": 5
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.ActivityActionInvoked",
+            "seqNo": 5,
+            "timestamp": "",
+            "nodeId": "ProcessPayment",
+            "body": "charge(order.total)",
+            "clock": 5
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 5,
+            "timestamp": "",
+            "nodeId": "ReserveInventory",
+            "clock": 5
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 5,
+            "timestamp": "",
+            "nodeId": "ReserveInventory",
+            "clock": 5
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.ActivityActionInvoked",
+            "seqNo": 5,
+            "timestamp": "",
+            "nodeId": "ReserveInventory",
+            "body": "reserve(order.items)",
+            "clock": 5
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 5,
+            "timestamp": "",
+            "nodeId": "ShipOrder",
+            "clock": 5
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 6,
+            "timestamp": "",
+            "nodeId": "ReserveInventory",
+            "clock": 6
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.ActivityActionInvoked",
+            "seqNo": 6,
+            "timestamp": "",
+            "nodeId": "ReserveInventory",
+            "body": "reserve(order.items)",
+            "clock": 6
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 6,
+            "timestamp": "",
+            "nodeId": "ShipOrder",
+            "clock": 6
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 6,
+            "timestamp": "",
+            "nodeId": "ShipOrder",
+            "clock": 6
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.ActivityActionInvoked",
+            "seqNo": 6,
+            "timestamp": "",
+            "nodeId": "ShipOrder",
+            "body": "dispatch(order)",
+            "clock": 6
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenPlaced",
+            "seqNo": 6,
+            "timestamp": "",
+            "nodeId": "Final",
+            "clock": 6
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.TokenConsumed",
+            "seqNo": 7,
+            "timestamp": "",
+            "nodeId": "Final",
+            "clock": 7
+        },
+        {
+            "type": "dev.kuml.runtime.TraceEntry.ActivityTerminated",
+            "seqNo": 7,
+            "timestamp": "",
+            "clock": 7
+        }
+    ]
+}

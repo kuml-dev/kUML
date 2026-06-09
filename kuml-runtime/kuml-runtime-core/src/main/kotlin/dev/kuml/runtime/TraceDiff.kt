@@ -87,6 +87,15 @@ internal fun TraceEntry.withoutTimestamp(): TraceEntry =
         is TraceEntry.ActionError -> copy(timestamp = "")
         is TraceEntry.Stayed -> copy(timestamp = "")
         is TraceEntry.Terminated -> copy(timestamp = "")
+        // Activity-Runtime entries (V2.0.18) — timestamps are already empty strings
+        is TraceEntry.TokenPlaced -> copy(timestamp = "")
+        is TraceEntry.TokenConsumed -> copy(timestamp = "")
+        is TraceEntry.DecisionTaken -> copy(timestamp = "")
+        is TraceEntry.ForkSplit -> copy(timestamp = "")
+        is TraceEntry.JoinReached -> copy(timestamp = "")
+        is TraceEntry.ActivityActionInvoked -> copy(timestamp = "")
+        is TraceEntry.FlowFinalConsumed -> copy(timestamp = "")
+        is TraceEntry.ActivityTerminated -> copy(timestamp = "")
     }
 
 /** Kurze textuelle Beschreibung eines TraceEntry für Diff-Reports. */
@@ -102,4 +111,13 @@ internal fun TraceEntry.shortDescr(): String =
         is TraceEntry.ActionError -> "ActionError(t=$transitionId, msg='$message')"
         is TraceEntry.Stayed -> "Stayed(reason='$reason')"
         is TraceEntry.Terminated -> "Terminated($finalVertexId)"
+        // Activity-Runtime entries (V2.0.18)
+        is TraceEntry.TokenPlaced -> "TokenPlaced($nodeId, clock=$clock)"
+        is TraceEntry.TokenConsumed -> "TokenConsumed($nodeId, clock=$clock)"
+        is TraceEntry.DecisionTaken -> "DecisionTaken($nodeId, edge=$chosenEdgeId, guard=$guard)"
+        is TraceEntry.ForkSplit -> "ForkSplit($nodeId, targets=$targetNodeIds)"
+        is TraceEntry.JoinReached -> "JoinReached($nodeId, ready=$isReady)"
+        is TraceEntry.ActivityActionInvoked -> "ActivityActionInvoked($nodeId, body='$body')"
+        is TraceEntry.FlowFinalConsumed -> "FlowFinalConsumed($nodeId)"
+        is TraceEntry.ActivityTerminated -> "ActivityTerminated(clock=$clock)"
     }

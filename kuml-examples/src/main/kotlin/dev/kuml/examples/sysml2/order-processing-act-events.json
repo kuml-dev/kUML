@@ -1,0 +1,8 @@
+{
+    "schema": "kuml.events.v1",
+    "events": [
+        { "name": "start", "payload": { "orderId": "ORD-001", "allow": true, "valid": true } },
+        { "name": "tick",  "payload": {} },
+        { "name": "tick",  "payload": {} }
+    ]
+}
