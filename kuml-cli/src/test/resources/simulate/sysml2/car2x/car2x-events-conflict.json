@@ -1,0 +1,8 @@
+{
+    "schema": "kuml.events.v1",
+    "events": [
+        {"name": "vehicleDetected", "payload": {"ttc": 12}},
+        {"name": "camReceived",     "payload": {"ttc": 6}},
+        {"name": "conflict",        "payload": {}}
+    ]
+}

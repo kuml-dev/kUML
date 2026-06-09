@@ -1,0 +1,10 @@
+{
+    "schema": "kuml.events.v1",
+    "events": [
+        {"name": "vehicleDetected", "payload": {"ttc": 15}},
+        {"name": "camReceived",     "payload": {"ttc": 8}},
+        {"name": "rightOfWay",      "payload": {}},
+        {"name": "cleared",         "payload": {}},
+        {"name": "reset",           "payload": {}}
+    ]
+}

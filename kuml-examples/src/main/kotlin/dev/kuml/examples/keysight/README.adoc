@@ -1,0 +1,151 @@
+= Car2x — V2X Intersection Scenario
+:description: Keysight Car2x showcase — V2X cooperative intersection negotiation as a runnable SysML 2 state machine (kUML V2.0.29)
+:icons: font
+
+== Domain Context
+
+This example models a **V2X (Vehicle-to-Everything) cooperative intersection scenario** as an executable SysML 2 state machine.
+It is representative of the test scenarios used in Keysight Technologies' Car2x test frameworks (UXM Wireless Test Set, V2X Scenario Toolset).
+
+Key standards:
+
+* **ETSI EN 302 637-2** — Cooperative Awareness Messages (CAM): periodic beacon broadcast by each ITS station (vehicle, RSU) carrying position, speed, heading, and acceleration.
+* **ETSI EN 302 637-3** — Decentralised Environmental Notification Messages (DENM): event-triggered alerts (hazard, roadworks, intersection conflict).
+* **ETSI TS 102 724** — ITS use-case layer: intersection management, emergency vehicle preemption, slow vehicle indication.
+* **ISO 21217** — ITS Station (ITS-S) architecture: the layered communication reference model for vehicle and roadside units.
+
+=== Scenario Description
+
+An ego vehicle (equipped with an ETSI ITS-G5 / C-V2X OBU) approaches a signalised intersection.
+A Road-Side Unit (RSU) and a target vehicle are also broadcasting CAMs.
+The state machine models the ego vehicle's cooperative intersection-crossing logic:
+
+[source]
+----
+Idle (initial)
+  → vehicleDetected [ttc > 10]  → Approaching
+  → camReceived [ttc ≤ 10]      → Negotiating
+  → rightOfWay                  → Crossing
+  → cleared                     → Departed (final)
+  → reset                       → Idle  (loop for next cycle)
+
+Negotiating → conflict → Idle  (yield and retry)
+----
+
+The guard `ttc > 10` and `ttc <= 10` reference the `ttc` (time-to-collision, in seconds) field of the event payload.
+A late-detection event (`ttc = 5`, guard fails) leaves the machine in `Idle`.
+
+== Provided Event Sequences
+
+[cols="1,2,1"]
+|===
+|File |Scenario |Expected final state
+
+|`car2x-events-happy.json`
+|Full happy path: detect → CAM → right-of-way → clear → reset
+|`Idle` (post-reset)
+
+|`car2x-events-conflict.json`
+|Conflict detected during negotiation — yields and returns
+|`Idle`
+
+|`car2x-events-late-detection.json`
+|`vehicleDetected` with `ttc = 5` — guard fails, machine stays put
+|`Idle`
+|===
+
+== How to Run
+
+=== Simulate (happy path)
+
+[source,bash]
+----
+kuml simulate car2x-scenario-stm.kuml.kts \
+  --events car2x-events-happy.json \
+  --out /tmp/car2x-happy.trace.json
+----
+
+Expected output (abbreviated):
+
+[source]
+----
+Wrote 16 trace entries to /tmp/car2x-happy.trace.json
+----
+
+=== Simulate (conflict path)
+
+[source,bash]
+----
+kuml simulate car2x-scenario-stm.kuml.kts \
+  --events car2x-events-conflict.json \
+  --out /tmp/car2x-conflict.trace.json
+----
+
+=== Simulate (late detection — guard fails)
+
+[source,bash]
+----
+kuml simulate car2x-scenario-stm.kuml.kts \
+  --events car2x-events-late-detection.json \
+  --out /tmp/car2x-late.trace.json
+----
+
+=== Render as SVG
+
+[source,bash]
+----
+kuml render car2x-scenario-stm.kuml.kts \
+  --format svg \
+  --output car2x-stm.svg
+----
+
+== Using via MCP `kuml.run.*` Tools
+
+With the kUML MCP server running (V2.0.27+), you can drive the scenario from any MCP client:
+
+[source,json]
+----
+{
+  "tool": "kuml.run.simulate",
+  "arguments": {
+    "script": "car2x-scenario-stm.kuml.kts",
+    "events": "car2x-events-happy.json"
+  }
+}
+----
+
+To render the STM diagram:
+
+[source,json]
+----
+{
+  "tool": "kuml.run.render",
+  "arguments": {
+    "script": "car2x-scenario-stm.kuml.kts",
+    "format": "svg",
+    "output": "car2x-stm.svg"
+  }
+}
+----
+
+== Files in this Directory
+
+[cols="2,3"]
+|===
+|File |Purpose
+
+|`car2x-scenario-stm.kuml.kts`
+|SysML 2 state machine + BDD script (ego-vehicle intersection logic)
+
+|`car2x-events-happy.json`
+|Happy-path event sequence (full Idle → Departed cycle)
+
+|`car2x-events-conflict.json`
+|Conflict-path event sequence (yields at Negotiating → Idle)
+
+|`car2x-events-late-detection.json`
+|Late-detection edge case (guard fails, stays in Idle)
+
+|`README.adoc`
+|This file
+|===
