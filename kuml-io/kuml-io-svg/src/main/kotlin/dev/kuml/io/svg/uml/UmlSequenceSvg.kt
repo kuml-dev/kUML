@@ -39,11 +39,17 @@ internal fun renderUmlLifelineHead(
         tag("text", mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to "30", "text-anchor" to "middle")) {
             text(element.name)
         }
-        tag("line", mapOf(
-            "x1" to fmt(w / 2f), "y1" to fmt(SEQ_HEAD_HEIGHT),
-            "x2" to fmt(w / 2f), "y2" to fmt(h),
-            "class" to "kuml-divider", "stroke-dasharray" to "4 4",
-        ))
+        tag(
+            "line",
+            mapOf(
+                "x1" to fmt(w / 2f),
+                "y1" to fmt(SEQ_HEAD_HEIGHT),
+                "x2" to fmt(w / 2f),
+                "y2" to fmt(h),
+                "class" to "kuml-divider",
+                "stroke-dasharray" to "4 4",
+            ),
+        )
     }
 }
 
@@ -58,9 +64,10 @@ internal fun renderUmlSeqMessages(
     nodeLayouts: Map<NodeId, NodeLayout>,
     builder: SvgBuilder,
 ) {
-    val visible = messages
-        .filter { it.fromLifelineId in visibleLifelineIds && it.toLifelineId in visibleLifelineIds }
-        .sortedWith(compareBy({ it.sequence }, { it.id }))
+    val visible =
+        messages
+            .filter { it.fromLifelineId in visibleLifelineIds && it.toLifelineId in visibleLifelineIds }
+            .sortedWith(compareBy({ it.sequence }, { it.id }))
     for (msg in visible) {
         val srcLayout = nodeLayouts[NodeId(msg.fromLifelineId)] ?: continue
         val tgtLayout = nodeLayouts[NodeId(msg.toLifelineId)] ?: continue
@@ -90,11 +97,16 @@ private fun renderUmlMessage(
     val arrowDx = if (tgtCx >= srcCx) -8f else 8f
 
     builder.tag("g", mapOf("id" to xmlEscapeAttr(msg.id))) {
-        tag("line", mapOf(
-            "x1" to fmt(srcCx), "y1" to fmt(y),
-            "x2" to fmt(tgtCx), "y2" to fmt(y),
-            "class" to strokeClass,
-        ))
+        tag(
+            "line",
+            mapOf(
+                "x1" to fmt(srcCx),
+                "y1" to fmt(y),
+                "x2" to fmt(tgtCx),
+                "y2" to fmt(y),
+                "class" to strokeClass,
+            ),
+        )
         when (msg.sort) {
             MessageSort.SYNC_CALL, MessageSort.CREATE ->
                 renderFilledArrowheadUml(tgtCx, y, arrowDx, this)
@@ -102,22 +114,40 @@ private fun renderUmlMessage(
                 renderOpenArrowheadUml(tgtCx, y, arrowDx, this)
         }
         val labelX = (srcCx + tgtCx) / 2f
-        tag("text", mapOf(
-            "class" to "kuml-body",
-            "x" to fmt(labelX), "y" to fmt(y - 4f),
-            "text-anchor" to "middle",
-        )) { text(msg.label) }
+        tag(
+            "text",
+            mapOf(
+                "class" to "kuml-body",
+                "x" to fmt(labelX),
+                "y" to fmt(y - 4f),
+                "text-anchor" to "middle",
+            ),
+        ) { text(msg.label) }
     }
 }
 
-private fun renderUmlSelfCall(msg: UmlMessage, cx: Float, y: Float, builder: SvgBuilder) {
+private fun renderUmlSelfCall(
+    msg: UmlMessage,
+    cx: Float,
+    y: Float,
+    builder: SvgBuilder,
+) {
     val isReply = msg.sort == MessageSort.REPLY
     val strokeClass = if (isReply) "kuml-edge-dashed" else "kuml-edge"
     builder.tag("g", mapOf("id" to xmlEscapeAttr(msg.id))) {
-        tag("path", mapOf(
-            "d" to "M ${fmt(cx)} ${fmt(y)} L ${fmt(cx + SELF_CALL_W)} ${fmt(y)} L ${fmt(cx + SELF_CALL_W)} ${fmt(y + SELF_CALL_H)} L ${fmt(cx)} ${fmt(y + SELF_CALL_H)}",
-            "class" to strokeClass, "fill" to "none",
-        ))
+        tag(
+            "path",
+            mapOf(
+                "d" to
+                    "M ${fmt(
+                        cx,
+                    )} ${fmt(y)} L ${fmt(cx + SELF_CALL_W)} ${fmt(y)} L ${fmt(cx + SELF_CALL_W)} ${fmt(y + SELF_CALL_H)} L ${fmt(cx)} ${fmt(
+                        y + SELF_CALL_H,
+                    )}",
+                "class" to strokeClass,
+                "fill" to "none",
+            ),
+        )
         renderOpenArrowheadUml(cx, y + SELF_CALL_H, +8f, this)
         tag("text", mapOf("class" to "kuml-body", "x" to fmt(cx + SELF_CALL_W + 4f), "y" to fmt(y - 2f))) {
             text(msg.label)
@@ -150,9 +180,10 @@ private fun renderUmlFragment(
 ) {
     if (fragment.operands.isEmpty()) return
     // Determine min/max seqNo covered by this fragment
-    val allMsgSeqs = fragment.operands.flatMap { op ->
-        op.messageIds.mapNotNull { id -> msgById[id]?.sequence }
-    }
+    val allMsgSeqs =
+        fragment.operands.flatMap { op ->
+            op.messageIds.mapNotNull { id -> msgById[id]?.sequence }
+        }
     if (allMsgSeqs.isEmpty()) return
     val minSeq = allMsgSeqs.min()
     val maxSeq = allMsgSeqs.max()
@@ -169,70 +200,112 @@ private fun renderUmlFragment(
     val frameH = frameBottom - frameY
 
     builder.tag("g", mapOf("id" to xmlEscapeAttr(fragment.id))) {
-        tag("rect", mapOf(
-            "x" to fmt(frameX), "y" to fmt(frameY),
-            "width" to fmt(frameW), "height" to fmt(frameH),
-            "class" to "kuml-class", "fill" to "none", "stroke-dasharray" to "6 4",
-        ))
+        tag(
+            "rect",
+            mapOf(
+                "x" to fmt(frameX),
+                "y" to fmt(frameY),
+                "width" to fmt(frameW),
+                "height" to fmt(frameH),
+                "class" to "kuml-class",
+                "fill" to "none",
+                "stroke-dasharray" to "6 4",
+            ),
+        )
         val tagX = frameX
         val tagY = frameY
         val notch = 6f
-        val pts = "${fmt(tagX)},${fmt(tagY)} ${fmt(tagX + FRAGMENT_TAG_W)},${fmt(tagY)} " +
-            "${fmt(tagX + FRAGMENT_TAG_W)},${fmt(tagY + FRAGMENT_TAG_H - notch)} " +
-            "${fmt(tagX + FRAGMENT_TAG_W - notch)},${fmt(tagY + FRAGMENT_TAG_H)} " +
-            "${fmt(tagX)},${fmt(tagY + FRAGMENT_TAG_H)}"
+        val pts =
+            "${fmt(tagX)},${fmt(tagY)} ${fmt(tagX + FRAGMENT_TAG_W)},${fmt(tagY)} " +
+                "${fmt(tagX + FRAGMENT_TAG_W)},${fmt(tagY + FRAGMENT_TAG_H - notch)} " +
+                "${fmt(tagX + FRAGMENT_TAG_W - notch)},${fmt(tagY + FRAGMENT_TAG_H)} " +
+                "${fmt(tagX)},${fmt(tagY + FRAGMENT_TAG_H)}"
         tag("polygon", mapOf("points" to pts, "class" to "kuml-class", "fill" to "white"))
-        tag("text", mapOf(
-            "class" to "kuml-stereotype",
-            "x" to fmt(tagX + FRAGMENT_TAG_W / 2f),
-            "y" to fmt(tagY + FRAGMENT_TAG_H / 2f + 4f),
-            "text-anchor" to "middle",
-        )) { text(fragment.operator.name) }
+        tag(
+            "text",
+            mapOf(
+                "class" to "kuml-stereotype",
+                "x" to fmt(tagX + FRAGMENT_TAG_W / 2f),
+                "y" to fmt(tagY + FRAGMENT_TAG_H / 2f + 4f),
+                "text-anchor" to "middle",
+            ),
+        ) { text(fragment.operator.name) }
 
         // Guards per operand
         for ((index, operand) in fragment.operands.withIndex()) {
             val opMsgSeqs = operand.messageIds.mapNotNull { msgById[it]?.sequence }
             val opMinSeq = opMsgSeqs.minOrNull() ?: continue
-            val guardY = if (index == 0) {
-                tagY + FRAGMENT_TAG_H + 4f
-            } else {
-                val sepY = headBottom + (opMinSeq - 0.5f) * SEQ_ROW_HEIGHT
-                // Draw separator line
-                tag("line", mapOf(
-                    "x1" to fmt(frameX), "y1" to fmt(sepY),
-                    "x2" to fmt(frameX + frameW), "y2" to fmt(sepY),
-                    "class" to "kuml-divider", "stroke-dasharray" to "6 4",
-                ))
-                sepY + 12f
-            }
+            val guardY =
+                if (index == 0) {
+                    tagY + FRAGMENT_TAG_H + 4f
+                } else {
+                    val sepY = headBottom + (opMinSeq - 0.5f) * SEQ_ROW_HEIGHT
+                    // Draw separator line
+                    tag(
+                        "line",
+                        mapOf(
+                            "x1" to fmt(frameX),
+                            "y1" to fmt(sepY),
+                            "x2" to fmt(frameX + frameW),
+                            "y2" to fmt(sepY),
+                            "class" to "kuml-divider",
+                            "stroke-dasharray" to "6 4",
+                        ),
+                    )
+                    sepY + 12f
+                }
             val guard = operand.guard
             if (guard != null) {
-                tag("text", mapOf(
-                    "class" to "kuml-body",
-                    "x" to fmt(tagX + FRAGMENT_TAG_W + 6f),
-                    "y" to fmt(guardY),
-                )) { text("[" + guard + "]") }
+                tag(
+                    "text",
+                    mapOf(
+                        "class" to "kuml-body",
+                        "x" to fmt(tagX + FRAGMENT_TAG_W + 6f),
+                        "y" to fmt(guardY),
+                    ),
+                ) { text("[" + guard + "]") }
             }
         }
     }
 }
 
-private fun renderFilledArrowheadUml(tipX: Float, y: Float, baseDx: Float, builder: SvgBuilder) {
+private fun renderFilledArrowheadUml(
+    tipX: Float,
+    y: Float,
+    baseDx: Float,
+    builder: SvgBuilder,
+) {
     val baseX = tipX + baseDx
-    builder.tag("polygon", mapOf(
-        "points" to "${fmt(tipX)},${fmt(y)} ${fmt(baseX)},${fmt(y - 4f)} ${fmt(baseX)},${fmt(y + 4f)}",
-        "class" to "kuml-edge", "fill" to "currentColor",
-    ))
+    builder.tag(
+        "polygon",
+        mapOf(
+            "points" to "${fmt(tipX)},${fmt(y)} ${fmt(baseX)},${fmt(y - 4f)} ${fmt(baseX)},${fmt(y + 4f)}",
+            "class" to "kuml-edge",
+            "fill" to "currentColor",
+        ),
+    )
 }
 
-private fun renderOpenArrowheadUml(tipX: Float, y: Float, baseDx: Float, builder: SvgBuilder) {
+private fun renderOpenArrowheadUml(
+    tipX: Float,
+    y: Float,
+    baseDx: Float,
+    builder: SvgBuilder,
+) {
     val baseX = tipX + baseDx
-    builder.tag("path", mapOf(
-        "d" to "M ${fmt(baseX)} ${fmt(y - 4f)} L ${fmt(tipX)} ${fmt(y)} L ${fmt(baseX)} ${fmt(y + 4f)}",
-        "class" to "kuml-edge", "fill" to "none",
-    ))
+    builder.tag(
+        "path",
+        mapOf(
+            "d" to "M ${fmt(baseX)} ${fmt(y - 4f)} L ${fmt(tipX)} ${fmt(y)} L ${fmt(baseX)} ${fmt(y + 4f)}",
+            "class" to "kuml-edge",
+            "fill" to "none",
+        ),
+    )
 }
 
 private fun fmt(v: Float): String =
-    if (v == v.toInt().toFloat()) v.toInt().toString()
-    else String.format(java.util.Locale.US, "%.3f", v)
+    if (v == v.toInt().toFloat()) {
+        v.toInt().toString()
+    } else {
+        String.format(java.util.Locale.US, "%.3f", v)
+    }

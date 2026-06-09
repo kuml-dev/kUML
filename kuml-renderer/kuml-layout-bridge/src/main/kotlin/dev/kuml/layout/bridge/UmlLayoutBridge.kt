@@ -5,6 +5,7 @@ import dev.kuml.layout.EdgeHints
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EndpointRef
 import dev.kuml.layout.GroupId
+import dev.kuml.layout.Insets
 import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutGroup
@@ -12,8 +13,6 @@ import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.PortId
 import dev.kuml.layout.Size
-import dev.kuml.layout.Insets
-import dev.kuml.layout.NodeHints
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlInteraction
@@ -132,15 +131,16 @@ public object UmlLayoutBridge {
                     // messages and fragments are rendered directly by KumlSvgRenderer.
                     val maxSeq = element.messages.maxOfOrNull { it.sequence } ?: 0
                     val rowCount = if (maxSeq < 1) 1 else maxSeq
-                    val nodeH = Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
-                        (rowCount + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
-                        Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
+                    val nodeH =
+                        Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
+                            (rowCount + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
+                            Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
                     for (lifeline in element.lifelines) {
                         nodes.add(
                             LayoutNode(
                                 id = NodeId(lifeline.id),
                                 intrinsicSize = Size(Sysml2LayoutBridge.SEQ_LIFELINE_WIDTH, nodeH),
-                            )
+                            ),
                         )
                     }
                 }
@@ -152,11 +152,12 @@ public object UmlLayoutBridge {
                     // Collect all vertices flat (including substates) and add as LayoutNodes
                     fun collectVertices(vertices: List<UmlVertex>) {
                         for (vertex in vertices) {
-                            val size = when (vertex) {
-                                is UmlPseudostate -> Size(24f, 24f)
-                                is UmlFinalState -> Size(28f, 28f)
-                                is UmlState -> sizeProvider.sizeOf(vertex.id, "UmlState")
-                            }
+                            val size =
+                                when (vertex) {
+                                    is UmlPseudostate -> Size(24f, 24f)
+                                    is UmlFinalState -> Size(28f, 28f)
+                                    is UmlState -> sizeProvider.sizeOf(vertex.id, "UmlState")
+                                }
                             nodes.add(
                                 LayoutNode(
                                     id = NodeId(vertex.id),

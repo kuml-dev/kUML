@@ -14,9 +14,9 @@ junit                  = "6.1.0"
 assertj                = "3.27.7"
 ktlint-plugin          = "14.2.0"
 clikt                  = "5.1.0"
-graalvm-native         = "0.10.6"
-vanniktech-publish     = "0.30.0"
-intellij-platform      = "2.11.0"
+graalvm-native         = "1.1.1"
+vanniktech-publish     = "0.36.0"
+intellij-platform      = "2.16.0"
 intellij-idea          = "2024.3"
 
 [libraries]

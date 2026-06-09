@@ -18,12 +18,12 @@ import dev.kuml.io.svg.uml.renderUmlClass
 import dev.kuml.io.svg.uml.renderUmlCollaboration
 import dev.kuml.io.svg.uml.renderUmlComponent
 import dev.kuml.io.svg.uml.renderUmlEnum
+import dev.kuml.io.svg.uml.renderUmlFinalState
 import dev.kuml.io.svg.uml.renderUmlInstance
 import dev.kuml.io.svg.uml.renderUmlInteractionOverviewFrame
 import dev.kuml.io.svg.uml.renderUmlInterface
 import dev.kuml.io.svg.uml.renderUmlLifelineHead
 import dev.kuml.io.svg.uml.renderUmlNode
-import dev.kuml.io.svg.uml.renderUmlFinalState
 import dev.kuml.io.svg.uml.renderUmlPseudostate
 import dev.kuml.io.svg.uml.renderUmlState
 import dev.kuml.io.svg.uml.renderUmlStateMachine
@@ -41,11 +41,11 @@ import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlCollaboration
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlEnumeration
+import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlInstanceSpecification
 import dev.kuml.uml.UmlInteractionOverviewFrame
 import dev.kuml.uml.UmlInterface
 import dev.kuml.uml.UmlLifeline
-import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlNode
 import dev.kuml.uml.UmlPseudostate
 import dev.kuml.uml.UmlState

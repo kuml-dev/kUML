@@ -26,17 +26,32 @@ internal fun renderUmlFinalState(
     val innerR = outerR * 0.5f
 
     builder.tag("g", mapOf("id" to xmlEscapeAttr(element.id))) {
-        tag("circle", mapOf(
-            "cx" to fmt(cx), "cy" to fmt(cy), "r" to fmt(outerR),
-            "class" to "kuml-class", "fill" to "white",
-        ))
-        tag("circle", mapOf(
-            "cx" to fmt(cx), "cy" to fmt(cy), "r" to fmt(innerR),
-            "class" to "kuml-class", "fill" to "currentColor",
-        ))
+        tag(
+            "circle",
+            mapOf(
+                "cx" to fmt(cx),
+                "cy" to fmt(cy),
+                "r" to fmt(outerR),
+                "class" to "kuml-class",
+                "fill" to "white",
+            ),
+        )
+        tag(
+            "circle",
+            mapOf(
+                "cx" to fmt(cx),
+                "cy" to fmt(cy),
+                "r" to fmt(innerR),
+                "class" to "kuml-class",
+                "fill" to "currentColor",
+            ),
+        )
     }
 }
 
 private fun fmt(v: Float): String =
-    if (v == v.toInt().toFloat()) v.toInt().toString()
-    else "%.2f".format(java.util.Locale.ROOT, v)
+    if (v == v.toInt().toFloat()) {
+        v.toInt().toString()
+    } else {
+        "%.2f".format(java.util.Locale.ROOT, v)
+    }

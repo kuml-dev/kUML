@@ -251,8 +251,9 @@ public object KumlSvgRenderer {
         theme: KumlTheme,
         options: SvgRenderOptions,
     ): String {
-        val interaction = diagram.elements.filterIsInstance<UmlInteraction>().firstOrNull()
-            ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> } // fallback
+        val interaction =
+            diagram.elements.filterIsInstance<UmlInteraction>().firstOrNull()
+                ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> } // fallback
 
         val visibleIds = interaction.lifelines.map { it.id }.toSet()
 
@@ -263,21 +264,25 @@ public object KumlSvgRenderer {
             // 1. Render lifeline heads
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
                 val lifeline = interaction.lifelines.find { it.id == nodeId.value } ?: continue
-                val shifted = nodeLayout.copy(
-                    bounds = nodeLayout.bounds.copy(
-                        origin = nodeLayout.bounds.origin.copy(
-                            x = nodeLayout.bounds.origin.x + padding,
-                            y = nodeLayout.bounds.origin.y + padding,
-                        ),
-                    ),
-                )
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
                 NodeRendererDispatcher.dispatch(lifeline, shifted, theme, nodesBuilder)
                 shiftedLayouts[nodeId] = shifted
             }
 
             // 2. Render combined fragments (before messages so they appear behind)
-            val visibleLifelineLayouts = interaction.lifelines
-                .mapNotNull { shiftedLayouts[dev.kuml.layout.NodeId(it.id)] }
+            val visibleLifelineLayouts =
+                interaction.lifelines
+                    .mapNotNull { shiftedLayouts[dev.kuml.layout.NodeId(it.id)] }
             dev.kuml.io.svg.uml.renderUmlCombinedFragments(
                 interaction.fragments,
                 interaction,
@@ -309,11 +314,13 @@ public object KumlSvgRenderer {
         theme: KumlTheme,
         options: SvgRenderOptions,
     ): String {
-        val sm = diagram.elements.filterIsInstance<UmlStateMachine>().firstOrNull()
-            ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> } // fallback
+        val sm =
+            diagram.elements.filterIsInstance<UmlStateMachine>().firstOrNull()
+                ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> } // fallback
 
         // Flatten all vertices (including substates) into a lookup map
         val vertexIndex = mutableMapOf<String, dev.kuml.uml.UmlVertex>()
+
         fun collectVertices(vertices: List<dev.kuml.uml.UmlVertex>) {
             for (v in vertices) {
                 vertexIndex[v.id] = v
@@ -335,26 +342,31 @@ public object KumlSvgRenderer {
                 val gy = groupLayout.bounds.origin.y + padding
                 val gw = groupLayout.bounds.size.width
                 val gh = groupLayout.bounds.size.height
-                val smLayout = dev.kuml.layout.NodeLayout(
-                    bounds = dev.kuml.layout.Rect(
-                        origin = dev.kuml.layout.Point(gx, gy),
-                        size = dev.kuml.layout.Size(gw, gh),
-                    ),
-                )
+                val smLayout =
+                    dev.kuml.layout.NodeLayout(
+                        bounds =
+                            dev.kuml.layout.Rect(
+                                origin = dev.kuml.layout.Point(gx, gy),
+                                size = dev.kuml.layout.Size(gw, gh),
+                            ),
+                    )
                 NodeRendererDispatcher.dispatch(sm, smLayout, theme, nodesBuilder)
             }
 
             // 2. Render vertices (states, pseudostates, final states)
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
                 val vertex = vertexIndex[nodeId.value] ?: continue
-                val shifted = nodeLayout.copy(
-                    bounds = nodeLayout.bounds.copy(
-                        origin = nodeLayout.bounds.origin.copy(
-                            x = nodeLayout.bounds.origin.x + padding,
-                            y = nodeLayout.bounds.origin.y + padding,
-                        ),
-                    ),
-                )
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
                 NodeRendererDispatcher.dispatch(vertex, shifted, theme, nodesBuilder)
             }
 
@@ -364,21 +376,24 @@ public object KumlSvgRenderer {
                 val shiftedRoute = shiftRoute(route, padding)
 
                 // Build label text: "trigger [guard] / effect"
-                val parts = buildList {
-                    if (transition.trigger != null) add(transition.trigger)
-                    // Guard is stored as-is from DSL (may already include "[...]" brackets)
-                    if (transition.guard != null) add(transition.guard)
-                    if (transition.effect != null) add("/ ${transition.effect}")
-                }
+                val parts =
+                    buildList {
+                        if (transition.trigger != null) add(transition.trigger)
+                        // Guard is stored as-is from DSL (may already include "[...]" brackets)
+                        if (transition.guard != null) add(transition.guard)
+                        if (transition.effect != null) add("/ ${transition.effect}")
+                    }
                 val label = parts.joinToString(" ")
 
-                val meta = dev.kuml.sysml2.edge.Sysml2EdgeMetadata(
-                    stereotype = null,
-                    label = label.ifEmpty { null },
-                    dashArray = null,
-                    arrowHead = dev.kuml.sysml2.edge.Sysml2ArrowHead.OpenAngle,
-                )
-                dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.render(shiftedRoute, meta, theme, edgesBuilder)
+                val meta =
+                    dev.kuml.sysml2.edge.Sysml2EdgeMetadata(
+                        stereotype = null,
+                        label = label.ifEmpty { null },
+                        dashArray = null,
+                        arrowHead = dev.kuml.sysml2.edge.Sysml2ArrowHead.OpenAngle,
+                    )
+                dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
+                    .render(shiftedRoute, meta, theme, edgesBuilder)
             }
         }
     }
