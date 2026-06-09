@@ -22,6 +22,8 @@ dependencies {
     implementation(project(":kuml-codegen:kuml-gen-sql"))
 
     implementation(project(":kuml-core:kuml-core-script"))
+    // V2.0.27 — Behaviour-Runtime MCP tools
+    implementation(project(":kuml-runtime:kuml-runtime-core"))
     implementation(libs.kotlin.scripting.common)
     implementation(libs.kotlin.scripting.jvm)
     implementation(libs.kotlin.scripting.jvm.host)

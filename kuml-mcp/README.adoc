@@ -61,12 +61,98 @@ Add to your MCP client configuration:
 * Each line on `stdin` is a single JSON request; each line on `stdout` is a single JSON response
 * Logs and diagnostics go to `stderr` (never `stdout` — that channel is reserved for protocol traffic)
 
+== `kuml.run.*` — Behaviour-Runtime Tools
+
+Five tools that expose the headless Behaviour-Runtime (State Machine and Activity) over MCP.
+External agents (Claude Code, Pepela Live-Mirror, Keysight harness, …) can start a runtime
+session, send events, snapshot state, patch variables, and terminate the session.
+
+=== Tool Reference
+
+[cols="1,3"]
+|===
+| Tool                  | Description
+
+| `kuml.run.start`
+| Start a new session from a `.kuml.kts` file (or inline script).
+  Auto-detects `stm` (state-machine) vs `act` (activity).
+  Returns `{"sessionId":"rs-…","kind":"stm","activeStates":["Off"],"trace":[]}`.
+
+| `kuml.run.event`
+| Send an event to a running STM session.
+  Returns `{"fired":["Off→Idle"],"activeStates":["Idle"],"traceDelta":[…]}`.
+
+| `kuml.run.snapshot`
+| Non-destructively inspect a session.
+  Returns `{"activeStates":[…],"variables":{…},"traceTail":[last 20 entries],"stepCount":3}`.
+
+| `kuml.run.patch`
+| Patch session variables and/or teleport the STM to a named state.
+  Returns `{"ok":true,"activeStates":["Heating"]}`.
+
+| `kuml.run.stop`
+| Terminate the session and return the full trace.
+  Returns `{"ok":true,"totalSteps":12,"traceLength":47,"trace":[…]}`.
+|===
+
+Sessions expire after 30 minutes of inactivity (configurable).
+
+=== Claude Desktop Configuration
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "kuml": {
+      "command": "/path/to/kuml-mcp/bin/kuml-mcp"
+    }
+  }
+}
+----
+
+=== Example: Pepela Thermostat Step-Through
+
+[source,json]
+----
+// 1. Start a session from the thermostat script
+{"method":"tools/call","params":{"name":"kuml.run.start","arguments":{
+  "source":"/path/to/pepela-thermostat-stm.kuml.kts","kind":"stm"
+}}}
+// → {"sessionId":"rs-a1b2c3d4","kind":"stm","activeStates":["Off"],"trace":[]}
+
+// 2. Power on
+{"method":"tools/call","params":{"name":"kuml.run.event","arguments":{
+  "sessionId":"rs-a1b2c3d4","event":"powerOn"
+}}}
+// → {"fired":["Off→Idle"],"activeStates":["Idle"],"traceDelta":[…]}
+
+// 3. Send a tick with a cold temperature — machine enters Heating
+{"method":"tools/call","params":{"name":"kuml.run.event","arguments":{
+  "sessionId":"rs-a1b2c3d4","event":"tick",
+  "payload":{"temperature":15,"targetTemperature":21}
+}}}
+// → {"fired":["Idle→Heating"],"activeStates":["Heating"],"traceDelta":[…]}
+
+// 4. Snapshot the session state
+{"method":"tools/call","params":{"name":"kuml.run.snapshot","arguments":{
+  "sessionId":"rs-a1b2c3d4"
+}}}
+// → {"activeStates":["Heating"],"variables":{},"traceTail":[…],"stepCount":2}
+
+// 5. Stop and retrieve full trace
+{"method":"tools/call","params":{"name":"kuml.run.stop","arguments":{
+  "sessionId":"rs-a1b2c3d4"
+}}}
+// → {"ok":true,"totalSteps":2,"traceLength":14,"trace":[…]}
+----
+
 == Dependencies
 
 * `kuml-core-script` — model evaluation via `DiagramExtractor`
 * `kuml-core-ocl` — `kuml.validate` tool backend
 * `kuml-io-svg` / `kuml-io-png` — rendering
 * `kuml-codegen-api` + `kuml-gen-kotlin` — `kuml.generate` tool
+* `kuml-runtime-core` — `kuml.run.*` tool backend (V2.0.27)
 
 == License
 
