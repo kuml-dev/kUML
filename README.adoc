@@ -69,6 +69,28 @@ classDiagram(name = "Order Domain") {
 kuml render order-domain.kuml.kts --format svg
 ----
 
+== Installation
+
+[cols="1,3"]
+|===
+| Method | Command / Link
+
+| *Homebrew* (macOS/Linux)
+| `brew install kuml-dev/kuml/kuml`
+
+| *SDKMAN!*
+| `sdk install kuml` — supports Linux x86_64, Linux ARM64, macOS, Windows x86_64.
+
+| *Docker*
+| `docker pull ghcr.io/kuml-dev/kuml-cli:<version>` — minimal CLI image (V2.0.32).
+
+| *Native installers*
+| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (V2.0.32). Download from the GitHub Releases page.
+
+| *Maven Central* (library modules)
+| `implementation("dev.kuml:kuml-core-dsl:0.6.0")` — library modules published to Maven Central.
+|===
+
 == Features
 
 [cols="1,3"]
@@ -82,7 +104,7 @@ kuml render order-domain.kuml.kts --format svg
 | Named parameters, canonical formatter, structured JSON errors, MCP server — designed for reliable LLM code generation.
 
 | *Model Driven Architecture*
-| M2M transformations (Design → Implementation → Deployment) and M2T code generation. `kuml transform --transformer uml-to-jpa` generates Kotlin JPA entities from UML class diagrams; additional transformers registered via ServiceLoader.
+| M2M transformations (Design → Implementation → Deployment) and M2T code generation. Five built-in transformers: `uml-to-jpa`, `uml-to-rest` (OpenAPI 3.0 YAML), `uml-to-k8s` (Kubernetes manifests), `uml-to-docker` (Dockerfiles), `c4-to-uml`. Additional transformers registered via ServiceLoader.
 
 | *Pure Kotlin metamodel*
 | No EMF in the core — `sealed`/`data class` hierarchy only. XMI interop available as optional `kuml-io-emf` module.
@@ -151,6 +173,9 @@ Notable features added since v0.5.0:
 | LLM-first design             | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌
 | CLI + Gradle + IDE + Web     | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ✅ | ✅ | ⚠️
 | Beautiful auto-layouts       | ✅ | ❌ | ⚠️ | ✅ | ✅ | ⚠️ | ⚠️ | ✅
+| Grid-layout default (class/component) | ✅ | ❌ | ❌ | ⚠️ | ❌ | ⚠️ | ⚠️ | ❌
+| M2M code generation (5 transformers)  | ✅ | ❌ | ❌ | ❌ | ❌ | ◐ | ◐ | ❌
+| Native installers (DEB/RPM/DMG/MSI/Docker) | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ◐ | ❌
 |===
 
 ✅ present · ⚠️ limited or partial · ◐ proprietary/closed · ❌ absent
@@ -203,8 +228,17 @@ Notable features added since v0.5.0:
 | `kuml simulate <script> --events <file>`
 | Execute a simulation trace against a UML or SysML 2 behavioural model. Supports STM (state-machine semantics) and ACT (token-flow activity semantics) for both UML and SysML 2. SysML 2 STM added in V2.0.17; SysML 2 ACT added in V2.0.18.
 
-| `kuml transform <script> --transformer <name> --output <dir>`
-| M2M transformation: transform a source model to a target artefact. Built-in transformer `uml-to-jpa` generates Kotlin JPA entity files from a UML class diagram. `--list-transformers` lists all registered transformers (discovered via ServiceLoader). Added in V2.0.21.
+| `kuml transform <script> --transformer <id> --output <dir>`
+| M2M transformation: transform a source model to a target artefact. Five built-in transformers: `uml-to-jpa`, `uml-to-rest` (OpenAPI 3.0 YAML), `uml-to-k8s` (Kubernetes manifests), `uml-to-docker` (Dockerfiles), `c4-to-uml`. `--list-transformers` lists all registered transformers (discovered via ServiceLoader). V2.0.21–V2.0.25.
+
+| `kuml render <script> --layout=grid\|elk\|auto`
+| Override the per-diagram layout engine. `grid` is now the default for Class, Component, UseCase, and State diagrams; `elk` uses the ELK Sugiyama layered engine. Added in V2.0.26.
+
+| `kuml render <script> --latex-standalone`
+| Produce a self-contained compilable `.tex` file (previously the LaTeX output was library-only). Added in V2.0.31.
+
+| `kuml validate <script> --no-check-structure`
+| Skip structural checks (duplicate IDs, circular inheritance, dangling references). By default `kuml validate` now includes these checks in addition to OCL evaluation. Added in V2.0.31.
 
 | `kuml validate --strict <script>`
 | Extended validation mode (V2.0.20b): in addition to model consistency checks, parses and type-checks typed expressions — OCL-like guards, effects, and PAR constraints — through a typed AST with type inference.
@@ -250,9 +284,14 @@ Gradle plugin, AsciiDoc, IDE plugin, `kuml simulate`
 
 | *V2*
 | SysML 2 (all 8 diagram types ✅) + `kuml simulate` for STM + ACT ✅ +
-`kuml transform` (uml-to-jpa) ✅ + `kuml validate --strict` typed expressions ✅ +
+`kuml transform` (5 transformers: uml-to-jpa, uml-to-rest, uml-to-k8s, uml-to-docker, c4-to-uml) ✅ +
+`kuml validate --strict` typed expressions ✅ +
+`kuml render --layout=grid\|elk\|auto` (grid default) ✅ +
+JetBrains plugin (annotator, quick fixes, live SVG preview, structure view) ✅ +
+`kuml-runtime-mcp` (5 runtime tools) ✅ +
+Distribution Phase 1: DEB/RPM/DMG/MSI + Docker + SDKMAN! Windows/ARM64 ✅ +
 KerML, reverse engineering, XMI, Web UI, Compose Desktop 🚧
-| 🚧 In progress — V2.0.21 on master, unreleased (target v0.6.0)
+| ✅ v0.6.0 released — V2.0.22–V2.0.33
 |===
 
 == Modules
@@ -291,9 +330,12 @@ kuml-cli/            ✅  Command-line interface
   import             ✅  kuml import --format structurizr workspace.dsl
   markdown           ✅  kuml markdown --input in.md --output out.md --mode inline|linked-svg|linked-png
   simulate           ✅  kuml simulate model.kuml.kts --events events.json  (UML + SysML 2 STM/ACT)
-  transform          ✅  kuml transform model.kuml.kts --transformer uml-to-jpa --output gen/
+  transform          ✅  kuml transform model.kuml.kts --transformer <id> --output gen/
+                         Built-in: uml-to-jpa, uml-to-rest, uml-to-k8s, uml-to-docker, c4-to-uml
 
-kuml-mcp/            ✅  MCP server — stdio JSON-RPC 2.0, Protocol 2024-11-05, 5 tools
+kuml-mcp/            ✅  MCP server — stdio JSON-RPC 2.0, Protocol 2024-11-05
+                         Authoring tools (5): kuml.diagram.*, kuml.validate.*, ...
+                         Runtime tools (5, V2.0.27): kuml.run.start / event / snapshot / patch / stop
 
 kuml-codegen/
   kuml-codegen-api   ✅  KumlCodeGenerator plugin interface

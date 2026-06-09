@@ -4,6 +4,56 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] — 2026-06-09
+
+### M2M Transformation (V2.0.22–V2.0.25)
+Four new transformers join `uml-to-jpa` (V2.0.21):
+- `uml-to-rest` — OpenAPI 3.0 YAML from UML class diagrams
+- `uml-to-k8s` — Kubernetes Deployment + Service manifests per component
+- `uml-to-docker` — Dockerfile per component
+- `c4-to-uml` — C4 model → UML class diagram script
+`kuml transform --list-transformers` now lists all five.
+
+### Layout (V2.0.26)
+Grid layout is now the default engine for Class, Component, UseCase, and State diagrams.
+`kuml render --layout=grid|elk|auto` overrides the per-diagram default.
+New `LayoutHintWriter` API for drag-and-drop editor round-trips.
+
+### Behaviour Runtime via MCP (V2.0.27)
+Five new MCP tools expose the headless runtime to external agents:
+`kuml.run.start`, `kuml.run.event`, `kuml.run.snapshot`, `kuml.run.patch`, `kuml.run.stop`.
+Both STM (state machines) and ACT (activity diagrams) are supported.
+
+### JetBrains IDE Plugin — full authoring experience (V2.0.28a/b, V2.0.30)
+- Annotator: inline error squiggles in `.kuml.kts` files
+- Four IntentionAction quick fixes (missing parameter, unknown parameter, rename, suppress)
+- Live SVG preview pane in split editor (Batik JSVGCanvas, 300 ms debounce, zoom/pan)
+- Structure view showing diagram element tree
+
+### CLI improvements (V2.0.31)
+- `kuml validate` now includes structural checks: duplicate IDs, circular inheritance, dangling references. Flag `--no-check-structure` to opt out.
+- `kuml render --latex-standalone` produces a compilable `.tex` file (was library-only before).
+
+### Distribution Phase 1 (V2.0.32)
+Native installers via `jpackage`:
+- `packageDeb` / `packageRpm` (Linux, unsigned)
+- `packageDmg` (macOS, unsigned — signing in Phase 2)
+- `packageMsi` (Windows, unsigned — signing in Phase 2)
+- `dockerBuildCli` — `ghcr.io/kuml-dev/kuml-cli:<version>` Docker image
+New CI workflow `release-installers.yml` builds all four on push to version tags.
+
+### SDKMAN! — Windows + Linux ARM64
+The `package-runtime` matrix and SDKMAN! release matrix now include:
+- `windows-x86_64` → `WINDOWS_64`
+- `linux-aarch64` → `LINUX_ARM64` (via QEMU on ubuntu-latest)
+
+### Showcases (V2.0.29, V2.0.19)
+- Keysight Car2x V2X intersection scenario: 5-state SysML 2 STM with V2X message exchanges, three event files, runnable via `kuml simulate`
+- Pepela Smart Home thermostat: STM + ACT, Golden-Trace tests
+
+### Handbook
+All reference documentation updated for V2.x: SysML 2 diagram types, runtime-MCP tools, `kuml validate` page, CLI command table, IntelliJ plugin sections.
+
 ## [0.5.1] — 2026-06-07
 
 ### SysML 2 polish (post-v0.5.0)
