@@ -31,6 +31,8 @@ dependencies {
     implementation(project(":kuml-codegen:kuml-gen-sql"))
     implementation(project(":kuml-runtime:kuml-runtime-core"))
     implementation(project(":kuml-core:kuml-core-ocl"))
+    // V2.0.20a — validate-expressions command
+    implementation(project(":kuml-core:kuml-core-expr"))
     implementation(project(":kuml-profile:kuml-profile-api"))
     implementation(project(":kuml-profile:kuml-profile-soaml"))
     implementation(project(":kuml-profile:kuml-profile-javaee"))

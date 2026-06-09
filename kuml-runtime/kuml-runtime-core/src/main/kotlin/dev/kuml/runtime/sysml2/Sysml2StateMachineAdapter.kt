@@ -1,5 +1,6 @@
 package dev.kuml.runtime.sysml2
 
+import dev.kuml.expr.OclLikeExpressionParser
 import dev.kuml.runtime.OclGuardEvaluator
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.sysml2.StateDefinition
@@ -117,6 +118,21 @@ public object Sysml2StateMachineAdapter {
                 .filterIsInstance<TransitionUsage>()
                 .filter { it.sourceStateId in visibleIds && it.targetStateId in visibleIds }
                 .map { it.toUmlTransition() }
+
+        // V2.0.20a — pre-parse STM guards into the typed AST (best-effort).
+        // Parse failures are silently ignored here; the legacy evaluator will
+        // handle them at runtime.  Pre-parsing seeds the OclGuardEvaluator
+        // cache so the first event dispatch doesn't pay the parse cost.
+        transitions.forEach { tr ->
+            if (!tr.guard.isNullOrBlank()) {
+                val errors = mutableListOf<dev.kuml.expr.ParseError>()
+                val result = OclLikeExpressionParser.tryParse(tr.guard!!, errors)
+                if (result == null && errors.isNotEmpty()) {
+                    // Debug: guard could not be pre-parsed — legacy path will handle it.
+                    // System.err.println("[kUML V2.0.20a] Guard pre-parse failed for '${tr.guard}': ${errors.first().message}")
+                }
+            }
+        }
 
         // Derive a stable id from the diagram name (lower-cased, spaces to
         // dashes). The id surfaces in trace `modelId` fields, so a

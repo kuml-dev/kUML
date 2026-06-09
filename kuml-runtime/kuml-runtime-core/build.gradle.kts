@@ -14,6 +14,8 @@ dependencies {
     api(project(":kuml-metamodel:kuml-metamodel-sysml2"))
     api(project(":kuml-core:kuml-core-model"))
     api(project(":kuml-core:kuml-core-ocl"))
+    // V2.0.20a — typed expression AST + parser used by OclGuardEvaluator
+    implementation(project(":kuml-core:kuml-core-expr"))
     api(libs.kotlinx.serialization.json)
 
     testImplementation(libs.kotest.runner.junit5)

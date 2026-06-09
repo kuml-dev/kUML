@@ -30,6 +30,7 @@ include(
     "kuml-core:kuml-core-script",   // Phase 0 — Kotlin Scripting Host
     "kuml-core:kuml-core-config",   // V1.1.3 — kuml.config.kts DSL + Script Host
     "kuml-core:kuml-core-ocl",      // Phase 2 — OCL-Subset-Interpreter (skeleton)
+    "kuml-core:kuml-core-expr",     // V2.0.20a — Typed Expression AST + Parser + Evaluator
 )
 
 // ── Metamodels ───────────────────────────────────────── Phase 1 ──
