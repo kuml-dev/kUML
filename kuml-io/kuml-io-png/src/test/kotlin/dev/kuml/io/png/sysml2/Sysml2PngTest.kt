@@ -2,6 +2,7 @@ package dev.kuml.io.png.sysml2
 
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
+import dev.kuml.io.png.SampleOutput
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
@@ -99,7 +100,9 @@ class Sysml2PngTest :
                     bdd("Overview") { include(vehicle) }
                 }
             val bdd = model.diagrams.filterIsInstance<BdDiagram>().single()
-            assertValidPng(renderPng(model, bdd, singleNodeLayout("Vehicle")))
+            val bytes = renderPng(model, bdd, singleNodeLayout("Vehicle"))
+            SampleOutput.write("sysml2/bdd-vehicle.png", bytes)
+            assertValidPng(bytes)
         }
 
         // ── IBD ─────────────────────────────────────────────────────────────
@@ -127,7 +130,9 @@ class Sysml2PngTest :
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            assertValidPng(renderPng(model, ibd, layout))
+            val bytes = renderPng(model, ibd, layout)
+            SampleOutput.write("sysml2/ibd-vehicle-engine.png", bytes)
+            assertValidPng(bytes)
         }
 
         // ── UC ──────────────────────────────────────────────────────────────
@@ -156,7 +161,9 @@ class Sysml2PngTest :
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            assertValidPng(renderPng(model, uc, layout))
+            val bytes = renderPng(model, uc, layout)
+            SampleOutput.write("sysml2/uc-library.png", bytes)
+            assertValidPng(bytes)
         }
 
         // ── REQ ─────────────────────────────────────────────────────────────
@@ -174,7 +181,9 @@ class Sysml2PngTest :
                     }
                 }
             val req = model.diagrams.filterIsInstance<ReqDiagram>().single()
-            assertValidPng(renderPng(model, req, singleNodeLayout("TopSpeedRequirement", 240f, 140f)))
+            val bytes = renderPng(model, req, singleNodeLayout("TopSpeedRequirement", 240f, 140f))
+            SampleOutput.write("sysml2/req-top-speed.png", bytes)
+            assertValidPng(bytes)
         }
 
         // ── STM ─────────────────────────────────────────────────────────────
@@ -203,7 +212,9 @@ class Sysml2PngTest :
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            assertValidPng(renderPng(model, stm, layout))
+            val bytes = renderPng(model, stm, layout)
+            SampleOutput.write("sysml2/stm-traffic-light.png", bytes)
+            assertValidPng(bytes)
         }
 
         // ── ACT ─────────────────────────────────────────────────────────────
@@ -232,7 +243,9 @@ class Sysml2PngTest :
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            assertValidPng(renderPng(model, act, layout))
+            val bytes = renderPng(model, act, layout)
+            SampleOutput.write("sysml2/act-workflow.png", bytes)
+            assertValidPng(bytes)
         }
 
         // ── SEQ ─────────────────────────────────────────────────────────────
@@ -261,7 +274,9 @@ class Sysml2PngTest :
                     edges = emptyMap(),
                     groups = emptyMap(),
                 )
-            assertValidPng(renderPng(model, seq, layout))
+            val bytes = renderPng(model, seq, layout)
+            SampleOutput.write("sysml2/seq-login.png", bytes)
+            assertValidPng(bytes)
         }
 
         // ── PAR ─────────────────────────────────────────────────────────────
@@ -283,7 +298,9 @@ class Sysml2PngTest :
                     }
                 }
             val par = model.diagrams.filterIsInstance<ParDiagram>().single()
-            assertValidPng(renderPng(model, par, singleNodeLayout("NewtonsLaw", 240f, 150f)))
+            val bytes = renderPng(model, par, singleNodeLayout("NewtonsLaw", 240f, 150f))
+            SampleOutput.write("sysml2/par-newtons-law.png", bytes)
+            assertValidPng(bytes)
         }
 
         // ── Determinism ─────────────────────────────────────────────────────
@@ -303,6 +320,7 @@ class Sysml2PngTest :
             // ebenfalls byte-identische PNGs erzeugen. Sollte das in Zukunft
             // brechen (z.B. Zeitstempel im PNG-Metadaten-Chunk), fallback auf
             // strukturelle Gleichheit der gerenderten Bildgröße.
+            SampleOutput.write("sysml2/bdd-determinism-run1.png", first)
             first.toList() shouldBe second.toList()
             // Sanity: we did render something
             first.size shouldNotBe 0
