@@ -1,9 +1,11 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.ClassDiagramConfig
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.model.VisibilityFilter
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlNamedElement
@@ -38,6 +40,17 @@ class ClassDiagramBuilder(
     var showVisibility: Boolean = true
     var visibilityFilter: VisibilityFilter = VisibilityFilter.ALL
     var showPackageNames: Boolean = false
+
+    // ── Layout ────────────────────────────────────────────────────────────────
+
+    /**
+     * Override der Layout-Engine für dieses Diagramm.
+     *
+     * Standard: `null` → Pipeline wählt `"kuml.grid"` als Default für
+     * Klassen-Diagramme. Setze `"elk"` oder `"elk.layered"` um zur
+     * ELK-Engine zurückzukehren.
+     */
+    var layoutEngine: String? = null
 
     // ── UmlModelScope ─────────────────────────────────────────────────────────
 
@@ -109,11 +122,18 @@ class ClassDiagramBuilder(
 
     override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
-    fun build(): KumlDiagram =
-        KumlDiagram(
+    fun build(): KumlDiagram {
+        val meta: Map<String, KumlMetaValue> =
+            if (layoutEngine != null) {
+                mapOf(LayoutMetadataKeys.ENGINE to KumlMetaValue.Text(layoutEngine!!))
+            } else {
+                emptyMap()
+            }
+        return KumlDiagram(
             name = name,
             type = DiagramType.CLASS,
             elements = elements.toList(),
+            metadata = meta,
             config =
                 ClassDiagramConfig(
                     showAttributes = showAttributes,
@@ -123,4 +143,5 @@ class ClassDiagramBuilder(
                     showPackageNames = showPackageNames,
                 ),
         )
+    }
 }

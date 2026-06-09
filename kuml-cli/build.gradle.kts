@@ -54,6 +54,7 @@ dependencies {
     implementation(project(":kuml-core:kuml-core-dsl"))
     implementation(project(":kuml-renderer:kuml-layout-api"))
     implementation(project(":kuml-renderer:kuml-layout-elk"))
+    implementation(project(":kuml-renderer:kuml-layout-grid"))
     implementation(project(":kuml-renderer:kuml-layout-bridge"))
     implementation(project(":kuml-renderer:kuml-themes-core"))
     implementation(project(":kuml-io:kuml-io-svg"))

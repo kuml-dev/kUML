@@ -1,9 +1,11 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.ActorStyle
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.model.UseCaseDiagramConfig
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlActor
@@ -44,6 +46,17 @@ class UseCaseDiagramBuilder(
 
     var showSubjectBox: Boolean = true
     var actorStyle: ActorStyle = ActorStyle.STICK_FIGURE
+
+    // ── Layout ────────────────────────────────────────────────────────────────
+
+    /**
+     * Override der Layout-Engine für dieses Diagramm.
+     *
+     * Standard: `null` → Pipeline wählt `"kuml.grid"` als Default für
+     * Use-Case-Diagramme. Setze `"elk"` oder `"elk.layered"` um zur
+     * ELK-Engine zurückzukehren.
+     */
+    var layoutEngine: String? = null
 
     // ── UmlModelScope ─────────────────────────────────────────────────────────
 
@@ -98,15 +111,23 @@ class UseCaseDiagramBuilder(
 
     override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
-    fun build(): KumlDiagram =
-        KumlDiagram(
+    fun build(): KumlDiagram {
+        val meta: Map<String, KumlMetaValue> =
+            if (layoutEngine != null) {
+                mapOf(LayoutMetadataKeys.ENGINE to KumlMetaValue.Text(layoutEngine!!))
+            } else {
+                emptyMap()
+            }
+        return KumlDiagram(
             name = name,
             type = DiagramType.USE_CASE,
             elements = elements.toList(),
+            metadata = meta,
             config =
                 UseCaseDiagramConfig(
                     showSubjectBox = showSubjectBox,
                     actorStyle = actorStyle,
                 ),
         )
+    }
 }

@@ -16,4 +16,7 @@ internal object BridgeLayoutKeys {
     const val RELATIVE = "kuml.layout.relative"
     const val REL_KIND = "kind"
     const val REL_OTHER = "other"
+
+    /** Diagramm-seitiger Override der Layout-Engine-ID (z.B. `"kuml.grid"`, `"elk.layered"`). */
+    const val ENGINE = "kuml.layout.engine"
 }

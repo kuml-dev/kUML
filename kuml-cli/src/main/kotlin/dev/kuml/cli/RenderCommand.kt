@@ -40,6 +40,14 @@ internal class RenderCommand : CliktCommand(name = "render") {
 
     private val themeName by option("--theme", help = "Theme name (e.g. plain, kuml); overrides config file")
 
+    private val layoutEngine by
+        option(
+            "--layout",
+            help =
+                "Layout engine override: 'auto' (default), 'grid' (kuml.grid), 'elk' (elk.layered). " +
+                    "Default is 'auto', which picks grid for class/component/use-case/state diagrams and elk for others.",
+        ).default("auto")
+
     private val configFile by option("--config", help = "Path to kuml.config.kts")
         .file(mustExist = true, canBeDir = false)
 
@@ -50,7 +58,8 @@ internal class RenderCommand : CliktCommand(name = "render") {
             val resolvedFormat = FormatResolver.resolve(format, output, input)
             val resolvedOutput = output ?: FormatResolver.defaultOutput(input, resolvedFormat)
             val config: KumlConfig = ConfigLoader.load(configFile)
-            RenderPipeline.run(input, resolvedOutput, resolvedFormat, width, themeName, config)
+            val layoutOverride = layoutEngine.takeUnless { it == "auto" }
+            RenderPipeline.run(input, resolvedOutput, resolvedFormat, width, themeName, config, layoutOverride)
             echo("Wrote $resolvedOutput")
         } catch (e: ScriptEvaluationException) {
             System.err.println("Script error: ${e.message}")

@@ -1,7 +1,10 @@
 package dev.kuml.cli
 
 import dev.kuml.core.config.KumlConfig
+import dev.kuml.core.dsl.layout.LayoutMetadataKeys
+import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
@@ -10,12 +13,16 @@ import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.io.svg.KumlSvgRenderer
+import dev.kuml.layout.DiagramKind
+import dev.kuml.layout.LayoutEngineId
+import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
-import dev.kuml.layout.elk.ElkLayoutEngine
+import dev.kuml.layout.elk.ElkLayoutEngineProvider
+import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.sysml2.ActDiagram
@@ -33,6 +40,33 @@ import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
 
 /**
+ * Maps a [DiagramType] to the default [DiagramKind] used for engine selection.
+ *
+ * UML diagram types that have dedicated [DiagramKind] values map explicitly;
+ * all others fall back to [DiagramKind.Generic].
+ */
+private fun DiagramType.toDiagramKind(): DiagramKind =
+    when (this) {
+        DiagramType.CLASS -> DiagramKind.UmlClass
+        DiagramType.COMPONENT -> DiagramKind.UmlComponent
+        DiagramType.USE_CASE -> DiagramKind.UmlUseCase
+        DiagramType.STATE -> DiagramKind.UmlState
+        DiagramType.SEQUENCE -> DiagramKind.UmlSequence
+        else -> DiagramKind.Generic
+    }
+
+/**
+ * Grid-first default: diagrams that prefer `kuml.grid` when no explicit engine override is set.
+ */
+private val GRID_DEFAULT_KINDS =
+    setOf(
+        DiagramKind.UmlClass,
+        DiagramKind.UmlComponent,
+        DiagramKind.UmlUseCase,
+        DiagramKind.UmlState,
+    )
+
+/**
  * Orchestrates the kUML render pipeline: Script → Layout → Renderer → File.
  *
  * Branches on UML vs C4 at the extraction step. The downstream stages
@@ -42,7 +76,67 @@ import kotlin.script.experimental.api.ScriptDiagnostic
  * of the public API; all user-facing interaction goes through [RenderCommand].
  */
 internal object RenderPipeline {
-    private val layoutEngine = ElkLayoutEngine()
+    // Registry is initialised lazily on first use; tests can pre-populate it.
+    private fun ensureEnginesRegistered() {
+        if (LayoutEngineRegistry.ids().isEmpty()) {
+            // Register grid FIRST so pickFor(kind, null) prefers grid over elk
+            // for diagram kinds that both engines support.
+            LayoutEngineRegistry.register(GridLayoutEngineProvider())
+            LayoutEngineRegistry.register(ElkLayoutEngineProvider())
+        }
+    }
+
+    /**
+     * Wählt die Layout-Engine für [diagram] aus.
+     *
+     * Priorität (höchste zuerst):
+     * 1. [cliOverride] — `--layout=grid` oder `--layout=elk` vom CLI-Flag
+     * 2. `kuml.layout.engine`-Metadaten im Diagramm (DSL-Ebene)
+     * 3. Grid als Default für CLASS / COMPONENT / USE_CASE / STATE
+     * 4. ELK als Default für alle anderen Typen
+     */
+    private fun pickEngine(
+        diagram: KumlDiagram,
+        cliOverride: String?,
+    ): dev.kuml.layout.KumlLayoutEngine {
+        ensureEnginesRegistered()
+        // 1. CLI-Flag gewinnt immer
+        if (cliOverride != null && cliOverride != "auto") {
+            val engineId = cliOverride.normaliseEngineId()
+            return LayoutEngineRegistry.get(engineId)
+                ?: error(
+                    "Layout engine '$cliOverride' not found. Available: ${LayoutEngineRegistry.ids().map { it.value }}",
+                )
+        }
+        // 2. DSL-Metadaten
+        val dslEngine = (diagram.metadata[LayoutMetadataKeys.ENGINE] as? KumlMetaValue.Text)?.value
+        if (dslEngine != null) {
+            val engineId = dslEngine.normaliseEngineId()
+            return LayoutEngineRegistry.get(engineId)
+                ?: error("Layout engine '$dslEngine' (from diagram metadata) not found.")
+        }
+        // 3+4. Typ-basierter Default
+        val kind = diagram.type.toDiagramKind()
+        val preferredId =
+            if (kind in GRID_DEFAULT_KINDS) LayoutEngineId("kuml.grid") else LayoutEngineId("elk.layered")
+        return LayoutEngineRegistry.pickFor(kind, preferredId)
+            ?: error("No layout engine available for diagram kind $kind.")
+    }
+
+    /**
+     * Normalisiert Kurzformen auf vollständige Engine-IDs:
+     * - `"elk"` → `"elk.layered"`
+     * - `"grid"` → `"kuml.grid"`
+     * - Alle anderen Werte bleiben unverändert.
+     */
+    private fun String.normaliseEngineId(): LayoutEngineId =
+        LayoutEngineId(
+            when (this) {
+                "elk" -> "elk.layered"
+                "grid" -> "kuml.grid"
+                else -> this
+            },
+        )
 
     /**
      * Runs the full render pipeline for the given input script.
@@ -53,6 +147,8 @@ internal object RenderPipeline {
      * @param width Width in pixels (used only for PNG output).
      * @param themeName Optional theme name from CLI; takes precedence over config.
      * @param config Loaded `kuml.config.kts` configuration (or [KumlConfig.DEFAULT]).
+     * @param layoutEngineOverride Optional CLI `--layout` flag value (`"auto"`, `"grid"`, `"elk"`).
+     *   `"auto"` or `null` → per-diagram-type default (grid for class/component/use-case/state).
      * @throws ScriptEvaluationException if the script fails to compile or evaluate.
      * @throws IOException if the output file cannot be written.
      */
@@ -63,6 +159,7 @@ internal object RenderPipeline {
         width: Int,
         themeName: String?,
         config: KumlConfig = KumlConfig.DEFAULT,
+        layoutEngineOverride: String? = null,
     ) {
         // 1. Evaluate script
         val evalResult = KumlScriptHost.eval(input)
@@ -103,7 +200,7 @@ internal object RenderPipeline {
         // 4–6. Branch on diagram kind: layout → render → write
         try {
             when (extracted) {
-                is ExtractedDiagram.Uml -> renderUml(extracted, output, format, width, theme)
+                is ExtractedDiagram.Uml -> renderUml(extracted, output, format, width, theme, layoutEngineOverride)
                 is ExtractedDiagram.C4 -> renderC4(extracted, output, format, width, theme)
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme)
             }
@@ -121,10 +218,12 @@ internal object RenderPipeline {
         format: String,
         width: Int,
         theme: KumlTheme,
+        layoutEngineOverride: String? = null,
     ) {
         val diagram = extracted.diagram
         val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
-        val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+        val engine = pickEngine(diagram, layoutEngineOverride)
+        val layoutResult: LayoutResult = engine.layout(layoutGraph, LayoutHints.DEFAULT)
         when (format) {
             "svg" -> KumlSvgRenderer.toSvgFile(diagram, layoutResult, output, theme)
             "png" -> {
@@ -174,10 +273,15 @@ internal object RenderPipeline {
         theme: KumlTheme,
     ) {
         val model = extracted.model
+        // SysML 2 always uses ELK (no grid-default change for SysML 2 in V2.0.26)
+        ensureEnginesRegistered()
+        val sysml2Engine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: error("ELK layout engine not available for SysML 2 diagrams.")
         when (val diagram = extracted.diagram) {
             is BdDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
@@ -187,7 +291,7 @@ internal object RenderPipeline {
             }
             is IbdDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
@@ -197,7 +301,7 @@ internal object RenderPipeline {
             }
             is UcDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
@@ -207,7 +311,7 @@ internal object RenderPipeline {
             }
             is ReqDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
@@ -217,7 +321,7 @@ internal object RenderPipeline {
             }
             is StmDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
@@ -227,7 +331,7 @@ internal object RenderPipeline {
             }
             is ActDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
@@ -237,7 +341,7 @@ internal object RenderPipeline {
             }
             is SeqDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
@@ -247,7 +351,7 @@ internal object RenderPipeline {
             }
             is ParDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-                val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
@@ -292,7 +396,11 @@ internal object RenderPipeline {
         val diagram = extracted.diagram
         val model = extracted.model
         val layoutGraph = C4LayoutBridge.toLayoutGraph(diagram, model)
-        val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+        ensureEnginesRegistered()
+        val c4Engine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: error("ELK layout engine not available for C4 diagrams.")
+        val layoutResult: LayoutResult = c4Engine.layout(layoutGraph, LayoutHints.DEFAULT)
         when (format) {
             "svg" -> {
                 val svg = KumlSvgRenderer.toSvg(diagram, model, layoutResult, theme)

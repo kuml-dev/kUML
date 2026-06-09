@@ -1,8 +1,10 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.model.StateDiagramConfig
 import dev.kuml.core.model.StateDiagramOrientation
 import dev.kuml.profile.KumlProfile
@@ -58,6 +60,15 @@ class StateDiagramBuilder(
     var showEntryExitActions: Boolean = true
     var orientation: StateDiagramOrientation = StateDiagramOrientation.TOP_DOWN
 
+    /**
+     * Override der Layout-Engine für dieses Diagramm.
+     *
+     * Standard: `null` → Pipeline wählt `"kuml.grid"` als Default für
+     * Zustands-Diagramme. Setze `"elk"` oder `"elk.layered"` um zur
+     * ELK-Engine zurückzukehren.
+     */
+    var layoutEngine: String? = null
+
     override fun addVertex(vertex: UmlVertex) {
         vertices += vertex
     }
@@ -92,10 +103,17 @@ class StateDiagramBuilder(
                 stereotypes = stateMachineStereotypes.toList(),
                 appliedStereotypes = stateMachineAppliedStereotypes.toList<AppliedStereotype>(),
             )
+        val meta: Map<String, KumlMetaValue> =
+            if (layoutEngine != null) {
+                mapOf(LayoutMetadataKeys.ENGINE to KumlMetaValue.Text(layoutEngine!!))
+            } else {
+                emptyMap()
+            }
         return KumlDiagram(
             name = name,
             type = DiagramType.STATE,
             elements = listOf(sm),
+            metadata = meta,
             config =
                 StateDiagramConfig(
                     showGuards = showGuards,

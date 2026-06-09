@@ -1,9 +1,11 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.KumlDsl
+import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.ComponentDiagramConfig
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
@@ -42,6 +44,15 @@ class ComponentDiagramBuilder(
     var showNestedComponents: Boolean = true
     var showStereotype: Boolean = true
 
+    /**
+     * Override der Layout-Engine für dieses Diagramm.
+     *
+     * Standard: `null` → Pipeline wählt `"kuml.grid"` als Default für
+     * Komponenten-Diagramme. Setze `"elk"` oder `"elk.layered"` um zur
+     * ELK-Engine zurückzukehren.
+     */
+    var layoutEngine: String? = null
+
     override fun addNamedElement(element: UmlNamedElement) {
         requireComponentDiagramElement(element)
         elements += element
@@ -76,11 +87,18 @@ class ComponentDiagramBuilder(
 
     override fun appliedProfiles(): List<KumlProfile> = appliedProfilesList.toList()
 
-    fun build(): KumlDiagram =
-        KumlDiagram(
+    fun build(): KumlDiagram {
+        val meta: Map<String, KumlMetaValue> =
+            if (layoutEngine != null) {
+                mapOf(LayoutMetadataKeys.ENGINE to KumlMetaValue.Text(layoutEngine!!))
+            } else {
+                emptyMap()
+            }
+        return KumlDiagram(
             name = name,
             type = DiagramType.COMPONENT,
             elements = elements.toList(),
+            metadata = meta,
             config =
                 ComponentDiagramConfig(
                     showPortLabels = showPortLabels,
@@ -89,4 +107,5 @@ class ComponentDiagramBuilder(
                     showStereotype = showStereotype,
                 ),
         )
+    }
 }

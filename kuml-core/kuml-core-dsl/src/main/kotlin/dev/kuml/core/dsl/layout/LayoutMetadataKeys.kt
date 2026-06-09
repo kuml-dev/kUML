@@ -39,4 +39,13 @@ public object LayoutMetadataKeys {
 
     /** Sub-Schlüssel in einem `Entries`-Wert: ID des Referenz-Elements. */
     public const val REL_OTHER: String = "other"
+
+    /**
+     * Diagramm-seitiger Override der Layout-Engine-ID.
+     *
+     * Gültige Werte: `"kuml.grid"` (Grid-Engine), `"elk.layered"` (ELK-Engine).
+     * Wird in [KumlDiagram.metadata] geschrieben und von der Render-Pipeline
+     * ausgewertet.
+     */
+    public const val ENGINE: String = "kuml.layout.engine"
 }
