@@ -6,11 +6,11 @@ componentDiagram("Order System — Architecture") {
 
     // Interfaces — Verträge zwischen Komponenten
     val orderApi = interfaceOf("IOrderApi") {
-        operation("placeOrder", returnType = "Order")
-        operation("cancelOrder", returnType = "Boolean")
+        operation("placeOrder(): Order")
+        operation("cancelOrder(): Boolean")
     }
     val paymentApi = interfaceOf("IPaymentApi") {
-        operation("charge", returnType = "Receipt")
+        operation("charge(): Receipt")
     }
     val eventBus = interfaceOf("IEventBus") {
         operation("publish")

@@ -13,31 +13,31 @@ sequenceDiagram(name = "Place Order") {
     val db       = lifeline(name = "OrderDatabase")
 
     // Hauptablauf
-    message(source = customer, target = ui,    label = "fillCart()")
-    message(source = customer, target = ui,    label = "submitOrder()")
-    message(source = ui,       target = api,   label = "POST /orders")
-    message(source = api,      target = stock, label = "checkAvailability(items)")
-    reply(source = stock,      target = api,   label = "availability")
+    message(from = customer, to = ui,    label = "fillCart()")
+    message(from = customer, to = ui,    label = "submitOrder()")
+    message(from = ui,       to = api,   label = "POST /orders")
+    message(from = api,      to = stock, label = "checkAvailability(items)")
+    reply(from = stock,      to = api,   label = "availability")
 
     alt {
         branch(guard = "[allAvailable]") {
-            message(source = api,     target = stock,   label = "reserve(items)")
-            reply(source = stock,     target = api,     label = "reservationId")
-            message(source = api,     target = payment, label = "charge(total)")
+            message(from = api, to = stock,   label = "reserve(items)")
+            reply(from = stock, to = api,     label = "reservationId")
+            message(from = api, to = payment, label = "charge(total)")
 
             opt(guard = "[customer.hasDiscount]") {
-                message(source = api, target = payment, label = "applyDiscount(code)")
+                message(from = api, to = payment, label = "applyDiscount(code)")
             }
 
-            reply(source = payment,   target = api,     label = "receipt")
-            message(source = api,     target = db,      label = "INSERT order")
-            reply(source = db,        target = api,     label = "orderId")
-            reply(source = api,       target = ui,      label = "201 Created")
-            reply(source = ui,        target = customer, label = "confirmation")
+            reply(from = payment, to = api,     label = "receipt")
+            message(from = api, to = db,      label = "INSERT order")
+            reply(from = db, to = api,     label = "orderId")
+            reply(from = api, to = ui,      label = "201 Created")
+            reply(from = ui, to = customer, label = "confirmation")
         }
         branch(guard = "[outOfStock]") {
-            reply(source = api,       target = ui,       label = "409 Conflict")
-            reply(source = ui,        target = customer, label = "items unavailable")
+            reply(from = api, to = ui,       label = "409 Conflict")
+            reply(from = ui, to = customer, label = "items unavailable")
         }
     }
 }

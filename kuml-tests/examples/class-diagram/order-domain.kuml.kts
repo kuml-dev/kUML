@@ -12,7 +12,7 @@ classDiagram(name = "Order Domain") {
     }
 
     val payable = interfaceOf(name = "Payable") {
-        operation(name = "pay", returnType = "Boolean")
+        operation(name = "pay(): Boolean")
     }
 
     val customer = classOf(name = "Customer") {

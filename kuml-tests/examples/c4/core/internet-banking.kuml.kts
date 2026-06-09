@@ -122,32 +122,26 @@ val internetBankingModel: C4Model = c4Model("Internet Banking System") {
     // ── Relationships ────────────────────────────────────────────────────────
 
     relationship(customer, internetBankingSystem) {
-        description = "Uses the internet banking system to manage accounts"
         technology = "HTTPS"
     }
 
     relationship(internetBankingSystem, mainframeSystem) {
-        description = "Reads from and writes to the mainframe system"
         technology = "Synchronous API calls (JSON/HTTPS)"
     }
 
     relationship(internetBankingSystem, emailSystem) {
-        description = "Sends email messages to"
         technology = "SMTP"
     }
 
     relationship(customer, atm) {
-        description = "Withdraws cash from"
         technology = "ATM API"
     }
 
     relationship(atm, mainframeSystem) {
-        description = "Uses the mainframe system to access bank account information"
         technology = "Synchronous API calls (XML/HTTPS)"
     }
 
     relationship(systemAdmin, internetBankingSystem) {
-        description = "Administers"
         technology = "SSH"
     }
 
@@ -201,4 +195,6 @@ val internetBankingModel: C4Model = c4Model("Internet Banking System") {
         technology = "IBM Mainframe"
         instances = 1
     }
+
+    systemContextDiagram(name = "Internet Banking System — System Context")
 }
