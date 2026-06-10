@@ -1,6 +1,8 @@
 @file:Suppress("unused")
 
 import dev.kuml.core.dsl.componentDiagram
+import dev.kuml.uml.dsl.component
+import dev.kuml.uml.dsl.port
 
 /**
  * Order System K8s — UML component diagram for Kubernetes manifest generation (V2.0.23).

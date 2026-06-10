@@ -1,10 +1,10 @@
 @file:Suppress("unused")
 
 import dev.kuml.c4.dsl.c4Model
-import dev.kuml.c4.dsl.person
-import dev.kuml.c4.dsl.relationship
-import dev.kuml.c4.dsl.softwareSystem
-import dev.kuml.c4.dsl.systemLandscapeDiagram
+
+// Note: person, softwareSystem, systemLandscapeDiagram, relationship are methods
+// on C4ModelBuilder — no imports needed (resolved via lambda receiver). Kotlin
+// 2.4.0 (K2) rejects spurious imports of non-existent top-level functions.
 
 c4Model(name = "Enterprise Banking Landscape") {
     // Persons / Roles

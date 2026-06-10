@@ -180,9 +180,10 @@ class C4ModelBuilder(
                 id = relationshipId,
                 source = source.id,
                 target = target.id,
-                label = source.name + " -> " + target.name,
+                label = scope.description ?: (source.name + " -> " + target.name),
                 technology = scope.technology,
                 bidirectional = scope.bidirectional,
+                description = scope.description,
             )
         addRelationship(relationship)
         return relationship
@@ -520,6 +521,7 @@ class DeploymentNodeScopeImpl(
 
 @KumlDsl
 private class RelationshipScopeImpl : RelationshipScope {
+    override var description: String? = null
     override var technology: String? = null
     override var bidirectional: Boolean = false
 }

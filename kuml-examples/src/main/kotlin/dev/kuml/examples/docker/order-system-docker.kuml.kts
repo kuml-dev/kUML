@@ -1,6 +1,8 @@
 @file:Suppress("unused")
 
 import dev.kuml.core.dsl.componentDiagram
+import dev.kuml.uml.dsl.component
+import dev.kuml.uml.dsl.port
 
 /**
  * Order System Docker — UML component diagram for Dockerfile generation (V2.0.24).

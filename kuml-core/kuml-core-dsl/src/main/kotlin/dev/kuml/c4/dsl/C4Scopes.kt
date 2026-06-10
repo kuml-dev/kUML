@@ -140,6 +140,7 @@ interface DeploymentNodeScope : C4ModelScope {
  */
 @KumlDsl
 interface RelationshipScope {
+    var description: String?
     var technology: String?
     var bidirectional: Boolean
 }

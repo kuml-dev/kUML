@@ -22,8 +22,8 @@ data class C4Relationship(
     val label: String,
     val technology: String? = null,
     val bidirectional: Boolean = false,
+    override val description: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : C4Element {
     override val name: String = label
-    override val description: String? = null
 }
