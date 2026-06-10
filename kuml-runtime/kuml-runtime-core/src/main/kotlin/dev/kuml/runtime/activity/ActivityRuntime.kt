@@ -6,6 +6,9 @@ import dev.kuml.runtime.GuardResult
 import dev.kuml.runtime.ModelInstance
 import dev.kuml.runtime.OclGuardEvaluator
 import dev.kuml.runtime.TraceEntry
+import dev.kuml.runtime.snapshot.ActivityInstanceSnapshot
+import dev.kuml.runtime.snapshot.MigrationPolicy
+import dev.kuml.runtime.snapshot.fingerprintActivity
 import dev.kuml.sysml2.ActivityNodeKind
 
 /**
@@ -164,6 +167,57 @@ public class ActivityRuntime(
         }
 
         return instance to trace
+    }
+
+    // ── full snapshot / restore (V2) ─────────────────────────────────────────
+
+    /**
+     * Erstellt einen vollständigen [ActivityInstanceSnapshot] mit Modell-Fingerprint.
+     *
+     * @param instance Die aktuelle ActivityInstance.
+     * @param modelId Identifier des Modells.
+     * @param modelFingerprint SHA-256-Fingerprint des Modells (via [fingerprintActivity]).
+     */
+    public fun snapshotFull(
+        instance: ActivityInstance,
+        modelId: String,
+        modelFingerprint: String,
+    ): ActivityInstanceSnapshot =
+        ActivityInstanceSnapshot(
+            modelId = modelId,
+            modelFingerprint = modelFingerprint,
+            instance = instance,
+        )
+
+    /**
+     * Stellt eine [ActivityInstance] aus einem [ActivityInstanceSnapshot] wieder her.
+     * Prüft Kompatibilität via [policy] vor der Wiederherstellung.
+     *
+     * @throws dev.kuml.runtime.snapshot.MigrationException wenn [policy] den
+     *   Snapshot ablehnt.
+     */
+    public fun restoreFrom(
+        snapshot: ActivityInstanceSnapshot,
+        policy: MigrationPolicy = MigrationPolicy.Reject,
+    ): ActivityInstance {
+        val currentFingerprint =
+            fingerprintActivity(
+                nodeIds = spec.nodes.keys,
+                edgeIds = spec.edges.map { it.id }.toSet(),
+            )
+        val currentVertexIds = spec.nodes.keys
+
+        val snapshotVertexIds =
+            snapshot.instance.tokenCounts.keys
+                .toList()
+        policy.check(
+            snapshotFingerprint = snapshot.modelFingerprint,
+            currentFingerprint = currentFingerprint,
+            snapshotVertexIds = snapshotVertexIds,
+            currentVertexIds = currentVertexIds,
+        )
+
+        return snapshot.instance
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

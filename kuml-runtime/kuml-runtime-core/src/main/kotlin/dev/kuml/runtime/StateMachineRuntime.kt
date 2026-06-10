@@ -6,6 +6,9 @@ import dev.kuml.runtime.internal.buildParentOf
 import dev.kuml.runtime.internal.lowestCommonAncestor
 import dev.kuml.runtime.internal.pathUpTo
 import dev.kuml.runtime.internal.triggerName
+import dev.kuml.runtime.snapshot.MigrationPolicy
+import dev.kuml.runtime.snapshot.StateMachineSnapshot
+import dev.kuml.runtime.snapshot.fingerprint
 import dev.kuml.uml.PseudostateKind
 import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlPseudostate
@@ -129,6 +132,69 @@ public class StateMachineRuntime(
         }
         instance.variables.putAll(snapshot.variables.mapValues { (_, v) -> v.toKotlinValue() })
         instance.seqCounter = snapshot.traceSeqNo
+        return instance
+    }
+
+    // ── full snapshot / restore (V2) ─────────────────────────────────────────
+
+    /**
+     * Erstellt einen vollständigen [StateMachineSnapshot], der auch die interne
+     * Queue, den kompletten Trace, den seqCounter und das isTerminated-Flag enthält.
+     * Die einfache [snapshot]-Methode bleibt für Backward-Kompatibilität erhalten.
+     */
+    public fun snapshotFull(instance: StateMachineInstance): StateMachineSnapshot =
+        StateMachineSnapshot(
+            modelId = instance.model.id,
+            modelFingerprint = fingerprint(instance.model),
+            currentVertexIds = instance.mutCurrentVertices.map { it.id },
+            variables = instance.variables.mapValues { (_, v) -> v.toJsonElement() },
+            internalQueue = instance.mutInternalQueue.toList(),
+            trace = instance.mutTrace.toList(),
+            seqCounter = instance.seqCounter,
+            isTerminated = instance.isTerminated,
+        )
+
+    /**
+     * Stellt eine [StateMachineInstance] aus einem [StateMachineSnapshot] wieder her.
+     * Prüft Kompatibilität via [policy] vor der Wiederherstellung.
+     *
+     * @throws dev.kuml.runtime.snapshot.MigrationException wenn [policy] den
+     *   Snapshot ablehnt.
+     */
+    public fun restoreFrom(
+        model: UmlStateMachine,
+        snapshot: StateMachineSnapshot,
+        policy: MigrationPolicy = MigrationPolicy.Reject,
+    ): StateMachineInstance {
+        val currentFingerprint = fingerprint(model)
+        val allVertexList = allVertices(model)
+        val currentVertexIds = allVertexList.map { it.id }.toSet()
+
+        policy.check(
+            snapshotFingerprint = snapshot.modelFingerprint,
+            currentFingerprint = currentFingerprint,
+            snapshotVertexIds = snapshot.currentVertexIds,
+            currentVertexIds = currentVertexIds,
+        )
+
+        val parentOf = buildParentOf(model)
+        val vertexById = allVertexList.associateBy { it.id }
+        val instance =
+            StateMachineInstance(
+                model = model,
+                parentOf = parentOf,
+                vertexById = vertexById,
+            )
+
+        for (id in snapshot.currentVertexIds) {
+            val v = vertexById[id] ?: error("Snapshot references unknown vertex id '$id'")
+            instance.mutCurrentVertices += v
+        }
+        instance.variables.putAll(snapshot.variables.mapValues { (_, v) -> v.toKotlinValue() })
+        instance.mutInternalQueue.addAll(snapshot.internalQueue)
+        instance.mutTrace.addAll(snapshot.trace)
+        instance.seqCounter = snapshot.seqCounter
+        instance.isTerminated = snapshot.isTerminated
         return instance
     }
 
