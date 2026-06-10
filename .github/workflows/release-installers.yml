@@ -43,9 +43,13 @@ jobs:
         run: ./gradlew :kuml-packaging:dockerBuildCli
 
       - name: Push Docker image (version tag + latest)
+        # Strip the leading 'v' from the git tag — Gradle's dockerBuildCli task
+        # tags the image with project.version (e.g. "0.6.0"), not the git ref
+        # "v0.6.0". Pushing "v0.6.0" would fail with "tag does not exist".
         run: |
+          VERSION="${GITHUB_REF_NAME#v}"
           docker push ghcr.io/kuml-dev/kuml-cli:latest
-          docker push ghcr.io/kuml-dev/kuml-cli:${{ github.ref_name }}
+          docker push ghcr.io/kuml-dev/kuml-cli:"$VERSION"
 
   # ── macOS: DMG (unsigned — Phase 2 adds Apple Developer signing) ─────────────
   build-macos:
