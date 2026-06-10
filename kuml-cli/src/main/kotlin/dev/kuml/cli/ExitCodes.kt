@@ -38,4 +38,12 @@ internal object ExitCodes {
      * script failures.
      */
     internal const val ONLINE_ERROR: Int = 1
+
+    // ── `kuml run` (Welle D) ─────────────────────────────────────────────────
+
+    /** `kuml run --adapter mcp` could not bind the requested port. */
+    internal const val RUN_PORT_BUSY: Int = 20
+
+    /** `kuml run --restore` was rejected by the MigrationPolicy. */
+    internal const val RUN_MIGRATION_REJECTED: Int = 21
 }
