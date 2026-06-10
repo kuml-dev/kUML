@@ -59,3 +59,18 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     jvmArgs("-Xmx512m")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Gradle 9 strict duplicate handling — kuml-web transitively pulls in
+// runtime-desktop-<version>.jar via both :kuml-renderer:kuml-themes (Compose
+// KMP JVM target) and :kuml-io:kuml-io-png. Without an explicit strategy the
+// distTar / distZip tasks fail with "Entry … is a duplicate but no duplicate
+// handling strategy has been set." EXCLUDE keeps the first copy encountered.
+// ─────────────────────────────────────────────────────────────────────────────
+distributions {
+    main {
+        contents {
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        }
+    }
+}

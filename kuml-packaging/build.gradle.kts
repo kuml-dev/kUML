@@ -32,20 +32,42 @@ tasks.withType<Test>().configureEach {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Version helper — resolved at configuration time from the root project.
+// Version helpers — resolved at configuration time from the root project.
 // ─────────────────────────────────────────────────────────────────────────────
 val kumlVersion: String = project.version.toString()
 
+// macOS jpackage (DMG/PKG) requires CFBundleShortVersionString to start with a
+// component ≥ 1.  For pre-1.0 semantic versions ("0.MINOR.PATCH") we drop the
+// leading "0." and promote minor to the first component, giving jpackage a
+// valid three-part version while the displayed app name still shows "kUML 0.x.y".
+// Example: "0.6.0" → "6.0.0".
+val macOsPackageVersion: String =
+    run {
+        if (kumlVersion.startsWith("0.")) {
+            val rest = kumlVersion.removePrefix("0.").split(".")
+            "${rest[0]}.${rest.getOrElse(1) { "0" }}.0"
+        } else {
+            kumlVersion
+        }
+    }
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared helper: locate the shadow JAR produced by :kuml-cli:shadowJar.
-// We resolve the task as a plain Jar (the base type of ShadowJar) so this
-// module does not need to apply the shadow plugin itself.
+// Shadow JAR location — computed from project layout conventions.
+// Captured as plain Strings so doFirst(object : Action<Task>) closures stay
+// Gradle Configuration Cache compatible (no Gradle script object references).
 // ─────────────────────────────────────────────────────────────────────────────
-fun shadowJarFile(): Provider<File> =
+val shadowJarPath: String =
     project(":kuml-cli")
-        .tasks
-        .named("shadowJar", Jar::class.java)
-        .map { it.archiveFile.get().asFile }
+        .layout.buildDirectory
+        .file("libs/kuml-cli-$kumlVersion-all.jar")
+        .get()
+        .asFile.absolutePath
+
+val distDirPath: String =
+    layout.buildDirectory
+        .dir("dist")
+        .get()
+        .asFile.absolutePath
 
 // ─────────────────────────────────────────────────────────────────────────────
 // jpackage — DEB (Linux)
@@ -59,36 +81,39 @@ val packageDeb by tasks.registering(Exec::class) {
             .isLinux
     }
     dependsOn(":kuml-cli:shadowJar")
-    doFirst {
-        val jarFile = shadowJarFile().get()
-        val dest =
-            layout.buildDirectory
-                .dir("dist")
-                .get()
-                .asFile
-        dest.mkdirs()
-        commandLine(
-            "jpackage",
-            "--input",
-            jarFile.parent,
-            "--main-jar",
-            jarFile.name,
-            "--name",
-            "kuml",
-            "--app-version",
-            kumlVersion,
-            "--type",
-            "deb",
-            "--dest",
-            dest.absolutePath,
-            "--description",
-            "Kotlin-native UML and SysML 2 modelling DSL",
-            "--vendor",
-            "kuml.dev",
-            "--linux-package-name",
-            "kuml",
-        )
-    }
+    // Capture Strings only — no Gradle script object references — for CC safety.
+    val jarP = shadowJarPath
+    val destP = distDirPath
+    val ver = kumlVersion
+    doFirst(
+        object : Action<Task> {
+            override fun execute(task: Task) {
+                val jar = File(jarP)
+                File(destP).mkdirs()
+                commandLine(
+                    "jpackage",
+                    "--input",
+                    jar.parent,
+                    "--main-jar",
+                    jar.name,
+                    "--name",
+                    "kuml",
+                    "--app-version",
+                    ver,
+                    "--type",
+                    "deb",
+                    "--dest",
+                    destP,
+                    "--description",
+                    "Kotlin-native UML and SysML 2 modelling DSL",
+                    "--vendor",
+                    "kuml.dev",
+                    "--linux-package-name",
+                    "kuml",
+                )
+            }
+        },
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -103,40 +128,45 @@ val packageRpm by tasks.registering(Exec::class) {
             .isLinux
     }
     dependsOn(":kuml-cli:shadowJar")
-    doFirst {
-        val jarFile = shadowJarFile().get()
-        val dest =
-            layout.buildDirectory
-                .dir("dist")
-                .get()
-                .asFile
-        dest.mkdirs()
-        commandLine(
-            "jpackage",
-            "--input",
-            jarFile.parent,
-            "--main-jar",
-            jarFile.name,
-            "--name",
-            "kuml",
-            "--app-version",
-            kumlVersion,
-            "--type",
-            "rpm",
-            "--dest",
-            dest.absolutePath,
-            "--description",
-            "Kotlin-native UML and SysML 2 modelling DSL",
-            "--vendor",
-            "kuml.dev",
-            "--linux-package-name",
-            "kuml",
-        )
-    }
+    val jarP = shadowJarPath
+    val destP = distDirPath
+    val ver = kumlVersion
+    doFirst(
+        object : Action<Task> {
+            override fun execute(task: Task) {
+                val jar = File(jarP)
+                File(destP).mkdirs()
+                commandLine(
+                    "jpackage",
+                    "--input",
+                    jar.parent,
+                    "--main-jar",
+                    jar.name,
+                    "--name",
+                    "kuml",
+                    "--app-version",
+                    ver,
+                    "--type",
+                    "rpm",
+                    "--dest",
+                    destP,
+                    "--description",
+                    "Kotlin-native UML and SysML 2 modelling DSL",
+                    "--vendor",
+                    "kuml.dev",
+                    "--linux-package-name",
+                    "kuml",
+                )
+            }
+        },
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // jpackage — DMG (macOS, unsigned — Phase 2 adds signing)
+//
+// --app-version uses macOsPackageVersion (e.g. "6.0.0" for kUML 0.6.0) because
+// macOS CFBundleShortVersionString requires the first component to be ≥ 1.
 // ─────────────────────────────────────────────────────────────────────────────
 val packageDmg by tasks.registering(Exec::class) {
     group = "distribution"
@@ -147,33 +177,35 @@ val packageDmg by tasks.registering(Exec::class) {
             .isMacOsX
     }
     dependsOn(":kuml-cli:shadowJar")
-    doFirst {
-        val jarFile = shadowJarFile().get()
-        val dest =
-            layout.buildDirectory
-                .dir("dist")
-                .get()
-                .asFile
-        dest.mkdirs()
-        commandLine(
-            "jpackage",
-            "--input",
-            jarFile.parent,
-            "--main-jar",
-            jarFile.name,
-            "--name",
-            "kUML",
-            "--app-version",
-            kumlVersion,
-            "--type",
-            "dmg",
-            "--dest",
-            dest.absolutePath,
-            "--mac-package-name",
-            "kUML",
-            // --mac-sign is intentionally omitted — Phase 2 adds Apple Developer signing
-        )
-    }
+    val jarP = shadowJarPath
+    val destP = distDirPath
+    val macVer = macOsPackageVersion
+    doFirst(
+        object : Action<Task> {
+            override fun execute(task: Task) {
+                val jar = File(jarP)
+                File(destP).mkdirs()
+                commandLine(
+                    "jpackage",
+                    "--input",
+                    jar.parent,
+                    "--main-jar",
+                    jar.name,
+                    "--name",
+                    "kUML",
+                    "--app-version",
+                    macVer,
+                    "--type",
+                    "dmg",
+                    "--dest",
+                    destP,
+                    "--mac-package-name",
+                    "kUML",
+                    // --mac-sign is intentionally omitted — Phase 2 adds Apple Developer signing
+                )
+            }
+        },
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,34 +220,36 @@ val packageMsi by tasks.registering(Exec::class) {
             .isWindows
     }
     dependsOn(":kuml-cli:shadowJar")
-    doFirst {
-        val jarFile = shadowJarFile().get()
-        val dest =
-            layout.buildDirectory
-                .dir("dist")
-                .get()
-                .asFile
-        dest.mkdirs()
-        commandLine(
-            "jpackage",
-            "--input",
-            jarFile.parent,
-            "--main-jar",
-            jarFile.name,
-            "--name",
-            "kUML",
-            "--app-version",
-            kumlVersion,
-            "--type",
-            "msi",
-            "--dest",
-            dest.absolutePath,
-            "--description",
-            "Kotlin-native UML and SysML 2 modelling DSL",
-            "--vendor",
-            "kuml.dev",
-        )
-    }
+    val jarP = shadowJarPath
+    val destP = distDirPath
+    val ver = kumlVersion
+    doFirst(
+        object : Action<Task> {
+            override fun execute(task: Task) {
+                val jar = File(jarP)
+                File(destP).mkdirs()
+                commandLine(
+                    "jpackage",
+                    "--input",
+                    jar.parent,
+                    "--main-jar",
+                    jar.name,
+                    "--name",
+                    "kUML",
+                    "--app-version",
+                    ver,
+                    "--type",
+                    "msi",
+                    "--dest",
+                    destP,
+                    "--description",
+                    "Kotlin-native UML and SysML 2 modelling DSL",
+                    "--vendor",
+                    "kuml.dev",
+                )
+            }
+        },
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -227,22 +261,31 @@ val dockerBuildCli by tasks.registering(Exec::class) {
     description = "Build Docker CLI image and tag as ghcr.io/kuml-dev/kuml-cli:<version>"
     dependsOn(":kuml-cli:shadowJar")
     isIgnoreExitValue = true
-    doFirst {
-        val jarFile = shadowJarFile().get()
-        val dockerFile = file("src/main/docker/cli/Dockerfile")
-        val tag = "ghcr.io/kuml-dev/kuml-cli:$kumlVersion"
-        commandLine(
-            "docker",
-            "build",
-            "--file",
-            dockerFile.absolutePath,
-            "--build-arg",
-            "JAR_FILE=${jarFile.name}",
-            "--tag",
-            tag,
-            "--tag",
-            "ghcr.io/kuml-dev/kuml-cli:latest",
-            jarFile.parent,
-        )
-    }
+    val jarP = shadowJarPath
+    val dockerFilePath =
+        layout.projectDirectory
+            .file("src/main/docker/cli/Dockerfile")
+            .asFile.absolutePath
+    val ver = kumlVersion
+    doFirst(
+        object : Action<Task> {
+            override fun execute(task: Task) {
+                val jar = File(jarP)
+                val tag = "ghcr.io/kuml-dev/kuml-cli:$ver"
+                commandLine(
+                    "docker",
+                    "build",
+                    "--file",
+                    dockerFilePath,
+                    "--build-arg",
+                    "JAR_FILE=${jar.name}",
+                    "--tag",
+                    tag,
+                    "--tag",
+                    "ghcr.io/kuml-dev/kuml-cli:latest",
+                    jar.parent,
+                )
+            }
+        },
+    )
 }
