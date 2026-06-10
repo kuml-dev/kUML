@@ -9,6 +9,7 @@ data class RenderRequest(
     val theme: String? = null,
     val layout: String? = null,
     val widthPx: Int = 1024,
+    val standaloneTex: Boolean = false,
 )
 
 @Serializable
@@ -17,6 +18,7 @@ data class RenderResponse(
     val format: String = "svg",
     val svg: String? = null,
     val pngBase64: String? = null,
+    val latex: String? = null,
     val durationMs: Long = 0,
     val error: String? = null,
 )

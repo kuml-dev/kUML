@@ -19,9 +19,11 @@ const themeSelect = document.getElementById('theme-select');
 const layoutSelect = document.getElementById('layout-select');
 const downloadSvgBtn = document.getElementById('download-svg');
 const downloadPngBtn = document.getElementById('download-png');
+const downloadLatexBtn = document.getElementById('download-latex');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let lastSvg = null;
+let lastLatex = null;
 let debounceTimer = null;
 
 // ── Editor ────────────────────────────────────────────────────────────────────
@@ -52,6 +54,8 @@ async function renderSvg() {
     errorBannerEl.textContent = '';
     errorBannerEl.classList.add('hidden');
     lastSvg = null;
+    lastLatex = null;
+    downloadLatexBtn.disabled = true;
     renderTimeEl.textContent = '';
     return;
   }
@@ -74,9 +78,11 @@ async function renderSvg() {
       errorBannerEl.textContent = '';
       errorBannerEl.classList.add('hidden');
       renderTimeEl.textContent = `Rendered in ${data.durationMs}ms`;
+      downloadLatexBtn.disabled = false;
     } else {
       showError(data.error || 'Unknown error');
       renderTimeEl.textContent = '';
+      downloadLatexBtn.disabled = true;
     }
   } catch (err) {
     showError(`Network error: ${err.message}`);
@@ -175,6 +181,37 @@ downloadPngBtn.addEventListener('click', async () => {
     }
   } catch (err) {
     showError(`PNG download error: ${err.message}`);
+  }
+});
+
+// ── LaTeX Download ────────────────────────────────────────────────────────────
+downloadLatexBtn.addEventListener('click', async () => {
+  const script = editorView.state.doc.toString().trim();
+  if (!script) return;
+
+  const theme = themeSelect.value || null;
+  const layout = layoutSelect.value || 'auto';
+  const standaloneTex = document.getElementById('standalone-tex').checked;
+
+  try {
+    const res = await fetch('/api/render', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ script, format: 'latex', theme, layout, standaloneTex }),
+    });
+    const data = await res.json();
+    if (data.ok && data.latex) {
+      lastLatex = data.latex;
+      const blob = new Blob([lastLatex], { type: 'application/x-tex' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'diagram.tex';
+      a.click(); URL.revokeObjectURL(url);
+    } else {
+      showError(data.error || 'LaTeX render failed');
+    }
+  } catch (err) {
+    showError(`LaTeX download error: ${err.message}`);
   }
 });
 

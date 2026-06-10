@@ -29,6 +29,7 @@ dependencies {
     implementation(project(":kuml-renderer:kuml-themes-core"))
     implementation(project(":kuml-io:kuml-io-svg"))
     implementation(project(":kuml-io:kuml-io-png"))
+    implementation(project(":kuml-io:kuml-io-latex"))
 
     // Scripting (needed for KumlScriptHost)
     implementation(libs.kotlin.scripting.common)

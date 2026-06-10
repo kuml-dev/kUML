@@ -35,6 +35,7 @@ internal fun Application.configureApiRoutes(version: String = "0.6.0") {
                         themeName = req.theme,
                         layoutOverride = req.layout,
                         widthPx = req.widthPx,
+                        standaloneTex = req.standaloneTex,
                     )
                 val response =
                     when (result) {
@@ -50,6 +51,13 @@ internal fun Application.configureApiRoutes(version: String = "0.6.0") {
                                 ok = true,
                                 format = "png",
                                 pngBase64 = result.pngBytes.toBase64(),
+                                durationMs = result.durationMs,
+                            )
+                        is WebRenderResult.Latex ->
+                            RenderResponse(
+                                ok = true,
+                                format = "latex",
+                                latex = result.tex,
                                 durationMs = result.durationMs,
                             )
                         is WebRenderResult.Error ->
