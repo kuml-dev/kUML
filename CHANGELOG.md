@@ -4,7 +4,101 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — V2.0.34
+## [0.7.0] — 2026-06-10
+
+### Behaviour Runtime — Snapshot/Restore + MigrationPolicy (V2.0.35)
+Full snapshot/restore cycle for `StateMachineInstance` and `ActivityInstance` with
+configurable migration strategies.
+
+**New API** in `kuml-runtime-core` (package `dev.kuml.runtime.snapshot`):
+- `StateMachineRuntime.snapshotFull(instance)` — captures current vertices, variable
+  scope, internal event queue, trace, sequence counter, and termination flag
+- `StateMachineRuntime.restoreFrom(model, snapshot, policy)` — rebuilds an instance
+  from a snapshot; validates with the chosen `MigrationPolicy`
+- `ActivityRuntime.snapshotFull(instance, …)` / `restoreFrom(snapshot, policy)` — same
+  contract for activity diagrams
+- `MigrationPolicy` — sealed interface: `Reject` (default — any model change throws),
+  `AcceptIfFingerprintMatches`, `AcceptIfVerticesPresent` (allows additive changes),
+  `Custom`
+- `SnapshotIo` — `writeStateMachineSnapshot` / `readStateMachineSnapshot` helpers
+
+**Bug fix**: the previous `snapshot()`/`restore()` path silently lost the internal event
+queue and the sequence counter on round-trip. `snapshotFull` preserves both. The old API
+is retained for MCP compatibility.
+
+### Web UI — LaTeX Download (V2.0.36)
+`POST /api/render` in `kuml-web` now accepts `format = "latex"`.
+
+- All 10 diagram types supported (UML, C4, all 8 SysML 2 diagram types)
+- `standaloneTex = true` wraps output in a `\documentclass{standalone}` preamble
+- Browser SPA gains a third download button "↓ LaTeX (.tex)" and a standalone-mode
+  checkbox alongside the existing SVG and PNG buttons
+- No breaking change: `standaloneTex` defaults to `false`; existing clients unaffected
+
+### JetBrains IDE Plugin — Code Folding (V2.0.37)
+Code folding for all kUML DSL blocks in `.kuml.kts` files.
+
+- Folds `umlModel`, `classOf`, `interfaceOf`, `enumOf`, `componentOf`, `stateMachine`,
+  `c4Model`, `sysml2Model`, `diagram`, `actDiagram`, `stmDiagram`, `bdd`, `ibd`, `uc`,
+  `req`, `seq`, `par`, and 7 definition-level blocks (`partDef`, `stateDef`, …)
+- Placeholder text shows the first string argument: `classOf("User") {…}`
+- Guard: only activates on `*.kuml.kts` files; no impact on other Kotlin files
+- `DumbAware` — works during project indexing
+
+### CLI — `kuml run` (V2.0.38)
+New subcommand for interactive and live-mirror execution of state machines and activity
+diagrams.
+
+**Three adapters**:
+- `--adapter stdin` *(default)* — interactive REPL; reads events as `eventName {payload}`
+  lines; built-in commands `snapshot`, `status`, `quit`
+- `--adapter mcp` — starts a JDK `HttpServer` (no new dependencies) on `--port N` (0 =
+  random free port). Five REST endpoints:
+  - `POST /run/event` — fire an event; returns fired transitions + active states
+  - `GET  /run/snapshot` — current state + variable scope
+  - `POST /run/patch` — update variables or force-transition to a named state
+  - `POST /run/stop` — terminate session and shut down the server
+  - `GET  /run/health` — liveness probe
+- `--adapter batch` — loads `--events <file.json>`, runs to completion, writes trace via
+  `--out`
+
+**Options**:
+- `--restore <snapshot.json>` — resume from a `StateMachineSnapshot` (V2.0.35) instead of
+  starting fresh
+- `--migration reject|fingerprint|vertices` — MigrationPolicy when restoring (default:
+  `fingerprint`)
+- `--snapshot-out <path>` — persist snapshot on session end
+
+**New exit codes**: `RUN_PORT_BUSY = 20`, `RUN_MIGRATION_REJECTED = 21`
+
+**Supports**: UML state machines, SysML 2 STM, SysML 2 ACT
+
+### Web UI — `kuml-web` (V2.0.34)
+New executable module `kuml-web` provides a Ktor/Netty HTTP server with a browser-based
+editing and preview environment for kUML scripts.
+
+**REST API**:
+- `POST /api/render` — evaluates a `*.kuml.kts` script source (UML, C4, or SysML 2) and
+  returns SVG or PNG; supports `theme` and `layout` overrides
+- `GET /api/themes` — lists registered theme names
+- `GET /api/examples` / `GET /api/examples/{name}` — three bundled example scripts
+  (UML class diagram, C4 container diagram, SysML 2 BDD)
+- `GET /api/health`
+
+**Browser SPA**:
+- CodeMirror 6 editor (ESM from esm.sh CDN — no build step required)
+- Live SVG preview with 300 ms debounce
+- Theme and layout (auto / grid / elk) dropdowns
+- One-click SVG and PNG download
+- Examples picker to load any bundled script into the editor
+
+**CLI**: `kuml serve [--port N] [--host H]` — new subcommand that starts the web server
+
+### Dependency and toolchain updates
+- Kotlin upgraded from 2.3.21 to 2.4.0; K2 strictness fixes in example scripts
+- All library dependencies updated to latest stable versions
+
+## [Unreleased]
 
 ### Web UI — `kuml-web` (V2.0.34)
 New executable module `kuml-web` provides a Ktor/Netty HTTP server with a browser-based
