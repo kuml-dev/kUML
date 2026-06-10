@@ -90,6 +90,21 @@ tasks.withType<Test>().configureEach {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Gradle 9 strict duplicate handling — kuml-cli transitively pulls
+// runtime-desktop-<version>.jar via :kuml-web → :kuml-renderer:kuml-themes
+// (Compose KMP JVM target).  Without an explicit strategy, distTar/distZip
+// fail with "Entry … is a duplicate but no duplicate handling strategy has
+// been set."  EXCLUDE keeps the first copy encountered.
+// ─────────────────────────────────────────────────────────────────────────────
+distributions {
+    main {
+        contents {
+            duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Build-time version metadata generation for `kuml --version` and the
 // `kuml version` subcommand. Read at runtime by `dev.kuml.cli.KumlVersion`.
 //
