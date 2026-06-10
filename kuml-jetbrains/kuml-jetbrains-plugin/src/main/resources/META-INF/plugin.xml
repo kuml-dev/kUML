@@ -89,5 +89,14 @@
         <lang.psiStructureViewFactory
             language="kotlin"
             implementationClass="dev.kuml.jetbrains.KumlStructureViewBuilderProvider"/>
+
+        <!--
+            V2.0.28c: Code folding — collapses DSL lambda blocks in *.kuml.kts files.
+            Registered for the Kotlin language (same reason as the structure view above).
+            The builder guards against non-.kuml.kts files internally.
+        -->
+        <lang.foldingBuilder
+            language="kotlin"
+            implementationClass="dev.kuml.jetbrains.folding.KumlFoldingBuilder"/>
     </extensions>
 </idea-plugin>
