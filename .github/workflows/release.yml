@@ -67,12 +67,16 @@ jobs:
           OUTPUT: CHANGELOG_RELEASE.md
 
       - name: Create GitHub Release (with distZip only — runtime zips added by matrix jobs)
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ steps.dist.outputs.dist_zip }}
-          body_path: CHANGELOG_RELEASE.md
-          generate_release_notes: false
-          fail_on_unmatched_files: true
+        # gh CLI ships on all GitHub-hosted runners and uses GITHUB_TOKEN directly,
+        # avoiding the "Requires authentication" finalize bug in softprops/action-gh-release@v2.
+        # --clobber handles idempotent re-runs (deletes any existing draft/release first).
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes-file CHANGELOG_RELEASE.md \
+            "${{ steps.dist.outputs.dist_zip }}"
 
       - name: Strip leading 'v' from tag
         id: ver
@@ -162,10 +166,10 @@ jobs:
           echo "name=$(basename "$OUT")" >> $GITHUB_OUTPUT
 
       - name: Upload runtime zip to existing GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ${{ steps.pack.outputs.zip }}
-          fail_on_unmatched_files: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" "${{ steps.pack.outputs.zip }}" --clobber
 
       - name: Stash sha+url for dispatch job
         shell: bash
