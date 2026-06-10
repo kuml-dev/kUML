@@ -40,7 +40,27 @@ jobs:
       - name: Build everything
         run: ./gradlew build -DexcludeTags=live
 
+      # Maven Central is immutable: a given GAV can only be published once.
+      # If a prior run of this workflow already pushed the libraries, this
+      # step would fail with "Component already exists". We probe a
+      # representative POM (kuml-core-dsl) before invoking Gradle so re-runs
+      # after a downstream failure (e.g. GitHub Release creation) are idempotent.
+      - name: Check if libraries already on Maven Central
+        id: mc_check
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          POM_URL="https://repo1.maven.org/maven2/dev/kuml/kuml-core-dsl/${VERSION}/kuml-core-dsl-${VERSION}.pom"
+          HTTP_STATUS=$(curl -sI -o /dev/null -w "%{http_code}" "$POM_URL")
+          echo "Maven Central probe: $POM_URL → HTTP $HTTP_STATUS"
+          if [ "$HTTP_STATUS" = "200" ]; then
+            echo "already_published=true" >> $GITHUB_OUTPUT
+            echo "::notice::v${VERSION} already on Maven Central — skipping publishToMavenCentral"
+          else
+            echo "already_published=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Publish libraries to Maven Central
+        if: steps.mc_check.outputs.already_published != 'true'
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
@@ -66,17 +86,27 @@ jobs:
         env:
           OUTPUT: CHANGELOG_RELEASE.md
 
-      - name: Create GitHub Release (with distZip only — runtime zips added by matrix jobs)
+      - name: Create or update GitHub Release (with distZip only — runtime zips added by matrix jobs)
         # gh CLI ships on all GitHub-hosted runners and uses GITHUB_TOKEN directly,
         # avoiding the "Requires authentication" finalize bug in softprops/action-gh-release@v2.
-        # --clobber handles idempotent re-runs (deletes any existing draft/release first).
+        # Idempotent across re-runs: if a release for this tag already exists
+        # (e.g. a stale draft from a prior failed run, or a successful prior run
+        # that we're re-running due to a downstream failure), we update notes
+        # and upload the distZip with --clobber instead of failing.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
-            --notes-file CHANGELOG_RELEASE.md \
-            "${{ steps.dist.outputs.dist_zip }}"
+          TAG="${{ github.ref_name }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::notice::Release $TAG already exists — updating notes + uploading distZip with --clobber"
+            gh release edit "$TAG" --draft=false --notes-file CHANGELOG_RELEASE.md
+            gh release upload "$TAG" "${{ steps.dist.outputs.dist_zip }}" --clobber
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --notes-file CHANGELOG_RELEASE.md \
+              "${{ steps.dist.outputs.dist_zip }}"
+          fi
 
       - name: Strip leading 'v' from tag
         id: ver
