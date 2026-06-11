@@ -38,6 +38,12 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <h4>0.4.1</h4>
+        <ul>
+            <li>V2.0.41: Code completion for kUML DSL top-level functions in <code>*.kuml.kts</code> files (42 items).</li>
+            <li>V2.0.41: Rename refactoring (Shift+F6) for DSL element names.</li>
+            <li>V2.0.41: Live Templates for kUML DSL (12 templates: uml, c4, sysml, classdiag, clazz, iface, enumc, sm, part, c4ctx, attr, port).</li>
+        </ul>
         <h4>0.1.0</h4>
         <ul>
             <li>Initial release: script definition provider, file type registration, file icon.</li>
@@ -98,5 +104,25 @@
         <lang.foldingBuilder
             language="kotlin"
             implementationClass="dev.kuml.jetbrains.folding.KumlFoldingBuilder"/>
+
+        <!--
+            V2.0.41: Live Templates — kUML.xml wird automatisch geladen.
+        -->
+        <defaultLiveTemplates file="/liveTemplates/kUML.xml"/>
+
+        <!--
+            V2.0.41: Code-Completion für kUML-DSL Top-Level-Funktionen.
+            Der Contributor diskriminiert intern auf .kuml.kts-Dateinamen.
+        -->
+        <completion.contributor
+            language="kotlin"
+            implementationClass="dev.kuml.jetbrains.completion.KumlCompletionContributor"
+            order="first"/>
+
+        <!--
+            V2.0.41: Rename Refactoring (Shift+F6) für DSL-Element-Namen.
+        -->
+        <renameHandler
+            implementation="dev.kuml.jetbrains.rename.KumlRenameHandler"/>
     </extensions>
 </idea-plugin>
