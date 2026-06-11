@@ -6,6 +6,68 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Renderer-Validierung 2026-06-11 — 15 of 17 visual defects fixed
+
+Systematic visual inspection of all 25 sample PNGs under
+`kuml-cli/build/sample-output/examples/` found 17 defects across
+ports, content-aware sizing and specific renderer bugs. Squash commit
+covers eight sub-waves. Backup branch `backup/pre-squash-renderer-2026-06-11`
+holds the granular history.
+
+**Category A — Port Rendering:**
+- `UmlComponentSvg.renderUmlComponent` now renders `element.ports` as
+  12×12 black-filled squares on the component border (UML 2.x
+  notation), alternating left/right, with port-name labels inside.
+- New CSS classes `.kuml-port` and `.kuml-port-label` in
+  `SvgDocument`.
+- `xmlEscapeContent()` added to `SvgBuilder` and wired into
+  `UmlClassSvg` / `UmlComponentSvg` / `UmlInterfaceSvg` /
+  `StereotypeHelper` to fix angle-bracket escaping in operation
+  signatures like `List<Order>` that previously broke SVG parsing.
+
+**Category B — Content-aware sizing:**
+- New `UmlContentSizeProvider` in `kuml-layout-bridge` measures
+  `UmlClass`, `UmlInterface` and `UmlComponent` width/height from
+  title, stereotype header and feature compartments, replacing the
+  fixed `160 × 80` default that truncated feature text.
+- New `Sysml2LayoutBridge.parContentAwareSizeProvider()` for
+  ConstraintDefinition height in PAR diagrams.
+- Wired into `RenderPipeline.renderUml()` and the SysML 2 `ParDiagram`
+  branch.
+
+**Category C — Specific renderer bugs:**
+- `.kuml-collaboration` CSS rule added (SoaML black-ellipse fix).
+- `Sysml2SequenceSvg`: SEQ self-call label now left-anchored to avoid
+  canvas clipping; ALT-fragment separator-Y uses `max(naturalSep,
+  prevEndSeqNo+1)` so guard labels of empty operands don't overlap
+  the previous operand's last message.
+- `UmlEdgesSvg.renderUmlAssociation` now renders source/target
+  multiplicity labels (e.g. `0..*`), skipping trivial "1".
+- Activity-Partitions (Swimlanes) made visible: id-collision-safe
+  kind-typed lookups in `Sysml2LayoutBridge`, action nodes parented
+  under ELK root (not their group), `ResultMapper.buildGroupLayouts`
+  computes group bounds post-layout from member node positions.
+- `C4LayoutBridge.isChildOfGroup` checks the structural parent
+  reference (`C4Container.system` / `C4Component.container`) instead
+  of treating every non-anchor diagram element as a child; anchor
+  element no longer rendered as a regular node inside its own
+  boundary.
+- `StereotypeHelper.headerLabel` combines `appliedStereotypes` and
+  the plain `UmlNamedElement.stereotypes: List<String>` so DSLs like
+  `stereotypes += "service"` show up.
+- `StmDiagram` branch in `RenderPipeline.renderSysml2()` uses tuned
+  `LayoutHints` (nodeToNode=80, edgeToEdge=28, groupPadding=24) to
+  reduce edge-label crowding in state machines.
+
+**Known deferred (separate polish wave):**
+- `c4/landscape.png` person-description / edge-label overlap (ELK
+  label-placement strategy).
+- `autosar/autosar-engine-control.png` and `autosar-runnable.png`
+  port-label-vs-title overlap when ELK enlarges the box beyond
+  content needs.
+
+Full validation note: `[[04 Ressourcen/Diagramm Layout/Renderer-Validierung 2026-06-11]]`.
+
 ### Layout — ELK back as default engine
 
 `kuml.grid` was the default for Class, Component, and UseCase diagrams since V2.0.26.
@@ -27,6 +89,86 @@ diagram types again until the grid engine reaches feature parity.
   }
   ```
   or globally via `--layout=grid`.
+
+### Executable Behaviour Widget (V2.0.43) — MVP
+
+New Compose Desktop widget `kuml-widget/kuml-widget-compose` for live
+in-IDE STM behaviour inspection.
+
+- `BehaviourWidgetState` holds model + runtime + instance + trace + scrub
+  position; `HighlightHelpers.replayActiveVertices` derives the currently
+  active vertex set from `StateEntered` / `StateExited` events.
+- `EditPolicy` sealed class (`None` / `GuardsOnly` / `FullStructural`)
+  governs which model edits the widget surfaces.
+- `kuml-io-svg`: `SvgRenderOptions` gains `highlightVertexIds`,
+  `highlightStrokeColor`, `highlightStrokeWidthPx`,
+  `highlightRingOffsetPx`; `KumlSvgRenderer.renderUmlStateDiagram`
+  injects highlight-ring rects around active vertices.
+
+### Activity-Trace-Replay Stufe B (V2.0.42)
+
+`kuml-runtime-trace` gains an activity-diagram replay path complementing
+the V2.0.39 STM replay.
+
+- `TraceFlavourDetector` classifies traces as `STM` / `ACTIVITY` / `EMPTY`
+  / `MIXED`.
+- `ActivityContextFromTrace` extracts decision-path diagnostics; the
+  `ActivityTraceReplayer` runs `ActivityRuntime.start()`+`run()`
+  deterministically and diffs against the original via `TraceDiff`.
+- `ActivityReplayReport` exposes `isMatch`, `diff`, `finalClock`,
+  `eventContext` and verbose output.
+- The existing `TraceReplayer` was refactored to use
+  `TraceFlavourDetector` (no behaviour change).
+
+### JetBrains Autovervollständigung + Rename Refactoring (V2.0.41)
+
+IntelliJ-side ergonomics for the `*.kuml.kts` DSL.
+
+- `KumlCompletionItems` (pure Kotlin) defines 38 DSL completion items
+  grouped by `ENTRY` / `UML` / `SYSML2` / `C4` / `SHARED` with insert
+  text, tail hints and descriptions.
+- `KumlCompletionContributor` (IntelliJ extension point) injects items
+  in `*.kuml.kts` files; the insert handler replaces the typed prefix
+  and positions the caret inside the lambda body.
+- `KumlRenameExtractor` (pure Kotlin) finds all rename candidates for a
+  DSL identifier; powers the IntelliJ rename refactoring action.
+
+### Sandbox-Garantien (V2.0.40)
+
+New module `kuml-runtime/kuml-runtime-sandbox` provides bounded,
+isolated execution for guards and effects.
+
+- `SandboxPolicy`: `guardTimeoutMs`, `maxVariableCount`,
+  `maxStringLength`, `allowedFunctions` whitelist; ships `Strict` and
+  `Permissive` presets.
+- `SandboxException`: sealed hierarchy
+  (`DisallowedFunction`, `VariableLimitExceeded`, `StringLengthExceeded`,
+  `TooManyEffects`, `ExpressionTooDeep`, `ParseFailure`,
+  `ReservedVariableName`).
+- `BuiltInFunctions`: `log.*`, `math.*`, `str.*`, `list.*`, `map.*`,
+  `convert.*` fully implemented.
+- `EffectExecutor` runs `KumlEffect` sequences against
+  `instance.variables`, enforcing the function whitelist and
+  variable / string / effect / depth limits.
+- `TimeLimitedGuardEvaluator` wraps the V2.0.36 evaluator with a
+  configurable timeout and surfaces sandbox exceptions cleanly.
+- `SandboxValidator` lints models against a policy at validation time
+  rather than at run time.
+
+### Runtime-Trace + STM Trace-Replay + OTLP-JSON export (V2.0.39)
+
+New module `kuml-runtime/kuml-runtime-trace`.
+
+- `TraceReplayer` re-executes a state machine from recorded events and
+  diffs the replay against the original.
+- `OtlpExporter` converts a `TraceFile` to OpenTelemetry OTLP-JSON
+  without an external OTel dependency.
+- `OtlpModel` (`@Serializable` data classes for OTLP resource / scope /
+  spans / events / attributes), `OtlpIds` (deterministic FNV-1a span /
+  trace IDs for golden-file tests), `OtlpJson` (dedicated `Json`
+  instance without `classDiscriminator`, OTel-collector safe).
+- `EventsFromTrace` extracts the canonical `Event` sequence from a
+  `TraceFile` and filters synthetic events.
 
 ## [0.7.0] — 2026-06-10
 
