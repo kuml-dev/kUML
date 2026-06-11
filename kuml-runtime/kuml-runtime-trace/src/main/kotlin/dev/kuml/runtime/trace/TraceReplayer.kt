@@ -34,23 +34,12 @@ public class TraceReplayer(
         model: UmlStateMachine,
         original: TraceFile,
     ): ReplayReport {
-        // Guard: activity traces are not supported
-        val hasActivityEntries =
-            original.entries.any { entry ->
-                entry is TraceEntry.TokenPlaced ||
-                    entry is TraceEntry.TokenConsumed ||
-                    entry is TraceEntry.DecisionTaken ||
-                    entry is TraceEntry.ForkSplit ||
-                    entry is TraceEntry.JoinReached ||
-                    entry is TraceEntry.ActivityActionInvoked ||
-                    entry is TraceEntry.FlowFinalConsumed ||
-                    entry is TraceEntry.ActivityTerminated
-            }
-        if (hasActivityEntries) {
+        // Guard: only STM-flavoured traces are supported
+        val flavour = TraceFlavourDetector.detect(original)
+        if (flavour == TraceFlavour.ACTIVITY || flavour == TraceFlavour.MIXED || flavour == TraceFlavour.EMPTY) {
             throw UnsupportedTraceFlavourException(
-                "TraceReplayer does not support Activity-flavoured traces. " +
-                    "The trace contains Activity-runtime entries (TokenPlaced, TokenConsumed, etc.). " +
-                    "Only STM traces can be replayed.",
+                "TraceReplayer only supports STM-flavoured traces (detected: $flavour). " +
+                    "Use ActivityTraceReplayer for Activity traces.",
             )
         }
 

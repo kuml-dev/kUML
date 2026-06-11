@@ -17,9 +17,11 @@ class TraceReplayCommandTest :
 
         val script = File("src/test/resources/simulate/order-lifecycle.kuml.kts")
         val events = File("src/test/resources/simulate/order-lifecycle.events.json")
+        val actScript = File("src/test/resources/simulate/sysml2/simple-act.kuml.kts")
+        val actEvents = File("src/test/resources/simulate/sysml2/simple-act.events.json")
 
-        /** Generate a trace file from the order-lifecycle model. */
-        fun generateTrace(): File {
+        /** Generate an STM trace file from the order-lifecycle model. */
+        fun generateStmTrace(): File {
             val traceOut = Files.createTempFile("kuml-trace-", ".json").toFile()
             KumlCli().test(
                 "simulate ${script.absolutePath} ${events.absolutePath} " +
@@ -28,8 +30,20 @@ class TraceReplayCommandTest :
             return traceOut
         }
 
+        /** Generate an Activity trace file from the simple-act model. */
+        fun generateActTrace(): File {
+            val traceOut = Files.createTempFile("kuml-act-trace-", ".json").toFile()
+            KumlCli().test(
+                "simulate ${actScript.absolutePath} ${actEvents.absolutePath} " +
+                    "--out ${traceOut.absolutePath}",
+            )
+            return traceOut
+        }
+
+        // ── STM tests (existing) ──────────────────────────────────────────────
+
         test("exit 0 when replayed trace matches original") {
-            val traceFile = generateTrace()
+            val traceFile = generateStmTrace()
             try {
                 val result =
                     KumlCli().test(
@@ -71,31 +85,6 @@ class TraceReplayCommandTest :
             }
         }
 
-        test("exit TRACE_UNSUPPORTED_FLAVOUR (8) when given an activity trace") {
-            val activityTrace = Files.createTempFile("kuml-activity-", ".json").toFile()
-            try {
-                // Write an activity-flavoured trace (contains TokenPlaced)
-                val fakeActTrace =
-                    TraceFile(
-                        modelId = "ActivityModel",
-                        entries =
-                            listOf(
-                                TraceEntry.TokenPlaced(seqNo = 0L, timestamp = "", nodeId = "n1", clock = 0L),
-                                TraceEntry.ActivityTerminated(seqNo = 1L, timestamp = "", clock = 1L),
-                            ),
-                    )
-                activityTrace.writeText(KumlRuntimeJson.encodeToString(TraceFile.serializer(), fakeActTrace))
-
-                val result =
-                    KumlCli().test(
-                        "trace replay ${activityTrace.absolutePath} ${script.absolutePath}",
-                    )
-                result.statusCode shouldBe ExitCodes.TRACE_UNSUPPORTED_FLAVOUR
-            } finally {
-                activityTrace.delete()
-            }
-        }
-
         test("--verbose flag prints diff details on mismatch") {
             val divergentTrace = Files.createTempFile("kuml-divergent-verbose-", ".json").toFile()
             try {
@@ -123,6 +112,84 @@ class TraceReplayCommandTest :
                 result.output.shouldNotBeEmpty()
             } finally {
                 divergentTrace.delete()
+            }
+        }
+
+        // ── New: Activity trace tests ─────────────────────────────────────────
+
+        test("exit 0 when activity trace matches original (ACT script)") {
+            val traceFile = generateActTrace()
+            try {
+                val result =
+                    KumlCli().test(
+                        "trace replay ${traceFile.absolutePath} ${actScript.absolutePath}",
+                    )
+                result.statusCode shouldBe 0
+            } finally {
+                traceFile.delete()
+            }
+        }
+
+        test("exit TRACE_REPLAY_MISMATCH (7) when activity trace has fewer entries than replay produces") {
+            // A trace with only one TokenPlaced entry and no modelId — the real replay would produce many more
+            val fakeActTrace =
+                TraceFile(
+                    modelId = null, // no model ID → skip mismatch check
+                    entries =
+                        listOf(
+                            TraceEntry.TokenPlaced(seqNo = 0L, timestamp = "", nodeId = "init", clock = 0L),
+                        ),
+                )
+            val fakeFile = Files.createTempFile("kuml-fake-act-", ".json").toFile()
+            try {
+                fakeFile.writeText(KumlRuntimeJson.encodeToString(TraceFile.serializer(), fakeActTrace))
+                val result =
+                    KumlCli().test(
+                        "trace replay ${fakeFile.absolutePath} ${actScript.absolutePath}",
+                    )
+                result.statusCode shouldBe ExitCodes.TRACE_REPLAY_MISMATCH
+            } finally {
+                fakeFile.delete()
+            }
+        }
+
+        test("exit TRACE_UNSUPPORTED_FLAVOUR (8) for empty trace") {
+            val emptyTrace = Files.createTempFile("kuml-empty-", ".json").toFile()
+            try {
+                val emptyTraceFile = TraceFile(modelId = null, entries = emptyList())
+                emptyTrace.writeText(KumlRuntimeJson.encodeToString(TraceFile.serializer(), emptyTraceFile))
+
+                val result =
+                    KumlCli().test(
+                        "trace replay ${emptyTrace.absolutePath} ${script.absolutePath}",
+                    )
+                result.statusCode shouldBe ExitCodes.TRACE_UNSUPPORTED_FLAVOUR
+            } finally {
+                emptyTrace.delete()
+            }
+        }
+
+        test("exit TRACE_UNSUPPORTED_FLAVOUR (8) for MIXED trace") {
+            val mixedTrace = Files.createTempFile("kuml-mixed-", ".json").toFile()
+            try {
+                val mixedTraceFile =
+                    TraceFile(
+                        modelId = null,
+                        entries =
+                            listOf(
+                                TraceEntry.StateEntered(seqNo = 0L, timestamp = "", vertexId = "A"),
+                                TraceEntry.TokenPlaced(seqNo = 1L, timestamp = "", nodeId = "n1", clock = 0L),
+                            ),
+                    )
+                mixedTrace.writeText(KumlRuntimeJson.encodeToString(TraceFile.serializer(), mixedTraceFile))
+
+                val result =
+                    KumlCli().test(
+                        "trace replay ${mixedTrace.absolutePath} ${script.absolutePath}",
+                    )
+                result.statusCode shouldBe ExitCodes.TRACE_UNSUPPORTED_FLAVOUR
+            } finally {
+                mixedTrace.delete()
             }
         }
     })
