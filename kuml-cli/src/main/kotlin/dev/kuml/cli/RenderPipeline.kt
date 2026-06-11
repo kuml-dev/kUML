@@ -59,18 +59,6 @@ private fun DiagramType.toDiagramKind(): DiagramKind =
     }
 
 /**
- * Grid-first default: diagrams that prefer `kuml.grid` when no explicit engine override is set.
- */
-private val GRID_DEFAULT_KINDS =
-    setOf(
-        DiagramKind.UmlClass,
-        DiagramKind.UmlComponent,
-        DiagramKind.UmlUseCase,
-        // UmlState intentionally excluded: state machines need ELK's hierarchical
-        // routing to produce compact vertical layouts with curved back-edges.
-    )
-
-/**
  * Orchestrates the kUML render pipeline: Script → Layout → Renderer → File.
  *
  * Branches on UML vs C4 at the extraction step. The downstream stages
@@ -83,10 +71,11 @@ internal object RenderPipeline {
     // Registry is initialised lazily on first use; tests can pre-populate it.
     private fun ensureEnginesRegistered() {
         if (LayoutEngineRegistry.ids().isEmpty()) {
-            // Register grid FIRST so pickFor(kind, null) prefers grid over elk
+            // Register ELK FIRST so pickFor(kind, null) prefers ELK over Grid
             // for diagram kinds that both engines support.
-            LayoutEngineRegistry.register(GridLayoutEngineProvider())
+            // Grid layout is still available via --layout=grid (opt-in, experimental).
             LayoutEngineRegistry.register(ElkLayoutEngineProvider())
+            LayoutEngineRegistry.register(GridLayoutEngineProvider())
         }
     }
 
@@ -96,8 +85,7 @@ internal object RenderPipeline {
      * Priorität (höchste zuerst):
      * 1. [cliOverride] — `--layout=grid` oder `--layout=elk` vom CLI-Flag
      * 2. `kuml.layout.engine`-Metadaten im Diagramm (DSL-Ebene)
-     * 3. Grid als Default für CLASS / COMPONENT / USE_CASE / STATE
-     * 4. ELK als Default für alle anderen Typen
+     * 3. ELK als Default für alle Typen (Grid via `--layout=grid` opt-in)
      */
     private fun pickEngine(
         diagram: KumlDiagram,
@@ -119,11 +107,9 @@ internal object RenderPipeline {
             return LayoutEngineRegistry.get(engineId)
                 ?: error("Layout engine '$dslEngine' (from diagram metadata) not found.")
         }
-        // 3+4. Typ-basierter Default
+        // 3. ELK als Default für alle Typen
         val kind = diagram.type.toDiagramKind()
-        val preferredId =
-            if (kind in GRID_DEFAULT_KINDS) LayoutEngineId("kuml.grid") else LayoutEngineId("elk.layered")
-        return LayoutEngineRegistry.pickFor(kind, preferredId)
+        return LayoutEngineRegistry.pickFor(kind, LayoutEngineId("elk.layered"))
             ?: error("No layout engine available for diagram kind $kind.")
     }
 
@@ -152,7 +138,7 @@ internal object RenderPipeline {
      * @param themeName Optional theme name from CLI; takes precedence over config.
      * @param config Loaded `kuml.config.kts` configuration (or [KumlConfig.DEFAULT]).
      * @param layoutEngineOverride Optional CLI `--layout` flag value (`"auto"`, `"grid"`, `"elk"`).
-     *   `"auto"` or `null` → per-diagram-type default (grid for class/component/use-case/state).
+     *   `"auto"` or `null` → ELK default for all diagram types; `"grid"` opts in to the experimental grid engine.
      * @param latexStandalone When `true` and format is `"latex"`, emit a complete
      *   `\documentclass{standalone}` document instead of a bare tikzpicture snippet.
      *   Only meaningful for LaTeX output — ignored for SVG / PNG.
@@ -278,7 +264,7 @@ internal object RenderPipeline {
         theme: KumlTheme,
     ) {
         val model = extracted.model
-        // SysML 2 always uses ELK (no grid-default change for SysML 2 in V2.0.26)
+        // SysML 2 uses ELK (same as all other diagram types)
         ensureEnginesRegistered()
         val sysml2Engine =
             LayoutEngineRegistry.get("elk.layered")

@@ -46,8 +46,9 @@ internal class RenderCommand : CliktCommand(name = "render") {
         option(
             "--layout",
             help =
-                "Layout engine override: 'auto' (default), 'grid' (kuml.grid), 'elk' (elk.layered). " +
-                    "Default is 'auto', which picks grid for class/component/use-case/state diagrams and elk for others.",
+                "Layout engine override: 'auto' (default), 'elk' (elk.layered), 'grid' (kuml.grid, experimental). " +
+                    "Default is 'auto', which uses ELK for all diagram types. " +
+                    "Use '--layout=grid' to opt in to the grid layout engine.",
         ).default("auto")
 
     private val configFile by option("--config", help = "Path to kuml.config.kts")

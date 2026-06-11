@@ -72,13 +72,8 @@ internal sealed class WebRenderResult {
  * [EngineRegistration.ensure].
  */
 internal object WebRenderPipeline {
-    /** Diagram kinds that prefer the grid engine over ELK by default. */
-    private val GRID_DEFAULT_KINDS =
-        setOf(
-            DiagramKind.UmlClass,
-            DiagramKind.UmlComponent,
-            DiagramKind.UmlUseCase,
-        )
+    // ELK is the default engine for all diagram types.
+    // Grid layout is available via the layoutOverride = "grid" parameter (opt-in, experimental).
 
     /**
      * Evaluates [script] and renders to the requested [format] ("svg" or "png").
@@ -464,10 +459,9 @@ internal object WebRenderPipeline {
             return LayoutEngineRegistry.get(engineId)
                 ?: error("Layout engine '$dslEngine' (from diagram metadata) not found.")
         }
-        // Type-based default
+        // ELK as default for all diagram types (Grid via layoutOverride = "grid", opt-in)
         val kind = diagram.type.toDiagramKind()
-        val preferredId = if (kind in GRID_DEFAULT_KINDS) LayoutEngineId("kuml.grid") else LayoutEngineId("elk.layered")
-        return LayoutEngineRegistry.pickFor(kind, preferredId)
+        return LayoutEngineRegistry.pickFor(kind, LayoutEngineId("elk.layered"))
             ?: error("No layout engine available for diagram kind $kind.")
     }
 

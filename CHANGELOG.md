@@ -4,6 +4,30 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Layout — ELK back as default engine
+
+`kuml.grid` was the default for Class, Component, and UseCase diagrams since V2.0.26.
+It is now **opt-in** (`--layout=grid`); ELK (`elk.layered`) is the default for all
+diagram types again until the grid engine reaches feature parity.
+
+**Changed:**
+- `RenderPipeline`: removed `GRID_DEFAULT_KINDS`; `pickEngine()` now always requests
+  `elk.layered` unless the user passes `--layout=grid` or the DSL sets
+  `kuml.layout.engine = "kuml.grid"`.
+- `WebRenderPipeline`: same change; `GRID_DEFAULT_KINDS` removed.
+- Engine registration order flipped: ELK is now registered before Grid so that
+  `LayoutEngineRegistry.pickFor(kind, null)` also returns ELK.
+- `RenderCommand` help text updated to reflect ELK as the default.
+- Grid layout can still be activated per-diagram via the DSL:
+  ```kotlin
+  classDiagram(name = "...") {
+      metadata { put(LayoutMetadataKeys.ENGINE, KumlMetaValue.Text("kuml.grid")) }
+  }
+  ```
+  or globally via `--layout=grid`.
+
 ## [0.7.0] — 2026-06-10
 
 ### Behaviour Runtime — Snapshot/Restore + MigrationPolicy (V2.0.35)
@@ -97,39 +121,6 @@ editing and preview environment for kUML scripts.
 ### Dependency and toolchain updates
 - Kotlin upgraded from 2.3.21 to 2.4.0; K2 strictness fixes in example scripts
 - All library dependencies updated to latest stable versions
-
-## [Unreleased]
-
-### Web UI — `kuml-web` (V2.0.34)
-New executable module `kuml-web` provides a Ktor/Netty HTTP server with a browser-based
-editing and preview environment for kUML scripts.
-
-**REST API**:
-- `POST /api/render` — evaluates a `*.kuml.kts` script source (UML, C4, or SysML 2) and
-  returns SVG or PNG; supports `theme` and `layout` overrides
-- `GET /api/themes` — lists registered theme names
-- `GET /api/examples` / `GET /api/examples/{name}` — three bundled example scripts
-  (UML class diagram, C4 container diagram, SysML 2 BDD)
-- `GET /api/health`
-
-**Browser SPA**:
-- CodeMirror 6 editor (ESM from esm.sh CDN — no build step required)
-- Live SVG preview with 300 ms debounce
-- Theme and layout (auto / grid / elk) dropdowns
-- One-click SVG and PNG download
-- Examples picker to load any bundled script into the editor
-
-**CLI**:
-- `kuml serve [--port N] [--host H]` — new subcommand that starts the web server
-
-**Architecture notes**:
-- `WebRenderPipeline` mirrors `RenderPipeline` engine-selection logic (grid default for
-  class/component/use-case diagrams, ELK otherwise) but produces String/ByteArray output
-  instead of writing to files — no breaking changes to existing modules
-- Module is excluded from Maven Central publication (executable application)
-- Documentation in AsciiDoc (`kuml-web/README.adoc`) per project convention
-- 12 tests: 5 unit (`WebRenderPipelineTest`) + 7 integration (`ApiRoutesTest` via Ktor
-  `testApplication`)
 
 ## [0.6.0] — 2026-06-09
 
@@ -266,31 +257,6 @@ Edge labels (UC/REQ/STM/ACT/PAR stereotypes), PNG export for SysML 2, typed
 constraint-expression AST, SEQ Combined Fragments + Execution Specs, ACT Activity
 Partitions / Swimlanes, Behaviour-Runtime hookup — all explicitly deferred to V2.x
 waves.
-
-## [Unreleased]
-
-### Features
-
-- Markdown integration: `MarkdownProcessor` library + `kuml markdown` CLI
-  subcommand with `inline` / `linked-svg` / `linked-png` modes
-- Pandoc Lua filter (`tools/pandoc/kuml.lua`) for HTML / PDF rendering
-- Maven Central publishing infrastructure (vanniktech plugin) for all
-  library modules; applications (`kuml-cli`, `kuml-mcp`, `kuml-llm-bench`)
-  remain unpublished
-- GitHub Release workflow with `git-cliff` changelog generation
-- Homebrew formula template (`Formula/kuml.rb`)
-
-### Documentation
-
-- Getting-Started guide (`docs/getting-started.adoc`)
-- Diagram-Type Reference (`docs/diagram-types.adoc`)
-- LLM benchmark guide + reproducible mock report
-  (`docs/benchmark/README.md`, `docs/benchmark/benchmark-report-mock.md`)
-- Release & distribution walkthrough (`docs/release.md`)
-
-### Tests
-
-- `DynamicDiagramBuilderTest` closes the C4 DSL coverage gap
 
 > Once a `v*.*.*` tag is pushed, the release workflow re-generates this file
 > automatically from the Conventional-Commit history via `cliff.toml`.

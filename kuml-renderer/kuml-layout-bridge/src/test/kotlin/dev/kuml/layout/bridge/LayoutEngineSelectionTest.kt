@@ -12,10 +12,10 @@ import io.kotest.matchers.shouldNotBe
 /**
  * Verifiziert die Engine-Auswahllogik des [LayoutEngineRegistry]:
  *
- * - `kuml.grid` ist Default für CLASS / COMPONENT / USE_CASE / STATE
- * - `elk.layered` bleibt Default für ACTIVITY u.a.
+ * - `elk.layered` ist Default für alle Diagrammtypen (ELK vor Grid registriert)
+ * - Grid ist opt-in via expliziter Preference (`--layout=grid`)
  * - Explicit preference überschreibt den Default
- * - Registry-Reihenfolge: Grid vor ELK → Grid gewinnt bei `pickFor(CLASS, null)`
+ * - Registry-Reihenfolge: ELK vor Grid → ELK gewinnt bei `pickFor(CLASS, null)`
  * - Fallback: `pickFor(DEPLOYMENT, null)` → ELK (Grid hat DEPLOYMENT nicht in
  *   capabilities)
  *
@@ -25,43 +25,50 @@ class LayoutEngineSelectionTest :
     FunSpec({
 
         /**
-         * Hilfsfunktion: registriert Grid ZUERST, dann ELK — so wie die
-         * Produktions-Pipeline es tut.
+         * Hilfsfunktion: registriert ELK ZUERST, dann Grid — so wie die
+         * Produktions-Pipeline es tut (ELK ist der Default).
          */
         fun setupRegistry() {
             LayoutEngineRegistry.clear()
-            LayoutEngineRegistry.register(GridLayoutEngineProvider())
             LayoutEngineRegistry.register(ElkLayoutEngineProvider())
+            LayoutEngineRegistry.register(GridLayoutEngineProvider())
         }
 
         afterEach {
             LayoutEngineRegistry.clear()
         }
 
-        test("DiagramKind.UmlClass → picks kuml.grid by default (grid registered first)") {
+        test("DiagramKind.UmlClass → picks elk.layered by default (elk registered first)") {
             setupRegistry()
             val engine = LayoutEngineRegistry.pickFor(DiagramKind.UmlClass, null)
             engine shouldNotBe null
-            engine!!.id shouldBe LayoutEngineId("kuml.grid")
+            engine!!.id shouldBe LayoutEngineId("elk.layered")
         }
 
-        test("DiagramKind.UmlComponent → picks kuml.grid by default") {
+        test("DiagramKind.UmlComponent → picks elk.layered by default") {
             setupRegistry()
             val engine = LayoutEngineRegistry.pickFor(DiagramKind.UmlComponent, null)
             engine shouldNotBe null
-            engine!!.id shouldBe LayoutEngineId("kuml.grid")
+            engine!!.id shouldBe LayoutEngineId("elk.layered")
         }
 
-        test("DiagramKind.UmlUseCase → picks kuml.grid by default") {
+        test("DiagramKind.UmlUseCase → picks elk.layered by default") {
             setupRegistry()
             val engine = LayoutEngineRegistry.pickFor(DiagramKind.UmlUseCase, null)
             engine shouldNotBe null
-            engine!!.id shouldBe LayoutEngineId("kuml.grid")
+            engine!!.id shouldBe LayoutEngineId("elk.layered")
         }
 
-        test("DiagramKind.UmlState → picks kuml.grid by default") {
+        test("DiagramKind.UmlState → picks elk.layered by default") {
             setupRegistry()
             val engine = LayoutEngineRegistry.pickFor(DiagramKind.UmlState, null)
+            engine shouldNotBe null
+            engine!!.id shouldBe LayoutEngineId("elk.layered")
+        }
+
+        test("DiagramKind.UmlClass with explicit grid preference → picks kuml.grid") {
+            setupRegistry()
+            val engine = LayoutEngineRegistry.pickFor(DiagramKind.UmlClass, LayoutEngineId("kuml.grid"))
             engine shouldNotBe null
             engine!!.id shouldBe LayoutEngineId("kuml.grid")
         }
@@ -73,30 +80,30 @@ class LayoutEngineSelectionTest :
             engine!!.id shouldBe LayoutEngineId("elk.layered")
         }
 
-        test("pickFor(UmlClass, null) with grid registered before elk → grid wins") {
+        test("pickFor(UmlClass, null) with elk registered before grid → elk wins (production default)") {
             LayoutEngineRegistry.clear()
-            // Explicit order: grid first
-            LayoutEngineRegistry.register(GridLayoutEngineProvider())
-            LayoutEngineRegistry.register(ElkLayoutEngineProvider())
-            val engine = LayoutEngineRegistry.pickFor(DiagramKind.UmlClass, null)
-            engine!!.id shouldBe LayoutEngineId("kuml.grid")
-        }
-
-        test("pickFor(UmlClass, null) with elk registered before grid → elk wins (insertion-order)") {
-            LayoutEngineRegistry.clear()
-            // Reverse order: elk first — so we confirm order matters
+            // Production order: elk first
             LayoutEngineRegistry.register(ElkLayoutEngineProvider())
             LayoutEngineRegistry.register(GridLayoutEngineProvider())
             val engine = LayoutEngineRegistry.pickFor(DiagramKind.UmlClass, null)
-            // Both support UmlClass; elk was first so it wins
             engine!!.id shouldBe LayoutEngineId("elk.layered")
         }
 
-        test("pickFor(Generic, null) → grid wins (grid declares Generic in capabilities)") {
+        test("pickFor(UmlClass, null) with grid registered before elk → grid wins (insertion-order)") {
+            LayoutEngineRegistry.clear()
+            // Reverse order: grid first — confirms order matters
+            LayoutEngineRegistry.register(GridLayoutEngineProvider())
+            LayoutEngineRegistry.register(ElkLayoutEngineProvider())
+            val engine = LayoutEngineRegistry.pickFor(DiagramKind.UmlClass, null)
+            // Both support UmlClass; grid was first so it wins
+            engine!!.id shouldBe LayoutEngineId("kuml.grid")
+        }
+
+        test("pickFor(Generic, null) → elk wins (elk registered first)") {
             setupRegistry()
             val engine = LayoutEngineRegistry.pickFor(DiagramKind.Generic, null)
             engine shouldNotBe null
-            // grid is registered first and supports Generic
-            engine!!.id shouldBe LayoutEngineId("kuml.grid")
+            // elk is registered first and supports Generic
+            engine!!.id shouldBe LayoutEngineId("elk.layered")
         }
     })
