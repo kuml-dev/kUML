@@ -18,8 +18,8 @@ import dev.kuml.layout.DiagramKind
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
-import dev.kuml.layout.Spacing
 import dev.kuml.layout.LayoutResult
+import dev.kuml.layout.Spacing
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider

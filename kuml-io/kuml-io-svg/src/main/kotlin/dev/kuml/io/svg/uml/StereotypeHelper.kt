@@ -40,7 +40,9 @@ internal object StereotypeHelper {
         // docker/k8s component diagrams.
         val appliedNames = element.appliedStereotypes.map { it.stereotypeName }
         val plainNames =
-            (element as? UmlNamedElement)?.stereotypes.orEmpty()
+            (element as? UmlNamedElement)
+                ?.stereotypes
+                .orEmpty()
                 .filter { it.isNotBlank() }
         val joined = (appliedNames + plainNames).distinct()
         if (joined.isEmpty()) return null

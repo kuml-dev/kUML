@@ -844,10 +844,11 @@ public object Sysml2LayoutBridge {
             // were silently dropped by `firstOrNull { it.id == id }` returning
             // whichever was declared first. Use a kind-typed lookup that prefers
             // an ActionDefinition with the matching id.
-            val def = model.definitions
-                .filterIsInstance<ActionDefinition>()
-                .firstOrNull { it.id == id }
-                ?: continue
+            val def =
+                model.definitions
+                    .filterIsInstance<ActionDefinition>()
+                    .firstOrNull { it.id == id }
+                    ?: continue
             val kindHint = def.kind.name
             // V2.0.16: Wenn der Action eine partitionId trägt und die
             //          referenzierte Partition im Modell existiert,

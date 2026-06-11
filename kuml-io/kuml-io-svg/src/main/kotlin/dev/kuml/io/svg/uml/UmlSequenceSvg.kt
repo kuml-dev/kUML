@@ -251,8 +251,11 @@ private fun renderUmlFragment(
                 // V2.0.44: use max(computed sep, prevOperandBottom + gap) so guards
                 // of empty operands don't overlap with messages of the previous one.
                 val computedSepY =
-                    if (opMinSeq != null) headBottom + (opMinSeq - 0.5f) * SEQ_ROW_HEIGHT
-                    else prevOperandBottom
+                    if (opMinSeq != null) {
+                        headBottom + (opMinSeq - 0.5f) * SEQ_ROW_HEIGHT
+                    } else {
+                        prevOperandBottom
+                    }
                 val sepY = maxOf(computedSepY, prevOperandBottom + 4f)
                 // Draw separator line
                 tag(
@@ -269,8 +272,11 @@ private fun renderUmlFragment(
                 guardY = sepY + 12f
                 val opMaxSeq = opMsgSeqs.maxOrNull()
                 prevOperandBottom =
-                    if (opMaxSeq != null) headBottom + (opMaxSeq + 0.5f) * SEQ_ROW_HEIGHT
-                    else guardY + 4f
+                    if (opMaxSeq != null) {
+                        headBottom + (opMaxSeq + 0.5f) * SEQ_ROW_HEIGHT
+                    } else {
+                        guardY + 4f
+                    }
             }
             val guard = operand.guard
             if (guard != null) {

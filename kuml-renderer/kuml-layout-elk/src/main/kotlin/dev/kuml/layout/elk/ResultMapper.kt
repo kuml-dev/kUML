@@ -160,7 +160,7 @@ internal object ResultMapper {
 
         for (groupId in builder.groupMap.keys) {
             val members = membersByGroup[groupId]
-            if (members.isNullOrEmpty()) continue   // dangling group — skip
+            if (members.isNullOrEmpty()) continue // dangling group — skip
 
             var minX = Float.MAX_VALUE
             var minY = Float.MAX_VALUE

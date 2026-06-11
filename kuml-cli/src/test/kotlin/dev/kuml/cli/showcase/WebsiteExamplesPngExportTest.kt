@@ -58,8 +58,7 @@ class WebsiteExamplesPngExportTest :
                         val rel = file.relativeTo(examplesRoot).invariantSeparatorsPath
                         val topDir = rel.substringBefore("/")
                         topDir !in nonRenderDirs
-                    }
-                    .sortedBy { it.invariantSeparatorsPath }
+                    }.sortedBy { it.invariantSeparatorsPath }
                     .toList()
             } else {
                 emptyList()

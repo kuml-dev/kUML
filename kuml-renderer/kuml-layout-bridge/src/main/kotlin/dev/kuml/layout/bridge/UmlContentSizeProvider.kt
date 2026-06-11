@@ -47,11 +47,12 @@ import dev.kuml.uml.Visibility
 public class UmlContentSizeProvider(
     diagram: KumlDiagram,
 ) : SizeProvider {
-    private val byId: Map<String, Size> = run {
-        val out = mutableMapOf<String, Size>()
-        collect(diagram.elements, out)
-        out
-    }
+    private val byId: Map<String, Size> =
+        run {
+            val out = mutableMapOf<String, Size>()
+            collect(diagram.elements, out)
+            out
+        }
 
     override fun sizeOf(
         elementId: String,
@@ -225,6 +226,7 @@ public class UmlContentSizeProvider(
         public const val COMP_HEADER_H: Float = 4f
 
         // ── Horizontal char-width estimates ───────────────────────────────────
+
         /** Avg width of a 14pt bold sans-serif char (incl. ~10% slack). */
         public const val TITLE_CHAR_PX: Float = 8.4f
 
@@ -244,4 +246,3 @@ public class UmlContentSizeProvider(
         public const val PORT_RESERVE: Float = 12f
     }
 }
-

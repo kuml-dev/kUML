@@ -115,8 +115,11 @@ class UmlCollaborationSvgTest :
 
             // Determinism check — adding UmlCollaboration did not break existing rendering
             svg1 shouldBe svg2
-            // No collaboration-specific markup in a class-only diagram
-            svg1 shouldNotContain "kuml-collaboration"
+            // No collaboration-specific markup in a class-only diagram. The class
+            // `.kuml-collaboration` is allowed to appear in the stylesheet defs
+            // (V2.0.44 — added globally so Batik does not default to fill=black on
+            // ellipses); only the ELEMENT-level usage must not appear.
+            svg1 shouldNotContain "class=\"kuml-collaboration\""
             // The attribute-level dash pattern (as an SVG element attribute) must not appear
             svg1 shouldNotContain "stroke-dasharray=\"4 4\""
         }
