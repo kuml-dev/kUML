@@ -60,6 +60,24 @@
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <!--
+            K2-Kompatibilität: Seit IntelliJ 2024.x ist K2 der Default-Frontend des
+            Kotlin-Plugins. Plugins, die `depends`-on org.jetbrains.kotlin sind, müssen
+            explizit deklarieren, welche Modi sie unterstützen — sonst werden sie im
+            K2-Mode automatisch deaktiviert ("Plugin is incompatible with the Kotlin
+            plugin in 'K2' mode").
+
+            Dieses Plugin benutzt KEINE K1-Resolve-APIs (keine Imports aus
+            `org.jetbrains.kotlin.idea.*`, `org.jetbrains.kotlin.resolve.*`,
+            `BindingContext`, `KotlinType` etc.). Es stützt sich ausschließlich auf:
+              - `com.intellij.*` Platform-APIs (K2-agnostisch),
+              - `kotlin.script.experimental.*` Scripting-API (in beiden Modi identisch),
+              - PSI-Elemente (KtFile/KtCallExpression — Parser-Output ist shared).
+
+            Damit ist das Plugin in beiden Modi lauffähig.
+        -->
+        <supportsKotlinPluginMode supportsK1="true" supportsK2="true"/>
+
+        <!--
             Registers KumlScriptDefinitionsProvider with the Kotlin plugin.
             The provider hands back `dev.kuml.core.script.KumlScript` (which carries the
             `@KotlinScript(fileExtension = "kuml.kts", …)` annotation) so the Kotlin

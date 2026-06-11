@@ -30,4 +30,14 @@ class KumlPluginDescriptorTest :
             pluginXml shouldContain "KumlStructureViewBuilderProvider"
             pluginXml shouldContain "lang.psiStructureViewFactory"
         }
+
+        // K2-Kompatibilität: Ohne diese Deklaration deaktiviert IntelliJ 2024.x+
+        // das Plugin im K2-Mode ("Plugin is incompatible with the Kotlin plugin in
+        // 'K2' mode"). Das Plugin nutzt keine K1-Resolve-APIs (geprüft via
+        // Import-Scan), darum ist supportsK2="true" sicher.
+        test("plugin.xml declares supportsKotlinPluginMode for both K1 and K2") {
+            pluginXml shouldContain "supportsKotlinPluginMode"
+            pluginXml shouldContain "supportsK2=\"true\""
+            pluginXml shouldContain "supportsK1=\"true\""
+        }
     })
