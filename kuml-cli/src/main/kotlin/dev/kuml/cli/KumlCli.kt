@@ -6,6 +6,7 @@ import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.versionOption
 import dev.kuml.cli.run.RunCommand
+import dev.kuml.cli.trace.TraceCommand
 import dev.kuml.cli.update.UpdateCommand
 
 /**
@@ -34,6 +35,7 @@ internal class KumlCli : CliktCommand(name = "kuml") {
             MarkdownCommand(),
             ProfileCommand(),
             SimulateCommand(),
+            TraceCommand(),
             RunCommand(),
             VersionCommand(),
             UpdateCommand(),

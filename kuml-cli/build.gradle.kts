@@ -33,6 +33,7 @@ dependencies {
     implementation(project(":kuml-codegen:kuml-gen-java"))
     implementation(project(":kuml-codegen:kuml-gen-sql"))
     implementation(project(":kuml-runtime:kuml-runtime-core"))
+    implementation(project(":kuml-runtime:kuml-runtime-trace")) // V2.0.39 — kuml trace replay/export
     implementation(project(":kuml-core:kuml-core-ocl"))
     // V2.0.20a — validate-expressions command
     implementation(project(":kuml-core:kuml-core-expr"))

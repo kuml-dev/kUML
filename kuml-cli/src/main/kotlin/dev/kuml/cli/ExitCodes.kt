@@ -39,6 +39,14 @@ internal object ExitCodes {
      */
     internal const val ONLINE_ERROR: Int = 1
 
+    // ── `kuml trace` (V2.0.39) ──────────────────────────────────────────────────
+
+    /** `kuml trace replay` produced a replayed trace that differs from the original. */
+    internal const val TRACE_REPLAY_MISMATCH: Int = 7
+
+    /** `kuml trace replay` was given an Activity-flavoured trace (not supported). */
+    internal const val TRACE_UNSUPPORTED_FLAVOUR: Int = 8
+
     // ── `kuml run` (Welle D) ─────────────────────────────────────────────────
 
     /** `kuml run --adapter mcp` could not bind the requested port. */
