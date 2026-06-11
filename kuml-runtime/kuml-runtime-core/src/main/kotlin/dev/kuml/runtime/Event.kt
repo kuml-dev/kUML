@@ -1,5 +1,6 @@
 package dev.kuml.runtime
 
+import dev.kuml.runtime.internal.toEvalMap
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
@@ -28,3 +29,13 @@ public data class Event(
         public fun of(name: String): Event = Event(name = name)
     }
 }
+
+/**
+ * Returns a flat [Map] view over this [Event] for expression evaluation.
+ *
+ * Delegates to the internal [toEvalMap] used by [OclGuardEvaluator] and
+ * exposes it as a `public` API for the sandbox module.
+ *
+ * V2.0.40 — Sandbox-Garantien.
+ */
+public fun Event.toFlatEvalMap(): Map<String, Any?> = this.toEvalMap()

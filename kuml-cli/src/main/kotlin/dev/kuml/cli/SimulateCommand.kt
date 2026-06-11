@@ -10,6 +10,7 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
+import com.github.ajalt.clikt.parameters.types.long
 import com.github.ajalt.clikt.parameters.types.path
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
@@ -24,6 +25,10 @@ import dev.kuml.runtime.TraceDiff
 import dev.kuml.runtime.activity.ActivityDeadlockException
 import dev.kuml.runtime.loadEvents
 import dev.kuml.runtime.loadTrace
+import dev.kuml.runtime.sandbox.EffectExecutor
+import dev.kuml.runtime.sandbox.SandboxEffectInvoker
+import dev.kuml.runtime.sandbox.SandboxPolicy
+import dev.kuml.runtime.sandbox.TimeLimitedGuardEvaluator
 import dev.kuml.runtime.sysml2.Sysml2ActivityAdapter
 import dev.kuml.runtime.sysml2.Sysml2StateMachineAdapter
 import dev.kuml.runtime.writeTrace
@@ -100,6 +105,16 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
         help = "Maximum steps for ACT activity execution (default 1000 — guard against infinite loops)",
     ).int().default(1000)
 
+    private val sandbox by option(
+        "--sandbox",
+        help = "Enable sandbox execution (EffectExecutor + TimeLimitedGuardEvaluator).",
+    ).flag()
+
+    private val guardTimeoutMs by option(
+        "--guard-timeout-ms",
+        help = "Guard evaluation timeout in milliseconds when --sandbox is active (default ${SandboxPolicy.DEFAULT_GUARD_TIMEOUT_MS}).",
+    ).long().default(SandboxPolicy.DEFAULT_GUARD_TIMEOUT_MS)
+
     override fun help(context: Context): String =
         "Execute a kUML or SysML 2 state machine / activity against an event sequence (file or REPL)."
 
@@ -133,7 +148,20 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
             } else {
                 Instant::now
             }
-        val runtime = StateMachineRuntime(guards = OclGuardEvaluator(), clock = clock)
+        val sandboxPolicy = SandboxPolicy(guardTimeoutMs = guardTimeoutMs)
+        val guardsEvaluator =
+            if (sandbox) {
+                TimeLimitedGuardEvaluator(OclGuardEvaluator(), sandboxPolicy)
+            } else {
+                OclGuardEvaluator()
+            }
+        val effectInvoker =
+            if (sandbox) {
+                SandboxEffectInvoker(EffectExecutor(sandboxPolicy))
+            } else {
+                dev.kuml.runtime.EffectInvoker.NoOp
+            }
+        val runtime = StateMachineRuntime(guards = guardsEvaluator, clock = clock, effects = effectInvoker)
         val instance = runtime.start(sm)
 
         if (interactive) {

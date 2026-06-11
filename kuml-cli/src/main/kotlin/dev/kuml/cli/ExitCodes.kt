@@ -54,4 +54,12 @@ internal object ExitCodes {
 
     /** `kuml run --restore` was rejected by the MigrationPolicy. */
     internal const val RUN_MIGRATION_REJECTED: Int = 21
+
+    // ── `kuml sandbox` (V2.0.40) ─────────────────────────────────────────────
+
+    /** `kuml sandbox validate` found one or more sandbox policy violations. */
+    internal const val SANDBOX_VIOLATIONS: Int = 12
+
+    /** A guard evaluation timed out during sandboxed simulate. */
+    internal const val SANDBOX_TIMEOUT: Int = 13
 }

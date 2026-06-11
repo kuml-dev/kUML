@@ -33,6 +33,7 @@ import java.time.Instant
 public class StateMachineRuntime(
     private val guards: GuardEvaluator = OclGuardEvaluator(),
     private val clock: () -> Instant = Instant::now,
+    private val effects: EffectInvoker = EffectInvoker.NoOp,
 ) : BehaviourInterpreter<UmlStateMachine, StateMachineInstance> {
     // ── start ────────────────────────────────────────────────────────────────
 
@@ -74,7 +75,14 @@ public class StateMachineRuntime(
 
         // Snapshot for atomic rollback (Rule 5)
         val snapshotVertices = instance.mutCurrentVertices.toList()
-        val snapshotVariables = instance.variables.toMap()
+        // Deep-copy variables when an EffectInvoker is active; otherwise a shallow
+        // copy is sufficient since the NoOp invoker never mutates nested structures.
+        val snapshotVariables: Map<String, Any?> =
+            if (effects === EffectInvoker.NoOp) {
+                instance.variables.toMap()
+            } else {
+                instance.variables.mapValues { (_, v) -> v.toJsonElement().toKotlinValue() }
+            }
         val snapshotQueueSize = instance.mutInternalQueue.size
         val snapshotTraceSize = instance.mutTrace.size
         val snapshotTerminated = instance.isTerminated
@@ -327,7 +335,7 @@ public class StateMachineRuntime(
     private fun fireTransition(
         instance: StateMachineInstance,
         tr: UmlTransition,
-        @Suppress("UNUSED_PARAMETER") event: Event,
+        event: Event,
     ) {
         val source = instance.vertexById.getValue(tr.sourceId)
         val target = instance.vertexById.getValue(tr.targetId)
@@ -351,7 +359,7 @@ public class StateMachineRuntime(
                     while (cur != null && cur != lca) cur = instance.parentOf[cur]
                     cur == lca && v.id != lca
                 }.sortedByDescending { depthOf(it.id) }
-        for (v in descendantsToExit) exitVertex(instance, v.id)
+        for (v in descendantsToExit) exitVertex(instance, v.id, event)
         instance.mutCurrentVertices.removeAll(descendantsToExit.toSet())
 
         // Effect
@@ -367,6 +375,8 @@ public class StateMachineRuntime(
                     transitionId = tr.id,
                 ),
             )
+            val outcome = effects.invoke(tr.effect!!, ActionPhase.EFFECT, null, tr.id, instance, event)
+            if (outcome is InvocationOutcome.Error) throw EffectInvocationException(outcome.message, outcome.cause)
         }
         log(
             instance,
@@ -380,12 +390,13 @@ public class StateMachineRuntime(
         )
 
         // Enter (top-down) from just-below-LCA down to target
-        enterVertex(instance, target.id, lca)
+        enterVertex(instance, target.id, lca, event)
     }
 
     private fun exitVertex(
         instance: StateMachineInstance,
         vertexId: String,
+        event: Event = syntheticEvent(),
     ) {
         val v = instance.vertexById[vertexId] ?: return
         if (v is UmlState && v.exit != null) {
@@ -400,6 +411,8 @@ public class StateMachineRuntime(
                     transitionId = null,
                 ),
             )
+            val outcome = effects.invoke(v.exit!!, ActionPhase.EXIT, v.id, null, instance, event)
+            if (outcome is InvocationOutcome.Error) throw EffectInvocationException(outcome.message, outcome.cause)
         }
         log(
             instance,
@@ -419,6 +432,7 @@ public class StateMachineRuntime(
         instance: StateMachineInstance,
         targetId: String,
         stopAt: String,
+        event: Event = syntheticEvent(),
     ) {
         val path = pathUpTo(targetId, stopAt, instance.parentOf).reversed()
         for (vid in path) {
@@ -436,6 +450,8 @@ public class StateMachineRuntime(
                         transitionId = null,
                     ),
                 )
+                val outcome = effects.invoke(v.entry!!, ActionPhase.ENTRY, v.id, null, instance, event)
+                if (outcome is InvocationOutcome.Error) throw EffectInvocationException(outcome.message, outcome.cause)
             }
             if (v is UmlState && v.doActivity != null) {
                 log(
@@ -449,6 +465,8 @@ public class StateMachineRuntime(
                         transitionId = null,
                     ),
                 )
+                val outcome2 = effects.invoke(v.doActivity!!, ActionPhase.DO_ACTIVITY, v.id, null, instance, event)
+                if (outcome2 is InvocationOutcome.Error) throw EffectInvocationException(outcome2.message, outcome2.cause)
             }
             log(
                 instance,
@@ -466,7 +484,7 @@ public class StateMachineRuntime(
                         it is UmlPseudostate && it.kind == PseudostateKind.INITIAL
                     }
                 if (subInitial != null) {
-                    enterFollowingTransition(instance, fromVertex = subInitial)
+                    enterFollowingTransition(instance, fromVertex = subInitial, event = event)
                     return
                 }
             }
@@ -485,7 +503,7 @@ public class StateMachineRuntime(
             if (v is UmlPseudostate) {
                 when (v.kind) {
                     PseudostateKind.CHOICE -> {
-                        enterFollowingTransition(instance, fromVertex = v)
+                        enterFollowingTransition(instance, fromVertex = v, event = event)
                         return
                     }
                     PseudostateKind.SHALLOW_HISTORY, PseudostateKind.DEEP_HISTORY ->
@@ -499,7 +517,7 @@ public class StateMachineRuntime(
                     PseudostateKind.INITIAL -> {
                         // Initial is normally only reached at start(); but if used inside a composite,
                         // follow its only outgoing transition (recursion is fine).
-                        enterFollowingTransition(instance, fromVertex = v)
+                        enterFollowingTransition(instance, fromVertex = v, event = event)
                         return
                     }
                 }
@@ -511,6 +529,7 @@ public class StateMachineRuntime(
     private fun enterFollowingTransition(
         instance: StateMachineInstance,
         fromVertex: UmlVertex,
+        event: Event = syntheticEvent(),
     ) {
         val outs = outgoingTransitions(instance, fromVertex)
         val next =
@@ -519,7 +538,7 @@ public class StateMachineRuntime(
                     "No enabled transition out of '${fromVertex.id}' " +
                         "(kind=${(fromVertex as? UmlPseudostate)?.kind ?: "STATE"}).",
                 )
-        fireTransition(instance, next, syntheticEvent())
+        fireTransition(instance, next, event)
     }
 
     private fun syntheticEvent(): Event = Event(name = "")
