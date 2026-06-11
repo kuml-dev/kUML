@@ -66,6 +66,9 @@ dependencies {
 intellijPlatform {
     pluginConfiguration {
         // ID + Name kommen aus plugin.xml; hier nur die Build-Targets + Notes.
+        // Version erbt von project.version (allprojects { version = "0.8.0" }),
+        // explizit gespiegelt damit es beim Lesen dieser Datei sofort klar ist.
+        version = project.version.toString()
         ideaVersion {
             // 2024.3 = build 243. `untilBuild` weglassen → kompatibel mit allen
             // späteren Versionen, bis Plugin-Verifier was anderes sagt.
@@ -73,11 +76,34 @@ intellijPlatform {
         }
         changeNotes =
             """
-            Initial release of the kUML IntelliJ Platform plugin.
+            <h4>0.8.0</h4>
             <ul>
-              <li>Recognises <code>*.kuml.kts</code> scripts via Kotlin scripting.</li>
-              <li>Syntax highlighting inherited from the Kotlin language.</li>
-              <li>File icon for kUML diagram scripts.</li>
+              <li>K2-Kompatibilität: <code>supportsKotlinPluginMode supportsK2="true"</code>
+                  deklariert — Plugin läuft wieder in IntelliJ 2024.x+ mit aktivem K2-Frontend.
+                  (Ohne diese Deklaration zeigte der Marketplace: "Plugin is incompatible with
+                  the Kotlin plugin in 'K2' mode".)</li>
+              <li>Versions-Alignment: Plugin-Version folgt jetzt dem kUML-Monorepo
+                  (<code>project.version</code>).</li>
+            </ul>
+            <h4>0.4.1</h4>
+            <ul>
+              <li>Code completion für kUML-DSL-Top-Level-Funktionen in <code>*.kuml.kts</code> (42 Items).</li>
+              <li>Rename Refactoring (Shift+F6) für DSL-Element-Namen.</li>
+              <li>Live Templates (12 Templates: uml, c4, sysml, classdiag, clazz, iface, enumc, sm, part, c4ctx, attr, port).</li>
+            </ul>
+            <h4>0.3.0</h4>
+            <ul>
+              <li>Code Folding für DSL-Lambda-Blöcke in <code>*.kuml.kts</code>.</li>
+            </ul>
+            <h4>0.2.0</h4>
+            <ul>
+              <li>Live-SVG Split-View (Editor links, Diagramm rechts) mit Zoom, Pan, Theme-Auswahl.</li>
+              <li>Structure View: DSL-Elemente (States, Parts, Klassen …) im Structure-Panel.</li>
+              <li>External Annotator + 4 Quick Fixes für Diagnostics aus dem kUML Script-Host.</li>
+            </ul>
+            <h4>0.1.0</h4>
+            <ul>
+              <li>Initiale Version: Script-Definition Provider, Dateityp-Registrierung, Datei-Icon.</li>
             </ul>
             """.trimIndent()
     }

@@ -38,15 +38,30 @@
     ]]></description>
 
     <change-notes><![CDATA[
+        <!-- Diese Datei wird beim Build durch patchPluginXml überschrieben.
+             Maßgeblich sind die changeNotes in build.gradle.kts. -->
+        <h4>0.8.0</h4>
+        <ul>
+            <li>K2-Kompatibilität: Plugin läuft wieder in IntelliJ 2024.x+ mit aktivem K2-Frontend.</li>
+            <li>Versions-Alignment: Plugin-Version folgt dem kUML-Monorepo.</li>
+        </ul>
         <h4>0.4.1</h4>
         <ul>
-            <li>V2.0.41: Code completion for kUML DSL top-level functions in <code>*.kuml.kts</code> files (42 items).</li>
-            <li>V2.0.41: Rename refactoring (Shift+F6) for DSL element names.</li>
-            <li>V2.0.41: Live Templates for kUML DSL (12 templates: uml, c4, sysml, classdiag, clazz, iface, enumc, sm, part, c4ctx, attr, port).</li>
+            <li>Code completion für kUML-DSL-Top-Level-Funktionen (42 Items).</li>
+            <li>Rename Refactoring (Shift+F6) für DSL-Element-Namen.</li>
+            <li>Live Templates (12 Templates).</li>
+        </ul>
+        <h4>0.3.0</h4>
+        <ul>
+            <li>Code Folding für DSL-Lambda-Blöcke.</li>
+        </ul>
+        <h4>0.2.0</h4>
+        <ul>
+            <li>Live-SVG Split-View, Structure View, External Annotator + Quick Fixes.</li>
         </ul>
         <h4>0.1.0</h4>
         <ul>
-            <li>Initial release: script definition provider, file type registration, file icon.</li>
+            <li>Initiale Version: Script-Definition Provider, Dateityp-Registrierung, Datei-Icon.</li>
         </ul>
     ]]></change-notes>
 
