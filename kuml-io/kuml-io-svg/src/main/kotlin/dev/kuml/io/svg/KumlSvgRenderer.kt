@@ -370,6 +370,33 @@ public object KumlSvgRenderer {
                 NodeRendererDispatcher.dispatch(vertex, shifted, theme, nodesBuilder)
             }
 
+            // V2.0.43: highlight ring overlay — injected AFTER vertices, BEFORE transitions
+            if (options.highlightVertexIds.isNotEmpty()) {
+                for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                    if (nodeId.value !in options.highlightVertexIds) continue
+                    val gx = nodeLayout.bounds.origin.x + padding - options.highlightRingOffsetPx
+                    val gy = nodeLayout.bounds.origin.y + padding - options.highlightRingOffsetPx
+                    val gw = nodeLayout.bounds.size.width + 2 * options.highlightRingOffsetPx
+                    val gh = nodeLayout.bounds.size.height + 2 * options.highlightRingOffsetPx
+                    nodesBuilder.tag(
+                        "rect",
+                        mapOf(
+                            "id" to xmlEscapeAttr("highlight-ring-${nodeId.value}"),
+                            "class" to "kuml-highlight-ring",
+                            "x" to fmt(gx),
+                            "y" to fmt(gy),
+                            "width" to fmt(gw),
+                            "height" to fmt(gh),
+                            "fill" to "none",
+                            "stroke" to options.highlightStrokeColor,
+                            "stroke-width" to fmt(options.highlightStrokeWidthPx),
+                            "rx" to "4",
+                            "ry" to "4",
+                        ),
+                    )
+                }
+            }
+
             // 3. Render transitions with labels
             for ((edgeId, route) in layoutResult.edges) {
                 val transition = transitionIndex[edgeId.value] ?: continue
