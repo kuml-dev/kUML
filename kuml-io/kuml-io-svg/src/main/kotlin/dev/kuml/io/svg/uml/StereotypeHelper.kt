@@ -1,12 +1,14 @@
 package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.xmlEscapeContent
 import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.StereotypeTheme
 import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.Stereotypable
 import dev.kuml.uml.TagValue
+import dev.kuml.uml.UmlNamedElement
 
 /**
  * Hilfsfunktionen für das Stereotyp-Rendering im SVG-Renderer.
@@ -30,11 +32,19 @@ internal object StereotypeHelper {
         element: Stereotypable,
         theme: StereotypeTheme,
     ): String? {
-        if (element.appliedStereotypes.isEmpty()) return null
-        val joined =
-            element.appliedStereotypes
-                .joinToString(theme.joinSeparator) { it.stereotypeName }
-        return "«$joined»"
+        // V2.0.44: Combine applied (typed) stereotypes from profiles with the
+        // simple `stereotypes: List<String>` field on `UmlNamedElement`. Either
+        // alone produces a header; both together produce one combined header.
+        // Previously only `appliedStereotypes` were rendered, so a DSL like
+        // `stereotypes += "service"` was silently dropped — observed on
+        // docker/k8s component diagrams.
+        val appliedNames = element.appliedStereotypes.map { it.stereotypeName }
+        val plainNames =
+            (element as? UmlNamedElement)?.stereotypes.orEmpty()
+                .filter { it.isNotBlank() }
+        val joined = (appliedNames + plainNames).distinct()
+        if (joined.isEmpty()) return null
+        return "«" + joined.joinToString(theme.joinSeparator) + "»"
     }
 
     /**
@@ -163,7 +173,7 @@ internal object StereotypeHelper {
             element.appliedStereotypes
                 .joinToString(theme.stereotypes.joinSeparator) { it.stereotypeName }
         val fontSize = theme.stereotypes.featureStereotypeFontSize.toInt()
-        val label = xmlEscapeText("«$joined»")
+        val label = xmlEscapeContent("«$joined»")
         return """<tspan class="kuml-feature-stereotype" font-style="italic" font-size="$fontSize">$label</tspan> """
     }
 

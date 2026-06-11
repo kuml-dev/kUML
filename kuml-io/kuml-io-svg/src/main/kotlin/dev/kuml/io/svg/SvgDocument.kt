@@ -137,6 +137,17 @@ internal object SvgDocument {
                 append(".kuml-divider { stroke: ${c.border.toHex()}; stroke-width: ${bo.thinPx}; }\n")
                 append(".kuml-actor { stroke: ${c.foreground.toHex()}; stroke-width: ${bo.regularPx}; fill: none; }\n")
                 append(".kuml-frame { fill: none; stroke: ${c.border.toHex()}; stroke-width: ${bo.regularPx}; }\n")
+                // V2.0.44 — UmlCollaboration is rendered as an outlined ellipse (UML 2.5 §11.7.1).
+                // Without an explicit `fill: none` here Batik defaults to black-fill, swallowing
+                // the text. The dashed-stroke pattern is supplied per-element via stroke-dasharray.
+                append(".kuml-collaboration { fill: none; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                // V2.0.44 — UML 2.x port glyph: filled square on the component border.
+                // Label uses small body font, foreground colour.
+                append(".kuml-port { fill: ${c.foreground.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.thinPx}; }\n")
+                append(".kuml-port-label { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" fill: ${c.foreground.toHex()}; }\n")
             }
 
         b.tag("style") {

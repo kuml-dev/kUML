@@ -609,17 +609,26 @@ internal fun renderCombinedFragment(
 
         // 3. Operand guards — one per operand, in the top-left of each
         //    operand's vertical slice.
+        //
+        // V2.0.44: Track the previous operand's endSeqNo so that separator lines
+        // for empty operands (those whose startSeqNo == previous endSeqNo, i.e. no
+        // messages of their own) are pushed one full row below the last message of
+        // the previous operand. Without this guard, the separator and guard label
+        // land on top of the last message arrow, producing overlaps like
+        // "[credentials invalid]welcomeScreen".
+        var prevEndSeqNo = minStartSeqNo - 1
         for ((index, operand) in fragment.operands.withIndex()) {
-            val operandY =
-                if (index == 0) {
-                    tagY + tagH + 4f
-                } else {
-                    headBottom + (operand.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + 12f
-                }
+            val operandY: Float
 
-            // Dashed separator between operands.
-            if (index > 0) {
-                val sepY = headBottom + (operand.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT
+            if (index == 0) {
+                operandY = tagY + tagH + 4f
+            } else {
+                // Separator Y: use max(operand.startSeqNo, prevEndSeqNo + 1) to
+                // guarantee the separator falls AFTER all messages of the previous
+                // operand, even when startSeqNo was reused by the DSL author.
+                val naturalSepSeqNo = operand.startSeqNo.toFloat()
+                val guardedSepSeqNo = maxOf(naturalSepSeqNo, prevEndSeqNo + 1f)
+                val sepY = headBottom + (guardedSepSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT
                 tag(
                     "line",
                     mapOf(
@@ -631,7 +640,10 @@ internal fun renderCombinedFragment(
                         "stroke-dasharray" to "6 4",
                     ),
                 )
+                operandY = sepY + 12f
             }
+
+            prevEndSeqNo = operand.endSeqNo
 
             val guard = operand.guard
             if (guard != null) {
@@ -693,13 +705,17 @@ private fun renderSelfCall(
             -> renderOpenArrowhead(cx, y + h, +8f, this)
         }
 
-        // Label rechts neben dem Selfcall.
+        // V2.0.44: Label positioned LEFT of the self-call brace (text-anchor="end")
+        // instead of right-side. This keeps it away from the canvas right edge —
+        // the self-call is already at the rightmost lifeline and "right of the U"
+        // clips on narrow diagrams. Offset: 4px to the left of the start-corner.
         tag(
             "text",
             mapOf(
                 "class" to "kuml-body",
-                "x" to fmt(cx + w + 4f),
+                "x" to fmt(cx - 4f),
                 "y" to fmt(y - 2f),
+                "text-anchor" to "end",
             ),
         ) { text(xmlEscapeText(msg.messageLabel)) }
     }

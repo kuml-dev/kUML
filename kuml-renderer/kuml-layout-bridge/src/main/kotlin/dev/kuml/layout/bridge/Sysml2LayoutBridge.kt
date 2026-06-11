@@ -827,21 +827,27 @@ public object Sysml2LayoutBridge {
         //          Beide Pfade landen im selben Group-Output.
         val visiblePartitionIds: MutableSet<String> = mutableSetOf()
         for (id in diagram.elementIds) {
-            val def = model.definitions.firstOrNull { it.id == id }
-            if (def is ActivityPartitionDefinition) {
-                visiblePartitionIds += def.id
+            // V2.0.44: kind-typed lookup — collision-safe (same fix as below).
+            val partitionDef =
+                model.definitions
+                    .filterIsInstance<ActivityPartitionDefinition>()
+                    .firstOrNull { it.id == id }
+            if (partitionDef != null) {
+                visiblePartitionIds += partitionDef.id
             }
         }
 
         val nodes = mutableListOf<LayoutNode>()
         for (id in diagram.elementIds) {
-            val def = model.definitions.firstOrNull { it.id == id } ?: continue
-            // ACT-Diagramme zeigen ActionDefinitions als Knoten (alle Kinds);
-            // ActivityPartitions werden als LayoutGroup ausgegeben (NICHT als
-            // Knoten); alles andere ist konzeptionell nicht vorgesehen und
-            // wird ignoriert.
-            if (def is ActivityPartitionDefinition) continue
-            if (def !is ActionDefinition) continue
+            // V2.0.44: id collisions across definition kinds (e.g. a `partDef("X")`
+            // and an `activityPartition("X", represents = "X")` in the same model)
+            // were silently dropped by `firstOrNull { it.id == id }` returning
+            // whichever was declared first. Use a kind-typed lookup that prefers
+            // an ActionDefinition with the matching id.
+            val def = model.definitions
+                .filterIsInstance<ActionDefinition>()
+                .firstOrNull { it.id == id }
+                ?: continue
             val kindHint = def.kind.name
             // V2.0.16: Wenn der Action eine partitionId trägt und die
             //          referenzierte Partition im Modell existiert,
@@ -850,8 +856,12 @@ public object Sysml2LayoutBridge {
             //          explizit auflistet.
             val partitionId = def.partitionId
             if (partitionId != null) {
-                val partitionDef = model.definitions.firstOrNull { it.id == partitionId }
-                if (partitionDef is ActivityPartitionDefinition) {
+                // V2.0.44: kind-typed lookup — same collision protection as above.
+                val partitionDef =
+                    model.definitions
+                        .filterIsInstance<ActivityPartitionDefinition>()
+                        .firstOrNull { it.id == partitionId }
+                if (partitionDef != null) {
                     visiblePartitionIds += partitionDef.id
                 }
             }
@@ -1280,6 +1290,44 @@ public object Sysml2LayoutBridge {
                 else -> dev.kuml.layout.Size(PAR_CONSTRAINT_WIDTH, PAR_CONSTRAINT_HEIGHT)
             }
         }
+
+    /**
+     * Content-aware [SizeProvider] for PAR diagrams (V2.0.44).
+     *
+     * ConstraintDefinition height now grows with parameter count instead of
+     * being clamped at [PAR_CONSTRAINT_HEIGHT] = 100 px (which truncated any
+     * constraint with > 2 parameters — newton-second-law-par showed the third
+     * `«in» a : Acceleration` line running outside the box).
+     *
+     * Height layout: `«constraint»` stereotype + name + expression compartment +
+     * parameter compartment (one line per parameter), each separated by a
+     * divider gap. Width keeps the default — character-level measurement would
+     * require a font-metric backed estimator and is left for V2.x polish.
+     *
+     * PartDefinitions defer to [bddContentAwareSizeProvider] (already
+     * content-aware), so the two PartUsage boxes in newton-second-law-par
+     * shrink to their actual feature count.
+     */
+    public fun parContentAwareSizeProvider(model: Sysml2Model): SizeProvider {
+        val bdd = bddContentAwareSizeProvider(model)
+        return SizeProvider { id, kindHint ->
+            when (kindHint) {
+                "ConstraintDefinition" -> {
+                    val c = model.definitions.firstOrNull { it.id == id } as? ConstraintDefinition
+                    val paramCount = c?.parameters?.size ?: 0
+                    val hasExpression = c?.expression?.isNotBlank() == true
+                    val h =
+                        STEREOTYPE_LINE_H + NAME_LINE_H +
+                            (if (hasExpression) DIVIDER_GAP + FEATURE_LINE_H else 0f) +
+                            (if (paramCount > 0) DIVIDER_GAP + paramCount * FEATURE_LINE_H else 0f) +
+                            BOX_V_PADDING
+                    dev.kuml.layout.Size(PAR_CONSTRAINT_WIDTH, maxOf(h, 70f))
+                }
+                "PartDefinition" -> bdd.sizeOf(id, kindHint)
+                else -> dev.kuml.layout.Size(PAR_CONSTRAINT_WIDTH, PAR_CONSTRAINT_HEIGHT)
+            }
+        }
+    }
 
     /**
      * Findet die längste sichtbare Part-Usage-ID, die ein Präfix des

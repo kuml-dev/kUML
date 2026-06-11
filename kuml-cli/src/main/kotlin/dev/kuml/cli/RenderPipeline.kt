@@ -18,9 +18,11 @@ import dev.kuml.layout.DiagramKind
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
+import dev.kuml.layout.Spacing
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
+import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
@@ -229,7 +231,7 @@ internal object RenderPipeline {
         latexStandalone: Boolean = false,
     ) {
         val diagram = extracted.diagram
-        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
+        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram, UmlContentSizeProvider(diagram))
         val engine = pickEngine(diagram, layoutEngineOverride)
         val layoutResult: LayoutResult = engine.layout(layoutGraph, LayoutHints.DEFAULT)
         when (format) {
@@ -324,7 +326,16 @@ internal object RenderPipeline {
             }
             is StmDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
+                // V2.0.44: STM diagrams pack many edge labels (`event [guard] / action`)
+                // around shared states (e.g. a global Off-state reached from every
+                // other state on `powerOff`). Default spacing of 40px node-to-node
+                // and 12px edge-to-edge causes label overlap. Increase both so the
+                // routing pass has room to place labels without crowding.
+                val stmHints =
+                    LayoutHints.DEFAULT.copy(
+                        spacing = Spacing(nodeToNode = 80f, edgeToEdge = 28f, groupPadding = 24f),
+                    )
+                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, stmHints)
                 when (format) {
                     "svg" ->
                         writeText(
@@ -361,7 +372,12 @@ internal object RenderPipeline {
                 }
             }
             is ParDiagram -> {
-                val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+                val layoutGraph =
+                    Sysml2LayoutBridge.toLayoutGraph(
+                        model,
+                        diagram,
+                        Sysml2LayoutBridge.parContentAwareSizeProvider(model),
+                    )
                 val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))

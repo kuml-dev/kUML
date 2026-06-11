@@ -2,6 +2,7 @@ package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
+import dev.kuml.io.svg.xmlEscapeContent
 import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -107,7 +108,7 @@ internal fun renderUmlComponent(
                 tag(
                     "text",
                     mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-                ) { rawXml(stereoPrefix + xmlEscapeText(attr.format())) }
+                ) { rawXml(stereoPrefix + xmlEscapeContent(attr.format())) }
                 cy += 13f
             }
 
@@ -130,10 +131,79 @@ internal fun renderUmlComponent(
                 tag(
                     "text",
                     mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-                ) { rawXml(stereoPrefix + xmlEscapeText(op.format(theme))) }
+                ) { rawXml(stereoPrefix + xmlEscapeContent(op.format(theme))) }
                 cy += 13f
             }
         }
+
+        // V2.0.44 — Ports on left/right borders. Each port is a 12×12 black-filled
+        // square half-overlapping the border (UML 2.x convention) with its name as
+        // a label INSIDE the box, next to the square. Ports are assigned to sides
+        // alternately (even index → left, odd index → right) so up to two columns
+        // of ports can co-exist without overlap. Vertical placement is even-spaced
+        // per side: position i / (count + 1) of the box height. Labels INSIDE
+        // because labels-outside would collide with neighbouring nodes — ELK does
+        // not know about ports yet, so we cannot reserve outside whitespace.
+        renderPorts(element, w, h)
+    }
+}
+
+private fun SvgBuilder.renderPorts(
+    element: UmlComponent,
+    w: Float,
+    h: Float,
+) {
+    if (element.ports.isEmpty()) return
+
+    val portSize = 12f
+    val labelGap = 4f
+    val leftPorts = element.ports.filterIndexed { idx, _ -> idx % 2 == 0 }
+    val rightPorts = element.ports.filterIndexed { idx, _ -> idx % 2 == 1 }
+
+    leftPorts.forEachIndexed { i, port ->
+        val py = h * (i + 1) / (leftPorts.size + 1) - portSize / 2f
+        tag(
+            "rect",
+            mapOf(
+                "x" to fmt(-portSize / 2f),
+                "y" to fmt(py),
+                "width" to fmt(portSize),
+                "height" to fmt(portSize),
+                "class" to "kuml-port",
+            ),
+        )
+        tag(
+            "text",
+            mapOf(
+                "class" to "kuml-port-label",
+                "x" to fmt(portSize / 2f + labelGap),
+                "y" to fmt(py + portSize / 2f + 3f),
+                "text-anchor" to "start",
+            ),
+        ) { text(port.name) }
+    }
+
+    rightPorts.forEachIndexed { i, port ->
+        val py = h * (i + 1) / (rightPorts.size + 1) - portSize / 2f
+        tag(
+            "rect",
+            mapOf(
+                "x" to fmt(w - portSize / 2f),
+                "y" to fmt(py),
+                "width" to fmt(portSize),
+                "height" to fmt(portSize),
+                "class" to "kuml-port",
+            ),
+        )
+        tag(
+            "text",
+            mapOf(
+                "class" to "kuml-port-label",
+                "x" to fmt(w - portSize / 2f - labelGap),
+                "y" to fmt(py + portSize / 2f + 3f),
+                "text-anchor" to "end",
+            ),
+        ) { text(port.name) }
     }
 }
 

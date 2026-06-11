@@ -38,6 +38,9 @@ internal fun renderUmlCollaboration(
         mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
         // Dashed ellipse — standard UML 2.5 collaboration notation
+        // V2.0.44: `fill="none"` set as an XML attribute (presentation-attribute
+        // precedence beats user-agent default, which on Batik fills shapes
+        // with black even when CSS sets `fill: none` on the class).
         tag(
             "ellipse",
             mapOf(
@@ -46,6 +49,7 @@ internal fun renderUmlCollaboration(
                 "rx" to fmt(cx),
                 "ry" to fmt(cy),
                 "class" to "kuml-collaboration",
+                "fill" to "none",
                 "stroke-dasharray" to "4 4",
             ),
         )

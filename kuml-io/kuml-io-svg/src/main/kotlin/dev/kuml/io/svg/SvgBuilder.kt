@@ -108,13 +108,32 @@ internal fun xmlEscapeAttr(s: String): String =
         .replace("'", "&apos;")
 
 /**
+ * XML-escaped einen String für die Verwendung in [SvgBuilder.rawXml]-Kontexten.
+ *
+ * Verwende diese Funktion, wenn Text in einen `rawXml()`-Block eingebettet wird
+ * (z. B. nach einem `<tspan>`-Präfix). Im Gegensatz zu [SvgBuilder.text] escapiert
+ * `rawXml` nicht automatisch — deshalb muss der Aufrufer [xmlEscapeContent] explizit
+ * aufrufen.
+ *
+ * Wichtig: Nicht bei [SvgBuilder.text] verwenden — das würde doppeltes Escaping
+ * erzeugen (`&amp;lt;` statt `&lt;`). [SvgBuilder.text] escapiert intern bereits.
+ */
+internal fun xmlEscapeContent(s: String): String =
+    s
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+
+/**
  * No-op identity function. SvgBuilder.text() escapes automatically — passing
  * xmlEscapeText() here causes double escaping. Pass raw strings directly to
  * builder.text(...).
+ *
+ * For rawXml() contexts use [xmlEscapeContent] instead.
  */
 @Deprecated(
     "SvgBuilder.text() escapes automatically — passing xmlEscapeText() here causes double escaping. " +
-        "Pass raw strings directly to builder.text(...).",
+        "Pass raw strings directly to builder.text(...). For rawXml() contexts use xmlEscapeContent().",
     ReplaceWith("s"),
 )
 internal fun xmlEscapeText(s: String): String = s

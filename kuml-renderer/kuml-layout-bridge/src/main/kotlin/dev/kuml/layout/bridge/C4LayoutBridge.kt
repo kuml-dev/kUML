@@ -1,5 +1,7 @@
 package dev.kuml.layout.bridge
 
+import dev.kuml.c4.model.C4Component
+import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
 import dev.kuml.c4.model.ComponentDiagram
@@ -71,8 +73,18 @@ public object C4LayoutBridge {
             groups.add(LayoutGroup(id = groupId, parent = null))
         }
 
+        // V2.0.44: anchor-element ID is rendered AS the boundary itself, never
+        // as a node inside it. Skip it from the node-emission loop.
+        val anchorId: String? =
+            when (diagram) {
+                is ContainerDiagram -> diagram.system
+                is ComponentDiagram -> diagram.container
+                else -> null
+            }
+
         // Process element IDs listed in the diagram
         for (elementId in diagram.elements) {
+            if (elementId == anchorId) continue
             val element = elementIndex[elementId]
             if (element == null) {
                 // Unresolvable ID: silently skip
@@ -82,7 +94,7 @@ public object C4LayoutBridge {
             // Determine group membership: element belongs to the group anchor if applicable
             val nodeGroupId: GroupId? =
                 when {
-                    groupId != null && isChildOfGroup(diagram, element.id) -> groupId
+                    groupId != null && isChildOfGroup(diagram, element) -> groupId
                     else -> null
                 }
 
@@ -128,28 +140,27 @@ public object C4LayoutBridge {
     }
 
     /**
-     * Determines whether an element with [elementId] is a child of the group anchor
-     * defined by [diagram].
+     * Determines whether [element] is a child of the group anchor defined by [diagram].
      *
-     * - [ContainerDiagram]: element is a child if it appears in diagram.elements and
-     *   the diagram group is the system — all diagram elements are treated as children.
-     * - [ComponentDiagram]: similarly, all diagram elements belong to the container group.
+     * V2.0.44: the previous implementation returned true for any element other
+     * than the anchor itself, which inflated the system-boundary group to also
+     * enclose external software systems and persons. The boundary then visually
+     * "swallowed" everything in the diagram. We now check the actual structural
+     * relationship: a [C4Container] belongs to the system boundary iff its
+     * [C4Container.system] matches the diagram's `system`; a [C4Component] belongs
+     * to the container boundary iff its parent container matches `diagram.container`.
+     * Anything else (external systems, persons, peer containers, etc.) renders
+     * outside the boundary.
      */
     private fun isChildOfGroup(
         diagram: C4Diagram,
-        elementId: String,
-    ): Boolean {
-        // For ContainerDiagram: the group anchor is the system itself; elements in
-        // the diagram that are NOT the system anchor are children of the group.
-        // For ComponentDiagram: the group anchor is the container; elements that are
-        // NOT the container anchor are children.
-        val anchorId: String =
-            when (diagram) {
-                is ContainerDiagram -> diagram.system
-                is ComponentDiagram -> diagram.container
-                else -> return false
-            }
-        // The anchor element itself is rendered as the group, not a node inside it
-        return elementId != anchorId
-    }
+        element: dev.kuml.c4.model.C4Element,
+    ): Boolean =
+        when (diagram) {
+            is ContainerDiagram ->
+                element is C4Container && element.system == diagram.system
+            is ComponentDiagram ->
+                element is C4Component && element.container == diagram.container
+            else -> false
+        }
 }

@@ -232,28 +232,46 @@ private fun renderUmlFragment(
         ) { text(fragment.operator.name) }
 
         // Guards per operand
+        // Track the Y-bottom of the previous operand's last message row so that
+        // separator lines and guards for empty operands (those with no messages of
+        // their own, only inheriting a seqNo from a sibling operand) are pushed
+        // below the last rendered message arrow instead of overlapping it.
+        var prevOperandBottom = frameY + FRAGMENT_TAG_H + SEQ_ROW_HEIGHT / 2f
         for ((index, operand) in fragment.operands.withIndex()) {
             val opMsgSeqs = operand.messageIds.mapNotNull { msgById[it]?.sequence }
-            val opMinSeq = opMsgSeqs.minOrNull() ?: continue
-            val guardY =
-                if (index == 0) {
-                    tagY + FRAGMENT_TAG_H + 4f
-                } else {
-                    val sepY = headBottom + (opMinSeq - 0.5f) * SEQ_ROW_HEIGHT
-                    // Draw separator line
-                    tag(
-                        "line",
-                        mapOf(
-                            "x1" to fmt(frameX),
-                            "y1" to fmt(sepY),
-                            "x2" to fmt(frameX + frameW),
-                            "y2" to fmt(sepY),
-                            "class" to "kuml-divider",
-                            "stroke-dasharray" to "6 4",
-                        ),
-                    )
-                    sepY + 12f
+            val opMinSeq = opMsgSeqs.minOrNull()
+            val guardY: Float
+            if (index == 0) {
+                guardY = tagY + FRAGMENT_TAG_H + 4f
+                val opMaxSeq = opMsgSeqs.maxOrNull()
+                if (opMaxSeq != null) {
+                    prevOperandBottom = headBottom + (opMaxSeq + 0.5f) * SEQ_ROW_HEIGHT
                 }
+            } else {
+                // V2.0.44: use max(computed sep, prevOperandBottom + gap) so guards
+                // of empty operands don't overlap with messages of the previous one.
+                val computedSepY =
+                    if (opMinSeq != null) headBottom + (opMinSeq - 0.5f) * SEQ_ROW_HEIGHT
+                    else prevOperandBottom
+                val sepY = maxOf(computedSepY, prevOperandBottom + 4f)
+                // Draw separator line
+                tag(
+                    "line",
+                    mapOf(
+                        "x1" to fmt(frameX),
+                        "y1" to fmt(sepY),
+                        "x2" to fmt(frameX + frameW),
+                        "y2" to fmt(sepY),
+                        "class" to "kuml-divider",
+                        "stroke-dasharray" to "6 4",
+                    ),
+                )
+                guardY = sepY + 12f
+                val opMaxSeq = opMsgSeqs.maxOrNull()
+                prevOperandBottom =
+                    if (opMaxSeq != null) headBottom + (opMaxSeq + 0.5f) * SEQ_ROW_HEIGHT
+                    else guardY + 4f
+            }
             val guard = operand.guard
             if (guard != null) {
                 tag(

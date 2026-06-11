@@ -5,6 +5,7 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlConnector
@@ -39,6 +40,50 @@ internal fun renderUmlAssociation(
     rel.name?.let { label ->
         renderEdgeLabel(label, route, theme, builder, overrideY = if (hadStereo) labelY else null)
     }
+
+    // V2.0.44 — Multiplicity labels on source and target ends (UML 2.x notation).
+    // Only rendered when the multiplicity is non-trivial (i.e. not exactly "1").
+    // Source-end label placed near route.source, target-end label near route.target.
+    // Offset by ±10 px perpendicular + 14 px along the edge so labels don't sit
+    // directly on the arrowhead or the starting node border.
+    if (rel.ends.size >= 2) {
+        val sourceEnd = rel.ends[0]
+        val targetEnd = rel.ends[1]
+        val srcLabel = sourceEnd.multiplicity.toLabel()
+        val tgtLabel = targetEnd.multiplicity.toLabel()
+        val dx = route.target.x - route.source.x
+        val dy = route.target.y - route.source.y
+        val len = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat().coerceAtLeast(1f)
+        // unit tangent
+        val tx = dx / len
+        val ty = dy / len
+        // offset perpendicular (rotate 90°) + tiny along-edge margin
+        val margin = 16f
+        val perpOff = 10f
+        if (srcLabel != null) {
+            val lx = route.source.x + tx * margin - ty * perpOff
+            val ly = route.source.y + ty * margin + tx * perpOff
+            builder.tag(
+                "text",
+                mapOf("class" to "kuml-small", "x" to fmt(lx), "y" to fmt(ly), "text-anchor" to "middle"),
+            ) { text(srcLabel) }
+        }
+        if (tgtLabel != null) {
+            val lx = route.target.x - tx * margin - ty * perpOff
+            val ly = route.target.y - ty * margin + tx * perpOff
+            builder.tag(
+                "text",
+                mapOf("class" to "kuml-small", "x" to fmt(lx), "y" to fmt(ly), "text-anchor" to "middle"),
+            ) { text(tgtLabel) }
+        }
+    }
+}
+
+/** Returns a multiplicity label string, or null if the multiplicity is the trivial "1". */
+private fun Multiplicity.toLabel(): String? {
+    val upper = if (this.upper == null) "*" else this.upper.toString()
+    val label = if (this.lower == this.upper) upper else "${this.lower}..$upper"
+    return if (label == "1") null else label
 }
 
 /**

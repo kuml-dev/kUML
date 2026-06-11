@@ -122,13 +122,70 @@ internal object ResultMapper {
     // Groups
     // ---------------------------------------------------------------------------
 
+    /**
+     * Computes [GroupLayout] bounds from the **post-layout node positions** of
+     * the group's member nodes rather than from ELK's own compound-node bounds.
+     *
+     * Background (V2.0.44): ELK's `elk.layered` algorithm does not reliably set
+     * `width`/`height` on compound nodes unless a matching sub-algorithm is
+     * registered on each group node. Without that, `elkGroup.width/height == 0`
+     * and the swimlane rectangles disappear. Computing bounds from member-node
+     * positions is engine-agnostic and always correct:
+     *  - Walk all [LayoutNode]s that have a `groupId`.
+     *  - Look up the corresponding ELK node to get its laid-out position and size.
+     *  - Take the axis-aligned bounding box of all member nodes.
+     *  - Add a fixed margin and an extra top offset for the swimlane header bar
+     *    (matches [dev.kuml.io.svg.sysml2.PARTITION_HEADER_HEIGHT]).
+     *
+     * If a group has no member nodes (dangling group definition), the group is
+     * omitted from the result — matching the renderer's silent-skip convention.
+     */
     private fun buildGroupLayouts(builder: ElkGraphBuilder): Map<GroupId, GroupLayout> {
-        val result = mutableMapOf<GroupId, GroupLayout>()
-        for ((groupId, elkGroup) in builder.groupMap) {
-            val origin = Point(elkGroup.x.toFloat(), elkGroup.y.toFloat())
-            val size = Size(elkGroup.width.toFloat(), elkGroup.height.toFloat())
-            result[groupId] = GroupLayout(bounds = Rect(origin, size))
+        if (builder.groupMap.isEmpty()) return emptyMap()
+
+        // Build: groupId → list of elk nodes that are members of that group.
+        // The original LayoutNode has groupId; its ElkNode has the final position.
+        val membersByGroup = mutableMapOf<GroupId, MutableList<org.eclipse.elk.graph.ElkNode>>()
+        for (node in builder.nodes()) {
+            val gid = node.groupId ?: continue
+            val elkNode = builder.nodeMap[node.id] ?: continue
+            membersByGroup.getOrPut(gid) { mutableListOf() }.add(elkNode)
         }
+
+        val result = mutableMapOf<GroupId, GroupLayout>()
+        // Horizontal / vertical margin around the tightest bounding box of nodes.
+        val margin = 16f
+        // Extra top space for the swimlane header bar (mirrored from PARTITION_HEADER_HEIGHT).
+        val headerPx = 28f
+
+        for (groupId in builder.groupMap.keys) {
+            val members = membersByGroup[groupId]
+            if (members.isNullOrEmpty()) continue   // dangling group — skip
+
+            var minX = Float.MAX_VALUE
+            var minY = Float.MAX_VALUE
+            var maxX = -Float.MAX_VALUE
+            var maxY = -Float.MAX_VALUE
+
+            for (elkNode in members) {
+                val nx = elkNode.x.toFloat()
+                val ny = elkNode.y.toFloat()
+                val nw = elkNode.width.toFloat()
+                val nh = elkNode.height.toFloat()
+                if (nx < minX) minX = nx
+                if (ny < minY) minY = ny
+                if (nx + nw > maxX) maxX = nx + nw
+                if (ny + nh > maxY) maxY = ny + nh
+            }
+
+            val ox = minX - margin
+            val oy = minY - headerPx - margin
+            val sw = (maxX - minX) + 2f * margin
+            val sh = (maxY - minY) + headerPx + 2f * margin
+
+            result[groupId] = GroupLayout(bounds = Rect(Point(ox, oy), Size(sw, sh)))
+        }
+
         return result
     }
 

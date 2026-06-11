@@ -69,8 +69,16 @@ internal class ElkGraphBuilder(
 
     private fun buildNodes(root: ElkNode) {
         for (node in graph.nodes) {
-            val parent = node.groupId?.let { groupMap[it] } ?: root
-            val elkNode = ElkGraphUtil.createNode(parent)
+            // V2.0.44: Always create action nodes directly under root, even when
+            // they carry a groupId. ELK compound-node handling places children
+            // at RELATIVE positions inside the group, but the renderer reads
+            // nodeLayout.bounds as ABSOLUTE canvas coordinates. Placing all
+            // nodes under root keeps positions absolute and lets the post-layout
+            // group-bounds computation in ResultMapper derive swimlane rectangles
+            // from the absolute node positions. Group ELK nodes (built by
+            // buildGroups) remain in the graph for the size computation loop in
+            // ResultMapper but they don't contain the actual action nodes.
+            val elkNode = ElkGraphUtil.createNode(root)
             elkNode.identifier = node.id.value
             elkNode.width = node.intrinsicSize.width.toDouble()
             elkNode.height = node.intrinsicSize.height.toDouble()

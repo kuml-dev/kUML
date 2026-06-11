@@ -2,6 +2,7 @@ package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
+import dev.kuml.io.svg.xmlEscapeContent
 import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -76,7 +77,7 @@ internal fun renderUmlInterface(
             tag(
                 "text",
                 mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-            ) { rawXml(stereoPrefix + xmlEscapeText(attr.format())) }
+            ) { rawXml(stereoPrefix + xmlEscapeContent(attr.format())) }
             cy += 13f
         }
         if (element.attributes.isNotEmpty() && element.operations.isNotEmpty()) {
@@ -91,7 +92,7 @@ internal fun renderUmlInterface(
             tag(
                 "text",
                 mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-            ) { rawXml(stereoPrefix + xmlEscapeText(op.format(theme))) }
+            ) { rawXml(stereoPrefix + xmlEscapeContent(op.format(theme))) }
             cy += 13f
         }
     }
