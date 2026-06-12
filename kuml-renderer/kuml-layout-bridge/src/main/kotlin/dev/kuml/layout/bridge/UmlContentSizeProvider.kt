@@ -114,9 +114,20 @@ public class UmlContentSizeProvider(
 
         var w = boxWidth(nameLine, stereoLine, attrLines + opLines)
         // Reserve horizontal space for port labels (port square 12px + label gap)
+        // V2.0.45 — Ports alternate between left (even index) and right (odd index)
+        // sides, and INSIDE-labels sit on the same horizontal row as the centred
+        // title. The previous one-sided `maxOf(maxPortLabel) + PORT_RESERVE`
+        // formula was too narrow whenever both sides carried a port: the title
+        // text bled over the right-port label (see AUTOSAR engine-control bug).
+        // Compute left/right label maxima separately and add BOTH plus a gap
+        // around the title so labels and title coexist on the same row.
         if (c.ports.isNotEmpty()) {
-            val maxPortLabel = c.ports.maxOf { estimateLabelWidth(it.name) }
-            w = maxOf(w, w + maxPortLabel.toFloat() + PORT_RESERVE)
+            val leftPorts = c.ports.filterIndexed { idx, _ -> idx % 2 == 0 }
+            val rightPorts = c.ports.filterIndexed { idx, _ -> idx % 2 == 1 }
+            val maxLeftLabel = leftPorts.maxOfOrNull { estimateLabelWidth(it.name, SMALL_CHAR_PX) } ?: 0
+            val maxRightLabel = rightPorts.maxOfOrNull { estimateLabelWidth(it.name, SMALL_CHAR_PX) } ?: 0
+            val portReserve = maxLeftLabel + maxRightLabel + PORT_RESERVE * 2f
+            w += portReserve
         }
 
         val hasFeatures = c.attributes.isNotEmpty() || c.operations.isNotEmpty()

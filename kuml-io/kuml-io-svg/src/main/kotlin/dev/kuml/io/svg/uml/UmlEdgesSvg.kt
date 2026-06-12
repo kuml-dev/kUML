@@ -1,5 +1,6 @@
 package dev.kuml.io.svg.uml
 
+import dev.kuml.io.svg.EdgeLabelGeometry
 import dev.kuml.io.svg.EdgePathBuilder
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeText
@@ -33,8 +34,7 @@ internal fun renderUmlAssociation(
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(tag, attrs + mapOf("class" to "kuml-edge", "marker-end" to "url(#arrow-open)"))
     // Stereotype label takes precedence over association name; name is appended below it
-    val mx = (route.source.x + route.target.x) / 2f
-    val my = (route.source.y + route.target.y) / 2f - 4f
+    val (mx, my) = routeLabelMid(route)
     val hadStereo = StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
     val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else my
     rel.name?.let { label ->
@@ -100,8 +100,7 @@ internal fun renderUmlGeneralization(
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(tag, attrs + mapOf("class" to "kuml-edge", "marker-end" to "url(#arrow-triangle)"))
-    val mx = (route.source.x + route.target.x) / 2f
-    val my = (route.source.y + route.target.y) / 2f - 4f
+    val (mx, my) = routeLabelMid(route)
     StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
 }
 
@@ -122,8 +121,7 @@ internal fun renderUmlInterfaceRealization(
         tag,
         attrs + mapOf("class" to "kuml-edge-dashed", "marker-end" to "url(#arrow-triangle-muted)"),
     )
-    val mx = (route.source.x + route.target.x) / 2f
-    val my = (route.source.y + route.target.y) / 2f - 4f
+    val (mx, my) = routeLabelMid(route)
     StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
 }
 
@@ -144,8 +142,7 @@ internal fun renderUmlDependency(
         tag,
         attrs + mapOf("class" to "kuml-edge-dashed", "marker-end" to "url(#arrow-open-muted)"),
     )
-    val mx = (route.source.x + route.target.x) / 2f
-    val my = (route.source.y + route.target.y) / 2f - 4f
+    val (mx, my) = routeLabelMid(route)
     val hadStereo = StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
     val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else null
     rel.name?.let { label ->
@@ -167,8 +164,7 @@ internal fun renderUmlConnector(
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
-    val mx = (route.source.x + route.target.x) / 2f
-    val my = (route.source.y + route.target.y) / 2f - 4f
+    val (mx, my) = routeLabelMid(route)
     val hadStereo = StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
     val labelY = if (hadStereo) my + (theme.stereotypes.headerFontSize + 3f) else null
     rel.name?.let { label ->
@@ -213,10 +209,26 @@ internal fun renderUmlExtend(
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
+ * Returns the polyline midpoint of [route] — `x` and `y - 4 px` (the standard
+ * "above the line" offset used for UML edge labels).
+ *
+ * V2.0.46 — replaces the previous `(source + target) / 2` shortcut, which
+ * ignored waypoints on `OrthogonalRounded` / `TreeRounded` routes and dropped
+ * labels in empty L-bend whitespace.
+ */
+internal fun routeLabelMid(route: EdgeRoute): Pair<Float, Float> {
+    val a = EdgeLabelGeometry.midAnchor(route)
+    return a.x to (a.y - 4f)
+}
+
+/**
  * Rendert ein Edge-Label am Mittelpunkt der Kante.
  *
  * [overrideY] erlaubt es dem Aufrufer, die Y-Position zu überschreiben — z.B.
  * wenn ein Stereotyp-Label bereits direkt über dem Namen gerendert wurde.
+ *
+ * V2.0.46 — Label nutzt jetzt die `kuml-edge-label`-Klasse (mit Halo) und
+ * sitzt auf der echten Polyline-Mitte.
  */
 private fun renderEdgeLabel(
     label: String,
@@ -225,12 +237,12 @@ private fun renderEdgeLabel(
     builder: SvgBuilder,
     overrideY: Float? = null,
 ) {
-    val mx = (route.source.x + route.target.x) / 2f
-    val my = overrideY ?: ((route.source.y + route.target.y) / 2f - 4f)
+    val (mx, defaultMy) = routeLabelMid(route)
+    val my = overrideY ?: defaultMy
     builder.tag(
         "text",
         mapOf(
-            "class" to "kuml-small",
+            "class" to "kuml-edge-label",
             "x" to fmt(mx),
             "y" to fmt(my),
             "text-anchor" to "middle",

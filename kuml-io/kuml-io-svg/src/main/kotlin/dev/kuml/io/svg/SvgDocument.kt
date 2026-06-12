@@ -121,6 +121,15 @@ internal object SvgDocument {
                 append(" fill: ${c.foreground.toHex()}; }\n")
                 append(".kuml-small { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
                 append(" fill: ${c.muted.toHex()}; }\n")
+                // V2.0.46 — Edge label: two-pass rendering. `kuml-edge-label-halo` is
+                // a thicker stroked version drawn first (renderer emits two <text>
+                // elements). Batik's `paint-order: stroke` is unreliable in 1.x — the
+                // two-pass approach is the portable trick used since Graphviz.
+                append(".kuml-edge-label { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" fill: ${c.muted.toHex()}; }\n")
+                append(".kuml-edge-label-halo { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" fill: ${c.background.toHex()}; stroke: ${c.background.toHex()};")
+                append(" stroke-width: 3px; stroke-linejoin: round; }\n")
                 append(".kuml-stereotype { font-family: ${ty.stereotype.family};")
                 append(" font-size: ${ty.stereotype.sizePt}px; font-style: italic;")
                 append(" fill: ${c.muted.toHex()}; }\n")

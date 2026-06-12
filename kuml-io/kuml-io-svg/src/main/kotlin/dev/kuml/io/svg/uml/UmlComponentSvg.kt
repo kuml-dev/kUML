@@ -142,8 +142,11 @@ internal fun renderUmlComponent(
         // alternately (even index → left, odd index → right) so up to two columns
         // of ports can co-exist without overlap. Vertical placement is even-spaced
         // per side: position i / (count + 1) of the box height. Labels INSIDE
-        // because labels-outside would collide with neighbouring nodes — ELK does
-        // not know about ports yet, so we cannot reserve outside whitespace.
+        // because labels-outside would be clipped by the canvas — ELK does not
+        // know about ports yet, so we cannot reserve outside whitespace. The
+        // [UmlContentSizeProvider.componentSize] computation reserves enough
+        // horizontal width (left + right port-label widths) so the inside labels
+        // never overlap the centred title.
         renderPorts(element, w, h)
     }
 }
