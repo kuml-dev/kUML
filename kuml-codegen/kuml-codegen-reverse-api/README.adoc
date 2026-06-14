@@ -1,0 +1,143 @@
+= kuml-codegen-reverse-api
+:toc: left
+:icons: font
+
+Language-agnostic Reverse-Engine interface for kUML.
+This module defines the API contract that all Source → UML reverse engines must implement.
+Implementations are discovered at runtime via `ServiceLoader`.
+
+== Overview
+
+The reverse-engineering pipeline converts existing source code into a `KumlModel`
+that can then be rendered, exported, or transformed further.
+
+----
+Source files → ReverseRequest → KumlReverseEngine → ReverseResult → KumlModel
+----
+
+== Quick Start
+
+[source,kotlin]
+----
+import dev.kuml.codegen.reverse.ReverseRequest
+import dev.kuml.codegen.reverse.registry.ReverseEngineRegistry
+import java.nio.file.Path
+
+val engine = ReverseEngineRegistry.byId("java")
+    ?: error("Java reverse engine not on classpath")
+
+val result = engine.analyze(
+    ReverseRequest(
+        sourceRoots = listOf(Path.of("src/main/java")),
+        targetModelName = "MyDomainModel",
+    )
+)
+----
+
+== API Types
+
+=== `KumlReverseEngine`
+
+The core interface. Implementations register themselves via
+`META-INF/services/dev.kuml.codegen.reverse.KumlReverseEngine`.
+
+[source,kotlin]
+----
+interface KumlReverseEngine {
+    val id: String              // e.g. "java", "kotlin"
+    val description: String
+    suspend fun analyze(request: ReverseRequest): ReverseResult
+}
+----
+
+=== `ReverseRequest`
+
+Input DTO. All fields have sensible defaults.
+
+[cols="1,1,2"]
+|===
+| Field | Default | Description
+
+| `sourceRoots`
+| —
+| Paths to source root directories (scanned recursively)
+
+| `classpathJars`
+| `[]`
+| Optional dependency JARs for symbol resolution
+
+| `includeGlobs`
+| `["**/*.java"]`
+| File name patterns to include
+
+| `excludeGlobs`
+| `[]`
+| File name patterns to exclude
+
+| `targetModelName`
+| `"ReverseEngineered"`
+| Name of the resulting `KumlModel`
+|===
+
+=== `ReverseResult`
+
+Sealed result type:
+
+* `Success(model, diagnostics, filesAnalysed, elapsedMs)` — analysis succeeded; `diagnostics` may contain WARNs.
+* `Failure(errors)` — analysis failed; check `errors` for ERROR-level diagnostics.
+
+=== `ReverseEngineRegistry`
+
+ServiceLoader wrapper:
+
+[source,kotlin]
+----
+ReverseEngineRegistry.all()                  // all registered engines
+ReverseEngineRegistry.byId("java")           // find by id
+ReverseEngineRegistry.detectLanguage(roots)  // heuristic auto-detect
+----
+
+== Diagnostic Codes
+
+=== REV-CORE codes (engine-agnostic)
+
+[cols="1,1,2"]
+|===
+| Code | Severity | Meaning
+
+| `REV-CORE-001` | ERROR | No source files found in source roots
+| `REV-CORE-002` | WARN  | A source file could not be parsed
+|===
+
+=== Engine-specific ranges
+
+* `REV-J-<NNN>` — Java engine (see `kuml-codegen-reverse-java`)
+* `REV-K-<NNN>` — Kotlin engine (see `kuml-codegen-reverse-kotlin`)
+
+== CLI Integration
+
+Since V3.0.9 the CLI exposes `kuml reverse --lang java|kotlin|auto <src-dir>`.
+`--lang auto` uses `ReverseEngineRegistry.detectLanguage()` to pick the dominant
+language by file-extension majority (≥ 60 % share required).
+
+[source,bash]
+----
+kuml reverse --list-engines
+kuml reverse src/main/java   --lang java   --output domain.kuml.kts
+kuml reverse src/main/kotlin --lang kotlin --output domain.kuml.kts
+kuml reverse src/main/java   --lang auto
+----
+
+See the CLI handbook page for the full option matrix and exit codes
+(`REVERSE_ENGINE_NOT_FOUND`, `REVERSE_ANALYSIS_FAILED`, `REVERSE_NO_SOURCES`).
+
+== Module Dependencies
+
+----
+kuml-codegen-reverse-api
+  ├── kuml-metamodel-uml  (UmlClass, UmlInterface, ...)
+  └── kuml-core-model     (KumlModel, KumlElement, ...)
+----
+
+This module is pure Kotlin / JVM-compatible and publishable to Maven Central.
+It does NOT depend on JavaParser or any reflection-heavy library.

@@ -1,0 +1,141 @@
+= kuml-codegen-reverse-java
+:toc: left
+:icons: font
+
+JavaParser-based Java source → UML reverse engine for kUML.
+Implements `KumlReverseEngine` from `kuml-codegen-reverse-api` using
+https://github.com/javaparser/javaparser[JavaParser 3.26.x] + JavaSymbolSolver.
+
+WARNING: This module is *JVM-only*. JavaParser uses reflection internally and is
+incompatible with GraalVM Native Image. The `kuml-cli` native binary does not include
+this engine — it becomes available via the Fat-JAR / Desktop distribution in V3.0.9.
+
+== Quick Start
+
+[source,kotlin]
+----
+import dev.kuml.codegen.reverse.ReverseRequest
+import dev.kuml.codegen.reverse.registry.ReverseEngineRegistry
+import dev.kuml.core.model.KumlDiagram
+import dev.kuml.uml.UmlClass
+import java.nio.file.Path
+
+val result = ReverseEngineRegistry
+    .byId("java")!!
+    .analyze(
+        ReverseRequest(sourceRoots = listOf(Path.of("src/main/java")))
+    ) as dev.kuml.codegen.reverse.ReverseResult.Success
+
+val diagram = result.model.root as KumlDiagram
+val classes = diagram.elements.filterIsInstance<UmlClass>()
+println("Found ${classes.size} classes")
+----
+
+== Supported Java Features
+
+=== Classifiers
+
+[cols="2,2,2"]
+|===
+| Java | UML | Notes
+
+| `class Foo` | `UmlClass` | visibility, isAbstract
+| `interface Foo` | `UmlInterface` | visibility
+| `enum Color` | `UmlEnumeration` + literals | constructor / method bodies skipped
+| `class Foo<T>` | `UmlClass` + stereotype `«template»` | REV-J-010 INFO — template params not modeled in V1
+| `sealed class Foo` | `UmlClass` + stereotype `«sealed»` | JavaParser 3.26 modifier detection
+| `class Outer.Inner` | separate `UmlClass` + `kuml.java.enclosing` metadata | UmlPackage owner = same package as Outer
+|===
+
+=== Visibility
+
+[cols="1,1"]
+|===
+| Java | kUML Visibility
+
+| `public` | `PUBLIC`
+| `protected` | `PROTECTED`
+| `private` | `PRIVATE`
+| default (package-private) | `PACKAGE`
+|===
+
+=== Fields and Properties
+
+[cols="2,2,2"]
+|===
+| Java | UML | Notes
+
+| `private int age` | `UmlProperty(type=Int, vis=PRIVATE, 1..1)` | primitive canonicalization
+| `public static final String C` | `UmlProperty(isStatic=true, isReadOnly=true)` |
+| `User owner` (resolvable user class) | `UmlAssociation(1..1)` | Association, not property
+| `List<User> users` | `UmlAssociation(0..*)` | container multiplicity
+| `Optional<User> maybeUser` | `UmlAssociation(0..1)` |
+| `User[] users` | `UmlAssociation(0..*)` |
+| `String name` | `UmlProperty(type=String)` | JRE type → property
+| `Map<K, V> ...` | *skipped* | REV-J-003 WARN — qualifier associations not in V1
+|===
+
+=== Operations
+
+[cols="2,2,2"]
+|===
+| Java | UML | Notes
+
+| `void method()` | `UmlOperation(returnType=void)` |
+| `String get(int id)` | `UmlOperation` with `UmlParameter(IN)` |
+| `abstract void run()` | `UmlOperation(isAbstract=true)` |
+| `static void create()` | `UmlOperation(isStatic=true)` |
+| `throws SomeException` | *ignored* | REV-J-012 INFO — V1 metamodel has no RaisedException
+|===
+
+=== Relationships
+
+[cols="2,2,2"]
+|===
+| Java | UML | Notes
+
+| `class A extends B` | `UmlGeneralization(specific=A, general=B)` |
+| `interface A extends B` | `UmlGeneralization` | Interface-to-interface generalization
+| `class A implements B` | `UmlInterfaceRealization(implementing=A, interface=B)` | NOT UmlGeneralization
+|===
+
+== Symbol Resolution Stack
+
+The SymbolSolver is configured with this priority order:
+
+. `ReflectionTypeSolver(jreOnly=false)` — JRE + current ClassLoader
+. `JarTypeSolver` per entry in `ReverseRequest.classpathJars`
+. `JavaParserTypeSolver` per entry in `ReverseRequest.sourceRoots`
+
+Resolution determines whether a field type becomes a `UmlAssociation` (user class)
+or a `UmlProperty` (JRE/external/unresolved).
+
+== Diagnostic Codes
+
+[cols="1,1,2"]
+|===
+| Code | Severity | Meaning
+
+| `REV-J-002` | WARN  | Type could not be resolved — treated as external UmlProperty
+| `REV-J-003` | WARN  | `Map<K,V>` field skipped — qualifier associations not in V1 metamodel
+| `REV-J-010` | INFO  | Generic type parameters mapped as raw type (no V1 template support)
+| `REV-J-011` | INFO  | Anonymous inner class skipped
+| `REV-J-012` | INFO  | `throws` clause ignored (no V1 RaisedException)
+| `REV-J-013` | INFO  | Sealed permits captured in metadata (JavaParser 3.26 limitation)
+|===
+
+== Native Image
+
+Do NOT add this module to GraalVM native image configs. JavaParser relies on
+reflection for AST visitor dispatch which is incompatible with native compilation.
+See Plan § 1.6 and CLAUDE.md Native-Image-Konsequenz.
+
+== Module Dependencies
+
+----
+kuml-codegen-reverse-java
+  ├── kuml-codegen-reverse-api
+  ├── kuml-metamodel-uml
+  ├── com.github.javaparser:javaparser-core:3.26.4
+  └── com.github.javaparser:javaparser-symbol-solver-core:3.26.4
+----

@@ -127,3 +127,4 @@ gradle-app.setting
 
 # IntelliJ Platform Gradle Plugin caches (V1.1.10 — kuml-jetbrains-plugin)
 .intellijPlatform/
+.DS_Store

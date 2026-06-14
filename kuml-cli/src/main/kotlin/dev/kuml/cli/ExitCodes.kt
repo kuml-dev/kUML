@@ -62,4 +62,15 @@ internal object ExitCodes {
 
     /** A guard evaluation timed out during sandboxed simulate. */
     internal const val SANDBOX_TIMEOUT: Int = 13
+
+    // ── `kuml reverse` (V3.0.9) ──────────────────────────────────────────────
+
+    /** `kuml reverse --lang <id>` referenced an unknown reverse engine. */
+    internal const val REVERSE_ENGINE_NOT_FOUND: Int = 14
+
+    /** `kuml reverse` engine returned a ReverseResult.Failure with ERROR diagnostics. */
+    internal const val REVERSE_ANALYSIS_FAILED: Int = 15
+
+    /** `kuml reverse` could not detect any source files in the given directory. */
+    internal const val REVERSE_NO_SOURCES: Int = 16
 }

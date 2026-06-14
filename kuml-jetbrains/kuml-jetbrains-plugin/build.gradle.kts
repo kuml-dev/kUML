@@ -66,7 +66,7 @@ dependencies {
 intellijPlatform {
     pluginConfiguration {
         // ID + Name kommen aus plugin.xml; hier nur die Build-Targets + Notes.
-        // Version erbt von project.version (allprojects { version = "0.8.0" }),
+        // Version erbt von project.version (allprojects { version = "0.9.0" }),
         // explizit gespiegelt damit es beim Lesen dieser Datei sofort klar ist.
         version = project.version.toString()
         ideaVersion {
@@ -76,6 +76,12 @@ intellijPlatform {
         }
         changeNotes =
             """
+            <h4>0.9.0</h4>
+            <ul>
+              <li>kUML-Monorepo Versions-Alignment: kein plugin-spezifischer Inhalt
+                  in dieser Release — neue Reverse-Engineering-Pipeline lebt im CLI,
+                  nicht im IntelliJ-Plugin.</li>
+            </ul>
             <h4>0.8.0</h4>
             <ul>
               <li>K2-Kompatibilität: <code>supportsKotlinPluginMode supportsK2="true"</code>

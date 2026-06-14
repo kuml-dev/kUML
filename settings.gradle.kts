@@ -60,6 +60,13 @@ include(
     "kuml-codegen:kuml-gen-sql",      // V1.1.4 — SQL DDL generator (Postgres/MySQL/H2/SQLite)
 )
 
+// ── Reverse Engineering (Source → UML) ────────────────────────────── V3.0.7 ──
+include(
+    "kuml-codegen:kuml-codegen-reverse-api",    // V3.0.7 — Language-agnostic Reverse-Engine interface
+    "kuml-codegen:kuml-codegen-reverse-java",   // V3.0.7 — JavaParser-based Java→UML engine (JVM-only)
+    "kuml-codegen:kuml-codegen-reverse-kotlin", // V3.0.8 — Kotlin PSI-based Kotlin→UML engine (JVM-only)
+)
+
 // ── Runtime ──────────────────────────────────────────── V1.1.5 ──
 include(
     "kuml-runtime:kuml-runtime-core",    // V1.1.5 — State-Machine-Headless-Simulator (kuml simulate)

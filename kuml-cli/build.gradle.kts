@@ -68,6 +68,13 @@ dependencies {
     implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
     implementation(project(":kuml-docs:kuml-markdown"))
 
+    // V3.0.9 — `kuml reverse` subcommand. API is needed at compile time,
+    // engines are loaded via ServiceLoader at runtime.
+    implementation(project(":kuml-codegen:kuml-codegen-reverse-api"))
+    runtimeOnly(project(":kuml-codegen:kuml-codegen-reverse-java")) // V3.0.7
+    runtimeOnly(project(":kuml-codegen:kuml-codegen-reverse-kotlin")) // V3.0.8
+    implementation(libs.kotlinx.coroutines.core)
+
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
 }

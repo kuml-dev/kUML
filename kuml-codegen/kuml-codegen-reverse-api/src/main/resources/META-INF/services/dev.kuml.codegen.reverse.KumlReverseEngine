@@ -1,0 +1,3 @@
+# Registered KumlReverseEngine implementations.
+# V3.0.7: dev.kuml.codegen.reverse.java.JavaSourceReverseEngine is registered
+# in the kuml-codegen-reverse-java module (separate JAR on classpath).

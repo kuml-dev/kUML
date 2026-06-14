@@ -39,6 +39,7 @@ internal class KumlCli : CliktCommand(name = "kuml") {
             TraceCommand(),
             SandboxCommand(),
             RunCommand(),
+            ReverseCommand(),
             VersionCommand(),
             UpdateCommand(),
             CompletionCommand(name = "completion"),

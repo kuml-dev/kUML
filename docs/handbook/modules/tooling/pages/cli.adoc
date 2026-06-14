@@ -189,6 +189,43 @@ kuml profile show JavaEE
 kuml profile validate JavaEE       # self-check: every stereotype constraint is parseable
 ----
 
+== `kuml reverse`
+
+Reverse-engineer Java or Kotlin source code into a `*.kuml.kts` script.
+Discovers reverse engines via `ServiceLoader` from
+`kuml-codegen-reverse-java` (V3.0.7) and `kuml-codegen-reverse-kotlin` (V3.0.8).
+
+[source,bash]
+----
+kuml reverse --list-engines                                # list registered engines
+kuml reverse src/main/java   --lang java   --output domain.kuml.kts
+kuml reverse src/main/kotlin --lang kotlin --output domain.kuml.kts
+kuml reverse src/main/java   --lang auto                   # majority-vote on file extensions
+kuml reverse src/main/kotlin --verbose-diagnostics         # print every INFO/WARN on stderr
+----
+
+Options:
+
+* `--lang java|kotlin|auto` — source language. Default: `auto` (file-extension majority, ≥ 60 % share required).
+* `--output <file>` — write the generated `*.kuml.kts` here; defaults to stdout.
+* `--include "<glob>"` (repeatable) — file include patterns. Defaults: `+**/*.java+` / `+**/*.kt+` per `--lang`.
+* `--exclude "<glob>"` (repeatable) — file exclude patterns.
+* `--model-name <name>` — name of the generated model (default `ReverseEngineered`).
+* `--list-engines` — print available reverse engines (id + description) and exit.
+* `--verbose-diagnostics` — print every WARN/INFO diagnostic on stderr (default: one-line summary).
+
+The Kotlin engine is JVM-only (it bundles `kotlin-compiler-embeddable`), so the
+reverse subcommand is available in the Fat-JAR / `installDist` / `distTar` /
+`runtimeZip` distributions but excluded from the GraalVM Native Image build.
+
+Diagnostic codes are grouped per engine:
+
+* `REV-CORE-NNN` — engine-agnostic
+* `REV-J-NNN` — Java engine
+* `REV-K-NNN` — Kotlin engine
+
+See the `kuml-codegen-reverse-api` README for the full table.
+
 == `kuml ai`
 
 Hook for LLM-assisted workflows. Currently exposes the MCP server stdio frontend:
@@ -228,6 +265,15 @@ the full tool list.
 
 | 6
 | Trace diff (simulate `--expected` mismatch).
+
+| 14
+| `kuml reverse --lang <id>` referenced an unknown engine.
+
+| 15
+| `kuml reverse` engine returned ERROR-level diagnostics.
+
+| 16
+| `kuml reverse` found no source files in the given directory.
 |===
 
 These codes are stable — CI scripts can branch on them.

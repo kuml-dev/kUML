@@ -18,6 +18,7 @@ graalvm-native         = "1.1.1"
 vanniktech-publish     = "0.36.0"
 intellij-platform      = "2.16.0"
 intellij-idea          = "2024.3"
+javaparser             = "3.26.4"
 
 [libraries]
 # ── Compose / Kuiver ─────────────────────────────────────────────────────────
@@ -44,8 +45,10 @@ kotlin-scripting-jvm-host       = { module = "org.jetbrains.kotlin:kotlin-script
 kotlin-scripting-dependencies   = { module = "org.jetbrains.kotlin:kotlin-scripting-dependencies",   version.ref = "kotlin" }
 
 # ── Kotlinx ──────────────────────────────────────────────────────────────────
+kotlinx-serialization-core      = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core",    version.ref = "kotlinx-serialization" }
 kotlinx-serialization-json      = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json",    version.ref = "kotlinx-serialization" }
 kotlinx-coroutines-core         = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core",       version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-test         = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test",       version.ref = "kotlinx-coroutines" }
 
 # ── Ktor (MCP server — Phase 2 / Web UI — V2.0.34) ───────────────────────────
 ktor-server-core                = { module = "io.ktor:ktor-server-core",                            version.ref = "ktor" }
@@ -69,6 +72,13 @@ junit-bom                       = { module = "org.junit:junit-bom",             
 junit-jupiter                   = { module = "org.junit.jupiter:junit-jupiter",                    version.ref = "junit" }
 assertj-core                    = { module = "org.assertj:assertj-core",                           version.ref = "assertj" }
 clikt                           = { module = "com.github.ajalt.clikt:clikt",                         version.ref = "clikt" }
+
+# ── JavaParser (Reverse Engineering — V3.0.7) ────────────────────────────────
+javaparser-core                 = { module = "com.github.javaparser:javaparser-core",                version.ref = "javaparser" }
+javaparser-symbol-solver-core   = { module = "com.github.javaparser:javaparser-symbol-solver-core",  version.ref = "javaparser" }
+
+# ── Kotlin Compiler Embeddable (Reverse Engineering — V3.0.8) ─────────────────
+kotlin-compiler-embeddable      = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable",       version.ref = "kotlin" }
 
 [plugins]
 kotlin-jvm              = { id = "org.jetbrains.kotlin.jvm",                      version.ref = "kotlin" }

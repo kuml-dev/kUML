@@ -1,0 +1,129 @@
+= kuml-codegen-reverse-kotlin
+:toc: left
+:icons: font
+
+Kotlin source → UML reverse-engineering engine.
+
+Implements `KumlReverseEngine` (id = `"kotlin"`) on top of
+`kotlin-compiler-embeddable` PSI (K2 frontend). Discovered at runtime via
+`ServiceLoader`. JVM-only — never include in GraalVM Native Image (Kotlin
+compiler internals are reflection-heavy).
+
+Introduced in V3.0.8 (Track B).
+
+== Quick Start
+
+[source,kotlin]
+----
+import dev.kuml.codegen.reverse.ReverseRequest
+import dev.kuml.codegen.reverse.registry.ReverseEngineRegistry
+import java.nio.file.Path
+
+val engine = ReverseEngineRegistry.byId("kotlin")
+    ?: error("Kotlin reverse engine not on classpath")
+
+val result = engine.analyze(
+    ReverseRequest(
+        sourceRoots = listOf(Path.of("src/main/kotlin")),
+        targetModelName = "MyDomain",
+    )
+)
+----
+
+== Mapping Rules
+
+[cols="2,2,2,1"]
+|===
+| Kotlin construct | UML element | Stereotypes | Diagnostic on skip
+
+| `class Foo`                       | `UmlClass`                          | —                              | —
+| `abstract class Foo`              | `UmlClass(isAbstract = true)`       | —                              | —
+| `data class Foo(...)`             | `UmlClass`                          | `<<data>>`                     | —
+| `sealed class Foo`                | `UmlClass`                          | `<<sealed>>`                   | —
+| `value class Foo(...)`            | `UmlClass`                          | `<<value>>`                    | —
+| `inner class Foo`                 | `UmlClass`                          | `<<inner>>`                    | `REV-K-020`
+| `interface Foo`                   | `UmlInterface`                      | —                              | —
+| `fun interface Foo`               | `UmlInterface`                      | `<<fun>>`                      | —
+| `sealed interface Foo`            | `UmlInterface`                      | `<<sealed>>`                   | —
+| `object Foo`                      | `UmlClass`                          | `<<object>>`                   | —
+| `companion object`                | `UmlClass`                          | `<<object>>, <<companion>>`    | —
+| Anonymous `object : T { }`        | (skip)                              | —                              | `REV-K-021`
+| `enum class Foo`                  | `UmlEnumeration`                    | —                              | —
+| Enum entry with body              | `UmlEnumerationLiteral` (body dropped) | —                           | `REV-K-030`
+| `val x: T`                        | `UmlProperty(isReadOnly = true)`    | —                              | —
+| `var x: T`                        | `UmlProperty(isReadOnly = false)`   | —                              | —
+| `lateinit var x`                  | `UmlProperty`                       | `<<lateinit>>`                 | —
+| `const val x`                     | `UmlProperty`                       | `<<const>>`                    | —
+| Primary ctor `val/var p`          | `UmlProperty`                       | `<<ctor-param>>`               | —
+| Primary ctor `p` (no val/var)     | (only parameter, not a property)    | —                              | —
+| `fun foo()`                       | `UmlOperation`                      | —                              | —
+| `suspend fun foo()`               | `UmlOperation`                      | `<<suspend>>`                  | —
+| `inline fun foo()`                | `UmlOperation`                      | `<<inline>>`                   | —
+| `operator fun foo()`              | `UmlOperation`                      | `<<operator>>`                 | —
+| `infix fun foo()`                 | `UmlOperation`                      | `<<infix>>`                    | —
+| `fun T.foo()` (extension)         | `UmlOperation`                      | `<<extension>>`                | —
+| Primary / secondary constructor   | `UmlOperation`                      | `<<constructor>>`              | —
+| `: SuperClass`                    | `UmlGeneralization`                 | —                              | `REV-K-050` if extern |
+| `: SuperInterface`                | `UmlInterfaceRealization`           | —                              | `REV-K-050` if extern |
+| Property of internal classifier   | `UmlAssociation`                    | —                              | —
+| `List/Set/Flow/Array<T>`          | Multiplicity `0..*`                 | —                              | —
+| `T?`                              | Multiplicity `0..1`                 | —                              | —
+| Top-level `fun`                   | (skip)                              | —                              | `REV-K-011`
+| Top-level `val/var`               | (skip)                              | —                              | `REV-K-012`
+| `typealias`                       | (skip)                              | —                              | `REV-K-013`
+|===
+
+== Diagnostic Codes (REV-K-xxx)
+
+[cols="1,1,4"]
+|===
+| Code | Severity | Meaning
+
+| `REV-K-001` | WARN | No `.kt` files in source root
+| `REV-K-002` | WARN | Source root is not a directory
+| `REV-K-003` | WARN | File on disk but not in `KotlinCoreEnvironment`
+| `REV-K-010` | INFO | Top-level declaration with unknown PSI type skipped
+| `REV-K-011` | INFO | Top-level function skipped
+| `REV-K-012` | INFO | Top-level property skipped
+| `REV-K-013` | INFO | typealias skipped
+| `REV-K-020` | INFO | Nested classifier emitted as top-level
+| `REV-K-021` | INFO | Anonymous object skipped
+| `REV-K-030` | INFO | Enum-entry body discarded
+| `REV-K-040` | INFO | Property/parameter without explicit type (inferred)
+| `REV-K-050` | INFO | Supertype outside source set — relationship dropped
+| `REV-K-099` | INFO | Forwarded kotlinc front-end message
+|===
+
+== Architecture Notes
+
+* **Single fresh `KotlinCoreEnvironment` per `analyze()` call**, wrapped in a
+  `Disposable`. The session is disposed in `finally`. No state leaks
+  between calls.
+* **Two passes**: pass 1 builds the FQN pool (`KtFqnPool`); pass 2 maps
+  classifiers, then post-passes add generalization/realization and
+  associations.
+* **PSI-only — no type binding**. `KtTypeResolver` is heuristic and
+  resolves a type-reference text to an internal-pool id (or external
+  reference) by suffix-matching against the known FQNs.
+
+== Known Limitations
+
+* Type-binding is heuristic — same simple-name across packages picks
+  the first FQN match.
+* Annotations on Kotlin declarations are not mapped to stereotypes yet
+  (placeholder `KtStereotypeApplier`).
+* `expect`/`actual` (Kotlin Multiplatform) is JVM-only territory; the
+  engine does not split source sets.
+
+== Module Dependencies
+
+----
+kuml-codegen-reverse-kotlin
+  ├── kuml-codegen-reverse-api      (KumlReverseEngine, DTOs)
+  ├── kuml-metamodel-uml            (UmlClass, UmlInterface, …)
+  ├── kuml-core-model               (KumlModel, KumlDiagram, …)
+  └── kotlin-compiler-embeddable    (~50 MB, JVM-only, IntelliJ-platform bits)
+----
+
+JVM-only. Pulls in the embedded Kotlin compiler — keep this module out of
+GraalVM Native Image targets.

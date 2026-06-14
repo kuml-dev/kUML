@@ -6,6 +6,99 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-06-14
+
+### Reverse Engineering — Track B complete (V3.0.7 + V3.0.8 + V3.0.9)
+
+New end-to-end **Source → UML** pipeline. Java sources are parsed with
+JavaParser (V3.0.7), Kotlin sources with `kotlin-compiler-embeddable` PSI
+(V3.0.8), and a new `kuml reverse` CLI command (V3.0.9) wraps both engines
+and emits a `*.kuml.kts` script via a new `UmlModelDslPrinter`.
+
+End-to-end smoke: `kuml reverse kuml-core-model/src/main/kotlin --lang kotlin`
+turns 10 production Kotlin files into a 267-line `*.kuml.kts` script in
+~550 ms.
+
+**New modules:**
+- `kuml-codegen/kuml-codegen-reverse-api` (V3.0.7) — language-agnostic
+  `KumlReverseEngine` interface, `ReverseRequest` / `ReverseResult` DTOs,
+  `ReverseDiagnostic` (ERROR/WARN/INFO), `ReverseEngineRegistry`
+  (`ServiceLoader` wrapper with `byId`, `all`, `detectLanguage`). Pure
+  Kotlin, Native-Image-compatible, publishable.
+- `kuml-codegen/kuml-codegen-reverse-java` (V3.0.7) — JavaParser-based
+  Java source engine (id = `"java"`). 30 tests, three end-to-end corpora
+  (`bank`, `library`, `edge`).
+- `kuml-codegen/kuml-codegen-reverse-kotlin` (V3.0.8) — Kotlin PSI
+  engine (id = `"kotlin"`) on top of `kotlin-compiler-embeddable` (K2).
+  15 mappers (class, interface, object, enumeration, property, function,
+  parameter, type resolver, visibility, multiplicity, generalization,
+  association, data-class classifier, sealed-hierarchy, stereotype). 34
+  tests including a real-world snapshot test against `kuml-core-model`.
+
+**Kotlin → UML mapping coverage** (full table in
+`kuml-codegen-reverse-kotlin/README.adoc`):
+- `class` / `abstract` / `data` / `sealed` / `value` / `inner` → `UmlClass`
+  with corresponding stereotypes.
+- `interface` / `fun interface` / `sealed interface` → `UmlInterface`.
+- `enum class` → `UmlEnumeration` with literals.
+- `object` / `companion object` → `UmlClass <<object>> [<<companion>>]`.
+- Properties (`val`/`var`/`lateinit`/`const`/`by lazy`) → `UmlProperty`
+  with `isReadOnly` and stereotypes.
+- Functions with `suspend` / `inline` / `operator` / `infix` / `tailrec` /
+  `extension` stereotypes; primary and secondary constructors as
+  `UmlOperation <<constructor>>`.
+- Supertype edges → `UmlGeneralization` or `UmlInterfaceRealization`.
+- Properties whose type resolves to an internal classifier become a
+  `UmlAssociation` in addition to the attribute.
+- Multiplicity inference: `List`/`Set`/`Flow`/`Array<T>` → `0..*`,
+  `T?` → `0..1`, otherwise `1..1`.
+- Top-level `fun` / `val` / `typealias` emit informational diagnostics
+  (`REV-K-011` / `REV-K-012` / `REV-K-013`) and are skipped — UML has no
+  free-floating functions.
+
+**Diagnostic codes:**
+- `REV-CORE-001` (ERROR — no source files) / `REV-CORE-002` (WARN — parse
+  failure) — engine-agnostic.
+- `REV-J-NNN` — Java engine (e.g. `REV-J-003` for `Map<K,V>` skip,
+  `REV-J-011` for anonymous inner classes).
+- `REV-K-NNN` — Kotlin engine (e.g. `REV-K-020` for nested classifiers
+  emitted as top-level, `REV-K-030` for enum-entry bodies dropped,
+  `REV-K-050` for supertypes outside the source set).
+
+**New CLI:** `kuml reverse <source-dir>` (V3.0.9).
+- `--lang java|kotlin|auto` — `auto` uses `ReverseEngineRegistry.detectLanguage()`
+  (≥ 60 % file-extension majority).
+- `--output <file>` — write the generated `*.kuml.kts`; defaults to stdout.
+- `--include "<glob>"` / `--exclude "<glob>"` (repeatable) — file filters.
+- `--model-name <name>` — name of the generated model.
+- `--list-engines` — print available reverse engines and exit.
+- `--verbose-diagnostics` — print every WARN/INFO on stderr (default:
+  one-line summary).
+- The engines are wired into `kuml-cli` via `runtimeOnly` — they live in
+  the Fat-JAR / `distTar` / `runtimeZip` distributions but stay out of
+  the CLI's compile classpath.
+
+**New `UmlModelDslPrinter`** (`kuml-cli/src/main/kotlin/dev/kuml/cli/reverse/`):
+- Deterministic output order: enums → interfaces → classes →
+  generalizations → realizations → associations.
+- Multiplicity printed only when ≠ default (`1..1`).
+- Stereotypes emitted as `stereotypes = listOf("data", …)`.
+- Idempotent in spirit to `kuml fmt`.
+
+**New CLI exit codes:**
+- `14` — `REVERSE_ENGINE_NOT_FOUND` (`--lang foo` unknown).
+- `15` — `REVERSE_ANALYSIS_FAILED` (engine returned ERROR diagnostics).
+- `16` — `REVERSE_NO_SOURCES` (no `.java`/`.kt` files in directory).
+
+**Notes:**
+- Both engines are **JVM-only**. The Kotlin engine pulls in
+  `kotlin-compiler-embeddable` (~50 MB). Both are excluded from the
+  GraalVM Native Image build but bundled with the JVM distribution.
+- 82 new tests across the three waves, all green.
+  `./gradlew check` BUILD SUCCESSFUL (608 actionable tasks).
+
+## [0.8.0] — 2026-06-11
+
 ### Renderer-Validierung 2026-06-11 — 15 of 17 visual defects fixed
 
 Systematic visual inspection of all 25 sample PNGs under
