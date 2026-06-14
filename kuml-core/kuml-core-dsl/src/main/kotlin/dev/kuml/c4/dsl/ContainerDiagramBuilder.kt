@@ -2,6 +2,7 @@ package dev.kuml.c4.dsl
 
 import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Model
+import dev.kuml.c4.model.C4Person
 import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.c4.model.ContainerDiagram
 import dev.kuml.c4.model.ElementId
@@ -21,6 +22,14 @@ interface ContainerDiagramBuilder {
     var description: String?
 
     var showExternalSystems: Boolean
+
+    /**
+     * If true (default), any [C4Person] that is related to the target system or any of its
+     * containers (either as source or target of a relationship) is automatically included in
+     * the diagram. Mirrors the Structurizr behaviour for Container Views, where the typical
+     * picture is "users + the system's containers + adjacent external systems".
+     */
+    var showRelatedPersons: Boolean
 
     var showRelationships: Boolean
 
@@ -44,6 +53,7 @@ class ContainerDiagramBuilderImpl(
     override var system: C4SoftwareSystem? = null
     override var description: String? = null
     override var showExternalSystems: Boolean = true
+    override var showRelatedPersons: Boolean = true
     override var showRelationships: Boolean = true
 
     private val excludedContainers = mutableSetOf<ElementId>()
@@ -84,14 +94,18 @@ class ContainerDiagramBuilderImpl(
         // 2. Sammle externe Systeme (falls showExternalSystems = true)
         val externalSystems = findExternalSystems(targetSystem.id, systemContainers)
 
-        // 3. Kombiniere alle Elemente (System + seine Container + externe Systeme)
+        // 3. Sammle verwandte Personen (falls showRelatedPersons = true)
+        val relatedPersons = findRelatedPersons(targetSystem.id, systemContainers)
+
+        // 4. Kombiniere alle Elemente (System + Container + externe Systeme + Personen)
         val allElements =
             listOf(targetSystem.id)
                 .plus(systemContainers)
                 .plus(externalSystems)
+                .plus(relatedPersons)
                 .distinct()
 
-        // 4. Filtere Relationships
+        // 5. Filtere Relationships
         val filteredRelationships =
             if (showRelationships) {
                 parentModel.relationships
@@ -146,6 +160,40 @@ class ContainerDiagramBuilderImpl(
 
             if (fromOtherSystem && toThisSystem) {
                 relatedIds.add(rel.source)
+            }
+        }
+
+        return relatedIds.toList()
+    }
+
+    /**
+     * Sammelt alle [C4Person]-Elemente, die in einer Beziehung zum Zielsystem oder einem
+     * seiner Container stehen (egal in welche Richtung). Liefert eine leere Liste, wenn
+     * [showRelatedPersons] auf `false` steht.
+     */
+    private fun findRelatedPersons(
+        systemId: ElementId,
+        systemContainers: List<ElementId>,
+    ): List<ElementId> {
+        if (!showRelatedPersons) {
+            return emptyList()
+        }
+
+        val relatedIds = mutableSetOf<ElementId>()
+        val systemBoundaryIds = systemContainers.toSet() + systemId
+
+        for (rel in parentModel.relationships) {
+            val sourceElement = parentModel.elements.find { it.id == rel.source }
+            val targetElement = parentModel.elements.find { it.id == rel.target }
+
+            // Person → System/Container
+            if (sourceElement is C4Person && rel.target in systemBoundaryIds) {
+                relatedIds.add(rel.source)
+            }
+
+            // System/Container → Person
+            if (targetElement is C4Person && rel.source in systemBoundaryIds) {
+                relatedIds.add(rel.target)
             }
         }
 

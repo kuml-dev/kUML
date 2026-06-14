@@ -76,6 +76,13 @@ intellijPlatform {
         }
         changeNotes =
             """
+            <h4>0.10.0</h4>
+            <ul>
+              <li>kUML-Monorepo Versions-Alignment: kein plugin-spezifischer Inhalt
+                  in dieser Release — kuml-desktop Editor + Renderer-Verbesserungen
+                  (Connection-aware Sizing, SelfLoopRouter, Sequence z-order fix)
+                  leben im CLI/Desktop-Modul, nicht im IntelliJ-Plugin.</li>
+            </ul>
             <h4>0.9.0</h4>
             <ul>
               <li>kUML-Monorepo Versions-Alignment: kein plugin-spezifischer Inhalt

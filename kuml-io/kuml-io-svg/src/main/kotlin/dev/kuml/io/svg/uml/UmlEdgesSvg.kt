@@ -41,26 +41,28 @@ internal fun renderUmlAssociation(
         renderEdgeLabel(label, route, theme, builder, overrideY = if (hadStereo) labelY else null)
     }
 
-    // V2.0.44 — Multiplicity labels on source and target ends (UML 2.x notation).
+    // V2.0.44 / V3.0.11 — Multiplicity labels on source and target ends (UML 2.x).
     // Only rendered when the multiplicity is non-trivial (i.e. not exactly "1").
-    // Source-end label placed near route.source, target-end label near route.target.
-    // Offset by ±10 px perpendicular + 14 px along the edge so labels don't sit
-    // directly on the arrowhead or the starting node border.
+    //
+    // V3.0.11 fix: previously both labels used the straight `source→target`
+    // tangent, which for orthogonal-rounded routes with a vertical final
+    // segment placed the target-end label *below* the arrowhead and inside the
+    // target node (Order → OrderItem composition, `1..*` overlapping the
+    // OrderItem border). We now use the **first segment tangent** for the
+    // source label and the **last segment tangent** for the target label, so
+    // labels always offset along their actual edge tail.
+    //
+    // 16 px along-edge margin keeps the label clear of the arrowhead / node
+    // border; 10 px perpendicular offset keeps it off the line itself.
     if (rel.ends.size >= 2) {
         val sourceEnd = rel.ends[0]
         val targetEnd = rel.ends[1]
         val srcLabel = sourceEnd.multiplicity.toLabel()
         val tgtLabel = targetEnd.multiplicity.toLabel()
-        val dx = route.target.x - route.source.x
-        val dy = route.target.y - route.source.y
-        val len = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat().coerceAtLeast(1f)
-        // unit tangent
-        val tx = dx / len
-        val ty = dy / len
-        // offset perpendicular (rotate 90°) + tiny along-edge margin
         val margin = 16f
         val perpOff = 10f
         if (srcLabel != null) {
+            val (tx, ty) = EdgeLabelGeometry.sourceSegmentTangent(route)
             val lx = route.source.x + tx * margin - ty * perpOff
             val ly = route.source.y + ty * margin + tx * perpOff
             builder.tag(
@@ -69,6 +71,7 @@ internal fun renderUmlAssociation(
             ) { text(srcLabel) }
         }
         if (tgtLabel != null) {
+            val (tx, ty) = EdgeLabelGeometry.targetSegmentTangent(route)
             val lx = route.target.x - tx * margin - ty * perpOff
             val ly = route.target.y - ty * margin + tx * perpOff
             builder.tag(

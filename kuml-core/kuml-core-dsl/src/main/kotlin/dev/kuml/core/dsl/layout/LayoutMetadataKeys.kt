@@ -48,4 +48,15 @@ public object LayoutMetadataKeys {
      * ausgewertet.
      */
     public const val ENGINE: String = "kuml.layout.engine"
+
+    /**
+     * Diagramm-seitiger Opt-in für Edge-Merging (Konsolidierung von Kanten,
+     * die sich Endpunkt-Ports teilen). Gespeichert als [KumlMetaValue.Flag];
+     * Default (Schlüssel nicht gesetzt) entspricht `false`.
+     *
+     * Sinnvoll für Klassendiagramme mit großen Vererbungs-Fan-Ins (z.B.
+     * 18 Generalisierungen auf eine gemeinsame `AbstractTable`). Kann andere
+     * Diagramme schwieriger lesbar machen, deshalb explizit opt-in.
+     */
+    public const val MERGE_EDGES: String = "kuml.layout.mergeEdges"
 }

@@ -52,6 +52,25 @@ class ClassDiagramBuilder(
      */
     var layoutEngine: String? = null
 
+    /**
+     * Opt-in für Edge-Merging der Layout-Engine.
+     *
+     * `null` (Default) → Pipeline nimmt den globalen [LayoutHints]-Default
+     * (`false`); kein Trunk-Routing. Auf `true` setzen, wenn das Diagramm
+     * viele Kanten auf denselben Endpunkt-Port hat (z.B. N Generalisierungen
+     * zu einer gemeinsamen Basisklasse) — die ELK-Engine konsolidiert sie
+     * dann zu einem gemeinsamen Stamm-Segment.
+     *
+     * Beispiel:
+     * ```kotlin
+     * classDiagram("Schema") {
+     *     mergeEdges = true   // Fan-In zu Tree-Trunk konsolidieren
+     *     ...
+     * }
+     * ```
+     */
+    var mergeEdges: Boolean? = null
+
     // ── UmlModelScope ─────────────────────────────────────────────────────────
 
     override fun addNamedElement(element: UmlNamedElement) {
@@ -124,10 +143,9 @@ class ClassDiagramBuilder(
 
     fun build(): KumlDiagram {
         val meta: Map<String, KumlMetaValue> =
-            if (layoutEngine != null) {
-                mapOf(LayoutMetadataKeys.ENGINE to KumlMetaValue.Text(layoutEngine!!))
-            } else {
-                emptyMap()
+            buildMap {
+                layoutEngine?.let { put(LayoutMetadataKeys.ENGINE, KumlMetaValue.Text(it)) }
+                mergeEdges?.let { put(LayoutMetadataKeys.MERGE_EDGES, KumlMetaValue.Flag(it)) }
             }
         return KumlDiagram(
             name = name,

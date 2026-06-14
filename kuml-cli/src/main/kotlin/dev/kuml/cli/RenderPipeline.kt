@@ -217,9 +217,24 @@ internal object RenderPipeline {
         latexStandalone: Boolean = false,
     ) {
         val diagram = extracted.diagram
-        val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram, UmlContentSizeProvider(diagram))
+        // V2.x — Connection-aware sizing braucht die Layout-Richtung, damit der
+        // Anschluss-Puffer auf der richtigen Seite (Breite bei vertikalem
+        // Layout-Fluss, Höhe bei horizontalem) addiert wird.
+        //
+        // V2.x — Diagramm-seitige Layout-Hints aus `KumlDiagram.metadata`
+        // werden in die globalen [LayoutHints] gefaltet, bevor das Layout
+        // läuft. Bisher unterstützt: `kuml.layout.mergeEdges` (opt-in für
+        // Tree-Trunk-Routing bei großen Fan-Ins).
+        val diagramMergeEdges =
+            (diagram.metadata[LayoutMetadataKeys.MERGE_EDGES] as? KumlMetaValue.Flag)?.value
+        val hints =
+            LayoutHints.DEFAULT.copy(
+                mergeEdges = diagramMergeEdges ?: LayoutHints.DEFAULT.mergeEdges,
+            )
+        val layoutGraph =
+            UmlLayoutBridge.toLayoutGraph(diagram, UmlContentSizeProvider(diagram, hints.direction))
         val engine = pickEngine(diagram, layoutEngineOverride)
-        val layoutResult: LayoutResult = engine.layout(layoutGraph, LayoutHints.DEFAULT)
+        val layoutResult: LayoutResult = engine.layout(layoutGraph, hints)
         when (format) {
             "svg" -> KumlSvgRenderer.toSvgFile(diagram, layoutResult, output, theme)
             "png" -> {

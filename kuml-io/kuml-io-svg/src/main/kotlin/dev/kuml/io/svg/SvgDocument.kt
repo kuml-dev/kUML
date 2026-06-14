@@ -67,6 +67,15 @@ internal object SvgDocument {
         root.append(defsBuilder.toString())
         root.append(if (p) "  </defs>\n" else "</defs>")
 
+        // V3.0.11 — Canvas-Background. Without an explicit rect the SVG is
+        // transparent and the host fill (e.g. Obsidian's dark editor pane)
+        // shows through between nodes, making diagrams look broken.
+        if (options.paintCanvasBackground) {
+            val bg = theme.colors.background.toHex()
+            val rect = """<rect x="0" y="0" width="${fmt(canvasW)}" height="${fmt(canvasH)}" fill="$bg"/>"""
+            root.append(if (p) "  $rect\n" else rect)
+        }
+
         // <g id="nodes">
         root.append(if (p) "  <g id=\"nodes\">\n" else "<g id=\"nodes\">")
         root.append(nodesBuilder.toString())
@@ -157,6 +166,28 @@ internal object SvgDocument {
                 append(" stroke-width: ${bo.thinPx}; }\n")
                 append(".kuml-port-label { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
                 append(" fill: ${c.foreground.toHex()}; }\n")
+                // V3.0.11 — UML-Activity-Diagramm (Action-Box, Decision-Raute, Fork/Join-Bar,
+                // Initial-/Final-Marker). Diese Klassen werden in `UmlV11Svg.renderUmlActivityNode`
+                // referenziert; ohne CSS-Regel renderten SVG-Konsumenten alle Shapes mit
+                // `fill: black` (SVG-Default) — Action-Text und Decision-Label wurden vollständig
+                // verschluckt, Edges sahen aus, als endeten sie im Nichts (Arrowhead vom
+                // schwarzen Fill verdeckt). Konventionen:
+                //  - kuml-action / kuml-decision: wie `.kuml-class` — Hintergrund-Fill + Border.
+                //  - kuml-fork-bar / kuml-pseudostate: gefüllter Balken / gefüllter Initial-
+                //    Marker (kanonische UML-Notation: Initial-Knoten ist ein vollgefüllter
+                //    Punkt, Fork/Join eine massive Synchronisations-Bar).
+                //  - kuml-final-outer: Donut-Außenring — Hintergrund-Fill, damit der
+                //    gefüllte innere Pseudostate-Kreis als Ring erkennbar bleibt.
+                append(".kuml-action { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-decision { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-fork-bar { fill: ${c.foreground.toHex()}; stroke: ${c.foreground.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-pseudostate { fill: ${c.foreground.toHex()}; stroke: ${c.foreground.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-final-outer { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
             }
 
         b.tag("style") {

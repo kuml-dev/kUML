@@ -88,8 +88,17 @@ internal class ElkGraphBuilder(
 
     private fun buildEdges(root: ElkNode) {
         for (edge in graph.edges) {
-            val sourceNode = nodeMap[edge.source.nodeId] ?: continue
-            val targetNode = nodeMap[edge.target.nodeId] ?: continue
+            // V3.0.11 — Endpunkt-Auflösung: ein [LayoutEdge] kann auf einen regulären Node
+            // ODER auf einen Group-Anker zeigen. In C4-Container-/Component-Diagrammen wird
+            // die System-/Container-Boundary über einen Group-Anker mit derselben ID wie das
+            // Modell-Element ausgedrückt; dieses Element selbst wird nicht als eigener Node
+            // im LayoutGraph emittiert, sondern als Group. Eine Relationship
+            // `System → ExternalSystem` hat daher den Anker als Endpunkt, der nicht im
+            // [nodeMap] auftaucht, sondern im [groupMap]. Ohne diesen Fallback fielen alle
+            // Relationships zur Boundary geräuschlos heraus (Symptom: leere `<g id="edges">`-
+            // Gruppe trotz korrekt aufgebauter `diagram.relationships`).
+            val sourceNode = resolveEndpoint(edge.source.nodeId) ?: continue
+            val targetNode = resolveEndpoint(edge.target.nodeId) ?: continue
             val elkEdge = ElkGraphUtil.createSimpleEdge(sourceNode, targetNode)
             elkEdge.identifier = edge.id.value
             // updateContainment ensures the edge is in the correct containing node
@@ -97,6 +106,13 @@ internal class ElkGraphBuilder(
             edgeIdToElkEdge[edge.id] = elkEdge
         }
     }
+
+    /**
+     * Findet den ELK-Knoten für die gegebene [NodeId]. Sucht erst unter den regulären
+     * [nodeMap]-Einträgen; fällt — falls die ID gleichzeitig die einer Group ist (Anker-
+     * Konvention von C4-Diagrammen) — auf den Compound-Node aus [groupMap] zurück.
+     */
+    private fun resolveEndpoint(nodeId: NodeId): ElkNode? = nodeMap[nodeId] ?: groupMap[GroupId(nodeId.value)]
 
     /** Liefert alle [LayoutNode]-Objekte des ursprünglichen Graphen. */
     fun nodes(): List<LayoutNode> = graph.nodes

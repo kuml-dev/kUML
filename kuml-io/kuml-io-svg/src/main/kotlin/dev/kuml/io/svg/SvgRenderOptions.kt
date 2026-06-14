@@ -17,6 +17,10 @@ package dev.kuml.io.svg
  * @property highlightStrokeColor Farbe des Highlight-Rings als CSS-Farbwert. Default: `"#FF6B35"`.
  * @property highlightStrokeWidthPx Stärke des Highlight-Rings in Pixeln. Default: `3`.
  * @property highlightRingOffsetPx Abstand des Highlight-Rings zum Knoten-Rand in Pixeln. Default: `4`.
+ * @property paintCanvasBackground Wenn `true`, wird vor allen anderen Elementen
+ *   ein `<rect>` über die gesamte ViewBox mit der Theme-Hintergrundfarbe
+ *   gezeichnet — verhindert dass die Host-Fläche (z. B. Obsidian Dark) zwischen
+ *   Knoten durchscheint. Default: `true` (V3.0.11).
  */
 public data class SvgRenderOptions(
     public val prettyPrint: Boolean = true,
@@ -28,6 +32,9 @@ public data class SvgRenderOptions(
     public val highlightStrokeColor: String = "#FF6B35",
     public val highlightStrokeWidthPx: Float = 3f,
     public val highlightRingOffsetPx: Float = 4f,
+    // V3.0.11 — Canvas-Background gegen transparenten SVG-Hintergrund auf
+    // dunklen Host-Flächen (Obsidian Dark, Browser Dark Mode etc.).
+    public val paintCanvasBackground: Boolean = true,
 ) {
     public companion object {
         /** Standard-Optionen: Pretty-Print an, XML-Deklaration an, 16 px Padding, Theme-Kommentar an. */

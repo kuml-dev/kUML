@@ -2,6 +2,7 @@ package dev.kuml.io.png
 
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.io.svg.KumlSvgRenderer
+import dev.kuml.io.svg.SvgRenderOptions
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
@@ -75,7 +76,9 @@ class KumlPngRendererTest :
 
         test("toPng applies background color") {
             val (diagram, layout) = minimalDiagram()
-            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+            // paintCanvasBackground=false: kein SVG-eigenes Hintergrund-Rect — sonst überdeckt
+            // die weiße SVG-Rect die rote Batik-Hintergrundfarbe und der Test schlägt fehl.
+            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme(), SvgRenderOptions(paintCanvasBackground = false))
             val bgColor = KumlColor(0xFF0000) // rot
             val bytes =
                 KumlPngRenderer.toPng(

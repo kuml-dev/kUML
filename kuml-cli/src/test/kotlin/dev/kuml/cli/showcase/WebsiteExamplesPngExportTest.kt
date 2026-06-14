@@ -78,7 +78,12 @@ class WebsiteExamplesPngExportTest :
                     input = scriptFile,
                     output = outputFile,
                     format = "png",
-                    width = 1_200,
+                    // 3600 px statt 1200 — realistische Schemata wie das
+                    // PZB-Datenbank-Diagramm erreichen mit Connection-aware
+                    // Sizing (V2.x) ~3500 px SVG-Breite. 3600 liefert nahezu
+                    // 1:1-Auflösung, kleinere Beispiele werden nur leicht
+                    // hochskaliert.
+                    width = 3_600,
                     themeName = "plain",
                 )
 

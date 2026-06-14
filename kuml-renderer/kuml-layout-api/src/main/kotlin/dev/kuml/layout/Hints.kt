@@ -14,6 +14,11 @@ import kotlinx.serialization.Serializable
  * @property defaultEdgeStyle Standard-Routing-Stil für alle Kanten ohne expliziten Hint.
  * @property direction Haupt-Flussrichtung des Graphen.
  * @property spacing Abstands-Parameter für Knoten, Kanten und Gruppen.
+ * @property mergeEdges Wenn `true`: Engine konsolidiert Kanten, die sich Endpunkt-Ports
+ *     teilen (z.B. mehrere Generalisierungen auf denselben Parent), zu einem
+ *     gemeinsamen Stamm-Segment. Sinnvoll für Klassendiagramme mit großen
+ *     Vererbungs-Fan-Ins; kann andere Diagramme schwieriger lesbar machen.
+ *     **Default: `false`** — explizit opt-in.
  * @property engineOptions Engine-spezifische Escape-Hatch-Parameter als String-Map.
  */
 @Serializable
@@ -23,6 +28,7 @@ public data class LayoutHints(
     val defaultEdgeStyle: EdgeRouteStyle = EdgeRouteStyle.OrthogonalRounded,
     val direction: LayoutDirection = LayoutDirection.TopToBottom,
     val spacing: Spacing = Spacing.DEFAULT,
+    val mergeEdges: Boolean = false,
     val engineOptions: Map<String, String> = emptyMap(),
 ) {
     public companion object {

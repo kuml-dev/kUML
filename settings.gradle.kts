@@ -127,6 +127,9 @@ include("kuml-web")  // V2.0.34 — Ktor server with live SVG preview
 // ── Executable Behaviour Widget ─────────────────────── V2.0.43 ──
 include("kuml-widget:kuml-widget-compose")
 
+// ── Desktop App ──────────────────────────────────────────── V3.0.10 ──
+include("kuml-desktop")
+
 // ── Tests ────────────────────────────────────────────────────────
 include(
     "kuml-tests:kuml-dsl-tests",        // Phase 1  — DSL Unit Tests (alle Diagrammtypen)

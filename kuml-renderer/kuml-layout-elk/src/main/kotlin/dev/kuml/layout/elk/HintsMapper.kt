@@ -91,6 +91,14 @@ internal object HintsMapper {
             },
         )
 
+        // V2.x — Merge edges that share a target/source port to consolidate
+        // visual "fan-in" / "fan-out" bundles (z.B. 18 Generalisierungen, die
+        // alle auf `AbstractTable` zeigen, oder N Foreign-Keys, die ein
+        // gemeinsames Stamm-Segment teilen). Opt-in über [LayoutHints.mergeEdges];
+        // Default: false, weil Trunk-Routing andere Diagramme schwerer lesbar
+        // machen kann (Strang läuft durch Whitespace zwischen Klassen).
+        root.setProperty(LayeredOptions.MERGE_EDGES, hints.mergeEdges)
+
         // Engine escape-hatch options (raw key/value strings)
         for ((key, value) in hints.engineOptions) {
             val resolved = resolveEngineOption(key, value, root)

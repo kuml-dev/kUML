@@ -226,6 +226,80 @@ class ContainerDiagramBuilderTest :
             diag.description shouldBe "This shows the containers"
         }
 
+        test(name = "related persons are automatically included by default") {
+            val model =
+                c4Model("Test") {
+                    val customer = person("Customer")
+                    val system =
+                        softwareSystem("Internet Banking") {
+                            container("Web App")
+                            container("API")
+                        }
+                    val email = softwareSystem("Email Service") { external = true }
+
+                    relationship(customer, system)
+                    relationship(system, email)
+
+                    containerDiagram("Containers") {
+                        this.system = system
+                    }
+                }
+            val diag = model.diagrams[0].shouldBeInstanceOf<ContainerDiagram>()
+            val elemNames =
+                diag.elements.map { id -> model.elements.find { it.id == id }?.name }
+            // System (1) + 2 Container + external Email Service + Customer = 5 Elemente
+            diag.elements shouldHaveSize 5
+            elemNames shouldContain "Customer"
+            elemNames shouldContain "Email Service"
+            // Beide Relationships müssen erhalten bleiben — vorher wurde Customer→System
+            // herausgefiltert, weil Customer nicht in elements stand.
+            diag.relationships shouldHaveSize 2
+        }
+
+        test(name = "related persons can be suppressed via showRelatedPersons = false") {
+            val model =
+                c4Model("Test") {
+                    val customer = person("Customer")
+                    val system =
+                        softwareSystem("Internet Banking") {
+                            container("Web App")
+                            container("API")
+                        }
+
+                    relationship(customer, system)
+
+                    containerDiagram("Containers") {
+                        this.system = system
+                        showRelatedPersons = false
+                    }
+                }
+            val diag = model.diagrams[0].shouldBeInstanceOf<ContainerDiagram>()
+            val elemNames =
+                diag.elements.map { id -> model.elements.find { it.id == id }?.name }
+            elemNames shouldNotContain "Customer"
+            // Ohne Customer im Diagramm wird auch die Relationship Customer→System gefiltert.
+            diag.relationships shouldHaveSize 0
+        }
+
+        test(name = "unrelated persons are not pulled in") {
+            val model =
+                c4Model("Test") {
+                    person("Lonely Person") // keine Beziehung zum System
+                    val system =
+                        softwareSystem("System") {
+                            container("API")
+                        }
+
+                    containerDiagram("Containers") {
+                        this.system = system
+                    }
+                }
+            val diag = model.diagrams[0].shouldBeInstanceOf<ContainerDiagram>()
+            val elemNames =
+                diag.elements.map { id -> model.elements.find { it.id == id }?.name }
+            elemNames shouldNotContain "Lonely Person"
+        }
+
         test(name = "only includes containers of the target system") {
             val model =
                 c4Model("Test") {

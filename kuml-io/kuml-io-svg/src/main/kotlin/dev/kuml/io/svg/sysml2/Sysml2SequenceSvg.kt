@@ -647,6 +647,13 @@ internal fun renderCombinedFragment(
 
             val guard = operand.guard
             if (guard != null) {
+                // V3.0.11: idempotent bracket-wrapping. Authors may write
+                // `guard = "valid"` (DSL adds brackets) or `guard = "[valid]"`
+                // (DSL passes through). Both must render as `[valid]`, not
+                // `[[valid]]`. Trim first so `" [valid] "` is also recognised.
+                val trimmed = guard.trim()
+                val displayGuard =
+                    if (trimmed.startsWith("[") && trimmed.endsWith("]")) trimmed else "[$trimmed]"
                 tag(
                     "text",
                     mapOf(
@@ -654,7 +661,7 @@ internal fun renderCombinedFragment(
                         "x" to fmt(tagX + tagW + 6f),
                         "y" to fmt(operandY),
                     ),
-                ) { text("[" + xmlEscapeText(guard) + "]") }
+                ) { text(displayGuard) }
             }
         }
     }

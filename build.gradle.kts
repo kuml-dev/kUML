@@ -14,7 +14,7 @@ plugins {
 
 allprojects {
     group = "dev.kuml"
-    version = "0.9.0"
+    version = "0.10.0"
 }
 
 // Apply ktlint to all subprojects that use the Kotlin JVM plugin.
@@ -57,6 +57,7 @@ val nonPublishedModules =
         "kuml-examples",
         "kuml-packaging",
         "kuml-web",
+        "kuml-desktop",
         // Test sub-modules (path-aware listing — Gradle subprojects iteration
         // sees them as separate projects with these leaf names).
         "kuml-cli-tests",

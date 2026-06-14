@@ -80,6 +80,11 @@ This directory contains runnable kUML example scripts demonstrating the full fea
 | Keysight Car2x / V2X automotive scenario
 | SysML 2 STM + SysML 2 BDD
 | V2X intersection scenario (Idle → Approaching → Negotiating → Crossing → Departed); three event files; runnable via `kuml simulate`
+
+| `pzb/`
+| PZB Datenbank-Schema (Exposed-Tabellen)
+| Class
+| Reales 19-Tabellen-Exposed-Schema des PZB-Projekts. Dient als anspruchsvolles Renderer-Test-Fixture (abstrakte Basisklasse, viele Generalisations-Kanten zu einem gemeinsamen Parent, parallele FK-Kanten zwischen identischen Klassen-Paaren, mehrere Self-Loops über `optReference parent → self`, `1`- und `0..1`-Multiplicities)
 |===
 
 == Runnable Categories

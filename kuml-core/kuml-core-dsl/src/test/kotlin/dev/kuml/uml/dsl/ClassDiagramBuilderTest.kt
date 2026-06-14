@@ -1,8 +1,10 @@
 package dev.kuml.uml.dsl
 
 import dev.kuml.core.dsl.classDiagram
+import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.ClassDiagramConfig
 import dev.kuml.core.model.DiagramType
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlGeneralization
@@ -11,6 +13,7 @@ import dev.kuml.uml.UmlStateMachine
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.maps.shouldNotContainKey
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.types.shouldBeInstanceOf
 
@@ -110,5 +113,42 @@ class ClassDiagramBuilderTest :
         test(name = "diagram type is CLASS") {
             val d = classDiagram(name = "Test") {}
             d.type shouldBe DiagramType.CLASS
+        }
+
+        // ── V2.x — DSL-Opt-in für ELK-Edge-Merging ────────────────────────────
+
+        test(name = "mergeEdges default → kein Metadata-Key gesetzt") {
+            val d = classDiagram(name = "NoMerge") {}
+            d.metadata shouldNotContainKey LayoutMetadataKeys.MERGE_EDGES
+        }
+
+        test(name = "mergeEdges = true → Metadata-Flag(true) in KumlDiagram.metadata") {
+            val d =
+                classDiagram(name = "WithMerge") {
+                    mergeEdges = true
+                }
+            val flag = d.metadata[LayoutMetadataKeys.MERGE_EDGES]
+            flag.shouldBeInstanceOf<KumlMetaValue.Flag>()
+            (flag as KumlMetaValue.Flag).value shouldBe true
+        }
+
+        test(name = "mergeEdges = false → expliziter Opt-out wird ebenfalls serialisiert") {
+            val d =
+                classDiagram(name = "ExplicitOff") {
+                    mergeEdges = false
+                }
+            val flag = d.metadata[LayoutMetadataKeys.MERGE_EDGES]
+            flag.shouldBeInstanceOf<KumlMetaValue.Flag>()
+            (flag as KumlMetaValue.Flag).value shouldBe false
+        }
+
+        test(name = "mergeEdges koexistiert mit layoutEngine im Metadata-Block") {
+            val d =
+                classDiagram(name = "Both") {
+                    layoutEngine = "elk"
+                    mergeEdges = true
+                }
+            (d.metadata[LayoutMetadataKeys.ENGINE] as? KumlMetaValue.Text)?.value shouldBe "elk"
+            (d.metadata[LayoutMetadataKeys.MERGE_EDGES] as? KumlMetaValue.Flag)?.value shouldBe true
         }
     })

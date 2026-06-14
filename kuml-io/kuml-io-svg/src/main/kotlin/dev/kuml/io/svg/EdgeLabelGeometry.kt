@@ -84,6 +84,52 @@ internal object EdgeLabelGeometry {
         Vertical,
     }
 
+    /**
+     * Unit tangent of the **first** polyline segment (`source → first kink`).
+     * Used by callers that place a label at the *source end* of an edge — for
+     * orthogonal routes the source segment can be perpendicular to the
+     * straight-line source→target direction, and labels offset against the
+     * straight direction get pushed into the wrong half-plane.
+     *
+     * Returns `(tx, ty)` as a unit vector. Falls back to `(1, 0)` for fully
+     * degenerate (zero-length) routes.
+     */
+    fun sourceSegmentTangent(route: EdgeRoute): Pair<Float, Float> = tangentOfSegment(firstSegment(route))
+
+    /**
+     * Unit tangent of the **last** polyline segment (`last kink → target`).
+     * Used by callers that place a label at the *target end* of an edge.
+     *
+     * Fix V3.0.11 — `renderUmlAssociation` used the straight `source→target`
+     * tangent for target-end multiplicity labels, which for orthogonal routes
+     * with a vertical final segment landed the label below/above the
+     * arrowhead and inside the target node. Walking the polyline and using
+     * the *last segment's* tangent puts the label where the user expects:
+     * along the actual edge tail.
+     *
+     * Returns `(tx, ty)` as a unit vector. Falls back to `(1, 0)` for fully
+     * degenerate (zero-length) routes.
+     */
+    fun targetSegmentTangent(route: EdgeRoute): Pair<Float, Float> = tangentOfSegment(lastSegment(route))
+
+    private fun firstSegment(route: EdgeRoute): Pair<Point, Point> {
+        val poly = polylineOf(route)
+        return if (poly.size < 2) poly.first() to poly.first() else poly[0] to poly[1]
+    }
+
+    private fun lastSegment(route: EdgeRoute): Pair<Point, Point> {
+        val poly = polylineOf(route)
+        return if (poly.size < 2) poly.first() to poly.first() else poly[poly.size - 2] to poly[poly.size - 1]
+    }
+
+    private fun tangentOfSegment(segment: Pair<Point, Point>): Pair<Float, Float> {
+        val (a, b) = segment
+        val dx = b.x - a.x
+        val dy = b.y - a.y
+        val len = sqrt(dx * dx + dy * dy)
+        return if (len < 0.01f) 1f to 0f else (dx / len) to (dy / len)
+    }
+
     /** Returns the midpoint anchor of [route], walking the actual polyline. */
     fun midAnchor(route: EdgeRoute): LabelAnchor {
         val polyline = polylineOf(route)

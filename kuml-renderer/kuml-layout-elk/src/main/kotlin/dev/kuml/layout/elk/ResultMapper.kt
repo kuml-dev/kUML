@@ -59,16 +59,26 @@ internal object ResultMapper {
         val edgeMappings = buildEdgeRoutes(builder)
         val groupMappings = buildGroupLayouts(builder)
 
-        val canvas = computeCanvas(root)
+        // V3.0.11 — Canvas + Normalisierung in einem Schritt.
+        // [buildGroupLayouts] verschiebt Group-Origins um bis zu `headerPx + margin = 44px`
+        // in den negativen Y-Bereich (für die Swimlane-/System-Boundary-Kopfzeile).
+        // Wird nur `root.children` betrachtet — wie früher in `computeCanvas` —, fällt diese
+        // Verschiebung aus der Canvas-Berechnung und damit aus der SVG-viewBox heraus → die
+        // Oberkante der Boundary wird abgeschnitten (siehe C4-Container-Beispiel). Daher hier
+        // die *tatsächliche* Bounding-Box über Nodes + Groups + Edge-Wegpunkte ziehen und,
+        // falls negativ, alles um `(-minX, -minY)` shiften, so dass das Canvas wieder bei
+        // 0,0 startet.
+        val (canvas, shiftedNodes, shiftedEdges, shiftedGroups) =
+            computeNormalizedCanvas(nodeMappings, edgeMappings, groupMappings)
 
         // seed = null because ELK is non-deterministic (capabilities.deterministic = false)
         return LayoutResult(
             engineId = engineId,
             seed = null,
             canvas = canvas,
-            nodes = nodeMappings,
-            edges = edgeMappings,
-            groups = groupMappings,
+            nodes = shiftedNodes,
+            edges = shiftedEdges,
+            groups = shiftedGroups,
             warnings = allWarnings,
         )
     }
@@ -194,16 +204,133 @@ internal object ResultMapper {
     // ---------------------------------------------------------------------------
 
     /**
-     * Berechnet die Canvas-Größe aus den Top-Level-Kindknoten des ELK-Root-Knotens.
-     * Ist der Graph leer, wird ein 0×0-Canvas zurückgegeben.
+     * Berechnet das tatsächliche Bounding-Box-Canvas über Nodes + Groups + Edge-Wegpunkte
+     * und verschiebt — falls eine Komponente in den negativen X/Y-Bereich ragt — alle drei
+     * Maps so, dass das Canvas wieder bei 0,0 startet.
+     *
+     * Hintergrund (V3.0.11): Vor der Normalisierung wurde das Canvas ausschließlich aus
+     * den Top-Level-ELK-Kindknoten errechnet. Da [buildGroupLayouts] die Boundary-Bounds
+     * um `headerPx + margin = 44px` über das oberste Mitgliedsknoten-Y hinaus nach
+     * **oben** zieht (Platz für die Header-Beschriftung der Swimlane/System-Boundary),
+     * landeten Group-Origins im negativen Y. Die [Size]-basierte viewBox `0 0 W H` der
+     * SVG-Ausgabe schnitt die Boundary-Oberkante dann ab. Hier wird die Bounding-Box
+     * über alle drei Mengen gezogen und ggf. ein Translation-Pass angewandt.
      */
-    private fun computeCanvas(root: ElkNode): Size {
-        var maxX = 0.0
-        var maxY = 0.0
-        for (child in root.children) {
-            maxX = maxOf(maxX, child.x + child.width)
-            maxY = maxOf(maxY, child.y + child.height)
+    private fun computeNormalizedCanvas(
+        nodes: Map<NodeId, NodeLayout>,
+        edges: Map<EdgeId, EdgeRoute>,
+        groups: Map<GroupId, GroupLayout>,
+    ): NormalizedLayout {
+        if (nodes.isEmpty() && groups.isEmpty()) {
+            return NormalizedLayout(Size(0f, 0f), nodes, edges, groups)
         }
-        return Size(maxX.toFloat(), maxY.toFloat())
+
+        var minX = Float.MAX_VALUE
+        var minY = Float.MAX_VALUE
+        var maxX = -Float.MAX_VALUE
+        var maxY = -Float.MAX_VALUE
+
+        for ((_, layout) in nodes) {
+            val r = layout.bounds
+            if (r.origin.x < minX) minX = r.origin.x
+            if (r.origin.y < minY) minY = r.origin.y
+            if (r.origin.x + r.size.width > maxX) maxX = r.origin.x + r.size.width
+            if (r.origin.y + r.size.height > maxY) maxY = r.origin.y + r.size.height
+        }
+        for ((_, layout) in groups) {
+            val r = layout.bounds
+            if (r.origin.x < minX) minX = r.origin.x
+            if (r.origin.y < minY) minY = r.origin.y
+            if (r.origin.x + r.size.width > maxX) maxX = r.origin.x + r.size.width
+            if (r.origin.y + r.size.height > maxY) maxY = r.origin.y + r.size.height
+        }
+        for ((_, route) in edges) {
+            for (pt in route.allPoints()) {
+                if (pt.x < minX) minX = pt.x
+                if (pt.y < minY) minY = pt.y
+                if (pt.x > maxX) maxX = pt.x
+                if (pt.y > maxY) maxY = pt.y
+            }
+        }
+
+        // Falls absolut nichts gefunden: 0×0-Canvas.
+        if (minX == Float.MAX_VALUE) {
+            return NormalizedLayout(Size(0f, 0f), nodes, edges, groups)
+        }
+
+        val dx = if (minX < 0f) -minX else 0f
+        val dy = if (minY < 0f) -minY else 0f
+        val canvas = Size(maxX - minOf(minX, 0f), maxY - minOf(minY, 0f))
+
+        if (dx == 0f && dy == 0f) {
+            return NormalizedLayout(canvas, nodes, edges, groups)
+        }
+
+        val shiftedNodes =
+            nodes.mapValues { (_, l) ->
+                l.copy(
+                    bounds = l.bounds.copy(origin = Point(l.bounds.origin.x + dx, l.bounds.origin.y + dy)),
+                )
+            }
+        val shiftedGroups =
+            groups.mapValues { (_, l) ->
+                l.copy(
+                    bounds = l.bounds.copy(origin = Point(l.bounds.origin.x + dx, l.bounds.origin.y + dy)),
+                )
+            }
+        val shiftedEdges =
+            edges.mapValues { (_, route) ->
+                route.shiftBy(dx, dy)
+            }
+        return NormalizedLayout(canvas, shiftedNodes, shiftedEdges, shiftedGroups)
+    }
+
+    private data class NormalizedLayout(
+        val canvas: Size,
+        val nodes: Map<NodeId, NodeLayout>,
+        val edges: Map<EdgeId, EdgeRoute>,
+        val groups: Map<GroupId, GroupLayout>,
+    )
+
+    private fun Point.shifted(
+        dx: Float,
+        dy: Float,
+    ): Point = Point(x + dx, y + dy)
+
+    /** Liefert alle für die Bounding-Box relevanten Punkte einer Route. */
+    private fun EdgeRoute.allPoints(): List<Point> =
+        when (this) {
+            is EdgeRoute.Direct -> listOf(source, target)
+            is EdgeRoute.OrthogonalRounded -> listOf(source) + waypoints + listOf(target)
+            is EdgeRoute.TreeRounded -> listOf(source) + waypoints + listOf(target)
+            is EdgeRoute.Bezier -> listOf(source) + controlPoints + listOf(target)
+        }
+
+    private fun EdgeRoute.shiftBy(
+        dx: Float,
+        dy: Float,
+    ): EdgeRoute {
+        if (dx == 0f && dy == 0f) return this
+        return when (this) {
+            is EdgeRoute.Direct -> copy(source = source.shifted(dx, dy), target = target.shifted(dx, dy))
+            is EdgeRoute.OrthogonalRounded ->
+                copy(
+                    source = source.shifted(dx, dy),
+                    target = target.shifted(dx, dy),
+                    waypoints = waypoints.map { it.shifted(dx, dy) },
+                )
+            is EdgeRoute.TreeRounded ->
+                copy(
+                    source = source.shifted(dx, dy),
+                    target = target.shifted(dx, dy),
+                    waypoints = waypoints.map { it.shifted(dx, dy) },
+                )
+            is EdgeRoute.Bezier ->
+                copy(
+                    source = source.shifted(dx, dy),
+                    target = target.shifted(dx, dy),
+                    controlPoints = controlPoints.map { it.shifted(dx, dy) },
+                )
+        }
     }
 }

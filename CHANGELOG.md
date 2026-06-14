@@ -6,6 +6,63 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-06-15
+
+### kuml-desktop — Desktop Editor with Live Preview (Track C: V3.0.10 + V3.0.11)
+
+New standalone **kuml-desktop** module: a Swing/Compose Multiplatform Desktop
+application that bundles the kUML render pipeline and lets you edit `.kuml.kts`
+scripts with syntax highlighting and watch the SVG re-render in real time — no
+Ktor server required.
+
+**New module: `kuml-desktop`**
+- `Main.kt` — Compose `application { Window { MainWindow(state) } }` with macOS
+  properties (`apple.laf.useScreenMenuBar`, `apple.awt.application.name`)
+- `AppState.kt` — Compose state-holder: `script`, `lastSvg`, `lastError`,
+  `theme`, `language`, `isRendering`
+- `MainWindow.kt` — native `MenuBar {}` (Datei / Bearbeiten / Ansicht / Hilfe)
+  + Row layout with editor left / preview right
+- `editor/EditorPane.kt` — RSyntaxTextArea with Kotlin syntax highlighting,
+  code folding, line numbers via `SwingPanel`
+- `preview/PreviewPane.kt` — `JSVGCanvas` (Apache Batik) + `CircularProgressIndicator`
+  + error Card overlay
+- `render/DesktopRenderPipeline.kt` — standalone SVG pipeline (all 8 diagram
+  types: UML Class/Sequence/State/Activity/UseCase/Component, C4, SysML 2);
+  no Ktor dependency
+- `render/DesktopRenderController.kt` — 300 ms debounce via Kotlin Coroutines;
+  cancels in-flight render on next keystroke
+- `render/DesktopEngineInit.kt` — idempotent ELK + Grid + ThemeRegistry setup
+- `i18n/Strings.kt` — DE/EN data class with `forLanguage()` factory
+- 34 new tests (AppState 4 + Strings 4 + DesktopRenderController 6 +
+  DesktopRenderPipeline 16 + DesktopRenderResult 4)
+
+### Renderer Improvements (V2.x)
+
+- **Connection-aware node sizing** (`UmlContentSizeProvider`): node boxes grow
+  with the number of connected edges — 12–16 px per edge per side, capped.
+  Prevents edge-label and multiplicity stacking on hub classes (e.g. PZB
+  `BankUsers` with 20+ FKs). Horizontal growth for top/bottom edges, vertical
+  growth for left/right edges.
+- **`SelfLoopRouter`** (new): replaces ELK's flat 10-px self-loop with a
+  visible C-shaped arc so FK self-references (e.g. `UserPosts.parent →
+  UserPosts`) remain legible.
+- **`EdgeLabelGeometry`** (new): dedicated geometry helpers for accurate
+  edge-label placement alongside the new routing.
+- **Sequence diagram z-order fix** (`KumlSvgRenderer`): combined fragments
+  (alt/opt/loop) are now rendered into the nodes layer before lifeline heads
+  and dashed verticals, so fragment frames never overpaint the time axes.
+- **ELK integration**: `ElkGraphBuilder`, `HintsMapper`, `ResultMapper` updated
+  to support the new sizing hints and routing metadata.
+
+### DSL & Examples
+
+- `ContainerDiagramBuilder`: C4 container DSL extensions
+- `ClassDiagramBuilder`: UML class DSL extensions
+- `LayoutMetadataKeys`: new metadata key constants
+- New example: **PZB database schema** (`pzb/pzb-database-schema.kuml.kts`) —
+  a real-world association-heavy schema that stress-tests the connection-aware
+  sizing heuristic
+
 ## [0.9.0] — 2026-06-14
 
 ### Reverse Engineering — Track B complete (V3.0.7 + V3.0.8 + V3.0.9)

@@ -132,10 +132,17 @@ public object KumlSvgRenderer {
 
             // Edges
             val elementIndex = diagram.elements.associateBy { it.id }
+            val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id ->
+                layoutResult.nodes[NodeId(id)]
+            }
             for ((edgeId, route) in layoutResult.edges) {
                 val element = elementIndex[edgeId.value]
                 if (element != null) {
-                    val shiftedRoute = shiftRoute(route, padding)
+                    // V2.x — Self-Loops bekommen eine vergrößerte C-Loop-Route,
+                    // statt der von ELK gelieferten 10-px-U-Form, damit Self-FKs
+                    // (z.B. `UserPosts.parent → UserPosts`) sichtbar bleiben.
+                    val routed = SelfLoopRouter.adjust(element, route, nodeLookup)
+                    val shiftedRoute = shiftRoute(routed, padding)
                     EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
                 }
             }
@@ -261,9 +268,16 @@ public object KumlSvgRenderer {
             val padding = options.paddingPx
             val shiftedLayouts = mutableMapOf<dev.kuml.layout.NodeId, dev.kuml.layout.NodeLayout>()
 
-            // 1. Render lifeline heads
+            // 1. Pre-compute shifted lifeline layouts WITHOUT emitting SVG.
+            //    We need them already when the fragments are rendered so the
+            //    fragment frame spans the correct X-range, but the lifeline
+            //    heads + dashed time axes must be painted AFTER the fragment
+            //    background — otherwise the alt/opt/loop frame (in <g id="edges">,
+            //    or — previously — even in nodesBuilder after the lifelines)
+            //    overpaints the dashed verticals inside the frame. Classic
+            //    z-order bug; same family as the C4-groups-before-nodes fix.
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
-                val lifeline = interaction.lifelines.find { it.id == nodeId.value } ?: continue
+                if (interaction.lifelines.find { it.id == nodeId.value } == null) continue
                 val shifted =
                     nodeLayout.copy(
                         bounds =
@@ -275,11 +289,16 @@ public object KumlSvgRenderer {
                                     ),
                             ),
                     )
-                NodeRendererDispatcher.dispatch(lifeline, shifted, theme, nodesBuilder)
                 shiftedLayouts[nodeId] = shifted
             }
 
-            // 2. Render combined fragments (before messages so they appear behind)
+            // 2. Render combined fragments FIRST into the nodes layer, so they
+            //    sit BEHIND the lifeline dashed verticals (and behind everything
+            //    in <g id="edges"> — execution specs, messages, …). The fragment
+            //    frame already uses fill="none", so only the operator-tag pentagon
+            //    in the top-left corner paints opaque, and that corner sits
+            //    OUTSIDE the leftmost lifeline's centre-line (frame starts at
+            //    minLifelineX - FRAGMENT_PADDING).
             val visibleLifelineLayouts =
                 interaction.lifelines
                     .mapNotNull { shiftedLayouts[dev.kuml.layout.NodeId(it.id)] }
@@ -287,10 +306,20 @@ public object KumlSvgRenderer {
                 interaction.fragments,
                 interaction,
                 visibleLifelineLayouts,
-                edgesBuilder,
+                nodesBuilder,
             )
 
-            // 3. Render messages directly
+            // 3. NOW render the lifeline heads + dashed time axes on top of the
+            //    fragment background. The dashed verticals stay visible inside
+            //    every alt/opt/loop frame.
+            for ((nodeId, shifted) in shiftedLayouts) {
+                val lifeline = interaction.lifelines.find { it.id == nodeId.value } ?: continue
+                NodeRendererDispatcher.dispatch(lifeline, shifted, theme, nodesBuilder)
+            }
+
+            // 4. Render messages directly into the edges layer — they paint
+            //    last (after the entire nodes layer), so arrows always sit on
+            //    top of frames and lifelines.
             dev.kuml.io.svg.uml.renderUmlSeqMessages(
                 interaction.messages,
                 visibleIds,
@@ -952,51 +981,65 @@ public object KumlSvgRenderer {
         return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
-            // 1. Standard-Knoten-Loop — rendert Lifeline-Köpfe + vertikale
-            //    gestrichelte Zeit-Achse pro sichtbarer Lifeline.
+            // 1. Geshiftete Lifeline-Layouts pre-computen, OHNE noch SVG zu
+            //    emittieren. Die Layouts braucht der Fragment-Renderer (für die
+            //    Frame-X-Spanne) bereits in Schritt 2; die Lifeline-Köpfe + die
+            //    vertikale gestrichelte Zeit-Achse werden aber erst nach den
+            //    Fragments gemalt — sonst überpinselt der Fragment-Rahmen die
+            //    Lifeline-Verticals innerhalb der alt/opt/loop-Box. V3.0.11
+            //    z-order-Fix (gleiche Bug-Familie wie der C4-Groups-Loop-Fix).
             val shiftedLayouts = mutableMapOf<NodeId, dev.kuml.layout.NodeLayout>()
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
-                val element = synthetic.elements.find { it.id == nodeId.value }
-                if (element != null) {
-                    val shifted =
-                        nodeLayout.copy(
-                            bounds =
-                                nodeLayout.bounds.copy(
-                                    origin =
-                                        nodeLayout.bounds.origin.copy(
-                                            x = nodeLayout.bounds.origin.x + padding,
-                                            y = nodeLayout.bounds.origin.y + padding,
-                                        ),
-                                ),
-                        )
-                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
-                    shiftedLayouts[nodeId] = shifted
-                }
+                if (synthetic.elements.find { it.id == nodeId.value } == null) continue
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                shiftedLayouts[nodeId] = shifted
             }
 
-            // 2. V2.0.15: Execution Specs FIRST — die Aktivierungs-Bar liegt
-            //    *unter* den Message-Pfeilen, damit Pfeile durchgehend
-            //    sichtbar bleiben.
-            for (es in execSpecs) {
-                val lifelineLayout = shiftedLayouts[NodeId(es.lifelineId)] ?: continue
-                dev.kuml.io.svg.sysml2
-                    .renderExecutionSpec(es, lifelineLayout, edgesBuilder)
-            }
-
-            // 3. V2.0.15: Combined Fragments — gestrichelter Rahmen + Operator-
-            //    Tag-Pentagon. Reihenfolge nach Frame-Größe absteigend, damit
-            //    bei zukünftigen Nested-CFs (V2.x) die äußeren zuerst kommen.
+            // 2. V3.0.11: Combined Fragments ZUERST in den nodes-Layer rendern,
+            //    damit der dashed Frame UNTER den Lifeline-Verticals liegt. Der
+            //    Frame hat ohnehin fill="none"; nur das Operator-Tag-Pentagon in
+            //    der oberen-linken Ecke ist opak, und das sitzt außerhalb der
+            //    Mittellinie der linkesten Lifeline (frame startet bei
+            //    minLifelineX - FRAGMENT_PADDING).
             val visibleLifelineLayouts: List<dev.kuml.layout.NodeLayout> =
                 visibleLifelines.mapNotNull { shiftedLayouts[NodeId(it.id)] }
             for (fragment in fragments) {
                 dev.kuml.io.svg.sysml2.renderCombinedFragment(
                     fragment = fragment,
                     visibleLifelineLayouts = visibleLifelineLayouts,
-                    builder = edgesBuilder,
+                    builder = nodesBuilder,
                 )
             }
 
-            // 4. Direkt-Render der Nachrichten — siehe Architektur-Divergenz
+            // 3. Lifeline-Köpfe + dashed Zeit-Achsen auf die Fragments draufmalen.
+            //    Dadurch bleibt die gestrichelte Vertikale jeder Lifeline auch
+            //    innerhalb jedes alt/opt/loop-Frames sichtbar.
+            for ((nodeId, shifted) in shiftedLayouts) {
+                val element = synthetic.elements.find { it.id == nodeId.value } ?: continue
+                NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+            }
+
+            // 4. V2.0.15: Execution Specs in den edges-Layer — die Aktivierungs-Bar
+            //    liegt nach diesem Reordering ÜBER der Lifeline-Vertikale (gut so:
+            //    eine aktive Lifeline soll als Bar erkennbar bleiben) und UNTER
+            //    den Message-Pfeilen.
+            for (es in execSpecs) {
+                val lifelineLayout = shiftedLayouts[NodeId(es.lifelineId)] ?: continue
+                dev.kuml.io.svg.sysml2
+                    .renderExecutionSpec(es, lifelineLayout, edgesBuilder)
+            }
+
+            // 5. Direkt-Render der Nachrichten — siehe Architektur-Divergenz
             //    oben. Die geshifteten Layouts werden an den Sequence-Renderer
             //    durchgereicht, damit X-/Y-Berechnungen mit dem Padding
             //    konsistent bleiben. Nachrichten kommen ZULETZT, damit
