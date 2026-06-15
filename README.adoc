@@ -5,6 +5,8 @@
 
 image::docs/images/kuml-banner.png[kUML — Kotlin UML Modelling,link=https://github.com/kuml-dev/kUML]
 
+*Website:* https://kuml.dev · *Handbook:* https://docs.kuml.dev · *Releases:* https://github.com/kuml-dev/kUML/releases
+
 *kUML* is a modelling tool that expresses UML 2.x, SysML 2 and C4 as a
 type-safe Kotlin DSL — the first UML tool deliberately designed for the LLM era.
 
@@ -404,6 +406,9 @@ kuml-packaging/      🚧  GraalVM Native Image infrastructure done; full native
 
 == Documentation
 
+* https://docs.kuml.dev[*Handbook*] (online) — full DSL reference, diagram
+  types, CLI, Gradle plugin, MDA, plugin API. Built with Antora from
+  `docs/handbook/` on every push to `master`.
 * link:docs/getting-started.adoc[Getting Started] — install kUML, your first
   class diagram, your first C4 diagram, watch mode, OCL, codegen, Markdown.
 * link:docs/diagram-types.adoc[Diagram-Type Reference] — every UML and C4
