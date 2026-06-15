@@ -28,12 +28,13 @@ output:
   dir: ./build/site
 
 asciidoc:
-  extensions:
-    # When the kuml-asciidoc Maven artefact is on the runtime classpath, this
-    # picks up the `[kuml]` block macro and renders embedded diagrams inline.
-    # If the extension is unavailable, listings render as plain Kotlin script
-    # source — which still reads correctly.
-    - '@asciidoctor/kuml'
+  # extensions:
+  #   The kuml-asciidoc extension lives on Maven Central as a Java/Asciidoctor
+  #   extension — it cannot be loaded by Antora (Node.js based) directly.
+  #   Until a Node.js bridge or a pre-render Gradle task feeds rendered SVGs
+  #   into the handbook, kUML listings are shown as plain Kotlin script source.
+  #   That is intentionally lossless: every example is a valid `.kuml.kts`
+  #   script and remains fully readable.
   attributes:
     page-toclevels: 3
     source-highlighter: highlight.js
