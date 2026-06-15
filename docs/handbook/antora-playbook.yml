@@ -15,7 +15,10 @@ site:
 
 content:
   sources:
-    - url: ../..
+    # `url: .` is resolved against the current working directory.
+    # Both the local preview command and the CI workflow run from the
+    # repository root, so `.` resolves to the git repo Antora needs.
+    - url: .
       branches: HEAD
       start_path: docs/handbook
 
