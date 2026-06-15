@@ -12,6 +12,7 @@ import org.eclipse.elk.core.math.ElkPadding
 import org.eclipse.elk.core.options.CoreOptions
 import org.eclipse.elk.core.options.Direction
 import org.eclipse.elk.core.options.EdgeRouting
+import org.eclipse.elk.core.options.HierarchyHandling
 import org.eclipse.elk.graph.ElkNode
 
 /**
@@ -66,16 +67,40 @@ internal object HintsMapper {
         // Edge-to-edge spacing
         root.setProperty(CoreOptions.SPACING_EDGE_EDGE, hints.spacing.edgeToEdge.toDouble())
 
-        // Layer spacing (between layers) — use config value
+        // Layer spacing (between layers) — V2.0.45: per-diagram hint
+        // overrides the engine default. `hints.spacing.layerToLayer` is
+        // `NaN` when no override was set (DEFAULT case), in which case we
+        // fall back to `config.layerSpacing`. Required so SysML-2 ACT
+        // diagrams can request roomier vertical layer gaps without bumping
+        // the global ELK config (which would also affect UML / C4).
+        val layerSpacing =
+            hints.spacing.layerToLayer.takeUnless { it.isNaN() } ?: config.layerSpacing
         root.setProperty(
             LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS,
-            config.layerSpacing.toDouble(),
+            layerSpacing.toDouble(),
         )
 
         // Edge-to-node spacing
         root.setProperty(
             CoreOptions.SPACING_EDGE_NODE,
             config.edgeNodeSpacing.toDouble(),
+        )
+
+        // V11.x — Stub-Länge zwischen einem Knoten und dem ersten/letzten
+        // Bend der orthogonalen Edge-Route. `CoreOptions.SPACING_EDGE_NODE`
+        // schützt nur den Abstand zu *nicht-adjazenten* Knoten; die Stub-
+        // Länge an Source/Target wird in ELK Layered durch diese
+        // spezifischere Option gesteuert. Ohne sie legt ELK den horizontalen
+        // Joiner einer L-Route ~10 px unter die Source-Bottom-Edge, wodurch
+        // das Edge-Label auf der Source-Box-Beschreibung landet (siehe
+        // C4-Context Internet-Banking-Beispiel, V11.x-Validierung).
+        //
+        // Wert = max(edgeNodeSpacing, 25) — gleicher Faden wie der globale
+        // Edge-Node-Abstand, aber nie unter 25 px, damit Edge-Label-Halos
+        // (~14 px Texthöhe + 4 px Halo) sicher in den Korridor passen.
+        root.setProperty(
+            LayeredOptions.SPACING_EDGE_NODE_BETWEEN_LAYERS,
+            maxOf(config.edgeNodeSpacing, 25f).toDouble(),
         )
 
         // Group padding (applied to each group node individually, set globally here as default)
@@ -154,8 +179,20 @@ internal object HintsMapper {
 
     /**
      * Applies padding from a [LayoutGraph]'s groups onto their corresponding ELK nodes.
+     *
+     * For groups that opted into compound layout (`layoutAsCompound = true`), this also
+     * enables `HIERARCHY_HANDLING = INCLUDE_CHILDREN` on the root so ELK routes edges
+     * that cross the compound boundary (e.g. an Actor → UseCase association where the
+     * UseCase is inside the system-boundary subject) and edges whose endpoints are both
+     * children of the compound (e.g. `«include»` / `«extend»` between two UseCases
+     * inside the same subject). Without this flag, ELK leaves cross-hierarchy edges
+     * with empty edge sections (rendered as degenerated point lines at the canvas
+     * origin) and intra-compound edges are routed by the compound's child layout but
+     * their bend points remain relative to the compound, which only resolves cleanly
+     * when the result mapper also translates them to absolute coordinates.
      */
     fun applyGroupPadding(builder: ElkGraphBuilder) {
+        var anyCompound = false
         for (group in builder.groups()) {
             val elkGroup = builder.groupMap[group.id] ?: continue
             val p = group.padding
@@ -163,6 +200,13 @@ internal object HintsMapper {
                 CoreOptions.PADDING,
                 ElkPadding(p.top.toDouble(), p.right.toDouble(), p.bottom.toDouble(), p.left.toDouble()),
             )
+            if (group.layoutAsCompound) anyCompound = true
+        }
+        if (anyCompound) {
+            // Walk up to the ELK root and enable inter-hierarchy edge routing.
+            var root: ElkNode? = builder.groupMap.values.firstOrNull()
+            while (root?.parent != null) root = root.parent
+            root?.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.INCLUDE_CHILDREN)
         }
     }
 

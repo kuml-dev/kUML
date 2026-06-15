@@ -48,12 +48,22 @@ public data class LayoutEdge(
  *
  * Gruppen können verschachtelt werden ([parent]). Die Engine garantiert, dass
  * Kindknoten innerhalb der berechneten Gruppen-Bounds liegen.
+ *
+ * **layoutAsCompound** (V11.x — Package-Diagramm-Fix): wenn `true`, werden
+ * Member-Knoten dieser Gruppe in der ELK-Engine als Kinder eines Compound-
+ * Knotens gelayoutet (statt flach unter `root`). Das verhindert, dass
+ * mehrere Top-Level-Groups sich überlappen, wenn ELK ihre Member als
+ * gleichwertige Geschwister behandelt. Default `false`, weil die SysML-2-
+ * Swimlane-Pipeline (V2.0.44+) bewusst auf flache Root-Member angewiesen
+ * ist und ihre Group-Bounds nachträglich aus den absoluten Kindkoordinaten
+ * berechnet. UML-Paketdiagramme setzen das Flag in [dev.kuml.layout.bridge.UmlLayoutBridge].
  */
 @Serializable
 public data class LayoutGroup(
     val id: GroupId,
     val parent: GroupId? = null,
     val padding: Insets = Insets.ZERO,
+    val layoutAsCompound: Boolean = false,
 )
 
 /**

@@ -8,6 +8,7 @@ import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.layout.LayoutHints
+import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
@@ -143,9 +144,10 @@ internal object GradlePipeline {
                 KumlSvgRenderer.toSvg(extracted.diagram, layout, theme)
             }
             is ExtractedDiagram.C4 -> {
+                val sizeProvider = C4ContentSizeProvider(extracted.model)
                 val layout =
                     layoutEngine.layout(
-                        C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model),
+                        C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model, sizeProvider),
                         LayoutHints.DEFAULT,
                     )
                 KumlSvgRenderer.toSvg(extracted.diagram, extracted.model, layout, theme)
@@ -232,9 +234,10 @@ internal object GradlePipeline {
                 KumlPngRenderer.toPng(extracted.diagram, layout, theme, options)
             }
             is ExtractedDiagram.C4 -> {
+                val sizeProvider = C4ContentSizeProvider(extracted.model)
                 val layout =
                     layoutEngine.layout(
-                        C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model),
+                        C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model, sizeProvider),
                         LayoutHints.DEFAULT,
                     )
                 KumlPngRenderer.toPng(extracted.diagram, extracted.model, layout, theme, options)

@@ -10,7 +10,10 @@ import dev.kuml.renderer.theme.core.KumlTheme
 /**
  * Rendert ein [C4SoftwareSystem] als gerundetes Rechteck mit dickem Rahmen.
  *
- * Zeigt `[Software System]`-Header, Name (fett) und optionale Beschreibung.
+ * Zeigt `[Software System]`-Header, Name (fett) und optionale Beschreibung —
+ * Letztere mehrzeilig per `<tspan>`, sodass lange Texte nicht aus der Box
+ * laufen. Die Box-Höhe wird vom `C4ContentSizeProvider` so dimensioniert,
+ * dass alle Wrap-Zeilen Platz finden.
  */
 internal fun renderC4SoftwareSystem(
     element: C4SoftwareSystem,
@@ -57,15 +60,7 @@ internal fun renderC4SoftwareSystem(
             ),
         ) { text(xmlEscapeText(element.name)) }
         element.description?.let { desc ->
-            tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-small",
-                    "x" to fmt(w / 2f),
-                    "y" to "52",
-                    "text-anchor" to "middle",
-                ),
-            ) { text(xmlEscapeText(desc)) }
+            renderWrappedDescription(this, desc, w)
         }
     }
 }

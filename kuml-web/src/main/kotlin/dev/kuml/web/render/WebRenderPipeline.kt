@@ -20,6 +20,7 @@ import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.LayoutResult
+import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
@@ -163,7 +164,8 @@ internal object WebRenderPipeline {
     ): WebRenderResult {
         val diagram = extracted.diagram
         val model = extracted.model
-        val layoutGraph = C4LayoutBridge.toLayoutGraph(diagram, model)
+        val sizeProvider = C4ContentSizeProvider(model)
+        val layoutGraph = C4LayoutBridge.toLayoutGraph(diagram, model, sizeProvider)
         val engine =
             LayoutEngineRegistry.get("elk.layered")
                 ?: return WebRenderResult.Error("ELK layout engine not available")
@@ -212,7 +214,18 @@ internal object WebRenderPipeline {
                 renderSysml2Uc(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex)
             }
             is ReqDiagram -> {
-                val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
+                // V2.0.8+: same wider-spacing fix as CLI RenderPipeline — see
+                // RenderPipeline.kt ReqDiagram block for the full rationale.
+                val reqHints =
+                    LayoutHints.DEFAULT.copy(
+                        spacing =
+                            LayoutHints.DEFAULT.spacing.copy(
+                                nodeToNode = 80f,
+                                edgeToEdge = 20f,
+                                layerToLayer = 100f,
+                            ),
+                    )
+                val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), reqHints)
                 renderSysml2Req(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex)
             }
             is StmDiagram -> {

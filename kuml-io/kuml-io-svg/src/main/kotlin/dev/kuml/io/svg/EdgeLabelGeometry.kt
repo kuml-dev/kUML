@@ -130,7 +130,25 @@ internal object EdgeLabelGeometry {
         return if (len < 0.01f) 1f to 0f else (dx / len) to (dy / len)
     }
 
-    /** Returns the midpoint anchor of [route], walking the actual polyline. */
+    /**
+     * Returns the label anchor of [route], placed at the **midpoint of the
+     * longest polyline segment**.
+     *
+     * Fix V11.x (C4 Context — Internet Banking sample): the previous
+     * implementation walked to the geometric midpoint of the cumulative arc
+     * length, which for L-/U-/Z-shaped orthogonal routes (typical when two
+     * edges share a target — Customer + Support Agent → Internet Banking)
+     * lands at or near the polyline kink. Kinks for short-arm L-routes sit
+     * directly above the target node, so the label collides with the target's
+     * title row.
+     *
+     * Picking the longest segment is robust against all orthogonal route
+     * shapes: it gives the label the most surrounding free space (since the
+     * longest segment is by definition the one with the most edge-only
+     * whitespace around it), and for a straight `Direct` route it still
+     * coincides with the source↔target midpoint. Ties are broken in favour of
+     * the first encountered segment, which is deterministic.
+     */
     fun midAnchor(route: EdgeRoute): LabelAnchor {
         val polyline = polylineOf(route)
         if (polyline.size < 2) {
@@ -139,23 +157,73 @@ internal object EdgeLabelGeometry {
             return LabelAnchor(p.x, p.y, SegmentDirection.Horizontal)
         }
 
-        val totalLength = polylineLength(polyline)
-        if (totalLength < 0.01f) {
-            // Source and target coincide (extreme degenerate case).
-            return LabelAnchor(polyline.first().x, polyline.first().y, SegmentDirection.Horizontal)
+        // Find the longest segment of the polyline.
+        var bestStart = polyline[0]
+        var bestEnd = polyline[1]
+        var bestLen = segmentLength(bestStart, bestEnd)
+        for (i in 2 until polyline.size) {
+            val a = polyline[i - 1]
+            val b = polyline[i]
+            val segLen = segmentLength(a, b)
+            if (segLen > bestLen) {
+                bestLen = segLen
+                bestStart = a
+                bestEnd = b
+            }
         }
 
-        val targetDist = totalLength / 2f
-        var walked = 0f
+        if (bestLen < 0.01f) {
+            // Fully degenerate polyline.
+            return LabelAnchor(bestStart.x, bestStart.y, SegmentDirection.Horizontal)
+        }
+
+        val midX = (bestStart.x + bestEnd.x) / 2f
+        val midY = (bestStart.y + bestEnd.y) / 2f
+        val direction =
+            if (abs(bestEnd.x - bestStart.x) >= abs(bestEnd.y - bestStart.y)) {
+                SegmentDirection.Horizontal
+            } else {
+                SegmentDirection.Vertical
+            }
+        return LabelAnchor(midX, midY, direction)
+    }
+
+    /**
+     * Anchor at [fraction] of the cumulative arc length along the polyline
+     * (`0f` = source, `1f` = target). Used for placing **two labels on the
+     * same edge without overlap** — e.g. a C4-Dynamic request/response pair
+     * where the request anchor is at ~⅓ and the response anchor at ~⅔ so the
+     * two glyph runs glide apart along the line.
+     *
+     * The returned [LabelAnchor.direction] reflects the segment that contains
+     * the chosen point, so callers can pick the right perpendicular offset
+     * (above vs. side of the line). Degenerate routes fall back to a
+     * horizontal anchor at the source point.
+     */
+    fun anchorAt(
+        route: EdgeRoute,
+        fraction: Float,
+    ): LabelAnchor {
+        val polyline = polylineOf(route)
+        if (polyline.size < 2) {
+            val p = polyline.firstOrNull() ?: Point(0f, 0f)
+            return LabelAnchor(p.x, p.y, SegmentDirection.Horizontal)
+        }
+        val total = polylineLength(polyline)
+        if (total < 0.01f) {
+            return LabelAnchor(polyline[0].x, polyline[0].y, SegmentDirection.Horizontal)
+        }
+        val target = total * fraction.coerceIn(0f, 1f)
+        var travelled = 0f
         for (i in 1 until polyline.size) {
             val a = polyline[i - 1]
             val b = polyline[i]
             val segLen = segmentLength(a, b)
-            if (walked + segLen >= targetDist || i == polyline.size - 1) {
-                val remaining = (targetDist - walked).coerceAtLeast(0f)
-                val t = if (segLen > 0.01f) remaining / segLen else 0.5f
-                val x = a.x + (b.x - a.x) * t
-                val y = a.y + (b.y - a.y) * t
+            if (travelled + segLen >= target || i == polyline.size - 1) {
+                val remaining = target - travelled
+                val t = if (segLen < 0.01f) 0f else (remaining / segLen).coerceIn(0f, 1f)
+                val x = a.x + t * (b.x - a.x)
+                val y = a.y + t * (b.y - a.y)
                 val direction =
                     if (abs(b.x - a.x) >= abs(b.y - a.y)) {
                         SegmentDirection.Horizontal
@@ -164,12 +232,10 @@ internal object EdgeLabelGeometry {
                     }
                 return LabelAnchor(x, y, direction)
             }
-            walked += segLen
+            travelled += segLen
         }
-
-        // Should not reach here, but fall back to last point.
-        val last = polyline.last()
-        return LabelAnchor(last.x, last.y, SegmentDirection.Horizontal)
+        // Should be unreachable — fall back to midpoint.
+        return midAnchor(route)
     }
 
     /** Convert an [EdgeRoute] to an ordered list of polyline points. */

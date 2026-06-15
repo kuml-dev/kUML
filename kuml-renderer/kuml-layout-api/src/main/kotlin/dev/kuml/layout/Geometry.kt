@@ -65,6 +65,18 @@ public data class Spacing(
     val nodeToNode: Float,
     val edgeToEdge: Float,
     val groupPadding: Float,
+    /**
+     * Abstand zwischen den Layern (Schichten) im hierarchischen Layered-Layout
+     * — entspricht ELKs `SPACING_NODE_NODE_BETWEEN_LAYERS`. V2.0.45 als
+     * **per-Diagramm überschreibbarer Hint** ergänzt, damit Diagrammtypen mit
+     * vertikalen Inter-Layer-Labels (SysML-2 ACT mit `[Order]`-/`[guard]`-
+     * Edge-Labels über Partition-Headern) den Layer-Abstand getrennt vom
+     * globalen [nodeToNode] vergrößern können. `NaN` bedeutet "Engine-Default
+     * verwenden" (siehe `ElkEngineConfiguration.layerSpacing`) — damit bleibt
+     * der bisherige Pfad unverändert für alle Aufrufstellen, die keinen Hint
+     * setzen.
+     */
+    val layerToLayer: Float = Float.NaN,
 ) {
     public companion object {
         /** Standard-Abstände: 40 px Knoten-zu-Knoten, 12 px Kante-zu-Kante, 16 px Gruppen-Padding. */

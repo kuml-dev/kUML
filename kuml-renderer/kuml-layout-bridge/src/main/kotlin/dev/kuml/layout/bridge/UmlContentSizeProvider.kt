@@ -14,6 +14,8 @@ import dev.kuml.uml.UmlEnumeration
 import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
+import dev.kuml.uml.UmlInstanceSpecification
+import dev.kuml.uml.UmlInstanceValue
 import dev.kuml.uml.UmlInterface
 import dev.kuml.uml.UmlInterfaceRealization
 import dev.kuml.uml.UmlLink
@@ -97,6 +99,7 @@ public class UmlContentSizeProvider
                     is UmlClass -> out[e.id] = classSize(e)
                     is UmlInterface -> out[e.id] = interfaceSize(e)
                     is UmlEnumeration -> out[e.id] = enumSize(e)
+                    is UmlInstanceSpecification -> out[e.id] = instanceSize(e)
                     is UmlComponent -> {
                         out[e.id] = componentSize(e)
                         collect(e.nestedComponents, out)
@@ -226,6 +229,46 @@ public class UmlContentSizeProvider
             // Literals slot into the "attributes" compartment shape.
             val h = boxHeight(hasStereo = true, attrs = e.literals.size, ops = 0)
             val (wExtra, hExtra) = connectionPuffer(e.id)
+            return Size(w + wExtra, h + hExtra)
+        }
+
+        /**
+         * Instance-Größe für UmlInstanceSpecification (Object Diagram).
+         *
+         * Renderer-Konvention aus [dev.kuml.io.svg.uml.renderUmlInstance]:
+         *   - Header `name : Classifier` (oder `: Classifier` anonym), unterstrichen.
+         *   - Divider bei cy = 24 falls Slots existieren.
+         *   - Pro Slot eine Zeile `featureName = value`, cy += 13.
+         *   - InstanceRef-Slots werden als `featureName = → <instanceId>` gerendert —
+         *     der Pfeil und die Instanz-ID müssen in die Breitenberechnung einfließen,
+         *     sonst überläuft die Zeile (siehe Vault-Note Order Snapshot, V3.0.x-Bug).
+         *
+         * Vor diesem Fix landeten Instanzen im `else`-Zweig und erhielten den
+         * `DEFAULT_W × DEFAULT_H` (160 × 80) Fallback — schon ein Slot wie
+         * `customer = → alice@Customer` (≈ 178 px) lief rechts aus der Box.
+         */
+        private fun instanceSize(i: UmlInstanceSpecification): Size {
+            val nameLine =
+                if (i.name.isEmpty()) {
+                    ": ${i.classifierName}"
+                } else {
+                    "${i.name} : ${i.classifierName}"
+                }
+            val slotLines =
+                i.slots.map { slot ->
+                    val rhs =
+                        when (val v = slot.value) {
+                            is UmlInstanceValue.Literal -> v.text
+                            is UmlInstanceValue.InstanceRef -> "→ ${v.instanceId}"
+                            is UmlInstanceValue.Null -> "null"
+                        }
+                    "${slot.featureName} = $rhs"
+                }
+            // Instance hat keine Stereotype-Zeile — Header ist nur der unterstrichene
+            // Klassifikator-Bezug.
+            val w = boxWidth(nameLine = nameLine, stereoLine = "", bodyLines = slotLines)
+            val h = boxHeight(hasStereo = false, attrs = i.slots.size, ops = 0)
+            val (wExtra, hExtra) = connectionPuffer(i.id)
             return Size(w + wExtra, h + hExtra)
         }
 

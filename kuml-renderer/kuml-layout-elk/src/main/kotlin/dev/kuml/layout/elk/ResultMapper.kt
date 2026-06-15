@@ -4,6 +4,7 @@ import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.GroupLayout
+import dev.kuml.layout.Insets
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.LayoutWarning
@@ -60,8 +61,9 @@ internal object ResultMapper {
         val groupMappings = buildGroupLayouts(builder)
 
         // V3.0.11 — Canvas + Normalisierung in einem Schritt.
-        // [buildGroupLayouts] verschiebt Group-Origins um bis zu `headerPx + margin = 44px`
-        // in den negativen Y-Bereich (für die Swimlane-/System-Boundary-Kopfzeile).
+        // [buildGroupLayouts] verschiebt Group-Origins um bis zu `headerPx + margin = 34px`
+        // (V2.0.45; vorher 44px) in den negativen Y-Bereich (für die Swimlane-/
+        // System-Boundary-Kopfzeile).
         // Wird nur `root.children` betrachtet — wie früher in `computeCanvas` —, fällt diese
         // Verschiebung aus der Canvas-Berechnung und damit aus der SVG-viewBox heraus → die
         // Oberkante der Boundary wird abgeschnitten (siehe C4-Container-Beispiel). Daher hier
@@ -90,11 +92,31 @@ internal object ResultMapper {
     private fun buildNodeLayouts(builder: ElkGraphBuilder): Map<NodeId, NodeLayout> {
         val result = mutableMapOf<NodeId, NodeLayout>()
         for ((nodeId, elkNode) in builder.nodeMap) {
-            val origin = Point(elkNode.x.toFloat(), elkNode.y.toFloat())
+            // V11.x — ELK reports child positions relative to the parent
+            // compound; flat-root nodes have parent == root. Walking up adds
+            // each ancestor's offset and yields absolute canvas coordinates,
+            // which is what the renderer / edge router expect.
+            val (absX, absY) = absolutePosition(elkNode)
+            val origin = Point(absX, absY)
             val size = Size(elkNode.width.toFloat(), elkNode.height.toFloat())
             result[nodeId] = NodeLayout(bounds = Rect(origin, size))
         }
         return result
+    }
+
+    /** Walks `node.parent` up to the (root) and accumulates the X/Y offsets so
+     *  callers see a single absolute canvas coordinate. The ELK root itself
+     *  reports `(0, 0)` and therefore drops out. */
+    private fun absolutePosition(node: ElkNode): Pair<Float, Float> {
+        var x = node.x
+        var y = node.y
+        var p: ElkNode? = node.parent
+        while (p != null) {
+            x += p.x
+            y += p.y
+            p = p.parent
+        }
+        return x.toFloat() to y.toFloat()
     }
 
     // ---------------------------------------------------------------------------
@@ -105,15 +127,29 @@ internal object ResultMapper {
         val result = mutableMapOf<EdgeId, EdgeRoute>()
         for ((edgeId, elkEdge) in builder.edgeIdToElkEdge) {
             val section = ElkGraphUtil.firstEdgeSection(elkEdge, false, false) ?: continue
-            val source = Point(section.startX.toFloat(), section.startY.toFloat())
-            val target = Point(section.endX.toFloat(), section.endY.toFloat())
+            // V11.x — ELK reports edge section coordinates relative to the
+            // edge's *containing node* (the LCA of source and target, set by
+            // `ElkGraphUtil.updateContainment`). For edges between top-level
+            // nodes the containing node is the root and the offset is (0, 0),
+            // so the previous code happened to work. For edges between two
+            // children of a compound (e.g. two UseCases inside the same
+            // `UmlUseCaseSubject`), the containing node is the compound and
+            // ELK's `startX/Y`, `endX/Y` and bend points are relative to it.
+            // We translate to absolute canvas coordinates the same way
+            // [absolutePosition] does for nodes.
+            val containing = elkEdge.containingNode
+            val (offX, offY) =
+                if (containing != null) absolutePosition(containing) else 0f to 0f
+            val source = Point(section.startX.toFloat() + offX, section.startY.toFloat() + offY)
+            val target = Point(section.endX.toFloat() + offX, section.endY.toFloat() + offY)
             val bendPoints = section.bendPoints
 
             val route: EdgeRoute =
                 if (bendPoints.isEmpty()) {
                     EdgeRoute.Direct(source = source, target = target)
                 } else {
-                    val waypoints = bendPoints.map { Point(it.x.toFloat(), it.y.toFloat()) }
+                    val waypoints =
+                        bendPoints.map { Point(it.x.toFloat() + offX, it.y.toFloat() + offY) }
                     // cornerRadiusPx = 0f: Renderer applies rounding later (Spec Z4)
                     EdgeRoute.OrthogonalRounded(
                         source = source,
@@ -153,22 +189,72 @@ internal object ResultMapper {
     private fun buildGroupLayouts(builder: ElkGraphBuilder): Map<GroupId, GroupLayout> {
         if (builder.groupMap.isEmpty()) return emptyMap()
 
+        // V11.x — Groups that opted in via `layoutAsCompound` get their bounds
+        // straight from ELK. ELK has actually laid them out as compound nodes
+        // (their members were placed under the compound in ElkGraphBuilder),
+        // so `elkGroup.x/y/width/height` reflect a correct, member-fitted box.
+        // Falling back to the bounding-box-from-members heuristic for those
+        // groups would just re-derive almost the same box at extra cost — and
+        // could disagree at the edges, breaking edge endpoints that ELK
+        // anchored on the compound boundary.
+        val compoundGroupIds: Set<GroupId> =
+            builder
+                .groups()
+                .filter { it.layoutAsCompound }
+                .map { it.id }
+                .toSet()
+        val result = mutableMapOf<GroupId, GroupLayout>()
+        for (gid in compoundGroupIds) {
+            val elkGroup = builder.groupMap[gid] ?: continue
+            val (absX, absY) = absolutePosition(elkGroup)
+            result[gid] =
+                GroupLayout(
+                    bounds = Rect(Point(absX, absY), Size(elkGroup.width.toFloat(), elkGroup.height.toFloat())),
+                )
+        }
+
         // Build: groupId → list of elk nodes that are members of that group.
         // The original LayoutNode has groupId; its ElkNode has the final position.
         val membersByGroup = mutableMapOf<GroupId, MutableList<org.eclipse.elk.graph.ElkNode>>()
         for (node in builder.nodes()) {
             val gid = node.groupId ?: continue
+            if (gid in compoundGroupIds) continue // already covered above
             val elkNode = builder.nodeMap[node.id] ?: continue
             membersByGroup.getOrPut(gid) { mutableListOf() }.add(elkNode)
         }
 
-        val result = mutableMapOf<GroupId, GroupLayout>()
+        // V2.0.45 — collect LayoutGroup.padding for per-group bounds inflation.
+        // The bridge uses this to reserve room for content that protrudes past
+        // a member node's bounding box (e.g. SysML-2 pin labels on the left /
+        // right of action boxes). Without this, the dashed partition outline
+        // would clip through the pin label text.
+        val paddingByGroup: Map<GroupId, Insets> =
+            builder.groups().associate { it.id to it.padding }
+
         // Horizontal / vertical margin around the tightest bounding box of nodes.
-        val margin = 16f
-        // Extra top space for the swimlane header bar (mirrored from PARTITION_HEADER_HEIGHT).
-        val headerPx = 28f
+        // V2.0.45 — reduced from 16f to 10f so vertically-/horizontally-adjacent
+        // partitions have a visible gap between their dashed outlines.
+        // Background: previous defaults (`headerPx=28, margin=16`) summed to a
+        // total vertical inflation of `headerPx + 2*margin = 60`px per lane,
+        // which is **exactly** ELK's default `layerSpacing` (60 px). Adjacent
+        // vertically-stacked lanes therefore touched at the partition boundary
+        // — the dashed Customer/OrderSystem/Warehouse outlines in the SysML-2
+        // Order-Processing example rendered as one big rectangle with no
+        // visual separation. Halving the surrounding margin restores a clearly
+        // visible gap (≈16–20 px with default ELK spacings) while preserving
+        // enough breathing room around member action boxes (10 px ≈ a comma's
+        // worth of whitespace).
+        val margin = 10f
+        // Extra top space for the swimlane header bar — mirrors
+        // [dev.kuml.io.svg.sysml2.PARTITION_HEADER_HEIGHT] **exactly** so the
+        // header bar drawn by the SVG renderer fits flush into the reserved
+        // top strip. V2.0.45 — was 28f, which was a leftover from an early
+        // header-height tuning and contributed an unintended +4 px to the
+        // top-side inflation. Aligning the two constants removes that drift.
+        val headerPx = 24f
 
         for (groupId in builder.groupMap.keys) {
+            if (groupId in compoundGroupIds) continue // compound: handled above
             val members = membersByGroup[groupId]
             if (members.isNullOrEmpty()) continue // dangling group — skip
 
@@ -188,10 +274,15 @@ internal object ResultMapper {
                 if (ny + nh > maxY) maxY = ny + nh
             }
 
-            val ox = minX - margin
-            val oy = minY - headerPx - margin
-            val sw = (maxX - minX) + 2f * margin
-            val sh = (maxY - minY) + headerPx + 2f * margin
+            // V2.0.45 — add per-group padding on top of the base margin. The
+            // bridge sets this to reserve room for content that sits outside
+            // the member nodes' bounding boxes (SysML-2 ACT: pin labels;
+            // future: free-floating annotations, lane-internal callouts).
+            val pad = paddingByGroup[groupId] ?: Insets.ZERO
+            val ox = minX - margin - pad.left
+            val oy = minY - headerPx - margin - pad.top
+            val sw = (maxX - minX) + 2f * margin + pad.left + pad.right
+            val sh = (maxY - minY) + headerPx + 2f * margin + pad.top + pad.bottom
 
             result[groupId] = GroupLayout(bounds = Rect(Point(ox, oy), Size(sw, sh)))
         }
@@ -210,11 +301,12 @@ internal object ResultMapper {
      *
      * Hintergrund (V3.0.11): Vor der Normalisierung wurde das Canvas ausschließlich aus
      * den Top-Level-ELK-Kindknoten errechnet. Da [buildGroupLayouts] die Boundary-Bounds
-     * um `headerPx + margin = 44px` über das oberste Mitgliedsknoten-Y hinaus nach
-     * **oben** zieht (Platz für die Header-Beschriftung der Swimlane/System-Boundary),
-     * landeten Group-Origins im negativen Y. Die [Size]-basierte viewBox `0 0 W H` der
-     * SVG-Ausgabe schnitt die Boundary-Oberkante dann ab. Hier wird die Bounding-Box
-     * über alle drei Mengen gezogen und ggf. ein Translation-Pass angewandt.
+     * um `headerPx + margin = 34px` (V2.0.45; vorher 44px) über das oberste
+     * Mitgliedsknoten-Y hinaus nach **oben** zieht (Platz für die Header-Beschriftung der
+     * Swimlane/System-Boundary), landeten Group-Origins im negativen Y. Die [Size]-basierte
+     * viewBox `0 0 W H` der SVG-Ausgabe schnitt die Boundary-Oberkante dann ab. Hier wird
+     * die Bounding-Box über alle drei Mengen gezogen und ggf. ein Translation-Pass
+     * angewandt.
      */
     private fun computeNormalizedCanvas(
         nodes: Map<NodeId, NodeLayout>,

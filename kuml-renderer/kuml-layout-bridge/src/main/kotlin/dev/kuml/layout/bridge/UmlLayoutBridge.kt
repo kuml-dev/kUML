@@ -13,6 +13,8 @@ import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.PortId
 import dev.kuml.layout.Size
+import dev.kuml.uml.UmlActivityNode
+import dev.kuml.uml.UmlActivityNodeKind
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlInteraction
@@ -22,6 +24,7 @@ import dev.kuml.uml.UmlPseudostate
 import dev.kuml.uml.UmlRelationship
 import dev.kuml.uml.UmlState
 import dev.kuml.uml.UmlStateMachine
+import dev.kuml.uml.UmlUseCaseSubject
 import dev.kuml.uml.UmlVertex
 
 /**
@@ -40,6 +43,72 @@ import dev.kuml.uml.UmlVertex
  * ```
  */
 public object UmlLayoutBridge {
+    /**
+     * Insets eines UML-Pakets (Folder-Tab + Name-Bereich oben).
+     *
+     * 18 px Tab-Höhe (siehe `KumlSvgRenderer.renderPackageGroup`) plus 10 px
+     * Atemluft bis zum ersten Member-Knoten = 28 px Top-Padding. Seiten und
+     * Boden kriegen 12 px, damit Klassenboxen nicht direkt an die Paket-Wand
+     * stoßen.
+     */
+    internal val PACKAGE_GROUP_INSETS: Insets = Insets(top = 28f, right = 12f, bottom = 12f, left = 12f)
+
+    /**
+     * Insets einer UML-Use-Case-Subject-Box (Systemgrenze).
+     *
+     * 28 px Top-Padding: 18 px für den Namens-Label (Text-Baseline bei y=18)
+     * plus 10 px Atemluft bis zum ersten enthaltenen Use-Case-Ellipsen-Rand.
+     * Seiten und Boden bekommen 20 px, damit Ellipsen nicht an den Rand stoßen.
+     */
+    internal val USE_CASE_SUBJECT_INSETS: Insets = Insets(top = 28f, right = 20f, bottom = 20f, left = 20f)
+
+    // ── UML 2.x Activity-Diagramm: per-Kind Default-Größen (V2.0.46) ──
+    //
+    // Die `dev.kuml.io.svg.uml.renderUmlActivityNode`-SVG-Routine zeichnet
+    // INITIAL/ACTIVITY_FINAL/FLOW_FINAL als kleine Kreise (r = 10 bzw. 12)
+    // und DECISION/MERGE als bounds-füllende Raute. Wenn das Layout pro
+    // Knoten die Default-160×80-Box reserviert, ist die gezeichnete Form
+    // entweder ein winziger Kreis in einer riesigen leeren Box (Pseudo-
+    // Knoten) oder eine bounds-füllende Riesen-Raute (Decision). In beiden
+    // Fällen enden Kanten an der **Bounding-Box-Kante**, also weit
+    // außerhalb des sichtbaren Shapes — Pfeile „schweben". Diese Konstanten
+    // geben dem `UmlLayoutBridge` Activity-Pfad realistische Default-Größen,
+    // damit die Bounding-Box etwa dem sichtbaren Shape entspricht.
+
+    /**
+     * Default-Größe (quadratisch) für Pseudo- und Schaltknoten in UML-1.1-
+     * Activity-Diagrammen: Initial (10-px-Kreis), Activity-Final (12-px-
+     * Donut), Flow-Final (10-px-Kreis mit X), Decision / Merge (bounds-
+     * füllende Raute). 28 px gibt der Bounding-Box gerade so viel Atem-
+     * luft, dass ein 12-px-Final-Kreis bequem hineinpasst.
+     */
+    public const val ACTIVITY_PSEUDO_SIZE: Float = 28f
+
+    /**
+     * Default-Breite einer Action- oder Object-Node-Box in einem UML-1.1-
+     * Activity-Diagramm. 160 px reicht für Standard-Action-Namen ohne
+     * Wort-Wrap (V2.x bringt content-aware Sizing analog zur
+     * [UmlContentSizeProvider]-Heuristik für Klassendiagramme).
+     */
+    public const val ACTIVITY_ACTION_WIDTH: Float = 160f
+
+    /** Default-Höhe einer Action- oder Object-Node-Box (V2.0.46). */
+    public const val ACTIVITY_ACTION_HEIGHT: Float = 60f
+
+    /**
+     * Default-Breite einer Fork-/Join-Synchronisations-Bar. Die SVG-Routine
+     * zeichnet einen 8-px-Balken zentriert in der Bounds — eine breite Bar
+     * gibt der ELK-Engine genug Andock-Fläche für die typischerweise drei
+     * bis fünf parallelen Edges einer Fork.
+     */
+    public const val ACTIVITY_BAR_WIDTH: Float = 120f
+
+    /**
+     * Default-Höhe einer Fork-/Join-Bar. 12 px sorgt für 2 px Atemluft
+     * unter und über dem gezeichneten 8-px-Balken.
+     */
+    public const val ACTIVITY_BAR_HEIGHT: Float = 12f
+
     /**
      * Übersetzt [diagram] in einen [LayoutGraph].
      *
@@ -66,18 +135,59 @@ public object UmlLayoutBridge {
         // sub-packages and nested components transitively.
         val componentPorts: Map<String, Set<String>> = collectComponentPorts(diagram)
 
+        // Pre-pass: collect UmlUseCaseSubject elements → LayoutGroups and build
+        // a reverse map (useCaseId → groupId) so that individual UmlUseCase nodes
+        // receive the correct groupId when encountered in the main loop below.
+        // Must run before the main loop because the subject may appear after its
+        // contained use cases in diagram.elements.
+        val useCaseGroupMap = mutableMapOf<String, GroupId>()
+        for (element in diagram.elements) {
+            if (element is UmlUseCaseSubject) {
+                val groupId = GroupId(element.id)
+                groups.add(
+                    LayoutGroup(
+                        id = groupId,
+                        parent = null,
+                        padding = USE_CASE_SUBJECT_INSETS,
+                        layoutAsCompound = true,
+                    ),
+                )
+                for (ucId in element.useCaseIds) {
+                    useCaseGroupMap[ucId] = groupId
+                }
+            }
+        }
+
         for (element in diagram.elements) {
             when (element) {
                 is UmlPackage -> {
-                    // V1: max. 1 Ebene — Package wird zur Group, Members zu Nodes
+                    // V1: max. 1 Ebene — Package wird zur Group, Members zu Nodes.
+                    // Top-Padding reserviert Platz für den UML-Folder-Tab + Paketnamen,
+                    // damit der KumlSvgRenderer die Tab-Lasche zeichnen kann, ohne dass
+                    // Mitglieds-Klassen darunter geclippt werden. Side/bottom auf 12,
+                    // top auf 28 (Tab-Höhe 18 + 10 px Atemluft zum ersten Member-Knoten).
                     val groupId = GroupId(element.id)
-                    groups.add(LayoutGroup(id = groupId, parent = null))
+                    groups.add(
+                        LayoutGroup(
+                            id = groupId,
+                            parent = null,
+                            padding = PACKAGE_GROUP_INSETS,
+                            layoutAsCompound = true,
+                        ),
+                    )
                     for (member in element.members) {
                         when (member) {
                             is UmlPackage -> {
                                 // Sub-Package: eigene eigenständige Group ohne parent (V1: keine Verschachtelung)
                                 val subGroupId = GroupId(member.id)
-                                groups.add(LayoutGroup(id = subGroupId, parent = null))
+                                groups.add(
+                                    LayoutGroup(
+                                        id = subGroupId,
+                                        parent = null,
+                                        padding = PACKAGE_GROUP_INSETS,
+                                        layoutAsCompound = true,
+                                    ),
+                                )
                                 for (subMember in member.members) {
                                     if (subMember !is UmlPackage && subMember !is UmlRelationship) {
                                         nodes.add(
@@ -186,8 +296,63 @@ public object UmlLayoutBridge {
                         )
                     }
                 }
+                is UmlUseCaseSubject -> {
+                    // Already handled in the pre-pass above (LayoutGroup + useCaseGroupMap).
+                    // Do NOT add as a LayoutNode — the subject is the bounding box, not a node.
+                }
+                is UmlActivityNode -> {
+                    // V2.0.46: per-kind intrinsic size for activity nodes.
+                    //
+                    // Before V2.0.46 these fell through to the generic
+                    // `is UmlNamedElement` branch below and got the default
+                    // 160×80 box for *every* kind — including the Initial
+                    // marker (a 10px filled circle) and the Decision diamond
+                    // (a polygon that filled the whole bounds). The result
+                    // was an oversized diamond that dominated the canvas and
+                    // edges that floated in empty space because the
+                    // bounding-box edge is far from the actual visible
+                    // shape (diamond polygon, small fixed-radius circle).
+                    //
+                    // Per-kind defaults are aligned with the hard-coded
+                    // radii / heights in `dev.kuml.io.svg.uml.renderUmlActivityNode`:
+                    //   - INITIAL / ACTIVITY_FINAL / FLOW_FINAL — small
+                    //     square containing the 10/12-px pseudo-marker
+                    //     circle plus a little breathing room.
+                    //   - DECISION / MERGE — same small square so the
+                    //     diamond is **no larger than** the pseudo-nodes
+                    //     (Vault feedback from
+                    //     [[03 Bereiche/kUML/Beispiele/17 UML Activity – Checkout Flow]]).
+                    //   - FORK / JOIN — wide thin horizontal synchronisation
+                    //     bar (renderer draws the 8-px-thick rect centred
+                    //     vertically inside these bounds).
+                    //   - ACTION / OBJECT — regular content-bearing box.
+                    val size =
+                        when (element.kind) {
+                            UmlActivityNodeKind.INITIAL,
+                            UmlActivityNodeKind.ACTIVITY_FINAL,
+                            UmlActivityNodeKind.FLOW_FINAL,
+                            UmlActivityNodeKind.DECISION,
+                            UmlActivityNodeKind.MERGE,
+                            -> Size(ACTIVITY_PSEUDO_SIZE, ACTIVITY_PSEUDO_SIZE)
+                            UmlActivityNodeKind.FORK,
+                            UmlActivityNodeKind.JOIN,
+                            -> Size(ACTIVITY_BAR_WIDTH, ACTIVITY_BAR_HEIGHT)
+                            UmlActivityNodeKind.ACTION,
+                            UmlActivityNodeKind.OBJECT,
+                            -> Size(ACTIVITY_ACTION_WIDTH, ACTIVITY_ACTION_HEIGHT)
+                        }
+                    nodes.add(
+                        LayoutNode(
+                            id = NodeId(element.id),
+                            intrinsicSize = size,
+                            hints = HintsReader.read(element.metadata),
+                        ),
+                    )
+                }
                 is UmlNamedElement -> {
-                    // Any other named element (classifier, state machine vertex, etc.)
+                    // Any other named element (classifier, use case, actor, …).
+                    // Use-Case nodes that belong to a subject get the matching groupId so
+                    // ELK places them inside the compound/group node (= system boundary box).
                     nodes.add(
                         LayoutNode(
                             id = NodeId(element.id),
@@ -197,7 +362,7 @@ public object UmlLayoutBridge {
                                     element::class.simpleName ?: "Unknown",
                                 ),
                             hints = HintsReader.read(element.metadata),
-                            groupId = null,
+                            groupId = useCaseGroupMap[element.id],
                         ),
                     )
                 }

@@ -224,6 +224,12 @@ synchrones Update der kuml.dev-Webseite:
 4. **Build-Smoke-Test**: `npm run build` muss clean durchlaufen.
 5. **Commit-Format auf kuml.dev**:
    `Sync site with kUML vX.Y.Z (<kurzbeschreibung der hauptneuerung>)`
+6. **Social-Media-Ankündigungen** (automatisch, kein expliziter Prompt nötig): Sofort
+   nach dem Tag-Push erstellt Claudian im Obsidian-Vault einen vollständigen Satz
+   Ankündigungsdateien in `03 Bereiche/kUML/Ankündigungen/` — LinkedIn, X (Thread),
+   Reddit und Facebook. Grundlage: die CHANGELOG-Sektion der neuen Version und die
+   Marketing-Leitplanken aus `03 Bereiche/kUML/AUTOSAR Marketing-Priorität.md`.
+   Die Übersicht `03 Bereiche/kUML/Ankündigungen/Übersicht.md` wird ebenfalls aktualisiert.
 
 Die Webseite **muss vor dem nächsten Release wieder aktuell sein** — kein Drift
 zwischen Code und Marketing-Surface.
@@ -824,3 +830,75 @@ Plan fixes with Opus, implement with Sonnet, re-run step 1, re-inspect PNGs.
 
 ### 5. Regression guard
 After fixes: `./gradlew check` must pass.
+
+## Sequence-Diagram Fragment-Frame Geometry — Asymmetric Outsets
+
+**Applies to**: `UmlSequenceSvg.renderUmlFragment` and `Sysml2SequenceSvg.renderCombinedFragment` — i.e. the combined-fragment frame (`alt`, `opt`, `loop`, `par`, `break`, `critical`, …).
+
+### The trap
+
+The intuitive formula is symmetric around the half-row mark:
+```kotlin
+frame_top    = headBottom + (minSeq - 0.5) * SEQ_ROW_HEIGHT - PADDING
+frame_bottom = headBottom + (maxSeq + 0.5) * SEQ_ROW_HEIGHT + PADDING
+```
+This is **wrong**, and the wrongness only manifests when there are messages immediately before and after the fragment in the same interaction. Test fixtures with only-fragment-contents miss it.
+
+### Why symmetric padding is wrong
+
+Message labels sit 4 px **above** the arrow line (`label_baseline = arrow_y - 4`). With body-text ascent ≈ 11 px and descent ≈ 3 px, the label background occupies `arrow_y - 15` to `arrow_y - 1`. The *free corridor* between two consecutive message labels is therefore:
+
+```
+prev_msg_label_bottom = arrow_n - 1
+next_msg_label_top    = arrow_(n+1) - 15
+corridor_width        = 18 px
+corridor_centre       = arrow_n + 8        (NOT arrow_n + 16!)
+```
+
+The corridor centre is **8 px below the upper arrow**, not at the midpoint between arrows. Symmetric ±0.5-row padding puts the frame border 16 px from each arrow — 8 px past the corridor on both sides. The bottom border lands *inside* the next outside message's label background.
+
+### The fix — asymmetric outsets
+
+```kotlin
+private const val FRAGMENT_TOP_OUTSET = 24f      // = SEQ_ROW_HEIGHT - 8
+private const val FRAGMENT_BOTTOM_OUTSET = 8f    // = corridor centre offset
+
+// UML — arrow_y = headBottom + seq * SEQ_ROW_HEIGHT
+val frameY      = headBottom + minSeq * SEQ_ROW_HEIGHT - FRAGMENT_TOP_OUTSET
+val frameBottom = headBottom + maxSeq * SEQ_ROW_HEIGHT + FRAGMENT_BOTTOM_OUTSET
+
+// SysML 2 — arrow_y = headBottom + (seqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT
+val frameY      = headBottom + (minStartSeqNo + 1) * ROW - FRAGMENT_TOP_OUTSET
+val frameBottom = headBottom + (maxEndSeqNo + 1)   * ROW + FRAGMENT_BOTTOM_OUTSET
+```
+
+Both edges now sit at the centre of the 18-px label corridor. The frame extends 24 px above the first inside arrow (the upper corridor is centred there because labels for the *inside* first message are 15 px above the arrow) and 8 px below the last inside arrow (the lower corridor is centred there because the *outside next* message's label starts 17 px below).
+
+### Symptoms of the symmetric-padding bug
+
+When messages flank the fragment, you will see one or more of:
+- A message immediately before the fragment appears to be *inside* the frame's top border
+- A message immediately after appears to be *inside* the frame's bottom border
+- The last inside message's label is clipped by the bottom border
+- The dashed bottom border passes through the next outside message's label glyphs
+
+If your test sample doesn't flank the fragment with messages, the geometry looks fine even though the formula is wrong. Always test with a fragment that has at least one message before *and* after it.
+
+### Related — horizontal padding and the canvas viewBox
+
+`FRAGMENT_PADDING` (horizontal, currently 24 px) controls how far the frame extends left and right of the outermost lifelines — needed for the guard text (`[valid]`, `[invalid]`) below the operator-tag pentagon. When fragments are present, `KumlSvgRenderer.renderUmlSequence` / `toSvg(SeqDiagram, …)` overrides `options.paddingPx` to `max(default, FRAGMENT_PADDING + 4)` = 28 px so the frame's outer extents stay inside the SVG `viewBox`. Without this override the right edge of the frame is clipped (the canvas was sized assuming only lifeline content).
+
+Constants are exported as `internal const val UML_SEQ_FRAGMENT_PADDING` / `SYSML2_SEQ_FRAGMENT_PADDING` so the renderer file can read them without duplicating the value.
+
+### Label-background dimensioning
+
+Body-text labels (messages, guards, self-calls) get a white `<rect>` background to break dashed lifelines and operand separators that would otherwise cross through the glyphs. Heuristic dimensions:
+- `BODY_CHAR_WIDTH = 6.5f` (per-character pixel estimate — slightly generous so wide glyphs like M, W are covered)
+- `BODY_TEXT_ASCENT = 11f` (cap height + 1 px above baseline)
+- `BODY_TEXT_DESCENT = 3f` (descender + 1 px below baseline)
+
+The background extends `BODY_TEXT_ASCENT` above the baseline and `BODY_TEXT_DESCENT` below — ending **4 px above the arrow line** so the arrow stays drawn through (labels are at `arrow_y - 4`, baseline at `arrow_y - 4`, background bottom at `arrow_y - 1`). Don't increase descent past 3 px or arrows start getting white-rect-overpainted by their own labels.
+
+### When this lesson stops applying
+
+If the rendering pipeline ever moves to a layout engine that positions labels (not the renderer dropping them at `arrow_y - 4`), this asymmetry disappears — the engine handles label boxes as first-class layout objects and the frame can shrink-wrap them. Until then: asymmetric outsets, hand-tuned to the label geometry.

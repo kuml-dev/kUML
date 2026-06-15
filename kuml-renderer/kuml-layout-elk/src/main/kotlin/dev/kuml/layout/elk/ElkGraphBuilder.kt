@@ -68,17 +68,39 @@ internal class ElkGraphBuilder(
     }
 
     private fun buildNodes(root: ElkNode) {
+        // V11.x — Per-Group `layoutAsCompound` opt-in for UML package diagrams.
+        // Pre-build a quick lookup so the loop body stays terse.
+        val compoundGroupIds: Set<dev.kuml.layout.GroupId> =
+            graph.groups
+                .filter { it.layoutAsCompound }
+                .map { it.id }
+                .toSet()
+
         for (node in graph.nodes) {
-            // V2.0.44: Always create action nodes directly under root, even when
-            // they carry a groupId. ELK compound-node handling places children
-            // at RELATIVE positions inside the group, but the renderer reads
-            // nodeLayout.bounds as ABSOLUTE canvas coordinates. Placing all
-            // nodes under root keeps positions absolute and lets the post-layout
-            // group-bounds computation in ResultMapper derive swimlane rectangles
-            // from the absolute node positions. Group ELK nodes (built by
-            // buildGroups) remain in the graph for the size computation loop in
-            // ResultMapper but they don't contain the actual action nodes.
-            val elkNode = ElkGraphUtil.createNode(root)
+            // V2.0.44: Action nodes default to flat-root because ELK compound-
+            // node handling places children at RELATIVE positions, but the
+            // SysML-2 swimlane post-layout group-bounds computation in
+            // ResultMapper relies on ABSOLUTE node positions. Group ELK nodes
+            // (built by buildGroups) stay in the graph; they're empty unless
+            // a group asks to be treated as a compound below.
+            //
+            // V11.x exception — UML package groups opt in via
+            // [LayoutGroup.layoutAsCompound] = true. ELK then sees the package
+            // group as a real compound node containing its classes, which
+            // (a) lets ELK lay packages out as disjoint top-level boxes
+            //     instead of overlapping each other, and
+            // (b) makes the package boundary inherit the natural ELK bounds.
+            // ResultMapper.buildNodeLayouts walks up the parent chain to
+            // recover absolute positions so the rest of the pipeline (renderer,
+            // edge router, group-bounds computation) is unchanged.
+            val groupId = node.groupId
+            val parent: ElkNode =
+                if (groupId != null && groupId in compoundGroupIds) {
+                    groupMap[groupId] ?: root
+                } else {
+                    root
+                }
+            val elkNode = ElkGraphUtil.createNode(parent)
             elkNode.identifier = node.id.value
             elkNode.width = node.intrinsicSize.width.toDouble()
             elkNode.height = node.intrinsicSize.height.toDouble()

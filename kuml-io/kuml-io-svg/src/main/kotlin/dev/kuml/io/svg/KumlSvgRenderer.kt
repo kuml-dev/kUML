@@ -2,12 +2,23 @@ package dev.kuml.io.svg
 
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
+import dev.kuml.c4.model.DynamicDiagram
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.core.model.KumlElement
+import dev.kuml.core.model.PackageDiagramConfig
+import dev.kuml.io.svg.c4.c4RelationshipLabel
+import dev.kuml.io.svg.c4.renderC4Interaction
+import dev.kuml.io.svg.c4.renderC4Relationship
 import dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
+import dev.kuml.io.svg.sysml2.sysml2SeqFragmentLeftPad
 import dev.kuml.layout.EdgeId
+import dev.kuml.layout.EdgeRoute
+import dev.kuml.layout.GroupId
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
+import dev.kuml.layout.Point
+import dev.kuml.layout.Rect
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActDiagram
@@ -18,6 +29,7 @@ import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.ConstraintDefinition
 import dev.kuml.sysml2.IbdDiagram
 import dev.kuml.sysml2.LifelineDefinition
+import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.sysml2.ParDiagram
 import dev.kuml.sysml2.PartDefinition
@@ -37,10 +49,17 @@ import dev.kuml.sysml2.edge.ReqEdgeAdapter
 import dev.kuml.sysml2.edge.StmEdgeAdapter
 import dev.kuml.sysml2.edge.Sysml2EdgeAdapter
 import dev.kuml.sysml2.edge.UcEdgeAdapter
+import dev.kuml.uml.UmlComponent
+import dev.kuml.uml.UmlConnector
+import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlInteraction
+import dev.kuml.uml.UmlNamedElement
+import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlStateMachine
+import dev.kuml.uml.UmlUseCaseSubject
 import java.io.File
 import java.nio.file.Path
+import kotlin.math.abs
 
 /**
  * Rendert kUML-Diagramme als SVG-String oder -Datei.
@@ -81,39 +100,143 @@ public object KumlSvgRenderer {
         if (diagram.type == DiagramType.STATE) {
             return renderUmlStateDiagram(diagram, layoutResult, theme, options)
         }
-        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
-            val padding = options.paddingPx
+        // V11.x package-diagram fix: build a flat (id → element) lookup that
+        // recurses into UmlPackage.members. Without this, classes/interfaces
+        // declared inside `packageOf { … }` never reach the dispatcher because
+        // they are NOT in `diagram.elements` at the top level — they live as
+        // members of their owning UmlPackage. Same recursion as
+        // `collectComponentPorts` in UmlLayoutBridge.
+        val elementIndex = buildKumlElementIndex(diagram.elements)
+
+        // V11.x edge-endpoint fix: ELK anchors inter-package edges at the
+        // compound-node outer boundary (the very top of the tab area). The
+        // folder tab is narrower than the package body, so the arrowhead often
+        // lands in the empty "notch" between the tab end and the body start —
+        // visually the arrow appears to float before reaching the box.
+        // Post-processing snaps every package-dependency route to a Direct line
+        // that enters/exits at the body rectangle (y = groupOrigin + tabH),
+        // which is always full-width and therefore always visually reachable.
+        val effectiveLayoutResult: LayoutResult =
+            if (diagram.type == DiagramType.PACKAGE) {
+                snapPackageEdgesToBodyBoundary(elementIndex, layoutResult)
+            } else {
+                layoutResult
+            }
+        // Package groups need name + folder tab; collect them keyed by id so
+        // the group loop can decorate each LayoutGroup with the correct shape.
+        val packagesById: Map<String, UmlPackage> =
+            if (diagram.type == DiagramType.PACKAGE) collectUmlPackages(diagram.elements) else emptyMap()
+        val showFolderTabs =
+            (diagram.config as? PackageDiagramConfig)?.showFolderTabs ?: true
+
+        // Use-Case subject groups need a name label; collect them so the group
+        // loop can draw the system-boundary rect + name text.
+        val subjectsById: Map<String, UmlUseCaseSubject> =
+            diagram.elements.filterIsInstance<UmlUseCaseSubject>().associateBy { it.id }
+
+        // V2.0.46: Activity-Diagramme bekommen einen Edge-Clipper, der die
+        //          Endpunkte jedes Routings auf den tatsächlichen Shape-Rand
+        //          des Quell-/Zielknotens snappt (Raute für Decision/Merge,
+        //          Kreis mit fixem Radius für Initial/Final/FlowFinal,
+        //          Rechteck für Action/Object/Bar). Sonst enden Pfeile an
+        //          der ELK-Bounding-Box, die für nicht-rechteckige Shapes
+        //          deutlich über den sichtbaren Rand hinausragt — Folge:
+        //          schwebende Pfeile (Vault-Feedback aus
+        //          [[03 Bereiche/kUML/Beispiele/17 UML Activity – Checkout Flow]]).
+        //
+        //          Interaction-Overview-Diagramme verwenden dieselben Shapes
+        //          (Kreis für Initial/Final, Raute für Decision/Merge,
+        //          gerundetes Rechteck für InteractionRef) und denselben
+        //          [dev.kuml.uml.UmlActivityEdge]-Kantentyp, also bekommen
+        //          sie den Clipper ebenfalls (Vault-Feedback aus
+        //          [[03 Bereiche/kUML/Beispiele/22 UML Interaction Overview – Order Process]]:
+        //          schwebende Pfeile zwischen `initial`/`final` und den
+        //          `ref`-Frames).
+        //
+        //          Für andere Diagrammtypen bleibt der Index leer und die
+        //          unten folgende Edge-Schleife läuft clipping-frei.
+        val activityShapeByNodeId: Map<String, dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape> =
+            if (diagram.type == DiagramType.ACTIVITY ||
+                diagram.type == DiagramType.INTERACTION_OVERVIEW
+            ) {
+                buildActivityShapeIndex(diagram.elements, effectiveLayoutResult, options.paddingPx)
+            } else {
+                emptyMap()
+            }
+
+        // V2.0.47 — Komponenten-Vertrags-Symbole (Lollipop / Socket) ragen
+        // ca. 47 px über die Oberkante der Komponente hinaus (Stub + Kreis +
+        // Label-Gap + Labelhöhe). Damit weder Symbol noch Label oberhalb der
+        // viewBox abgeschnitten werden, wird `paddingPx` für Komponenten-
+        // diagramme, die mindestens einen ungebundenen Vertrag haben, auf
+        // mindestens diesen Wert angehoben. Andere Diagrammtypen bleiben
+        // unverändert.
+        val layoutNodeIdSet: Set<String> =
+            effectiveLayoutResult.nodes.keys
+                .map { it.value }
+                .toSet()
+        val needsContractPadding =
+            diagram.type == DiagramType.COMPONENT &&
+                elementIndex.values.any {
+                    it is UmlComponent &&
+                        dev.kuml.io.svg.uml.UmlComponentContracts.hasUnboundContracts(it) { id ->
+                            id in layoutNodeIdSet
+                        }
+                }
+        val effectiveOptions =
+            if (needsContractPadding) {
+                options.copy(
+                    paddingPx =
+                        maxOf(
+                            options.paddingPx,
+                            dev.kuml.io.svg.uml.UmlComponentContracts.TOTAL_UPWARD_EXTENT_PX + 4f,
+                        ),
+                )
+            } else {
+                options
+            }
+
+        return SvgDocument.render(effectiveLayoutResult, theme, effectiveOptions) { nodesBuilder, edgesBuilder ->
+            val padding = effectiveOptions.paddingPx
 
             // Groups FIRST — paint backgrounds before children so node boxes
             // appear on top of the group rectangle.
-            for ((groupId, groupLayout) in layoutResult.groups) {
+            for ((groupId, groupLayout) in effectiveLayoutResult.groups) {
                 val gx = groupLayout.bounds.origin.x + padding
                 val gy = groupLayout.bounds.origin.y + padding
                 val gw = groupLayout.bounds.size.width
                 val gh = groupLayout.bounds.size.height
-                nodesBuilder.tag(
-                    "g",
-                    mapOf(
-                        "id" to xmlEscapeAttr("system-${groupId.value}"),
-                        "transform" to "translate(${fmt(gx)},${fmt(gy)})",
-                    ),
-                ) {
-                    tag(
-                        "rect",
+                val pkg = packagesById[groupId.value]
+                val subject = subjectsById[groupId.value]
+                if (pkg != null && showFolderTabs) {
+                    renderPackageGroup(pkg, gx, gy, gw, gh, theme, nodesBuilder)
+                } else if (subject != null) {
+                    renderSubjectGroup(subject, gx, gy, gw, gh, theme, nodesBuilder)
+                } else {
+                    nodesBuilder.tag(
+                        "g",
                         mapOf(
-                            "width" to fmt(gw),
-                            "height" to fmt(gh),
-                            "class" to "kuml-system",
-                            "rx" to fmt(theme.borders.cornerRadiusPx),
-                            "ry" to fmt(theme.borders.cornerRadiusPx),
+                            "id" to xmlEscapeAttr("system-${groupId.value}"),
+                            "transform" to "translate(${fmt(gx)},${fmt(gy)})",
                         ),
-                    )
+                    ) {
+                        tag(
+                            "rect",
+                            mapOf(
+                                "width" to fmt(gw),
+                                "height" to fmt(gh),
+                                "class" to "kuml-system",
+                                "rx" to fmt(theme.borders.cornerRadiusPx),
+                                "ry" to fmt(theme.borders.cornerRadiusPx),
+                            ),
+                        )
+                    }
                 }
             }
 
             // Nodes
-            for ((nodeId, nodeLayout) in layoutResult.nodes) {
-                val element = diagram.elements.find { it.id == nodeId.value }
+            for ((nodeId, nodeLayout) in effectiveLayoutResult.nodes) {
+                val element = elementIndex[nodeId.value]
                 if (element != null) {
                     val shifted =
                         nodeLayout.copy(
@@ -130,20 +253,111 @@ public object KumlSvgRenderer {
                 }
             }
 
-            // Edges
-            val elementIndex = diagram.elements.associateBy { it.id }
-            val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id ->
-                layoutResult.nodes[NodeId(id)]
+            // V2.0.47 — Komponenten-Vertrags-Kurznotation. Für jede
+            //           UmlComponent, die `provides`/`requires` auf eine
+            //           Interface-ID hat, die NICHT als sichtbarer Knoten
+            //           existiert, wird ein Lollipop- bzw. Socket-Symbol
+            //           über der Komponente gezeichnet (siehe
+            //           [UmlComponentContracts]-KDoc).
+            if (diagram.type == DiagramType.COMPONENT) {
+                for ((nodeId, nodeLayout) in effectiveLayoutResult.nodes) {
+                    val element = elementIndex[nodeId.value] as? UmlComponent ?: continue
+                    val shifted =
+                        nodeLayout.copy(
+                            bounds =
+                                nodeLayout.bounds.copy(
+                                    origin =
+                                        nodeLayout.bounds.origin.copy(
+                                            x = nodeLayout.bounds.origin.x + padding,
+                                            y = nodeLayout.bounds.origin.y + padding,
+                                        ),
+                                ),
+                        )
+                    dev.kuml.io.svg.uml.UmlComponentContracts.render(
+                        component = element,
+                        layout = shifted,
+                        isDiagramNode = { id -> id in layoutNodeIdSet },
+                        builder = nodesBuilder,
+                    )
+                }
             }
-            for ((edgeId, route) in layoutResult.edges) {
-                val element = elementIndex[edgeId.value]
+
+            // Edges
+            // V2.0.47 — `flatElementIndex` muss bei Komponentendiagrammen auch
+            // verschachtelte Komponenten kennen, damit der
+            // [ComponentPortEdgeClipper] für Connectors zwischen Ports
+            // verschachtelter Komponenten die UmlComponent-Instanz findet.
+            // Bei allen anderen Diagrammtypen ändert die Rekursion über
+            // `buildKumlElementIndex` nichts (Member-Elemente werden eh nicht
+            // direkt referenziert).
+            val flatElementIndex: Map<String, KumlElement> = elementIndex
+            val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id ->
+                effectiveLayoutResult.nodes[NodeId(id)]
+            }
+            // V2.0.47 — Bounds-Lookup für den ComponentPortEdgeClipper.
+            //          Liefert die *bereits um Padding verschobene* Bounding-
+            //          Box einer Komponente, also exakt die Box die der
+            //          NodeRenderer für sie zeichnet. So treffen die
+            //          Connector-Endpunkte das Port-Quadrat punktgenau.
+            val componentBoundsLookup: (String) -> Rect? = { id ->
+                effectiveLayoutResult.nodes[NodeId(id)]?.let { nl ->
+                    nl.bounds.copy(
+                        origin =
+                            nl.bounds.origin.copy(
+                                x = nl.bounds.origin.x + padding,
+                                y = nl.bounds.origin.y + padding,
+                            ),
+                    )
+                }
+            }
+            val isComponentDiagram = diagram.type == DiagramType.COMPONENT
+            for ((edgeId, route) in effectiveLayoutResult.edges) {
+                val element = flatElementIndex[edgeId.value]
                 if (element != null) {
                     // V2.x — Self-Loops bekommen eine vergrößerte C-Loop-Route,
                     // statt der von ELK gelieferten 10-px-U-Form, damit Self-FKs
                     // (z.B. `UserPosts.parent → UserPosts`) sichtbar bleiben.
                     val routed = SelfLoopRouter.adjust(element, route, nodeLookup)
                     val shiftedRoute = shiftRoute(routed, padding)
-                    EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
+                    // V2.0.46: für Activity-Diagramme die Endpunkte auf den
+                    //          tatsächlichen Shape-Rand des Quell-/Zielknotens
+                    //          snappen (siehe `activityShapeByNodeId`-KDoc).
+                    //          Für andere Diagrammtypen ist die Map leer, also
+                    //          ist diese Schleife dann eine reine no-op.
+                    val activityClippedRoute =
+                        if (activityShapeByNodeId.isNotEmpty() && element is dev.kuml.uml.UmlActivityEdge) {
+                            dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.clip(
+                                route = shiftedRoute,
+                                sourceShape = activityShapeByNodeId[element.sourceId],
+                                targetShape = activityShapeByNodeId[element.targetId],
+                            )
+                        } else {
+                            shiftedRoute
+                        }
+                    // V2.0.47: Connector-Endpunkte in Komponentendiagrammen
+                    //          auf die tatsächlichen Port-Quadrate snappen
+                    //          (siehe [ComponentPortEdgeClipper]-KDoc). ELK
+                    //          kennt keine Port-Geometrie und routet sonst an
+                    //          irgendeine Stelle der Komponentenkante. Self-
+                    //          Loops im Komponentendiagramm bleiben der vom
+                    //          SelfLoopRouter erzeugten C-Loop-Geometrie
+                    //          überlassen.
+                    val clippedRoute =
+                        if (isComponentDiagram &&
+                            element is UmlConnector &&
+                            element.end1Id != element.end2Id
+                        ) {
+                            dev.kuml.io.svg.uml.ComponentPortEdgeClipper.clip(
+                                route = activityClippedRoute,
+                                end1Id = element.end1Id,
+                                end2Id = element.end2Id,
+                                componentLookup = { id -> flatElementIndex[id] as? UmlComponent },
+                                boundsLookup = componentBoundsLookup,
+                            )
+                        } else {
+                            activityClippedRoute
+                        }
+                    EdgeRendererDispatcher.dispatch(element, clippedRoute, theme, edgesBuilder)
                 }
             }
         }
@@ -219,11 +433,52 @@ public object KumlSvgRenderer {
             }
 
             // Edges
-            for ((edgeId, route) in layoutResult.edges) {
-                val element = relationshipIndex[edgeId.value]
-                if (element != null) {
-                    val shiftedRoute = shiftRoute(route, padding)
-                    EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
+            //
+            // Für reguläre C4-Diagramme (SystemContext, Container, Component,
+            // Landscape, Deployment) sind die Layout-Edges per Relationship-ID
+            // adressiert; [renderC4Relationship] rendert eine durchgezogene
+            // Linie + Label.
+            //
+            // Für ein [DynamicDiagram] emittiert die [C4LayoutBridge] zusätzlich
+            // pro [dev.kuml.c4.model.C4Interaction] eine Edge mit der
+            // Interaction-ID — diese ID existiert nicht im `relationshipIndex`,
+            // also löst der Fallback unten auf den interaction-Index auf und
+            // dispatcht in [renderC4Interaction] (durchgezogen für request,
+            // gestrichelt für response, Label mit Sequenznummer-Prefix).
+            //
+            // V11.x — Label-Überlappungserkennung: wenn zwei C4-Relationship-
+            // Labels nach [EdgeLabelGeometry.midAnchor] räumlich zu nah
+            // beieinander landen (x-Abstand < 40 px, y-Abstand < 120 px),
+            // werden sie senkrecht gestaffelt (±LABEL_STAGGER_PX). Tritt
+            // typischerweise auf, wenn zwei Kanten dasselbe Element als
+            // Source/Target haben und ELK sie durch denselben vertikalen
+            // Korridor routet — z.B. Customer→InternetBanking und
+            // InternetBanking→EmailService im C4-Container-Beispiel.
+            val interactionIndex: Map<String, dev.kuml.c4.model.C4Interaction> =
+                if (diagram is DynamicDiagram) {
+                    diagram.interactions.associateBy { it.id }
+                } else {
+                    emptyMap()
+                }
+
+            // Pre-compute all shifted routes so the stagger-detection and the
+            // rendering pass both use the same (already-padded) coordinates.
+            val shiftedEdgeRoutes: Map<EdgeId, EdgeRoute> =
+                layoutResult.edges.mapValues { (_, route) -> shiftRoute(route, padding) }
+
+            val labelYOffsets: Map<String, Float> =
+                computeC4LabelStaggerOffsets(shiftedEdgeRoutes, relationshipIndex)
+
+            for ((edgeId, shiftedRoute) in shiftedEdgeRoutes) {
+                val rel = relationshipIndex[edgeId.value]
+                if (rel != null) {
+                    val yOff = labelYOffsets[edgeId.value] ?: 0f
+                    renderC4Relationship(rel, shiftedRoute, theme, edgesBuilder, yOff)
+                    continue
+                }
+                val interaction = interactionIndex[edgeId.value]
+                if (interaction != null) {
+                    renderC4Interaction(interaction, shiftedRoute, theme, edgesBuilder)
                 }
             }
         }
@@ -445,6 +700,28 @@ public object KumlSvgRenderer {
             }
 
             // 3. Render transitions with labels
+            // V11.x — Stack-Indizes für parallele Edges vorberechnen, damit
+            // benachbarte Transition-Labels einander nicht überschreiben.
+            // V2.x — Label-Text wird mitgegeben, damit das Clustering
+            // Bounding-Box-Overlap statt reiner Euklid-Distanz nutzt
+            // (siehe KDoc auf Sysml2EdgeRenderer.computeLabelStackIndices).
+            val stmStackIndices =
+                dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.computeLabelStackIndices(
+                    layoutResult.edges.entries.map { (edgeId, route) ->
+                        val transition = transitionIndex[edgeId.value]
+                        val labelText =
+                            if (transition == null) {
+                                null
+                            } else {
+                                buildList {
+                                    if (transition.trigger != null) add(transition.trigger)
+                                    if (transition.guard != null) add(transition.guard)
+                                    if (transition.effect != null) add("/ ${transition.effect}")
+                                }.joinToString(" ").ifEmpty { null }
+                            }
+                        Triple(edgeId, route, labelText)
+                    },
+                )
             for ((edgeId, route) in layoutResult.edges) {
                 val transition = transitionIndex[edgeId.value] ?: continue
                 val shiftedRoute = shiftRoute(route, padding)
@@ -467,7 +744,13 @@ public object KumlSvgRenderer {
                         arrowHead = dev.kuml.sysml2.edge.Sysml2ArrowHead.OpenAngle,
                     )
                 dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
-                    .render(shiftedRoute, meta, theme, edgesBuilder)
+                    .render(
+                        shiftedRoute,
+                        meta,
+                        theme,
+                        edgesBuilder,
+                        labelStackIndex = stmStackIndices[edgeId] ?: 0,
+                    )
             }
         }
     }
@@ -520,6 +803,22 @@ public object KumlSvgRenderer {
 
             // Edges — adapter-aware three-way fallback.
             val elementIndex = synthetic.elements.associateBy { it.id }
+            // V11.x — Stack-Indizes für parallele Edges vorberechnen (siehe
+            // Sysml2EdgeRenderer.computeLabelStackIndices). Greift z.B. bei
+            // «derive» + «containment» zwischen zwei Requirements im
+            // req-traceability-Sample.
+            // V2.x — Bbox-Overlap-Clustering: Label-Text aus der Adapter-
+            // Metadata wird mitgegeben. Liefert der Adapter Stereotype +
+            // Plain-Label parallel, wählen wir das längere der beiden für
+            // die Clustering-Heuristik (sichere Seite).
+            val syntheticStackIndices =
+                Sysml2EdgeRenderer.computeLabelStackIndices(
+                    layoutResult.edges.entries.map { (edgeId, route) ->
+                        val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
+                        val labelText = widestLabelText(meta)
+                        Triple(edgeId, route, labelText)
+                    },
+                )
             for ((edgeId, route) in layoutResult.edges) {
                 val shiftedRoute = shiftRoute(route, padding)
                 val element = elementIndex[edgeId.value]
@@ -528,7 +827,13 @@ public object KumlSvgRenderer {
                 } else {
                     val meta = sysml2EdgeAdapter.metadataFor(edgeId.value)
                     if (meta != null) {
-                        Sysml2EdgeRenderer.render(shiftedRoute, meta, theme, edgesBuilder)
+                        Sysml2EdgeRenderer.render(
+                            shiftedRoute,
+                            meta,
+                            theme,
+                            edgesBuilder,
+                            labelStackIndex = syntheticStackIndices[edgeId] ?: 0,
+                        )
                     } else {
                         // V2.0.7–12 fallback: plain solid line. Reached only if
                         // the adapter doesn't claim the edge, which should not
@@ -869,6 +1174,92 @@ public object KumlSvgRenderer {
                 .associateBy { it.id }
         val adapter = ActEdgeAdapter(model, diagram)
 
+        // V2.0.46: Index der Activity-Knoten-Formen für den Edge-Clipper.
+        //          ELK liefert Edge-Endpunkte auf dem Rand der achsparallelen
+        //          Bounding-Box; für Raute (Decision/Merge) und Kreis
+        //          (Initial/Final/FlowFinal) sitzt der Endpunkt dadurch
+        //          sichtbar **außerhalb** des gezeichneten Shapes. Wir bauen
+        //          einmal pro Render-Lauf einen Index, der pro ActionDefinition
+        //          die geometrische Form (Rectangle / Circle / Diamond) und
+        //          die ELK-Bounds mit appliziertem Padding-Shift (wie
+        //          [shiftRoute] beim Routen) enthält. Im Edge-Loop wird die
+        //          geshiftete Route dann pro Endpunkt an den jeweiligen
+        //          Shape-Rand gesnappt — siehe
+        //          [dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper].
+        val actionKindById: Map<String, dev.kuml.sysml2.ActivityNodeKind> =
+            model.definitions
+                .filterIsInstance<ActionDefinition>()
+                .associate { it.id to it.kind }
+        val shapeByNodeId: Map<String, dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape> =
+            buildMap {
+                for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                    val kind = actionKindById[nodeId.value] ?: continue
+                    val shiftedBounds =
+                        nodeLayout.bounds.copy(
+                            origin =
+                                nodeLayout.bounds.origin.copy(
+                                    x = nodeLayout.bounds.origin.x + options.paddingPx,
+                                    y = nodeLayout.bounds.origin.y + options.paddingPx,
+                                ),
+                        )
+                    val shape: dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape =
+                        when (kind) {
+                            dev.kuml.sysml2.ActivityNodeKind.Decision,
+                            dev.kuml.sysml2.ActivityNodeKind.Merge,
+                            ->
+                                dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Diamond(
+                                    bounds = shiftedBounds,
+                                )
+                            dev.kuml.sysml2.ActivityNodeKind.Initial,
+                            dev.kuml.sysml2.ActivityNodeKind.Final,
+                            dev.kuml.sysml2.ActivityNodeKind.FlowFinal,
+                            -> {
+                                // SysML-2-Pseudo-Knoten: der gezeichnete
+                                // Außenradius ist 0.45 * min(halfW, halfH)
+                                // (Final/FlowFinal) bzw. 0.40 (Initial). Wir
+                                // docken an 0.45 — die 5 %-Differenz beim
+                                // Initial-Knoten ist visuell unauffällig und
+                                // lässt Pfeile knapp vor (nicht in) der
+                                // gefüllten Scheibe enden.
+                                val r =
+                                    minOf(
+                                        shiftedBounds.size.width,
+                                        shiftedBounds.size.height,
+                                    ) / 2f * SYSML2_PSEUDO_RADIUS_FACTOR
+                                dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Circle(
+                                    bounds = shiftedBounds,
+                                    radiusPx = r,
+                                )
+                            }
+                            dev.kuml.sysml2.ActivityNodeKind.Action,
+                            dev.kuml.sysml2.ActivityNodeKind.Fork,
+                            dev.kuml.sysml2.ActivityNodeKind.Join,
+                            ->
+                                dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Rectangle(
+                                    bounds = shiftedBounds,
+                                )
+                        }
+                    put(nodeId.value, shape)
+                }
+            }
+        // V2.0.46: Index `edgeId -> (sourceNodeId, targetNodeId)` für ACT-
+        //          Edges. Quelle sind ControlFlowUsage + ObjectFlowUsage aus
+        //          dem Modell — identische Auswahl wie in [ActEdgeAdapter],
+        //          damit jeder Edge, der im Render-Loop einen Adapter-Treffer
+        //          hat, auch hier seine Endpunkte findet. Edges ohne Eintrag
+        //          (theoretisch nicht möglich, defensiv für künftige
+        //          Edge-Quellen wie Pin-zu-Pin-Routen) durchlaufen den
+        //          Render-Loop dann clipping-frei.
+        val endpointsByEdgeId: Map<String, Pair<String, String>> =
+            buildMap {
+                for (flow in model.usages.filterIsInstance<dev.kuml.sysml2.ControlFlowUsage>()) {
+                    put(flow.id, flow.sourceNodeId to flow.targetNodeId)
+                }
+                for (flow in model.usages.filterIsInstance<dev.kuml.sysml2.ObjectFlowUsage>()) {
+                    put(flow.id, flow.sourceNodeId to flow.targetNodeId)
+                }
+            }
+
         return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
@@ -902,18 +1293,52 @@ public object KumlSvgRenderer {
 
             // 3. Edges — adapter-aware three-way fallback (identical to
             //    renderSysml2Synthetic).
+            //
+            //    V2.0.46: vor dem eigentlichen Render-Aufruf wird die Route
+            //    durch den [Sysml2ActivityEdgeClipper] geschickt. Der snappt
+            //    `route.source` / `route.target` auf den Rand der tatsächlichen
+            //    Knoten-Form (Raute für Decision/Merge, Kreis für Initial/
+            //    Final/FlowFinal). Ohne diesen Schritt enden Pfeile an der
+            //    Bounding-Box des Knotens — bei Rauten und Kreisen sichtbar
+            //    daneben (siehe KDoc auf [Sysml2ActivityEdgeClipper]).
             val elementIndex = synthetic.elements.associateBy { it.id }
+            // V11.x — Stack-Indizes für parallele Edges vorberechnen.
+            // V2.x — Bbox-Overlap-Clustering mit Label-Text aus dem ACT-Adapter.
+            val actStackIndices =
+                Sysml2EdgeRenderer.computeLabelStackIndices(
+                    layoutResult.edges.entries.map { (edgeId, route) ->
+                        val meta = adapter.metadataFor(edgeId.value)
+                        Triple(edgeId, route, widestLabelText(meta))
+                    },
+                )
             for ((edgeId, route) in layoutResult.edges) {
                 val shiftedRoute = shiftRoute(route, padding)
+                val endpoints = endpointsByEdgeId[edgeId.value]
+                val clippedRoute =
+                    if (endpoints != null) {
+                        dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.clip(
+                            route = shiftedRoute,
+                            sourceShape = shapeByNodeId[endpoints.first],
+                            targetShape = shapeByNodeId[endpoints.second],
+                        )
+                    } else {
+                        shiftedRoute
+                    }
                 val element = elementIndex[edgeId.value]
                 if (element != null) {
-                    EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
+                    EdgeRendererDispatcher.dispatch(element, clippedRoute, theme, edgesBuilder)
                 } else {
                     val meta = adapter.metadataFor(edgeId.value)
                     if (meta != null) {
-                        Sysml2EdgeRenderer.render(shiftedRoute, meta, theme, edgesBuilder)
+                        Sysml2EdgeRenderer.render(
+                            clippedRoute,
+                            meta,
+                            theme,
+                            edgesBuilder,
+                            labelStackIndex = actStackIndices[edgeId] ?: 0,
+                        )
                     } else {
-                        val (tag, attrs) = EdgePathBuilder.build(shiftedRoute)
+                        val (tag, attrs) = EdgePathBuilder.build(clippedRoute)
                         edgesBuilder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
                     }
                 }
@@ -986,6 +1411,27 @@ public object KumlSvgRenderer {
                 elements = visibleLifelines,
             )
         val messages = model.usages.filterIsInstance<MessageUsage>()
+        // V3.0.x: Per-Lifeline Create-Offset — Lifelines, die als Target einer
+        // `MessageKind.Create`-Nachricht auftreten, werden mid-sequence "geboren".
+        // Der MVP-Renderer (V2.0.15) zeichnete deren Kopf-Box weiterhin am
+        // oberen Kanten-Rand, sodass die Create-Pfeilspitze bei
+        // `(tgtBoxLeft, srcHeadBottom + (seqNo + 1) * ROW)` IM LEEREN RAUM
+        // unter der Kopf-Box landete. Mit V3.0.x verschieben wir die Kopf-Box
+        // dieser Targets nach unten um `(createSeqNo + 1) * ROW`, sodass die
+        // Pfeilspitze exakt auf die untere Ecke der (jetzt tiefer liegenden)
+        // Kopf-Box trifft. Der Offset wird unten an `renderLifelineHead`
+        // weitergereicht; die `bounds.origin.y` der LayoutNode bleibt für alle
+        // Lifelines konstant (= padding), damit die Y-Referenz der Messages
+        // (`srcLayout.bounds.origin.y + HEAD_HEIGHT`) gleichmäßig bleibt.
+        val createOffsetById: Map<String, Float> =
+            messages
+                .asSequence()
+                .filter { it.kind == MessageKind.Create && it.targetLifelineId in visibleIds }
+                .associate {
+                    it.targetLifelineId to
+                        (it.seqNo + 1) *
+                        dev.kuml.io.svg.sysml2.SYSML2_SEQ_MESSAGE_ROW_HEIGHT
+                }
         // V2.0.15: Combined Fragments + Execution Specs — auch renderer-direkt
         // (analog zu Messages, keine LayoutGraph-Edges). Werden vor den
         // Messages gezeichnet, damit Message-Pfeile visuell über
@@ -1004,8 +1450,13 @@ public object KumlSvgRenderer {
         // sind. Wirkt sowohl im Lifeline-Shift als auch in der Canvas-Größe.
         val effectiveOptions =
             if (fragments.isNotEmpty()) {
+                // V3.0.x: Per-Fragment-Left-Pad ist jetzt dynamisch und richtet
+                // sich nach dem längsten Guard-Text. Canvas-Padding muss
+                // mindestens so groß sein, damit Frames + rechtsbündige Guards
+                // nicht links ge-clippt werden.
+                val maxFragmentLeftPad = fragments.maxOf { sysml2SeqFragmentLeftPad(it) }
                 options.copy(
-                    paddingPx = maxOf(options.paddingPx, dev.kuml.io.svg.sysml2.SYSML2_SEQ_FRAGMENT_PADDING + 4f),
+                    paddingPx = maxOf(options.paddingPx, maxFragmentLeftPad + 4f),
                 )
             } else {
                 options
@@ -1057,9 +1508,24 @@ public object KumlSvgRenderer {
             // 3. Lifeline-Köpfe + dashed Zeit-Achsen auf die Fragments draufmalen.
             //    Dadurch bleibt die gestrichelte Vertikale jeder Lifeline auch
             //    innerhalb jedes alt/opt/loop-Frames sichtbar.
+            //
+            //    V3.0.x: Statt über `NodeRendererDispatcher.dispatch` wird
+            //    `renderLifelineHead` HIER direkt aufgerufen, damit der
+            //    SEQ-spezifische `createOffsetY` durchgereicht werden kann.
+            //    Andere Diagrammtypen (BDD/IBD/STM/UC) verwenden weiterhin den
+            //    Dispatcher-Pfad; dort gibt es keine Create-Nachrichten und
+            //    damit auch keinen Offset.
             for ((nodeId, shifted) in shiftedLayouts) {
-                val element = synthetic.elements.find { it.id == nodeId.value } ?: continue
-                NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                val element =
+                    synthetic.elements.find { it.id == nodeId.value } as? LifelineDefinition
+                        ?: continue
+                dev.kuml.io.svg.sysml2.renderLifelineHead(
+                    element = element,
+                    layout = shifted,
+                    theme = theme,
+                    builder = nodesBuilder,
+                    createOffsetY = createOffsetById[nodeId.value] ?: 0f,
+                )
             }
 
             // 4. V2.0.15: Execution Specs in den edges-Layer — die Aktivierungs-Bar
@@ -1182,6 +1648,382 @@ public object KumlSvgRenderer {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
+    /**
+     * Post-processes inter-package dependency routes so arrowheads land on the
+     * **body** rectangle of the target package, not on the narrow folder-tab top.
+     *
+     * Root cause: ELK anchors inter-compound edges at the compound node's outer
+     * boundary, which is the very top of the tab area (y = groupOrigin.y). The
+     * folder tab is narrower than the body — so the arrowhead's X position is
+     * often outside the tab, landing in the empty "notch" between tab end and
+     * body start. Visually the arrow appears to float before touching the box.
+     *
+     * Fix: replace every package-dependency route with a [EdgeRoute.Direct] line
+     * from the client body boundary to the supplier body boundary. The body
+     * rectangle starts at [PACKAGE_TAB_HEIGHT] below the group origin and spans
+     * the full package width, so it is always visually reachable.
+     */
+    private fun snapPackageEdgesToBodyBoundary(
+        elementIndex: Map<String, dev.kuml.core.model.KumlElement>,
+        layoutResult: LayoutResult,
+    ): LayoutResult {
+        val fixedEdges = linkedMapOf<EdgeId, EdgeRoute>()
+        fixedEdges.putAll(layoutResult.edges)
+
+        for ((edgeId, _) in layoutResult.edges) {
+            val dep = elementIndex[edgeId.value] as? UmlDependency ?: continue
+            val clientGroup = layoutResult.groups[GroupId(dep.clientId)] ?: continue
+            val supplierGroup = layoutResult.groups[GroupId(dep.supplierId)] ?: continue
+            fixedEdges[edgeId] = directRouteBetweenPackageBodyBounds(clientGroup.bounds, supplierGroup.bounds)
+        }
+        return layoutResult.copy(edges = fixedEdges)
+    }
+
+    /**
+     * Computes a [EdgeRoute.Direct] between the **body boundaries** of two
+     * package groups. When the connection is vertical (most common), the source
+     * exits at the body bottom and the target is entered at the body top
+     * (`y = groupOrigin.y + PACKAGE_TAB_HEIGHT`). Horizontal connections use
+     * the full body-left/right edges without tab adjustment.
+     */
+    private fun directRouteBetweenPackageBodyBounds(
+        client: Rect,
+        supplier: Rect,
+    ): EdgeRoute.Direct {
+        val clientCx = client.origin.x + client.size.width / 2f
+        val clientBodyTop = client.origin.y + PACKAGE_TAB_HEIGHT
+        val clientBodyBottom = client.origin.y + client.size.height
+        val clientBodyCy = (clientBodyTop + clientBodyBottom) / 2f
+
+        val supplierCx = supplier.origin.x + supplier.size.width / 2f
+        val supplierBodyTop = supplier.origin.y + PACKAGE_TAB_HEIGHT
+        val supplierBodyBottom = supplier.origin.y + supplier.size.height
+        val supplierBodyCy = (supplierBodyTop + supplierBodyBottom) / 2f
+
+        val dx = supplierCx - clientCx
+        val dy = supplierBodyCy - clientBodyCy
+
+        val source: Point
+        val target: Point
+
+        if (kotlin.math.abs(dy) >= kotlin.math.abs(dx)) {
+            if (dy > 0f) {
+                // supplier is below client
+                source = Point(clientCx, clientBodyBottom)
+                target = Point(supplierCx, supplierBodyTop)
+            } else {
+                // supplier is above client
+                source = Point(clientCx, clientBodyTop)
+                target = Point(supplierCx, supplierBodyBottom)
+            }
+        } else {
+            if (dx > 0f) {
+                // supplier is to the right
+                source = Point(client.origin.x + client.size.width, clientBodyCy)
+                target = Point(supplier.origin.x, supplierBodyCy)
+            } else {
+                // supplier is to the left
+                source = Point(client.origin.x, clientBodyCy)
+                target = Point(supplier.origin.x + supplier.size.width, supplierBodyCy)
+            }
+        }
+        return EdgeRoute.Direct(source = source, target = target)
+    }
+
+    /** Höhe der Folder-Tab-Lasche eines UML-Pakets. Muss mit dem Top-Padding
+     *  in `UmlLayoutBridge.PACKAGE_GROUP_INSETS` zusammenpassen (18 px Tab +
+     *  10 px Atemluft = 28 px Top-Insets). */
+    private const val PACKAGE_TAB_HEIGHT: Float = 18f
+
+    /** Höhe der vertikalen Aussparung unter der Lasche, bevor die
+     *  Tab-Linie das obere Pakets-Rechteck schneidet. */
+    private const val PACKAGE_TAB_GAP: Float = 0f
+
+    /** Approximation der Textbreite pro Zeichen für den Folder-Tab-Namen
+     *  (12 px Schriftgröße, system-ui). Für die Tab-Breite ausreichend
+     *  großzügig, damit auch breite Buchstaben passen. */
+    private const val PACKAGE_TAB_CHAR_WIDTH: Float = 7.5f
+
+    /** Mindestbreite des Folder-Tabs, damit auch sehr kurze Paketnamen
+     *  (z. B. `ui`) eine sichtbare Lasche bekommen. */
+    private const val PACKAGE_TAB_MIN_WIDTH: Float = 56f
+
+    /**
+     * Renders a single UML package shape (folder tab + main rectangle) at the
+     * given layout origin. Tab sits flush with the package's top-left corner,
+     * carries the package name, and the main body extends from `(0, tabH)` to
+     * `(gw, gh)`. The layout bridge reserves `PACKAGE_GROUP_INSETS.top` px so
+     * that contained classifiers do not overlap the tab area.
+     */
+    private fun renderPackageGroup(
+        pkg: UmlPackage,
+        gx: Float,
+        gy: Float,
+        gw: Float,
+        gh: Float,
+        @Suppress("UNUSED_PARAMETER") theme: dev.kuml.renderer.theme.core.KumlTheme,
+        nodesBuilder: SvgBuilder,
+    ) {
+        val tabH = PACKAGE_TAB_HEIGHT
+        val tabW =
+            (pkg.name.length * PACKAGE_TAB_CHAR_WIDTH + 16f)
+                .coerceAtLeast(PACKAGE_TAB_MIN_WIDTH)
+                .coerceAtMost(gw - 4f)
+        nodesBuilder.tag(
+            "g",
+            mapOf(
+                "id" to xmlEscapeAttr("package-${pkg.id}"),
+                "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+            ),
+        ) {
+            // Tab (top-left)
+            tag(
+                "rect",
+                mapOf(
+                    "x" to "0",
+                    "y" to "0",
+                    "width" to fmt(tabW),
+                    "height" to fmt(tabH),
+                    "class" to "kuml-system",
+                ),
+            )
+            // Main body — sits flush below the tab on its left side and
+            // extends the full group width on its right. Top edge stops at
+            // tabH on the left half, drops down on the tab's right edge,
+            // then runs across to the right side.
+            tag(
+                "rect",
+                mapOf(
+                    "x" to "0",
+                    "y" to fmt(tabH + PACKAGE_TAB_GAP),
+                    "width" to fmt(gw),
+                    "height" to fmt(gh - tabH - PACKAGE_TAB_GAP),
+                    "class" to "kuml-system",
+                ),
+            )
+            // Package name centered in the tab
+            tag(
+                "text",
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to fmt(tabW / 2f),
+                    "y" to fmt(tabH - 5f),
+                    "text-anchor" to "middle",
+                ),
+            ) { text(pkg.name) }
+        }
+    }
+
+    /**
+     * Renders a UML Use-Case subject (system boundary) as an SVG rectangle with
+     * the subject name as a label in the top-left corner.
+     *
+     * The top-padding reserved by [dev.kuml.layout.bridge.UmlLayoutBridge.USE_CASE_SUBJECT_INSETS]
+     * (28 px) gives exactly enough room for the name text (baseline at y = 18)
+     * plus 10 px breathing space before the first contained use-case ellipse.
+     */
+    private fun renderSubjectGroup(
+        subject: UmlUseCaseSubject,
+        gx: Float,
+        gy: Float,
+        gw: Float,
+        gh: Float,
+        theme: dev.kuml.renderer.theme.core.KumlTheme,
+        nodesBuilder: SvgBuilder,
+    ) {
+        nodesBuilder.tag(
+            "g",
+            mapOf(
+                "id" to xmlEscapeAttr("subject-${subject.id}"),
+                "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+            ),
+        ) {
+            tag(
+                "rect",
+                mapOf(
+                    "width" to fmt(gw),
+                    "height" to fmt(gh),
+                    "class" to "kuml-system",
+                    "rx" to fmt(theme.borders.cornerRadiusPx),
+                    "ry" to fmt(theme.borders.cornerRadiusPx),
+                ),
+            )
+            // Subject name in the top-left corner, inside the top-padding area
+            tag(
+                "text",
+                mapOf(
+                    "class" to "kuml-title",
+                    "x" to "8",
+                    "y" to "18",
+                    "text-anchor" to "start",
+                ),
+            ) { text(subject.name) }
+        }
+    }
+
+    /**
+     * Builds a flat `id → KumlElement` map by walking each diagram element
+     * recursively into `UmlPackage.members`. Without this, the renderer's
+     * dispatcher would miss every classifier declared inside `packageOf { … }`
+     * because such members are NOT in `KumlDiagram.elements`.
+     */
+    private fun buildKumlElementIndex(elements: List<KumlElement>): Map<String, KumlElement> {
+        val out = mutableMapOf<String, KumlElement>()
+
+        fun visit(element: KumlElement) {
+            out[element.id] = element
+            if (element is UmlPackage) {
+                element.members.forEach { visit(it) }
+            }
+            if (element is UmlComponent) {
+                // V2.0.47 — nested components werden ebenfalls in den Index
+                // aufgenommen. Damit findet der ComponentPortEdgeClipper
+                // auch Connectors zwischen Ports von verschachtelten
+                // Komponenten (analog zur Rekursion in
+                // UmlLayoutBridge.collectComponentPorts).
+                element.nestedComponents.forEach { visit(it) }
+            }
+        }
+        elements.forEach { visit(it) }
+        return out
+    }
+
+    /** Same recursion as [buildKumlElementIndex], but narrowed to packages —
+     *  used to look up the originating UmlPackage for each LayoutGroup so the
+     *  renderer can draw the folder tab + name. */
+    private fun collectUmlPackages(elements: List<KumlElement>): Map<String, UmlPackage> {
+        val out = mutableMapOf<String, UmlPackage>()
+
+        fun visit(element: KumlElement) {
+            if (element is UmlPackage) {
+                out[element.id] = element
+                element.members.filterIsInstance<UmlNamedElement>().forEach { member -> visit(member) }
+            }
+        }
+        elements.forEach { visit(it) }
+        return out
+    }
+
+    /**
+     * V2.0.46 — Baut den Activity-Shape-Index für den
+     * [dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper] aus den Diagramm-
+     * Elementen plus dem (bereits effektiven) Layout-Result. Pro
+     * [dev.kuml.uml.UmlActivityNode] bzw.
+     * [dev.kuml.uml.UmlInteractionOverviewFrame] wird die geometrische Form
+     * (Rectangle / Circle / Diamond) und die Bounding-Box mit appliziertem
+     * Padding-Shift (`+ paddingPx`, gleiche Verschiebung wie [shiftRoute])
+     * ermittelt.
+     *
+     * Activity-Kind → Form-Mapping spiegelt die SVG-Routine
+     * `dev.kuml.io.svg.uml.renderUmlActivityNode`:
+     *  - DECISION / MERGE → Raute (bounds-füllendes Polygon)
+     *  - INITIAL / ACTIVITY_FINAL / FLOW_FINAL → Kreis mit dem **fixen**
+     *    Radius der jeweiligen Renderer-Konstante (10 px für Initial /
+     *    Flow-Final, 12 px für Activity-Final — siehe `UmlV11Svg.kt`).
+     *    Wir übergeben die Renderer-Konstanten 1:1 an den Clipper, damit
+     *    Pfeile genau am sichtbaren Kreisrand enden.
+     *  - ACTION / OBJECT / FORK / JOIN → Rechteck (ELK liefert ohnehin
+     *    schon korrekte Endpunkte, der Snap ist idempotent).
+     *
+     * Interaction-Overview-Kind → Form-Mapping spiegelt
+     * `dev.kuml.io.svg.uml.renderUmlInteractionOverviewFrame`:
+     *  - DECISION / MERGE → Raute
+     *  - INITIAL → Kreis mit Radius 10 px (`r="10"`)
+     *  - FINAL → Kreis mit Außenradius 12 px (`r="12"`)
+     *  - INTERACTION_REF → gerundetes Rechteck (Bounding-Box ≈ Shape, der
+     *    Clipper ist hier idempotent, aber wir tragen den Knoten ein damit
+     *    die kombinierten Kanten ref ↔ initial/final beidseitig clipped
+     *    werden — gerade Source bzw. Target an einem Kreis braucht den
+     *    Snap).
+     */
+    private fun buildActivityShapeIndex(
+        elements: List<dev.kuml.core.model.KumlElement>,
+        layoutResult: LayoutResult,
+        paddingPx: Float,
+    ): Map<String, dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape> {
+        val activityKindById: Map<String, dev.kuml.uml.UmlActivityNodeKind> =
+            elements
+                .filterIsInstance<dev.kuml.uml.UmlActivityNode>()
+                .associate { it.id to it.kind }
+        val interactionFrameKindById: Map<String, dev.kuml.uml.UmlInteractionFrameKind> =
+            elements
+                .filterIsInstance<dev.kuml.uml.UmlInteractionOverviewFrame>()
+                .associate { it.id to it.kind }
+        if (activityKindById.isEmpty() && interactionFrameKindById.isEmpty()) return emptyMap()
+        return buildMap {
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val shiftedBounds =
+                    nodeLayout.bounds.copy(
+                        origin =
+                            nodeLayout.bounds.origin.copy(
+                                x = nodeLayout.bounds.origin.x + paddingPx,
+                                y = nodeLayout.bounds.origin.y + paddingPx,
+                            ),
+                    )
+                val shape: dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape? =
+                    when {
+                        activityKindById.containsKey(nodeId.value) ->
+                            when (activityKindById.getValue(nodeId.value)) {
+                                dev.kuml.uml.UmlActivityNodeKind.DECISION,
+                                dev.kuml.uml.UmlActivityNodeKind.MERGE,
+                                ->
+                                    dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Diamond(
+                                        bounds = shiftedBounds,
+                                    )
+                                dev.kuml.uml.UmlActivityNodeKind.INITIAL ->
+                                    dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Circle(
+                                        bounds = shiftedBounds,
+                                        radiusPx = UML_ACTIVITY_INITIAL_RADIUS_PX,
+                                    )
+                                dev.kuml.uml.UmlActivityNodeKind.ACTIVITY_FINAL ->
+                                    dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Circle(
+                                        bounds = shiftedBounds,
+                                        radiusPx = UML_ACTIVITY_FINAL_OUTER_RADIUS_PX,
+                                    )
+                                dev.kuml.uml.UmlActivityNodeKind.FLOW_FINAL ->
+                                    dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Circle(
+                                        bounds = shiftedBounds,
+                                        radiusPx = UML_ACTIVITY_FLOWFINAL_RADIUS_PX,
+                                    )
+                                dev.kuml.uml.UmlActivityNodeKind.ACTION,
+                                dev.kuml.uml.UmlActivityNodeKind.OBJECT,
+                                dev.kuml.uml.UmlActivityNodeKind.FORK,
+                                dev.kuml.uml.UmlActivityNodeKind.JOIN,
+                                ->
+                                    dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Rectangle(
+                                        bounds = shiftedBounds,
+                                    )
+                            }
+                        interactionFrameKindById.containsKey(nodeId.value) ->
+                            when (interactionFrameKindById.getValue(nodeId.value)) {
+                                dev.kuml.uml.UmlInteractionFrameKind.DECISION,
+                                dev.kuml.uml.UmlInteractionFrameKind.MERGE,
+                                ->
+                                    dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Diamond(
+                                        bounds = shiftedBounds,
+                                    )
+                                dev.kuml.uml.UmlInteractionFrameKind.INITIAL ->
+                                    dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Circle(
+                                        bounds = shiftedBounds,
+                                        radiusPx = UML_INTERACTION_INITIAL_RADIUS_PX,
+                                    )
+                                dev.kuml.uml.UmlInteractionFrameKind.FINAL ->
+                                    dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Circle(
+                                        bounds = shiftedBounds,
+                                        radiusPx = UML_INTERACTION_FINAL_OUTER_RADIUS_PX,
+                                    )
+                                dev.kuml.uml.UmlInteractionFrameKind.INTERACTION_REF ->
+                                    dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Rectangle(
+                                        bounds = shiftedBounds,
+                                    )
+                            }
+                        else -> null
+                    }
+                if (shape != null) put(nodeId.value, shape)
+            }
+        }
+    }
+
     private fun shiftRoute(
         route: dev.kuml.layout.EdgeRoute,
         padding: Float,
@@ -1214,6 +2056,135 @@ public object KumlSvgRenderer {
     private fun fmt(v: Float): String {
         val i = v.toInt()
         return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
+    }
+
+    /**
+     * Anteil von `min(halfW, halfH)`, den die SysML-2-Pseudo-Knoten (Initial
+     * / Final / FlowFinal) als Außenradius gezeichnet bekommen — spiegelt die
+     * Renderer-Konstanten in [dev.kuml.io.svg.sysml2.renderActionDefinition]
+     * (0.45 für Final/FlowFinal, 0.40 für Initial). 0.45 ist der gemeinsame
+     * Andock-Radius (V2.0.46); siehe KDoc auf
+     * [dev.kuml.io.svg.sysml2.Sysml2ActivityEdgeClipper.Shape.Circle].
+     */
+    private const val SYSML2_PSEUDO_RADIUS_FACTOR: Float = 0.45f
+
+    /**
+     * Renderer-Konstanten der UML-1.1-Activity-Pseudo-Knoten — spiegeln
+     * die hard-coded Radien in `dev.kuml.io.svg.uml.renderUmlActivityNode`
+     * (Initial r=10, Activity-Final äußerer r=12, Flow-Final r=10).
+     * Der Edge-Clipper braucht die exakten Pixel-Radien, weil die
+     * Bounding-Box (28×28 ab V2.0.46) den sichtbaren Kreis nicht
+     * tangential berührt — wir docken am tatsächlich gezeichneten
+     * Kreisrand an, nicht an der Bounding-Box-Kante.
+     */
+    private const val UML_ACTIVITY_INITIAL_RADIUS_PX: Float = 10f
+    private const val UML_ACTIVITY_FINAL_OUTER_RADIUS_PX: Float = 12f
+    private const val UML_ACTIVITY_FLOWFINAL_RADIUS_PX: Float = 10f
+
+    /**
+     * Renderer-Konstanten der UML-1.1-Interaction-Overview-Pseudo-Knoten
+     * — spiegeln die hard-coded Radien in
+     * `dev.kuml.io.svg.uml.renderUmlInteractionOverviewFrame`
+     * (Initial r=10, Final äußerer r=12). Werden vom Edge-Clipper
+     * verwendet, damit Pfeile genau am sichtbaren Kreisrand und nicht
+     * an der ELK-Bounding-Box-Kante enden (Vault-Feedback aus
+     * [[03 Bereiche/kUML/Beispiele/22 UML Interaction Overview – Order Process]]).
+     */
+    private const val UML_INTERACTION_INITIAL_RADIUS_PX: Float = 10f
+    private const val UML_INTERACTION_FINAL_OUTER_RADIUS_PX: Float = 12f
+
+    /**
+     * Berechnet vertikale Stagger-Offsets für C4-Relationship-Labels, die durch
+     * denselben vertikalen Korridor (gleiche x-Koordinate) laufen und sich
+     * deshalb räumlich überlappen würden.
+     *
+     * Zwei Labels gelten als überlappend, wenn ihr via [EdgeLabelGeometry.midAnchor]
+     * berechneter Ankerpunkt in x **und** y näher als [LABEL_PROX_X] / [LABEL_PROX_Y]
+     * liegt. Überlappende Paare werden durch [LABEL_STAGGER_PX] auseinandergezogen:
+     * der erste Eintrag des Paares wandert um [LABEL_STAGGER_PX] nach oben, der
+     * zweite um [LABEL_STAGGER_PX] nach unten. Bei mehr als zwei Labels in einer
+     * engen Gruppe summieren sich die Versätze additiv (jede weitere Überlappung
+     * schiebt einen der Partner erneut um [LABEL_STAGGER_PX] weiter).
+     *
+     * Gibt eine leere Map zurück wenn das Diagramm ≤ 1 beschriftete Kante hat
+     * oder kein Paar die Schwellenwerte unterschreitet.
+     */
+    private fun computeC4LabelStaggerOffsets(
+        shiftedRoutes: Map<EdgeId, EdgeRoute>,
+        relationshipIndex: Map<String, dev.kuml.c4.model.C4Relationship>,
+    ): Map<String, Float> {
+        /** x-Nähe: beide Labels müssen in derselben vertikalen Spur liegen. */
+        val labelProxX = 40f
+
+        /**
+         * y-Nähe: entspricht etwa 1,5× dem [ElkEngineConfiguration.layerSpacing]
+         * (90 px Default). Fängt den typischen Fall ab, bei dem zwei Kanten dasselbe
+         * Element als Source/Target teilen und ihre Labels im gemeinsamen Korridor landen.
+         */
+        val labelProxY = 120f
+
+        /** Versatz pro erkanntem Überlappungspaar — eine Schriftzeilen-Höhe + Halo-Puffer. */
+        val labelStaggerPx = 18f
+
+        // Nur Kanten, die tatsächlich ein Label rendern, zählen.
+        val anchors = mutableMapOf<String, EdgeLabelGeometry.LabelAnchor>()
+        for ((edgeId, route) in shiftedRoutes) {
+            val rel = relationshipIndex[edgeId.value] ?: continue
+            if (c4RelationshipLabel(rel).isEmpty()) continue
+            anchors[edgeId.value] = EdgeLabelGeometry.midAnchor(route)
+        }
+
+        if (anchors.size < 2) return emptyMap()
+
+        val result = mutableMapOf<String, Float>()
+        val ids = anchors.keys.toList()
+
+        for (i in ids.indices) {
+            for (j in i + 1 until ids.size) {
+                val idA = ids[i]
+                val idB = ids[j]
+                val anchorA = anchors[idA] ?: continue
+                val anchorB = anchors[idB] ?: continue
+
+                if (abs(anchorA.x - anchorB.x) < labelProxX &&
+                    abs(anchorA.y - anchorB.y) < labelProxY
+                ) {
+                    // Erstes Element des Paares wandert nach oben, zweites nach unten.
+                    result[idA] = (result[idA] ?: 0f) - labelStaggerPx
+                    result[idB] = (result[idB] ?: 0f) + labelStaggerPx
+                }
+            }
+        }
+
+        return result
+    }
+
+    /**
+     * Pick the wider of an edge's stereotype / plain-label texts for the
+     * [Sysml2EdgeRenderer.computeLabelStackIndices] clustering decision.
+     *
+     * Bbox-overlap clustering errs on the side of safety: when an edge
+     * carries both a stereotype like `«derive»` and a plain `[guard]`, we
+     * pick whichever string would paint the wider background rectangle.
+     * Picking the shorter one would under-estimate the rectangle and miss
+     * overlaps; picking a concatenation would over-estimate (the renderer
+     * stacks the two labels on top of each other, not side by side).
+     *
+     * Returns `null` if neither slot is populated — the renderer's
+     * "no-label early return" path is taken and clustering treats this edge
+     * as zero-width.
+     */
+    private fun widestLabelText(meta: dev.kuml.sysml2.edge.Sysml2EdgeMetadata?): String? {
+        if (meta == null) return null
+        val s = meta.stereotype
+        val l = meta.label
+        return when {
+            s == null && l == null -> null
+            s == null -> l
+            l == null -> s
+            s.length >= l.length -> s
+            else -> l
+        }
     }
 }
 

@@ -4,6 +4,8 @@ import dev.kuml.layout.EdgeHints
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EndpointRef
 import dev.kuml.layout.GroupId
+import dev.kuml.layout.Insets
+import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutGroup
@@ -198,6 +200,32 @@ public object Sysml2LayoutBridge {
     public const val STM_PSEUDO_SIZE: Float = 24f
 
     /**
+     * Zusätzliche Pixel pro ein-/ausgehender Transition, addiert auf der
+     * Andock-Seite einer regulären STM-State-Box. Gleiche Heuristik wie
+     * [UmlContentSizeProvider.CONNECTION_PUFFER_PX] (CLAUDE.md
+     * "Renderer-Sizing-Heuristik (Knotengröße ∝ Anzahl Anschluss-Kanten)"):
+     * mehr anliegende Transitionen → größere Andock-Seite → ELK darf die
+     * Kanten-Endpunkte räumlich entzerren, damit `trigger [guard] / effect`-
+     * Labels nicht aufeinander rutschen.
+     *
+     * 14 px liegt in der Mitte des in der Heuristik genannten 12–16-px-Bands
+     * und entspricht ungefähr dem horizontalen Abstand, den ELK pro
+     * Edge-Endpunkt am Knotenrand reserviert. Self-Transitionen zählen
+     * zweifach (sie greifen an zwei Punkten derselben Box an).
+     */
+    public const val STM_CONNECTION_PUFFER_PX: Float = 14f
+
+    /**
+     * Obergrenze für den Anschluss-Puffer pro Seite einer STM-State-Box.
+     * Bewusst niedriger als der UML-Default ([UmlContentSizeProvider
+     * .CONNECTION_PUFFER_MAX_PX] = 200 px), weil STM-Boxen schmaler sind als
+     * Class-/Component-Boxen und mehr als ~8 Transitionen pro State in
+     * realistischen Modellen so gut wie nie vorkommen. 112 px ≈ 8 Edges,
+     * danach gewinnt nur noch ELK über zusätzliche Layer-Sprünge.
+     */
+    public const val STM_CONNECTION_PUFFER_MAX_PX: Float = 112f
+
+    /**
      * Default-Breite einer regulären [ActionDefinition]-Box in einem
      * Activity-Diagramm (V2.0.10). Etwas breiter als die STM-State-Box,
      * weil Actions typischerweise eine zweite Zeile mit einem
@@ -222,11 +250,21 @@ public object Sysml2LayoutBridge {
      * Default-Breite einer Decision-/Merge-Raute in einem Activity-Diagramm
      * (V2.0.10). Quadratisch, weil der Renderer die Raute durch vier Punkte
      * (oben/rechts/unten/links der Bounds) zeichnet.
+     *
+     * V2.0.46: bewusst auf [ACT_PSEUDO_SIZE] (28 px) gesetzt, damit die
+     * Raute visuell **nicht größer** ist als die kleinen Pseudo-Knoten
+     * (Initial / Final / FlowFinal). Die Erfahrung aus dem Checkout-Beispiel
+     * ([[03 Bereiche/kUML/Beispiele/17 UML Activity – Checkout Flow]]) zeigte
+     * eine 50-px-Raute zwischen 28-px-Endpunkten als optisch dominant —
+     * die Raute soll im Token-Fluss als kleiner Schaltpunkt wirken, nicht
+     * als visuelles Schwergewicht. Bei mehreren ausgehenden Kanten mit
+     * Guard-Labels darf die Raute bei Bedarf später content-aware wachsen
+     * (V2.x-Polish, analog zur [UmlContentSizeProvider]-Heuristik).
      */
-    public const val ACT_DIAMOND_WIDTH: Float = 50f
+    public const val ACT_DIAMOND_WIDTH: Float = ACT_PSEUDO_SIZE
 
-    /** Default-Höhe einer Decision-/Merge-Raute (V2.0.10). */
-    public const val ACT_DIAMOND_HEIGHT: Float = 50f
+    /** Default-Höhe einer Decision-/Merge-Raute (V2.0.10, V2.0.46 = [ACT_PSEUDO_SIZE]). */
+    public const val ACT_DIAMOND_HEIGHT: Float = ACT_PSEUDO_SIZE
 
     /**
      * Default-Breite einer Fork-/Join-Synchronisations-Bar in einem
@@ -311,39 +349,191 @@ public object Sysml2LayoutBridge {
         }
 
     /**
-     * Content-aware [SizeProvider] for IBD nodes. Uses a fixed height based
-     * on the two-line IBD box (stereotype + name).
+     * Avg width of a 14pt bold sans-serif char (incl. ~10% slack) — used to
+     * estimate the visual width of the IBD title line `name : Type [mult]`.
+     * Matches the value in [C4ContentSizeProvider.TITLE_CHAR_PX].
      */
-    public fun ibdContentAwareSizeProvider(): SizeProvider =
-        SizeProvider { _, _ ->
+    public const val IBD_TITLE_CHAR_PX: Float = 8.4f
+
+    /**
+     * Avg width of a 10pt italic sans-serif char (stereotype label `«part»`).
+     */
+    public const val IBD_STEREO_CHAR_PX: Float = 5.6f
+
+    /** Horizontal padding (left + right) inside an IBD box. */
+    public const val IBD_H_PAD: Float = 16f
+
+    /**
+     * Content-aware [SizeProvider] for IBD nodes (V2.0.6 → V2.x).
+     *
+     * Height: stereotype + name line + vertical padding — analog zu V2.0.6.
+     * Breite: wächst mit der Label-Länge der Part-Usage (`name : Type [mult]`),
+     * gedeckelt auf untere Schranke [IBD_DEFAULT_WIDTH]. Ohne diese Erweiterung
+     * laufen lange Klartextlabels wie `electricMotor : ElectricMotor` oder
+     * `iceEngine : InternalCombustionEngine` über den Rand der Box hinaus,
+     * weil der SVG-Renderer den Text horizontal zentriert und nicht clippt.
+     *
+     * Wird kein [model] übergeben, fällt der Provider auf die V2.0.6-Default-
+     * Breite zurück.
+     */
+    public fun ibdContentAwareSizeProvider(model: Sysml2Model? = null): SizeProvider =
+        SizeProvider { id, _ ->
             val h = STEREOTYPE_LINE_H + NAME_LINE_H + BOX_V_PADDING
-            dev.kuml.layout.Size(IBD_DEFAULT_WIDTH, maxOf(h, 50f))
+            val w =
+                if (model == null) {
+                    IBD_DEFAULT_WIDTH
+                } else {
+                    // The node-id IS the part-usage qualifiedName (DSL-Konvention).
+                    val usage = model.usages.filterIsInstance<PartUsage>().firstOrNull { it.id == id }
+                    val titleLine =
+                        if (usage != null) {
+                            val multSpec = usage.multiplicity.toSpecForm()
+                            val multSuffix = if (multSpec == "1") "" else " [$multSpec]"
+                            "${usage.name} : ${usage.definitionId}$multSuffix"
+                        } else {
+                            ""
+                        }
+                    val stereoW = "«part»".length * IBD_STEREO_CHAR_PX
+                    val titleW = titleLine.length * IBD_TITLE_CHAR_PX
+                    val contentW = maxOf(stereoW, titleW) + 2 * IBD_H_PAD
+                    maxOf(contentW, IBD_DEFAULT_WIDTH)
+                }
+            dev.kuml.layout.Size(w, maxOf(h, 50f))
         }
 
     /**
      * Content-aware [SizeProvider] for STM nodes. Pseudo-states keep the
      * fixed square size; regular states grow with their action count.
+     *
+     * Diese Form ist die schlanke Variante ohne Diagramm-Kontext: sie kennt
+     * weder die sichtbaren Transitionen noch die Layout-Direction, daher
+     * **kein Anschluss-Puffer**. Für die "Knotengröße ∝ Anzahl Anschluss-
+     * Kanten"-Heuristik (CLAUDE.md, Renderer-Sizing-Heuristik vom 2026-06-14)
+     * existiert die Überladung [stmContentAwareSizeProvider] mit zusätzlichem
+     * `diagram` und `layoutDirection` — die [toLayoutGraph]-Default-Route
+     * verwendet jene.
      */
     public fun stmContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
-        SizeProvider { id, kindHint ->
+        stmContentAwareSizeProvider(model, diagram = null, layoutDirection = LayoutDirection.TopToBottom)
+
+    /**
+     * Content-aware [SizeProvider] for STM nodes, **with edge-fan awareness**.
+     *
+     * Pseudo-states (Initial/Final) keep the fixed square size unconditionally.
+     * Regular [StateDefinition] boxes grow along two axes:
+     *
+     *  1. **Content axis** — height tracks the number of `entry`/`exit`/`do`
+     *     action slots (`NAME_LINE_H + n × ACTION_LINE_H + padding`). Identical
+     *     to the single-argument overload.
+     *  2. **Fan axis** — when [diagram] is non-null, the provider pre-counts
+     *     transitions whose source *or* target is the state (self-loops count
+     *     twice) and adds [STM_CONNECTION_PUFFER_PX] per anliegender Kante on
+     *     the side(s) where ELK is most likely to dock edges, capped at
+     *     [STM_CONNECTION_PUFFER_MAX_PX]:
+     *      - [LayoutDirection.TopToBottom]/[LayoutDirection.BottomToTop] →
+     *        Edges andocken oben/unten → Puffer in die **Breite**.
+     *      - [LayoutDirection.LeftToRight]/[LayoutDirection.RightToLeft] →
+     *        Edges andocken links/rechts → Puffer in die **Höhe**.
+     *
+     * Symptom ohne Fan-Puffer (siehe Vault-Note `04 SysML 2 STM – Traffic
+     * Light`, 2026-06-15): die `Red`-Box des Traffic-Light-Beispiels hat vier
+     * anliegende Kanten (`Initial→Red`, `Red→Green`, `Yellow→Red`,
+     * `Red→Off`); ohne Fan-Puffer reserviert ELK nur den Default-Andockraum,
+     * und die unteren drei Kantenlabels (`timer60s`, `timer5s`, `powerOff
+     * [!emergency] / shutdownLights()`) stapeln sich auf derselben
+     * Pixel-Spur, wobei der `timer5s`-Pfeil zusätzlich den `powerOff`-Pfeil
+     * kreuzt.
+     *
+     * @param model Container mit Definitionen + Usages — liefert die Action-
+     *   Strings für die Höhenberechnung.
+     * @param diagram Optional: das STM-Diagramm, dessen `elementIds` die
+     *   sichtbaren States definieren. Nur sichtbare Transitionen (beide
+     *   Endpunkte sichtbar) zählen in den Fan-Puffer. `null` schaltet den
+     *   Fan-Puffer ab — Verhalten dann identisch mit der Single-Arg-
+     *   Überladung.
+     * @param layoutDirection Andockseite der Edges am Knotenrand. Default
+     *   [LayoutDirection.TopToBottom] — die Standardrichtung für STM.
+     */
+    public fun stmContentAwareSizeProvider(
+        model: Sysml2Model,
+        diagram: StmDiagram?,
+        layoutDirection: LayoutDirection = LayoutDirection.TopToBottom,
+    ): SizeProvider {
+        // Pre-count visible transitions per state — self-loops add two
+        // (both endpoints dock on the same box). Edges whose endpoints are
+        // not both in the visible state set are ignored, matching the
+        // skip-silently policy in `toLayoutGraph`.
+        val connectionsById: Map<String, Int> =
+            if (diagram == null) {
+                emptyMap()
+            } else {
+                val visibleStateIds: Set<String> =
+                    diagram.elementIds
+                        .mapNotNull { id ->
+                            (model.definitions.firstOrNull { it.id == id } as? StateDefinition)?.id
+                        }.toSet()
+                buildMap<String, Int> {
+                    for (t in model.usages.filterIsInstance<TransitionUsage>()) {
+                        if (t.sourceStateId !in visibleStateIds ||
+                            t.targetStateId !in visibleStateIds
+                        ) {
+                            continue
+                        }
+                        // Self-loop → bump twice so the box grows enough to
+                        // host both endpoints on the same side.
+                        merge(t.sourceStateId, 1) { a, b -> a + b }
+                        merge(t.targetStateId, 1) { a, b -> a + b }
+                    }
+                }
+            }
+
+        return SizeProvider { id, kindHint ->
             when {
-                kindHint?.contains("Pseudo") == true ||
-                    kindHint?.contains("Initial") == true ||
-                    kindHint?.contains("Final") == true ->
+                kindHint.contains("Pseudo") ||
+                    kindHint.contains("Initial") ||
+                    kindHint.contains("Final") ->
                     dev.kuml.layout.Size(STM_PSEUDO_SIZE, STM_PSEUDO_SIZE)
                 else -> {
                     val def = model.definitions.firstOrNull { it.id == id } as? StateDefinition
                     val actionCount =
                         listOfNotNull(def?.entryAction, def?.exitAction, def?.doAction)
                             .count { it.isNotBlank() }
-                    val h =
+                    val baseH =
                         NAME_LINE_H +
                             (if (actionCount > 0) DIVIDER_GAP + actionCount * ACTION_LINE_H else 0f) +
                             BOX_V_PADDING
-                    dev.kuml.layout.Size(STM_STATE_WIDTH, maxOf(h, 44f))
+                    val (wExtra, hExtra) = stmConnectionPuffer(connectionsById[id] ?: 0, layoutDirection)
+                    dev.kuml.layout.Size(
+                        STM_STATE_WIDTH + wExtra,
+                        maxOf(baseH, 44f) + hExtra,
+                    )
                 }
             }
         }
+    }
+
+    /**
+     * Anschluss-Puffer in px für eine STM-State-Box mit [transitionCount]
+     * anliegenden Transitionen. Die Wachstumsrichtung folgt der
+     * Layout-Direction (TopToBottom → Breite, LeftToRight → Höhe), analog
+     * zu [UmlContentSizeProvider.connectionPuffer]. Returns
+     * `Pair(widthExtra, heightExtra)`.
+     */
+    private fun stmConnectionPuffer(
+        transitionCount: Int,
+        layoutDirection: LayoutDirection,
+    ): Pair<Float, Float> {
+        if (transitionCount <= 0) return 0f to 0f
+        val raw = (transitionCount * STM_CONNECTION_PUFFER_PX).coerceAtMost(STM_CONNECTION_PUFFER_MAX_PX)
+        return when (layoutDirection) {
+            LayoutDirection.TopToBottom,
+            LayoutDirection.BottomToTop,
+            -> raw to 0f
+            LayoutDirection.LeftToRight,
+            LayoutDirection.RightToLeft,
+            -> 0f to raw
+        }
+    }
 
     /**
      * Content-aware [SizeProvider] for REQ nodes. RequirementDefinitions grow
@@ -404,7 +594,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: IbdDiagram,
-        sizeProvider: SizeProvider = ibdContentAwareSizeProvider(),
+        sizeProvider: SizeProvider = ibdContentAwareSizeProvider(model),
     ): LayoutGraph {
         // 1. Owner auflösen — fehlt der Owner, ist der Graph leer (analog BDD).
         val owner =
@@ -717,7 +907,7 @@ public object Sysml2LayoutBridge {
     public fun toLayoutGraph(
         model: Sysml2Model,
         diagram: StmDiagram,
-        sizeProvider: SizeProvider = stmContentAwareSizeProvider(model),
+        sizeProvider: SizeProvider = stmContentAwareSizeProvider(model, diagram),
     ): LayoutGraph {
         val nodes = mutableListOf<LayoutNode>()
         for (id in diagram.elementIds) {
@@ -894,11 +1084,23 @@ public object Sysml2LayoutBridge {
         //          Partition-Definition im `model.definitions`-Slot, damit
         //          die Lane-Anordnung deterministisch ist (links-nach-rechts
         //          in DSL-Deklarationsreihenfolge).
+        // V2.0.45: ACT-Partitionen bekommen einen horizontalen Außen-Puffer,
+        //          damit das gestrichelte Lane-Rechteck Pin-Labels umschließt,
+        //          die per Konvention außerhalb der Action-Box-Bounds liegen
+        //          (Input-Label links auf x=−9 mit text-anchor=end, Output-
+        //          Label rechts auf x=w+9 mit text-anchor=start; siehe
+        //          `Sysml2ActivitySvg.renderActionPins`). 80 px deckt das
+        //          längste in der Praxis vorkommende Pin-Label (
+        //          "orderDetails", "validation") plus ein paar Pixel Luft ab
+        //          — knapp genug, damit Partitionen ohne Pin-Aktionen nicht
+        //          übermäßig in die Breite gezogen werden. Top/Bottom bleiben
+        //          0, weil Pins nur seitlich an Action-Boxen sitzen.
+        val partitionPadding = Insets(top = 0f, right = 80f, bottom = 0f, left = 80f)
         val groups: List<LayoutGroup> =
             model.definitions
                 .filterIsInstance<ActivityPartitionDefinition>()
                 .filter { it.id in visiblePartitionIds }
-                .map { LayoutGroup(id = GroupId(it.id), parent = null) }
+                .map { LayoutGroup(id = GroupId(it.id), parent = null, padding = partitionPadding) }
 
         // Flows aus dem Modell ziehen (nicht aus dem Diagramm) — siehe
         // KDoc-Begründung oben. Eine Flow wird zur Edge, wenn beide

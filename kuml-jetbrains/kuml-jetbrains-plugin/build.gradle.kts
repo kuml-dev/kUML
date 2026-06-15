@@ -76,6 +76,16 @@ intellijPlatform {
         }
         changeNotes =
             """
+            <h4>0.11.0</h4>
+            <ul>
+              <li>kUML-Monorepo Versions-Alignment: kein plugin-spezifischer Inhalt
+                  in dieser Release — Renderer- und Layout-Verbesserungen
+                  (SEQ Create-Arrow + Guard-Repositioning, asymmetrische Fragment-Frames,
+                  STM Connection-aware Sizing, Activity/Interaction-Overview pseudo-node
+                  Edge-Clipping, UML Component Port-Clipping + Contracts, Package-Edge
+                  Endpoint-Snapping, C4 DeploymentNode/Interaction/DescriptionWrap)
+                  leben im SVG-Renderer und in der Layout-Bridge, nicht im IntelliJ-Plugin.</li>
+            </ul>
             <h4>0.10.0</h4>
             <ul>
               <li>kUML-Monorepo Versions-Alignment: kein plugin-spezifischer Inhalt

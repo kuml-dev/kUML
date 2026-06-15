@@ -20,6 +20,7 @@ import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.Spacing
+import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
@@ -317,9 +318,33 @@ internal object RenderPipeline {
             }
             is ReqDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
+                // V2.0.8+: REQ diagrams carry stereotype labels on every edge
+                // («satisfy», «verify», «deriveReq», «containment»). With the
+                // default 40 px node-to-node spacing these labels overlap adjacent
+                // nodes and each other. Increase spacing analogously to what was
+                // done for STM (V2.0.44) and ACT (V2.0.45):
+                //  - `nodeToNode = 80f` — gives room for label text between
+                //    requirement boxes (280 px wide each).
+                //  - `layerToLayer = 100f` — edge labels sit at the midpoint of
+                //    inter-layer arrows; the wider gap clears them of node borders.
+                //  - `edgeToEdge = 20f` — multiple parallel satisfy-edges fan out
+                //    from Vehicle; a bit more room reduces ribbon bundling.
+                val reqHints =
+                    LayoutHints.DEFAULT.copy(
+                        spacing =
+                            LayoutHints.DEFAULT.spacing.copy(
+                                nodeToNode = 80f,
+                                edgeToEdge = 20f,
+                                layerToLayer = 100f,
+                            ),
+                    )
+                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, reqHints)
                 when (format) {
-                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme))
+                    "svg" ->
+                        writeText(
+                            output,
+                            KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(paddingPx = 64f)),
+                        )
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
                     "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
@@ -350,7 +375,26 @@ internal object RenderPipeline {
             }
             is ActDiagram -> {
                 val layoutGraph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
-                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, LayoutHints.DEFAULT)
+                // V2.0.45 — ACT diagrams need roomier spacing than the global
+                // default to keep pin labels off neighbouring action boxes and
+                // to keep edge labels (`[guard]`, `[ObjectType]`) clear of
+                // partition header bars.
+                //  - `nodeToNode = 100f` (was 40f) — pin labels are up to ~70 px
+                //    wide; two opposing labels need ≥ 140 px between adjacent
+                //    actions plus breathing room.
+                //  - `layerToLayer = 100f` (was 60f) — edge labels live on the
+                //    midpoint of inter-layer arrows; the wider gap pushes them
+                //    out of the partition header band (24 px) underneath the
+                //    upstream partition's bottom edge.
+                val actHints =
+                    LayoutHints.DEFAULT.copy(
+                        spacing =
+                            LayoutHints.DEFAULT.spacing.copy(
+                                nodeToNode = 100f,
+                                layerToLayer = 100f,
+                            ),
+                    )
+                val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, actHints)
                 when (format) {
                     "svg" ->
                         writeText(
@@ -423,12 +467,42 @@ internal object RenderPipeline {
     ) {
         val diagram = extracted.diagram
         val model = extracted.model
-        val layoutGraph = C4LayoutBridge.toLayoutGraph(diagram, model)
+        // V2.0.x: content-aware sizing for C4 — boxes grow to fit header,
+        // bold name, and (wrapped) description. Without this, every C4 node
+        // got the constant 160×80 fallback and long descriptions overflowed
+        // visibly past the box edge (see "Enterprise Banking Landscape").
+        val sizeProvider = C4ContentSizeProvider(model)
+        val layoutGraph = C4LayoutBridge.toLayoutGraph(diagram, model, sizeProvider)
         ensureEnginesRegistered()
         val c4Engine =
             LayoutEngineRegistry.get("elk.layered")
                 ?: error("ELK layout engine not available for C4 diagrams.")
-        val layoutResult: LayoutResult = c4Engine.layout(layoutGraph, LayoutHints.DEFAULT)
+        // Dynamic-Diagramme tragen typischerweise Request/Response-Paare
+        // zwischen denselben Knoten — ELK platziert die beiden Pfeile auf
+        // engen Parallelbahnen, sodass die Sequenznummer-Labels (jeweils
+        // mit Description + optionalem `[Tech]`-Suffix) sich bei Default-
+        // Spacing visuell stapeln. Wir geben dem Layout deutlich mehr Luft,
+        // analog zu den Spacing-Tweaks für REQ/STM/ACT in renderSysml2:
+        //  - nodeToNode: doppelte Bahn-Distanz, damit das Request/Response-
+        //    Bündel zwischen den Knoten breit genug ist
+        //  - layerToLayer: längere Pfeile, damit die paar-bewussten ⅓/⅔-
+        //    Längsversätze in renderC4Interaction tatsächlich Distanz
+        //    schaffen statt nur Phasenshift
+        //  - edgeToEdge: parallele Bahnen weiter auseinander
+        val hints: LayoutHints =
+            if (diagram is dev.kuml.c4.model.DynamicDiagram) {
+                LayoutHints.DEFAULT.copy(
+                    spacing =
+                        LayoutHints.DEFAULT.spacing.copy(
+                            nodeToNode = 100f,
+                            edgeToEdge = 28f,
+                            layerToLayer = 120f,
+                        ),
+                )
+            } else {
+                LayoutHints.DEFAULT
+            }
+        val layoutResult: LayoutResult = c4Engine.layout(layoutGraph, hints)
         when (format) {
             "svg" -> {
                 val svg = KumlSvgRenderer.toSvg(diagram, model, layoutResult, theme)

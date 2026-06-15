@@ -5,12 +5,15 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.TextWrap
 import dev.kuml.renderer.theme.core.KumlTheme
 
 /**
  * Rendert eine [C4Person] als Strichmännchen über einer beschrifteten Box.
  *
  * Die Box zeigt Name (fett) und optionale Beschreibung (klein, kursiv).
+ * Lange Beschreibungen werden mehrzeilig umgebrochen — die Label-Box wächst
+ * entsprechend mit, in Synchronität mit dem `C4ContentSizeProvider`.
  */
 internal fun renderC4Person(
     element: C4Person,
@@ -38,9 +41,21 @@ internal fun renderC4Person(
             ),
         )
 
-        // Label box
+        // Label box — wraps the description so long lines no longer overflow.
         val boxY = 58f
-        val boxH = if (element.description != null) 40f else 28f
+        val descMaxWidth = w - 8f - 2f * C4DescriptionLayout.H_PAD // rect inset (x=4, w-8) minus internal padding
+        val descLines =
+            element.description?.let {
+                TextWrap.wrapToWidth(it, descMaxWidth, C4DescriptionLayout.DESC_CHAR_PX)
+            } ?: emptyList()
+        val boxH =
+            if (descLines.isEmpty()) {
+                28f
+            } else {
+                // name baseline at boxY+18, gap of 16 to first desc line baseline,
+                // 13 px per additional desc line, 10 px bottom pad.
+                18f + 16f + (descLines.size - 1) * C4DescriptionLayout.DESC_LINE_H + 10f
+            }
         tag(
             "rect",
             mapOf(
@@ -61,7 +76,7 @@ internal fun renderC4Person(
             ),
         ) { text(xmlEscapeText(element.name)) }
 
-        element.description?.let { desc ->
+        if (descLines.isNotEmpty()) {
             tag(
                 "text",
                 mapOf(
@@ -70,7 +85,17 @@ internal fun renderC4Person(
                     "y" to fmt(boxY + 34f),
                     "text-anchor" to "middle",
                 ),
-            ) { text(xmlEscapeText(desc)) }
+            ) {
+                descLines.forEachIndexed { idx, line ->
+                    tag(
+                        "tspan",
+                        mapOf(
+                            "x" to fmt(cx),
+                            "dy" to if (idx == 0) "0" else fmt(C4DescriptionLayout.DESC_LINE_H),
+                        ),
+                    ) { text(line) }
+                }
+            }
         }
     }
 }

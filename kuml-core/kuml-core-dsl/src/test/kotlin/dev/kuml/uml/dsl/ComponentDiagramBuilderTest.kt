@@ -8,6 +8,8 @@ import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
+import dev.kuml.uml.UmlDependency
+import dev.kuml.uml.UmlInterfaceRealization
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
@@ -119,5 +121,44 @@ class ComponentDiagramBuilderTest :
             config.showInterfaceContracts shouldBe true
             config.showNestedComponents shouldBe true
             config.showStereotype shouldBe true
+        }
+
+        // V2.0.47 — Auto-Synthese der Realization-/Dependency-Kanten aus
+        // `provides`/`requires` (siehe Vault-Beispiel
+        // [[03 Bereiche/kUML/Beispiele/12 UML Component – Order Architecture]]).
+        test(name = "provides synthesizes a UmlInterfaceRealization when the interface is a diagram node") {
+            val d =
+                componentDiagram("Order Architecture") {
+                    val orderApi = interfaceOf("IOrderApi")
+                    component("OrderService") { provides(orderApi) }
+                }
+            val realization = d.elements.filterIsInstance<UmlInterfaceRealization>().single()
+            realization.implementingId shouldBe "OrderService"
+            realization.interfaceId shouldBe "IOrderApi"
+            realization.id shouldBe "OrderService-provides-IOrderApi"
+        }
+
+        test(name = "requires synthesizes a UmlDependency with use stereotype when interface is a node") {
+            val d =
+                componentDiagram("Order Architecture") {
+                    val orderApi = interfaceOf("IOrderApi")
+                    component("InvoiceService") { requires(orderApi) }
+                }
+            val dependency = d.elements.filterIsInstance<UmlDependency>().single()
+            dependency.clientId shouldBe "InvoiceService"
+            dependency.supplierId shouldBe "IOrderApi"
+            dependency.name shouldBe "use"
+            dependency.id shouldBe "InvoiceService-requires-IOrderApi"
+        }
+
+        test(name = "no synthesis when interface is not declared as a diagram node") {
+            // Komponente verweist auf eine externe Interface-ID, die nicht im
+            // Diagramm als Knoten erscheint → kein synthetisches Edge, sonst
+            // hätten wir freischwebende Beziehungen ohne sichtbares Ziel.
+            val d =
+                componentDiagram("External Reference") {
+                    component("OrderService") { providesById("com.example.IOrderApi") }
+                }
+            d.elements.filterIsInstance<UmlInterfaceRealization>().shouldHaveSize(0)
         }
     })

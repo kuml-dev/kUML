@@ -352,15 +352,24 @@ public class ActEdgeAdapter(
  * Parametric Diagram adapter (V2.0.13).
  *
  * Iterates `model.usages.filterIsInstance<BindingConnectorUsage>()`. Every
- * binding is reported as a solid, label-less, arrow-head-less line —
- * minimal metadata to keep bindings rendering as solid edges (not the
- * unstyled fallback plain-edge path). This adapter exists for **symmetry**
- * with the other four diagram kinds and to allow the SVG / LaTeX renderers
- * to dispatch through one uniform code path.
+ * binding is reported as a solid, arrow-head-less line carrying the binding
+ * name as a plain label.
  *
- * The SysML 2 spec puts no stereotype label on a bare binding (parameter
- * pins carry the labels), so the [Sysml2EdgeMetadata.stereotype] and
- * `label` slots stay null. Parameter-pin endpoint anchoring is V2.x polish.
+ * V2.0.13 (MVP) rendered diese Edges unbeschriftet. Solange das geplante
+ * Parameter-Pin-Endpoint-Anchoring (V2.x) noch nicht greift, docken alle
+ * Bindings an den Box-Mittelpunkten der Constraint- und Part-Knoten an —
+ * ohne Label ist im Diagramm nicht erkennbar, welcher Parameter-Pin an
+ * welches Attribut koppelt (`F` → `force`, `m` → `mass`, `a` → `acceleration`).
+ *
+ * Seit diesem Schritt liefert der Adapter daher den
+ * [BindingConnectorUsage.name] als Label — analog zur IBD-Konvention
+ * (`connectorName : ConnectionType`) und zur in Cameo / MagicDraw üblichen
+ * Beschriftungspraxis. Bindings ohne explizit gesetzten Namen (`name`
+ * leer) fallen auf das Endpunkt-Paar `<srcPin> = <tgtPin>` zurück, sodass
+ * auch anonym deklarierte Bindings im Diagramm zuordbar bleiben.
+ *
+ * Linienstil bleibt solide, kein Arrow-Head — Bindings sind weiterhin
+ * bidirektionale Wertgleichheiten.
  *
  * Endpoint visibility is **not** filtered here: the bridge already drops
  * dangling bindings via longest-prefix-match, so by the time the renderer
@@ -376,13 +385,48 @@ public class ParEdgeAdapter(
     private val index: Map<String, Sysml2EdgeMetadata> =
         buildMap {
             for (binding in model.usages.filterIsInstance<BindingConnectorUsage>()) {
-                put(binding.id, METADATA_BINDING)
+                put(
+                    binding.id,
+                    Sysml2EdgeMetadata(
+                        label = formatBindingLabel(binding),
+                        arrowHead = Sysml2ArrowHead.None,
+                    ),
+                )
             }
         }
 
     override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? = index[edgeId]
 
     public companion object {
+        /**
+         * Standard-Label für Binding-Edges: der Binding-Name, falls gesetzt.
+         * Fallback für anonyme Bindings: das Endpunkt-Paar in der Form
+         * `<srcPin> = <tgtPin>` (Pin-Kurznamen, d. h. der letzte
+         * `::`-Segment-Teil der Endpunkt-Ids). Liefert `null` zurück, wenn
+         * weder Name noch Pin-Kurznamen verwertbar sind — der Renderer fällt
+         * dann auf eine label-lose Linie zurück.
+         */
+        public fun formatBindingLabel(binding: BindingConnectorUsage): String? {
+            binding.name.takeIf { it.isNotBlank() }?.let { return it }
+            val src = binding.sourceEndId.substringAfterLast("::").takeIf { it.isNotBlank() }
+            val tgt = binding.targetEndId.substringAfterLast("::").takeIf { it.isNotBlank() }
+            return when {
+                src != null && tgt != null -> "$src = $tgt"
+                else -> null
+            }
+        }
+
+        /**
+         * Beibehalten für Quellkompatibilität: Reine Linie ohne Label und
+         * ohne Arrow-Head. Direkt gegen diese Konstante zu vergleichen ist
+         * seit V2.x nicht mehr aussagekräftig (Bindings tragen jetzt Labels);
+         * neue Callsites sollen [Sysml2EdgeMetadata] direkt aufbauen.
+         */
+        @Deprecated(
+            "Bindings tragen seit V2.x Labels (binding.name). Diese Konstante " +
+                "bildet nur noch den label-losen Fallback ab; für reale Lookups " +
+                "den Adapter verwenden.",
+        )
         public val METADATA_BINDING: Sysml2EdgeMetadata =
             Sysml2EdgeMetadata(arrowHead = Sysml2ArrowHead.None)
     }
@@ -423,8 +467,22 @@ public class BddEdgeAdapter(
 /**
  * Internal Block Diagram edge adapter. Maps `conn:<connectionUsageId>` edge ids
  * (written by [dev.kuml.layout.bridge.Sysml2LayoutBridge] IBD overload) to
- * connection-line metadata — solid line, no arrowhead, no label (SysML 2
- * internal connection lines are bidirectional structural links).
+ * connection-line metadata.
+ *
+ * V2.0.13 (MVP) rendered diese Edges unbeschriftet. Das verlor die Information,
+ * welche `connectionDef` (`PowerLine` vs. `Driveshaft` etc.) der jeweilige
+ * Connector instanziiert — in der SysML-2-Spec und in Tools wie Cameo /
+ * MagicDraw werden IBD-Connectoren konventionell mit
+ * `connectorName : ConnectionType` beschriftet, analog zum
+ * `name : Type`-Label der Part-Usage-Boxen.
+ *
+ * Seit diesem Schritt liefert der Adapter genau dieses Label aus dem
+ * [ConnectionUsage.name] und [ConnectionUsage.definitionId]. Lokal-Connectoren
+ * ohne Connection-Definition (selten — `typeId == ""`) fallen auf den blossen
+ * Namen zurück; vollständig anonyme Connectoren bleiben unbeschriftet.
+ *
+ * Linienstil bleibt solide, kein Arrow-Head — IBD-Connectoren sind weiterhin
+ * bidirektionale strukturelle Links.
  */
 public class IbdEdgeAdapter(
     model: Sysml2Model,
@@ -433,9 +491,33 @@ public class IbdEdgeAdapter(
     private val index: Map<String, Sysml2EdgeMetadata> =
         buildMap {
             for (conn in model.usages.filterIsInstance<ConnectionUsage>()) {
-                put("conn:${conn.id}", Sysml2EdgeMetadata(arrowHead = Sysml2ArrowHead.None))
+                put(
+                    "conn:${conn.id}",
+                    Sysml2EdgeMetadata(
+                        label = formatConnectionLabel(conn),
+                        arrowHead = Sysml2ArrowHead.None,
+                    ),
+                )
             }
         }
 
     override fun metadataFor(edgeId: String): Sysml2EdgeMetadata? = index[edgeId]
+
+    public companion object {
+        /**
+         * SysML-2-IBD-Connector-Konvention: `connectorName : ConnectionType`.
+         * Liefert `null` zurück, wenn Name **und** Definition leer sind — der
+         * Renderer fällt dann auf eine label-lose Linie zurück.
+         */
+        public fun formatConnectionLabel(conn: ConnectionUsage): String? {
+            val name = conn.name.takeIf { it.isNotBlank() }
+            val type = conn.definitionId.takeIf { it.isNotBlank() }
+            return when {
+                name != null && type != null -> "$name : $type"
+                name != null -> name
+                type != null -> type
+                else -> null
+            }
+        }
+    }
 }

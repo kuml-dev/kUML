@@ -1,6 +1,7 @@
 package dev.kuml.layout.bridge
 
 import dev.kuml.kerml.KermlSpecialization
+import dev.kuml.layout.LayoutDirection
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActivityNodeKind
@@ -784,6 +785,174 @@ class Sysml2LayoutBridgeTest :
             t.trigger shouldBe "timer60s"
             t.guard shouldBe "!emergency"
             t.effect shouldBe "switchLights('green')"
+        }
+
+        // V2.x — Renderer-Sizing-Heuristik für STM-States: Edge-Fan-Puffer
+        // (CLAUDE.md "Knotengröße ∝ Anzahl Anschluss-Kanten").
+
+        "STM regular state grows in width by N×puffer per anliegender Transition (TopToBottom)" {
+            // Traffic-Light-Reproduktion: Red hat 4 anliegende Kanten
+            // (Initial→Red, Red→Green, Yellow→Red, Red→Off).
+            val model =
+                sysml2Model("TrafficLight") {
+                    val initial = stateDef("Initial", isInitial = true)
+                    val red = stateDef("Red")
+                    val green = stateDef("Green")
+                    val yellow = stateDef("Yellow")
+                    val off = stateDef("Off", isFinal = true)
+                    transition("init", initial, red)
+                    transition("redToGreen", red, green, trigger = "timer60s")
+                    transition("yellowToRed", yellow, red, trigger = "timer5s")
+                    transition("powerOff", red, off, trigger = "powerOff")
+                    transition("greenToYellow", green, yellow, trigger = "timer45s")
+                    stmDiagram("Phase cycle") {
+                        include(initial)
+                        include(red)
+                        include(green)
+                        include(yellow)
+                        include(off)
+                    }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+
+            val redNode = graph.nodes.single { it.id.value == "Red" }
+            // 4 Transitionen → 4×14 = 56 px Breitenzuwachs.
+            redNode.intrinsicSize.width shouldBe
+                Sysml2LayoutBridge.STM_STATE_WIDTH + 4 * Sysml2LayoutBridge.STM_CONNECTION_PUFFER_PX
+            // Höhe bleibt content-getrieben — `Red` hat hier keine Actions,
+            // also fällt sie auf den content-aware Mindestwert (44 px) zurück.
+            redNode.intrinsicSize.height shouldBe 44f
+        }
+
+        "STM pseudo-states ignore the edge-fan puffer (stay 24×24)" {
+            // Selbst wenn ein Pseudo-State viele Transitionen hat — Marker
+            // dürfen visuell nicht zur regulären Box anwachsen.
+            val model =
+                sysml2Model("PseudoFan") {
+                    val initial = stateDef("Initial", isInitial = true)
+                    val a = stateDef("A")
+                    val b = stateDef("B")
+                    val c = stateDef("C")
+                    transition("toA", initial, a)
+                    transition("toB", initial, b)
+                    transition("toC", initial, c)
+                    stmDiagram("STM") {
+                        include(initial)
+                        include(a)
+                        include(b)
+                        include(c)
+                    }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+
+            val initialNode = graph.nodes.single { it.id.value == "Initial" }
+            initialNode.intrinsicSize.width shouldBe Sysml2LayoutBridge.STM_PSEUDO_SIZE
+            initialNode.intrinsicSize.height shouldBe Sysml2LayoutBridge.STM_PSEUDO_SIZE
+        }
+
+        "STM self-transition counts twice (both endpoints on the same box)" {
+            val model =
+                sysml2Model("SelfLoop") {
+                    val s = stateDef("S")
+                    transition("loop", s, s, trigger = "tick")
+                    stmDiagram("STM") { include(s) }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+
+            val sNode = graph.nodes.single { it.id.value == "S" }
+            // 1 Self-Loop → 2 Endpunkt-Bumps → 2×14 = 28 px Breite extra.
+            sNode.intrinsicSize.width shouldBe
+                Sysml2LayoutBridge.STM_STATE_WIDTH + 2 * Sysml2LayoutBridge.STM_CONNECTION_PUFFER_PX
+        }
+
+        "STM edge-fan puffer is capped at STM_CONNECTION_PUFFER_MAX_PX" {
+            // 12 anliegende Transitionen → 12×14 = 168 px, gedeckelt auf
+            // STM_CONNECTION_PUFFER_MAX_PX (112 px). Verhindert, dass Hub-
+            // States visuell aufblähen.
+            val model =
+                sysml2Model("Hub") {
+                    val hub = stateDef("Hub")
+                    val states = (1..12).map { stateDef("S$it") }
+                    states.forEachIndexed { idx, s -> transition("to$idx", hub, s) }
+                    stmDiagram("STM") {
+                        include(hub)
+                        states.forEach { include(it) }
+                    }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm)
+
+            val hubNode = graph.nodes.single { it.id.value == "Hub" }
+            hubNode.intrinsicSize.width shouldBe
+                Sysml2LayoutBridge.STM_STATE_WIDTH + Sysml2LayoutBridge.STM_CONNECTION_PUFFER_MAX_PX
+        }
+
+        "STM edge-fan puffer in LeftToRight direction grows height instead of width" {
+            val model =
+                sysml2Model("HorizontalLayout") {
+                    val red = stateDef("Red")
+                    val green = stateDef("Green")
+                    val yellow = stateDef("Yellow")
+                    val off = stateDef("Off", isFinal = true)
+                    transition("rg", red, green)
+                    transition("yr", yellow, red)
+                    transition("ro", red, off)
+                    stmDiagram("STM") {
+                        include(red)
+                        include(green)
+                        include(yellow)
+                        include(off)
+                    }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            val provider =
+                Sysml2LayoutBridge.stmContentAwareSizeProvider(
+                    model = model,
+                    diagram = stm,
+                    layoutDirection = LayoutDirection.LeftToRight,
+                )
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm, provider)
+
+            val redNode = graph.nodes.single { it.id.value == "Red" }
+            // Red hat 3 Edges → Höhe wächst um 3×14 = 42 px ausgehend von
+            // der content-aware Basis-Höhe (44 px ohne Actions); Breite
+            // bleibt unverändert.
+            redNode.intrinsicSize.width shouldBe Sysml2LayoutBridge.STM_STATE_WIDTH
+            redNode.intrinsicSize.height shouldBe 44f + 3 * Sysml2LayoutBridge.STM_CONNECTION_PUFFER_PX
+        }
+
+        "STM single-arg stmContentAwareSizeProvider stays fan-puffer-free (backwards compat)" {
+            // Wer den alten Single-Arg-Provider explizit übergibt, soll
+            // unverändertes V2.0.9-Verhalten bekommen — sonst würde jedes
+            // Bestandsbild plötzlich anders aussehen.
+            val model =
+                sysml2Model("LegacyShape") {
+                    val red = stateDef("Red")
+                    val green = stateDef("Green")
+                    val yellow = stateDef("Yellow")
+                    val off = stateDef("Off", isFinal = true)
+                    transition("rg", red, green)
+                    transition("yr", yellow, red)
+                    transition("ro", red, off)
+                    stmDiagram("STM") {
+                        include(red)
+                        include(green)
+                        include(yellow)
+                        include(off)
+                    }
+                }
+            val stm = model.diagrams.filterIsInstance<StmDiagram>().single()
+            val legacyProvider = Sysml2LayoutBridge.stmContentAwareSizeProvider(model)
+            val graph = Sysml2LayoutBridge.toLayoutGraph(model, stm, legacyProvider)
+
+            val redNode = graph.nodes.single { it.id.value == "Red" }
+            redNode.intrinsicSize.width shouldBe Sysml2LayoutBridge.STM_STATE_WIDTH
+            // Content-aware Basis-Höhe ohne Actions (gleiches Verhalten
+            // wie V2.0.9): 44 px Mindesthöhe.
+            redNode.intrinsicSize.height shouldBe 44f
         }
 
         "STM skips non-State definitions in elementIds silently (e.g. PartDefinition)" {

@@ -10,7 +10,8 @@ import dev.kuml.renderer.theme.core.KumlTheme
 /**
  * Rendert eine [C4Component] als gerundetes Rechteck mit dünnem Rahmen.
  *
- * Zeigt `[Component: <technology>]`-Header, Name (fett) und optionale Beschreibung.
+ * Zeigt `[Component: <technology>]`-Header, Name (fett) und optionale,
+ * mehrzeilig umbrechende Beschreibung.
  */
 internal fun renderC4Component(
     element: C4Component,
@@ -58,15 +59,7 @@ internal fun renderC4Component(
             ),
         ) { text(xmlEscapeText(element.name)) }
         element.description?.let { desc ->
-            tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-small",
-                    "x" to fmt(w / 2f),
-                    "y" to "52",
-                    "text-anchor" to "middle",
-                ),
-            ) { text(xmlEscapeText(desc)) }
+            renderWrappedDescription(this, desc, w)
         }
     }
 }

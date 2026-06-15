@@ -2,11 +2,13 @@ package dev.kuml.io.svg
 
 import dev.kuml.c4.model.C4Component
 import dev.kuml.c4.model.C4Container
+import dev.kuml.c4.model.C4DeploymentNode
 import dev.kuml.c4.model.C4Person
 import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.core.model.KumlElement
 import dev.kuml.io.svg.c4.renderC4Component
 import dev.kuml.io.svg.c4.renderC4Container
+import dev.kuml.io.svg.c4.renderC4DeploymentNode
 import dev.kuml.io.svg.c4.renderC4Person
 import dev.kuml.io.svg.c4.renderC4SoftwareSystem
 import dev.kuml.io.svg.sysml2.renderSysml2Definition
@@ -103,6 +105,7 @@ internal object NodeRendererDispatcher {
             is C4SoftwareSystem -> renderC4SoftwareSystem(element, layout, theme, builder)
             is C4Container -> renderC4Container(element, layout, theme, builder)
             is C4Component -> renderC4Component(element, layout, theme, builder)
+            is C4DeploymentNode -> renderC4DeploymentNode(element, layout, theme, builder)
             is Sysml2Definition -> renderSysml2Definition(element, layout, theme, builder)
             is Sysml2Usage -> renderSysml2Usage(element, layout, theme, builder)
             else -> renderFallbackNode(element, layout, builder)

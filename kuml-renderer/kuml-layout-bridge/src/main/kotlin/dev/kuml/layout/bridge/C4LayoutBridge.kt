@@ -6,10 +6,12 @@ import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
 import dev.kuml.c4.model.ComponentDiagram
 import dev.kuml.c4.model.ContainerDiagram
+import dev.kuml.c4.model.DynamicDiagram
 import dev.kuml.layout.EdgeHints
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EndpointRef
 import dev.kuml.layout.GroupId
+import dev.kuml.layout.Insets
 import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutGroup
@@ -23,8 +25,15 @@ import dev.kuml.layout.NodeId
  * nur per ID. Daher braucht die Bridge zusätzlich das umgebende [C4Model] als
  * Lookup-Kontext.
  *
- * Diagrammtypen: SystemContext, Container, Component, Landscape, Deployment.
- * Dynamic-Diagramme sind nicht im Scope.
+ * Diagrammtypen: SystemContext, Container, Component, Landscape, Deployment, Dynamic.
+ *
+ * Dynamic-Diagramme tragen ihre "Kanten" als [dev.kuml.c4.model.C4Interaction]s
+ * (mit eigener ID, Sequenznummer und optionalem Response-Flag) statt als
+ * [dev.kuml.c4.model.C4Relationship]. Damit der Layout-Engine die Knoten so
+ * arrangiert, dass der Interaktionsfluss sichtbar wird, emittieren wir eine
+ * [LayoutEdge] pro [dev.kuml.c4.model.C4Interaction] — die Edge-ID ist die
+ * Interaction-ID, sodass der Renderer im Edge-Loop die Interaction zurück-
+ * auflösen und das Sequence-Label sowie den Response-Stil zeichnen kann.
  *
  * Gruppen-Heuristik je Diagrammtyp:
  * - [ContainerDiagram]: `diagram.system` ist die einzige [LayoutGroup].
@@ -40,6 +49,20 @@ import dev.kuml.layout.NodeId
  * ```
  */
 public object C4LayoutBridge {
+    /**
+     * Padding für ContainerDiagram-/ComponentDiagram-Boundaries im Compound-
+     * Modus. Reserviert um die Mitgliedsknoten herum genug Raum für:
+     * - das sichtbare Boundary-Rechteck,
+     * - eine ggf. eingeblendete Header-Beschriftung (z.B. "[System] …"),
+     * - einen visuellen "Atem-Korridor" zwischen Boundary-Innenkante und
+     *   den darin liegenden Container-/Component-Knoten.
+     *
+     * Werte angelehnt an UMLs `PACKAGE_GROUP_INSETS` (28/12/12/12); für C4
+     * etwas grosszügiger, weil Container-Boxen typischerweise grösser sind
+     * als UML-Klassen und dichteres Andocken visuell drückend wirkt.
+     */
+    internal val C4_BOUNDARY_INSETS: Insets = Insets(top = 36f, right = 20f, bottom = 20f, left = 20f)
+
     /**
      * Übersetzt [diagram] mithilfe von [model] als Lookup-Kontext in einen [LayoutGraph].
      *
@@ -70,7 +93,32 @@ public object C4LayoutBridge {
             }
 
         if (groupId != null) {
-            groups.add(LayoutGroup(id = groupId, parent = null))
+            // V11.x — `layoutAsCompound = true` für ContainerDiagram- und
+            // ComponentDiagram-Anker. Ohne dieses Opt-in war die System-/
+            // Container-Boundary nur ein leerer 0×0-ELK-Knoten irgendwo zwischen
+            // den anderen Knoten, an dem ELK die Edges andocken liess — während
+            // die *sichtbare* Boundary-Box post-layout aus den Bounds der
+            // Mitgliedsknoten (Web App, API Server) gezogen wurde. Resultat:
+            // Pfeile, die zwischen den umschliessenden Knoten ins Nichts führten,
+            // weil der ELK-Endpunkt nicht mit der gezeichneten Boundary-Kante
+            // zusammenfiel (siehe Vault-Beispiel
+            // [[03 Bereiche/kUML/Beispiele/02 C4 Container – Internet Banking]]).
+            //
+            // Mit `layoutAsCompound = true` behandelt ELK die Boundary als
+            // echten Compound-Knoten: Web App und API Server werden ELK-seitig
+            // unter dem Compound platziert, der Compound bekommt eine echte
+            // Bounding-Box, und ELK routet die Edges (Customer→InternetBanking,
+            // InternetBanking→EmailService) gegen die *tatsächliche*
+            // Compound-Kante — die identisch mit der sichtbar gerenderten
+            // Boundary ist. Same Pattern wie für UML-Package-Diagramme.
+            groups.add(
+                LayoutGroup(
+                    id = groupId,
+                    parent = null,
+                    padding = C4_BOUNDARY_INSETS,
+                    layoutAsCompound = true,
+                ),
+            )
         }
 
         // V2.0.44: anchor-element ID is rendered AS the boundary itself, never
@@ -134,6 +182,28 @@ public object C4LayoutBridge {
                     hints = EdgeHints.NONE,
                 ),
             )
+        }
+
+        // Dynamic-Diagramme: jede Interaction ist eine eigenständige Edge mit
+        // ihrer Interaction-ID. Der SVG-Renderer löst diese ID im Edge-Loop
+        // auf C4Interaction zurück, rendert eine durchgezogene (request) bzw.
+        // gestrichelte (response) Linie mit Sequenznummer-Label und (für
+        // Requests) optionalem Technology-Tag.
+        if (diagram is DynamicDiagram) {
+            for (interaction in diagram.interactions) {
+                if (elementIndex[interaction.source] == null || elementIndex[interaction.target] == null) {
+                    // Unresolvable endpoint: silently skip
+                    continue
+                }
+                edges.add(
+                    LayoutEdge(
+                        id = EdgeId(interaction.id),
+                        source = EndpointRef(nodeId = NodeId(interaction.source)),
+                        target = EndpointRef(nodeId = NodeId(interaction.target)),
+                        hints = EdgeHints.NONE,
+                    ),
+                )
+            }
         }
 
         return LayoutGraph(nodes = nodes, edges = edges, groups = groups)

@@ -6,6 +6,121 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-06-15
+
+### Renderer & Layout Improvements
+
+A broad pass on the SVG renderer and layout bridge driven by visual defects
+surfaced in the vault example notes (`03 Bereiche/kUML/Beispiele/*`). Each
+fix is paired with new bridge or SVG-renderer tests so the geometry stays
+stable on the next refactor.
+
+**SysML 2 SEQ — Create-Message Visual Anchoring + Guard-Text Repositioning**
+- `MessageKind.Create` arrow tip now lands on the target lifeline's head
+  box corner. `renderLifelineHead` gains an optional `createOffsetY` parameter;
+  the SEQ driver in `KumlSvgRenderer.toSvg(SeqDiagram, …)` shifts each Create
+  target's head box (plus stereotype, name, dashed time-axis start) down by
+  `(createSeqNo + 1) * SEQ_MESSAGE_ROW_HEIGHT`. `bounds.origin.y` stays uniform
+  so message Y references remain consistent across all lifelines.
+- Combined-Fragment operand guard labels now use `anchor="end"` at
+  `minLifelineX - 4f`; text grows leftward into the frame's left padding zone.
+  `sysml2SeqFragmentLeftPad(fragment)` computes
+  `max(FRAGMENT_PADDING_H, longestGuardWidth + 12)` per fragment; SEQ canvas
+  padding bumps to the max so the frame left edge is never clipped.
+  Right padding stays at `FRAGMENT_PADDING_H` (asymmetric frame).
+- New `internal const SYSML2_SEQ_MESSAGE_ROW_HEIGHT` mirrors the bridge
+  constant so `kuml-io-svg` need not depend on `kuml-layout-bridge`.
+
+**SEQ Fragment-Frame asymmetric outsets (UML + SysML 2)**
+- `FRAGMENT_TOP_OUTSET = 24f` / `FRAGMENT_BOTTOM_OUTSET = 8f`: the frame now
+  reaches into the corridor *above* the first contained arrow by 24 px but
+  only 8 px below the last. Roots in the asymmetric message-label baseline
+  geometry (labels sit 4 px above the arrow line; free corridor between two
+  arrows is centered at `arrow_n + 8`, not `arrow_n + 16`). Stops adjacent
+  messages from being swallowed by the frame.
+- `drawLabelWithWhiteBackground()` helper draws message/self-call/guard
+  labels with a white rect underlay so frame strokes never cut through text.
+- `FRAGMENT_PADDING` raised 8 → 24 px (UML + SysML 2).
+
+**SysML 2 STM — Connection-aware node sizing**
+- New `Sysml2LayoutBridge.stmContentAwareSizeProvider(model, diagram,
+  layoutDirection)` mirrors the V0.10 UML heuristic: each visible transition
+  on a state adds 14 px to the docking side (capped at 112 px). Self-loops
+  count twice. Pseudo-states (Initial/Final) stay at 24×24 px. Vertical
+  layouts grow box width; horizontal layouts grow box height. Six new bridge
+  tests pin the cap, the self-loop doubling, and the V2.0.9 backwards-compat
+  single-arg overload.
+- Fixes the Traffic-Light example where `Red` had 4 incident transitions and
+  `timer60s` / `timer5s` / `powerOff` labels stacked on the same pixel row.
+
+**Activity + Interaction-Overview pseudo-node edge clipping**
+- New `Sysml2ActivityEdgeClipper` snaps every routed edge endpoint to the
+  actual visible shape boundary: diamonds for Decision/Merge, fixed-radius
+  circles for Initial/Final/FlowFinal, rectangles for Action/Object/Bar.
+  ELK's bounding-box endpoints overshoot non-rectangular shapes, producing
+  "floating" arrows. Applies to Activity diagrams and Interaction-Overview
+  diagrams (same shape vocabulary + same `UmlActivityEdge` type).
+
+**UML Component diagrams — Port edge clipping + Contracts**
+- New `ComponentPortEdgeClipper` clips required/provided-interface lollipops
+  and socket arcs at the component port boundary so connector arrowheads land
+  on the port symbol, not on the component body.
+- New `UmlComponentContracts` SVG layer renders required/provided-interface
+  contracts as separate lollipop/socket shapes attached to ports.
+- `ComponentDiagramBuilder` gains DSL extensions for declaring ports and
+  contracts inline.
+
+**UML Package diagrams — Edge endpoint snapping**
+- ELK anchors inter-package edges at the compound-node outer boundary (top
+  of the folder-tab area). The tab is narrower than the body, so arrowheads
+  often landed in the empty "notch" between tab end and body start. Post-
+  processing now snaps every package-dependency route to a Direct line that
+  enters/exits the body rectangle (`y = groupOrigin + tabH`), which is
+  always full-width.
+- New flat `(id → KumlElement)` index recurses into `UmlPackage.members`
+  so classes/interfaces declared inside `packageOf { … }` reach the SVG
+  dispatcher.
+
+**C4 — Deployment, Interaction, and description wrapping**
+- New `C4DeploymentNodeSvg`: deployment-node boxes with technology stereotype
+  + nested-container rendering.
+- New `C4InteractionSvg`: dynamic-diagram interaction rendering with numbered
+  call-sequence labels.
+- New `C4DescriptionWrap`: greedy word-wrap helper that respects max-width
+  per C4 element type so descriptions don't overflow the box.
+- New `C4ContentSizeProvider` mirrors the UML connection-aware heuristic for
+  C4 boxes — Person, SoftwareSystem, Container, Component, DeploymentNode
+  grow with their connection count.
+
+**SysML 2 par edges (Block/Internal-Block diagrams)**
+- New `Sysml2ParEdgeLabelSvgTest` + `Sysml2EdgeRendererStackIndexTest`:
+  multi-port connector labels stack at deterministic offsets instead of
+  overprinting.
+
+**Activity partition lane-gap fix**
+- Activity-Diagramme mit Partitionen behalten jetzt einen lesbaren Spalt
+  zwischen Lanes; vorher konnten benachbarte Action-Boxen direkt an die
+  Lane-Trennlinie anschlagen.
+
+**Shared rendering utilities**
+- New `SvgInlineArrow` produces SVG `<defs>`-free inline arrowheads so
+  arrows can be embedded into HTML excerpts (handbook, docs) without losing
+  their markers.
+- New `TextWrap` (in `kuml-layout-api`) — language-agnostic word-wrap
+  primitive shared by all C4/UML/SysML-2 size providers.
+
+### Examples
+
+- `c4/checkout-dynamic` — C4 dynamic diagram with numbered interactions,
+  exercises the new `C4InteractionSvg` + `C4DescriptionWrap` paths.
+
+### CLI / Desktop / Gradle / Web Pipeline Alignment
+
+- `kuml-cli/RenderPipeline`, `kuml-gradle/GradlePipeline`,
+  `kuml-desktop/DesktopRenderPipeline`, and `kuml-web/WebRenderPipeline`
+  all now wire through the new edge clippers + size providers, so every
+  embedding path produces the same SVG output for the same source.
+
 ## [0.10.0] — 2026-06-15
 
 ### kuml-desktop — Desktop Editor with Live Preview (Track C: V3.0.10 + V3.0.11)

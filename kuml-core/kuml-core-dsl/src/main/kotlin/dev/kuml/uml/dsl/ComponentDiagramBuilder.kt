@@ -94,10 +94,20 @@ class ComponentDiagramBuilder(
             } else {
                 emptyMap()
             }
+        // V2.0.47 — synthetisiert UmlInterfaceRealization für jedes
+        // `provides(iface)` und UmlDependency mit «use»-Stereotyp für jedes
+        // `requires(iface)`, sofern die Beziehung nicht bereits explizit
+        // deklariert wurde und sowohl Komponente als auch Interface als
+        // sichtbarer Knoten im Diagramm existieren. Ohne diesen Schritt
+        // hingen die Felder `providedInterfaceIds` / `requiredInterfaceIds`
+        // ohne sichtbare Wirkung im Modell, obwohl die DSL-Doku eine
+        // "lollipop/ball"-Rendering verspricht (siehe
+        // [[03 Bereiche/kUML/Beispiele/12 UML Component – Order Architecture]]).
+        val finalElements = synthesizeInterfaceRelationships(elements)
         return KumlDiagram(
             name = name,
             type = DiagramType.COMPONENT,
-            elements = elements.toList(),
+            elements = finalElements,
             metadata = meta,
             config =
                 ComponentDiagramConfig(
@@ -107,5 +117,100 @@ class ComponentDiagramBuilder(
                     showStereotype = showStereotype,
                 ),
         )
+    }
+
+    /**
+     * Geht die [source]-Liste durch und ergänzt fehlende Realization-/
+     * Dependency-Kanten, die aus den `provides` / `requires` Deklarationen
+     * der Komponenten folgen:
+     *
+     *  - `provides(iface)` → [UmlInterfaceRealization] (component → interface,
+     *    gestrichelte Linie mit hohlem Dreieck).
+     *  - `requires(iface)` → [UmlDependency] mit «use»-Stereotyp (component
+     *    → interface, gestrichelter offener Pfeil).
+     *
+     * Bereits explizit deklarierte Beziehungen für dasselbe Paar werden
+     * nicht doppelt synthetisiert. Beziehungen werden nur erzeugt, wenn das
+     * referenzierte Interface tatsächlich als Knoten im Diagramm existiert
+     * (sonst hätten die Endpunkte kein sichtbares Ziel).
+     */
+    private fun synthesizeInterfaceRelationships(source: List<UmlElement>): List<UmlElement> {
+        // Index aller bekannten Interfaces (top-level + in Paketen).
+        val knownInterfaceIds: Set<String> = collectInterfaceIds(source)
+
+        // Bereits vorhandene Realization-/Dependency-Paare, damit wir nicht
+        // doppelt erzeugen.
+        val existingRealizations: Set<Pair<String, String>> =
+            source
+                .filterIsInstance<UmlInterfaceRealization>()
+                .map { it.implementingId to it.interfaceId }
+                .toSet()
+        val existingDependencies: Set<Pair<String, String>> =
+            source
+                .filterIsInstance<UmlDependency>()
+                .map { it.clientId to it.supplierId }
+                .toSet()
+
+        val synthesized = mutableListOf<UmlElement>()
+
+        fun visit(component: UmlComponent) {
+            for (ifaceId in component.providedInterfaceIds) {
+                if (ifaceId !in knownInterfaceIds) continue
+                if (component.id to ifaceId in existingRealizations) continue
+                synthesized.add(
+                    UmlInterfaceRealization(
+                        id = "${component.id}-provides-$ifaceId",
+                        implementingId = component.id,
+                        interfaceId = ifaceId,
+                    ),
+                )
+            }
+            for (ifaceId in component.requiredInterfaceIds) {
+                if (ifaceId !in knownInterfaceIds) continue
+                if (component.id to ifaceId in existingDependencies) continue
+                synthesized.add(
+                    UmlDependency(
+                        id = "${component.id}-requires-$ifaceId",
+                        clientId = component.id,
+                        supplierId = ifaceId,
+                        name = "use",
+                    ),
+                )
+            }
+            // Nested components: rekursiv. Sie sind keine eigenen Knoten im
+            // Diagramm, aber ihre provides/requires sollen ebenfalls wirken.
+            for (nested in component.nestedComponents) {
+                visit(nested)
+            }
+        }
+
+        fun walk(elements: List<UmlElement>) {
+            for (element in elements) {
+                when (element) {
+                    is UmlComponent -> visit(element)
+                    is UmlPackage -> walk(element.members)
+                    else -> {}
+                }
+            }
+        }
+        walk(source)
+        return source + synthesized
+    }
+
+    /** Sammelt alle Interface-IDs aus [source] (top-level + in Paketen rekursiv). */
+    private fun collectInterfaceIds(source: List<UmlElement>): Set<String> {
+        val out = mutableSetOf<String>()
+
+        fun walk(elements: List<UmlElement>) {
+            for (element in elements) {
+                when (element) {
+                    is UmlInterface -> out += element.id
+                    is UmlPackage -> walk(element.members)
+                    else -> {}
+                }
+            }
+        }
+        walk(source)
+        return out
     }
 }

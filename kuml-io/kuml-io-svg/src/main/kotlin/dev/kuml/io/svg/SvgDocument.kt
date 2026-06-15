@@ -121,6 +121,13 @@ internal object SvgDocument {
                 append(" stroke-width: ${bo.thinPx}; }\n")
                 append(".kuml-c4component { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.thinPx}; }\n")
+                // UmlInstanceSpecification (Object Diagram). Ohne diese Regel fielen
+                // Instanz-Knoten auf den SVG-Default `fill: black` zurück und überdeckten
+                // Header und Slot-Compartment vollständig — derselbe Bug-Typ wie der
+                // V3.0.11-Fix für `kuml-action`/`kuml-decision`. Konvention identisch zu
+                // `.kuml-class`: Hintergrund-Fill + regulärer Border.
+                append(".kuml-instance { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-title { font-family: ${ty.title.family}; font-size: ${ty.title.sizePt}px;")
                 append(" font-weight: ${ty.title.weight}; fill: ${c.foreground.toHex()}; }\n")
                 append(".kuml-title-abstract { font-style: italic; }\n")
@@ -188,118 +195,45 @@ internal object SvgDocument {
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-final-outer { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
+                // V1.1 — UML-Deployment-Diagramm (Node-Würfel, Artifact, Stereotype-Box)
+                // und UML-Timing-Diagramm (Lifeline-Frame, Step-Line). Diese Klassen werden
+                // in `UmlV11Svg.kt` referenziert; ohne CSS-Regel rendern SVG-Konsumenten alle
+                // Shapes mit `fill: black` (SVG-Default) — identischer Bug-Typ wie V3.0.11
+                // (kuml-action/kuml-decision) und kuml-instance.
+                // Konventionen:
+                //  - kuml-node (Frontfläche) / kuml-artifact / kuml-stereotype-box:
+                //    Hintergrund-Fill + regulärer Border — wie .kuml-class.
+                //  - kuml-node-top / kuml-node-side (3D-Akzentflächen des Würfels):
+                //    gedämpfte Fill (c.muted) für leichten Tiefeneffekt, gleicher Border.
+                //  - kuml-artifact-ear (Eselsecke): gedämpfte Fill als Kontrast zur Hauptfläche.
+                //  - kuml-timing-frame: Hintergrund-Fill + Border (Rahmen der Lifeline).
+                //  - kuml-timing-line: Kanten-Stroke ohne Fill (Zustandswechsel-Pfad).
+                append(".kuml-node { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-node-top { fill: ${c.muted.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-node-side { fill: ${c.muted.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-artifact { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-artifact-ear { fill: ${c.muted.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-stereotype-box { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-timing-frame { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-timing-line { stroke: ${c.edge.toHex()}; stroke-width: ${bo.regularPx}; fill: none; }\n")
             }
 
         b.tag("style") {
             text(css)
         }
 
-        // Arrow markers
-        buildMarkers(b, theme)
-    }
-
-    private fun buildMarkers(
-        b: SvgBuilder,
-        theme: KumlTheme,
-    ) {
-        val edgeColor = theme.colors.edge.toHex()
-        val edgeMutedColor = theme.colors.edgeMuted.toHex()
-
-        // Open arrowhead (association, dependency)
-        b.tag(
-            "marker",
-            mapOf(
-                "id" to "arrow-open",
-                "markerWidth" to "10",
-                "markerHeight" to "10",
-                "refX" to "9",
-                "refY" to "5",
-                "orient" to "auto",
-                "markerUnits" to "strokeWidth",
-            ),
-        ) {
-            tag(
-                "path",
-                mapOf(
-                    "d" to "M 1 1 L 9 5 L 1 9",
-                    "stroke" to edgeColor,
-                    "stroke-width" to "1.5",
-                    "fill" to "none",
-                ),
-            )
-        }
-
-        // Open arrowhead muted (dashed edges)
-        b.tag(
-            "marker",
-            mapOf(
-                "id" to "arrow-open-muted",
-                "markerWidth" to "10",
-                "markerHeight" to "10",
-                "refX" to "9",
-                "refY" to "5",
-                "orient" to "auto",
-                "markerUnits" to "strokeWidth",
-            ),
-        ) {
-            tag(
-                "path",
-                mapOf(
-                    "d" to "M 1 1 L 9 5 L 1 9",
-                    "stroke" to edgeMutedColor,
-                    "stroke-width" to "1.5",
-                    "fill" to "none",
-                ),
-            )
-        }
-
-        // Hollow triangle arrowhead (generalization, interface realization)
-        b.tag(
-            "marker",
-            mapOf(
-                "id" to "arrow-triangle",
-                "markerWidth" to "12",
-                "markerHeight" to "12",
-                "refX" to "11",
-                "refY" to "6",
-                "orient" to "auto",
-                "markerUnits" to "strokeWidth",
-            ),
-        ) {
-            tag(
-                "polygon",
-                mapOf(
-                    "points" to "1 1 11 6 1 11",
-                    "stroke" to edgeColor,
-                    "stroke-width" to "1.5",
-                    "fill" to "white",
-                ),
-            )
-        }
-
-        // Hollow triangle arrowhead muted (interface realization dashed)
-        b.tag(
-            "marker",
-            mapOf(
-                "id" to "arrow-triangle-muted",
-                "markerWidth" to "12",
-                "markerHeight" to "12",
-                "refX" to "11",
-                "refY" to "6",
-                "orient" to "auto",
-                "markerUnits" to "strokeWidth",
-            ),
-        ) {
-            tag(
-                "polygon",
-                mapOf(
-                    "points" to "1 1 11 6 1 11",
-                    "stroke" to edgeMutedColor,
-                    "stroke-width" to "1.5",
-                    "fill" to "white",
-                ),
-            )
-        }
+        // Arrow markers have been replaced by inline geometry rendered directly
+        // adjacent to each edge via SvgInlineArrow.kt. The former <marker>/url(#id)
+        // approach failed in Obsidian reading mode because DOMParser + appendChild
+        // does not reliably register <defs> IDs in the host HTML document's ID table
+        // (Electron adoption bug), causing arrowheads to silently disappear.
     }
 
     private fun fmt(v: Float): String {

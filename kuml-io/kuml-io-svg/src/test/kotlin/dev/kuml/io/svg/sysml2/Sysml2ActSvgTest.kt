@@ -251,8 +251,10 @@ class Sysml2ActSvgTest :
         "ACT control-flow edges surface as rendered paths in the SVG output" {
             val (model, act) = orderModel()
             val svg = KumlSvgRenderer.toSvg(model, act, fakeLayout(), PlainTheme())
-            // fakeLayout has two control-flow edges; each lowers to a <path> or <line>
-            svg shouldContain "<path"
+            // fakeLayout has direct-route control-flow edges; each lowers to a <line>
+            // with the kuml-edge CSS class applied.
+            svg shouldContain "<line"
+            svg shouldContain "class=\"kuml-edge\""
         }
 
         // ── V2.0.16 Partitions + Pins ─────────────────────────────────────

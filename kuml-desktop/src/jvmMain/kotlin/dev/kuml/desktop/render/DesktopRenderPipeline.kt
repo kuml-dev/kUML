@@ -8,6 +8,7 @@ import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SvgRenderOptions
 import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
+import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
@@ -57,7 +58,8 @@ internal object DesktopRenderPipeline {
                     KumlSvgRenderer.toSvg(extracted.diagram, layout, theme)
                 }
                 is ExtractedDiagram.C4 -> {
-                    val graph = C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model)
+                    val sizeProvider = C4ContentSizeProvider(extracted.model)
+                    val graph = C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model, sizeProvider)
                     val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
                     KumlSvgRenderer.toSvg(extracted.diagram, extracted.model, layout, theme)
                 }
