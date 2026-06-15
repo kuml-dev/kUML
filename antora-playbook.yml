@@ -1,12 +1,16 @@
 #
 # Antora playbook — used for both local preview and GitHub Pages deployment.
 #
-# Local preview:
-#   npx antora generate docs/handbook/antora-playbook.yml
-#   open docs/handbook/build/site/index.html
+# This file lives in the repository root so `url: .` resolves cleanly to the
+# git repo Antora needs. Earlier attempts with the playbook nested under
+# docs/handbook hit Antora path-resolution quirks (two failed pipeline runs).
 #
-# CI deployment: .github/workflows/docs.yml builds this and pushes to gh-pages.
-# The live site is served at https://docs.kuml.dev
+# Local preview:
+#   npx antora generate antora-playbook.yml
+#   open build/site/index.html
+#
+# CI deployment: .github/workflows/docs.yml builds this and deploys via
+# GitHub Pages. The live site is served at https://docs.kuml.dev
 #
 site:
   title: kUML Handbook
@@ -15,9 +19,6 @@ site:
 
 content:
   sources:
-    # `url: .` is resolved against the current working directory.
-    # Both the local preview command and the CI workflow run from the
-    # repository root, so `.` resolves to the git repo Antora needs.
     - url: .
       branches: HEAD
       start_path: docs/handbook

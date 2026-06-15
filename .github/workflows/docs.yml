@@ -5,6 +5,7 @@ on:
     branches: [ master ]
     paths:
       - 'docs/handbook/**'
+      - 'antora-playbook.yml'
       - '.github/workflows/docs.yml'
   # Allow manual trigger from the Actions tab
   workflow_dispatch:
@@ -35,12 +36,12 @@ jobs:
         run: npm install -g @antora/cli@3 @antora/site-generator@3
 
       - name: Build Handbook
-        run: antora generate docs/handbook/antora-playbook.yml
+        run: antora generate antora-playbook.yml
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/handbook/build/site
+          path: build/site
 
   deploy:
     name: Deploy to GitHub Pages
