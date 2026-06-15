@@ -264,8 +264,26 @@ public object KumlSvgRenderer {
 
         val visibleIds = interaction.lifelines.map { it.id }.toSet()
 
-        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
-            val padding = options.paddingPx
+        // V3.0.x: Wenn das Interaktion Combined Fragments enthält, ragt der
+        // Fragment-Rahmen FRAGMENT_PADDING (24 px) links und rechts über die
+        // äußersten Lifelines hinaus. Das Default-Canvas-Padding (16 px)
+        // reicht dafür nicht — die rechte Frame-Kante wäre außerhalb der
+        // SVG-`viewBox` und würde geclippt (Symptom: ALT-Box rechts
+        // abgeschnitten). Heben wir das effektive Padding deshalb auf mindestens
+        // `FRAGMENT_PADDING + 4` an, sobald Fragments im Spiel sind. Das ist
+        // sowohl im Layout-Shift der Lifelines als auch in der Canvas-Größe in
+        // `SvgDocument.render` wirksam, weil beide `options.paddingPx` lesen.
+        val effectiveOptions =
+            if (interaction.fragments.isNotEmpty()) {
+                options.copy(
+                    paddingPx = maxOf(options.paddingPx, dev.kuml.io.svg.uml.UML_SEQ_FRAGMENT_PADDING + 4f),
+                )
+            } else {
+                options
+            }
+
+        return SvgDocument.render(layoutResult, theme, effectiveOptions) { nodesBuilder, edgesBuilder ->
+            val padding = effectiveOptions.paddingPx
             val shiftedLayouts = mutableMapOf<dev.kuml.layout.NodeId, dev.kuml.layout.NodeLayout>()
 
             // 1. Pre-compute shifted lifeline layouts WITHOUT emitting SVG.
@@ -978,8 +996,23 @@ public object KumlSvgRenderer {
                 .filterIsInstance<dev.kuml.sysml2.ExecutionSpecificationUsage>()
                 .filter { it.lifelineId in visibleIds }
 
-        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
-            val padding = options.paddingPx
+        // V3.0.x: Wenn Fragments existieren, ragt der Frame FRAGMENT_PADDING
+        // links und rechts über die äußersten Lifelines hinaus. Das Default-
+        // Canvas-Padding (16 px) reicht nicht — die rechte Frame-Kante würde
+        // geclippt (ALT-Box rechts abgeschnitten). Effektives Padding auf
+        // mindestens `FRAGMENT_PADDING + 4` heben, sobald Fragments im Spiel
+        // sind. Wirkt sowohl im Lifeline-Shift als auch in der Canvas-Größe.
+        val effectiveOptions =
+            if (fragments.isNotEmpty()) {
+                options.copy(
+                    paddingPx = maxOf(options.paddingPx, dev.kuml.io.svg.sysml2.SYSML2_SEQ_FRAGMENT_PADDING + 4f),
+                )
+            } else {
+                options
+            }
+
+        return SvgDocument.render(layoutResult, theme, effectiveOptions) { nodesBuilder, edgesBuilder ->
+            val padding = effectiveOptions.paddingPx
 
             // 1. Geshiftete Lifeline-Layouts pre-computen, OHNE noch SVG zu
             //    emittieren. Die Layouts braucht der Fragment-Renderer (für die

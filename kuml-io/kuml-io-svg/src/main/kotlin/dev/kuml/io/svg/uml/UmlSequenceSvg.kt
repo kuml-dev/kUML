@@ -13,11 +13,78 @@ import dev.kuml.uml.UmlMessage
 
 private const val SEQ_HEAD_HEIGHT = 40f
 private const val SEQ_ROW_HEIGHT = 32f
-private const val FRAGMENT_PADDING = 8f
+
+/**
+ * Horizontaler Atemraum links + rechts des Frames relativ zu den äußersten
+ * Lifelines. V3.0.x: von 8f auf 24f vergrößert, damit der Guard-Text (`[valid]`,
+ * `[invalid]` …) unter dem ALT-Pentagon links genug Platz hat, um den
+ * gestrichelten Lifeline-Strich der ersten Lifeline NICHT zu kreuzen.
+ *
+ * Bleibt zugleich der Wert, um den der zentrale Canvas-Renderer das `paddingPx`
+ * hochsetzt — daher als `internal const` exportiert. Siehe
+ * `KumlSvgRenderer.renderUmlSequence`.
+ */
+internal const val UML_SEQ_FRAGMENT_PADDING = 24f
+private const val FRAGMENT_PADDING_H = UML_SEQ_FRAGMENT_PADDING
+
+/**
+ * **Vertikale Outset-Werte des Frames — asymmetrisch.**
+ *
+ * Nachrichten-Beschriftungen sitzen 4 px ÜBER der Pfeillinie (Label-Baseline
+ * `= arrow_y - 4`); mit Ascent ≈ 11 und Descent ≈ 3 ergibt das ein
+ * Label-Hintergrund-Band von `arrow_y - 15` bis `arrow_y - 1`. Das bedeutet:
+ * Der "freie Korridor" zwischen zwei aufeinanderfolgenden Nachrichten ist
+ * **NICHT** mittig zwischen den Pfeilen. Er reicht vom Label-Bottom der
+ * oberen Nachricht (`arrow_n - 1`) bis zum Label-Top der unteren
+ * (`arrow_(n+1) - 15`), Breite 18 px, Mitte 8 px UNTER dem oberen Pfeil
+ * (entspricht `arrow_n + 8`).
+ *
+ * Konsequenz für die beiden Frame-Kanten:
+ * - **Oben**: 18-px-Korridor zwischen `arrow_(minSeq-1)` Label-Bottom
+ *   (`arrow_minSeq - 33`) und `arrow_minSeq` Label-Top (`arrow_minSeq - 15`).
+ *   Mitte: `arrow_minSeq - 24` → Frame extendiert **24 px** über `arrow_minSeq`.
+ * - **Unten**: 18-px-Korridor zwischen `arrow_maxSeq` Label-Bottom
+ *   (`arrow_maxSeq - 1`) und `arrow_(maxSeq+1)` Label-Top (`arrow_maxSeq + 17`).
+ *   Mitte: `arrow_maxSeq + 8` → Frame extendiert **8 px** unter `arrow_maxSeq`.
+ *
+ * Die ursprüngliche symmetrische `±0.5-Row`-Formel mit `FRAGMENT_PADDING = 8`
+ * landete die Unter-Kante bei `arrow_maxSeq + 24` — 7 px im Label-Bereich
+ * der nächsten außerhalb-liegenden Nachricht. Im SysML-2-Test-Sample fiel
+ * das nicht auf (keine Nachricht nach dem Fragment), im UML-Sample
+ * "Place Order — API Submit" rutschte deshalb `confirmation` halb in die
+ * ALT-Box. Asymmetrie korrigiert das.
+ */
+private const val FRAGMENT_TOP_OUTSET = 24f
+private const val FRAGMENT_BOTTOM_OUTSET = 8f
 private const val FRAGMENT_TAG_W = 50f
 private const val FRAGMENT_TAG_H = 18f
 private const val SELF_CALL_W = 24f
 private const val SELF_CALL_H = 16f
+
+/**
+ * Heuristische Pixel-Breite pro Zeichen für `kuml-body`-Text. Wird genutzt, um
+ * die weißen Hintergrund-Rechtecke hinter Beschriftungen zu dimensionieren —
+ * SVG kennt zur Render-Zeit keine echten Textmaße, deshalb diese pragmatische
+ * Abschätzung. Etwas großzügig gewählt, damit auch breite Zeichen (W, M) noch
+ * vollständig vom weißen Hintergrund abgedeckt werden.
+ */
+private const val BODY_CHAR_WIDTH = 6.5f
+
+/** Horizontaler Polster links und rechts des Text-Hintergrund-Rechtecks. */
+private const val LABEL_BG_HPAD = 3f
+
+/**
+ * Approximierte Pixel-Aufwärts-Höhe des `kuml-body`-Textes über der Baseline
+ * (Cap-Höhe + 1px Polster). Nur für die Hintergrund-Rechtecke; nicht für
+ * Layout-Berechnungen.
+ */
+private const val BODY_TEXT_ASCENT = 11f
+
+/**
+ * Approximierte Pixel-Abwärts-Höhe des `kuml-body`-Textes unter der Baseline
+ * (Descender + 1px Polster).
+ */
+private const val BODY_TEXT_DESCENT = 3f
 
 /** Render a UML lifeline head box + vertical dashed time axis. */
 internal fun renderUmlLifelineHead(
@@ -114,16 +181,73 @@ private fun renderUmlMessage(
                 renderOpenArrowheadUml(tgtCx, y, arrowDx, this)
         }
         val labelX = (srcCx + tgtCx) / 2f
-        tag(
-            "text",
-            mapOf(
-                "class" to "kuml-body",
-                "x" to fmt(labelX),
-                "y" to fmt(y - 4f),
-                "text-anchor" to "middle",
-            ),
-        ) { text(msg.label) }
+        val labelY = y - 4f
+        drawLabelWithWhiteBackground(
+            label = msg.label,
+            x = labelX,
+            y = labelY,
+            anchor = "middle",
+            builder = this,
+        )
     }
+}
+
+/**
+ * Zeichnet einen Body-Text mit einem weißen Hintergrund-Rechteck dahinter.
+ *
+ * Hintergrund: Sequenz-Diagramm-Labels (Nachrichten-Beschriftungen, Operand-
+ * Guards) liegen geometrisch über mehreren gestrichelten Linien — dem
+ * vertikalen Zeit-Achsen-Strich der Lifelines und den horizontalen Separator-
+ * Strichen zwischen `alt`-Operanden bzw. der Frame-Umrandung. Ohne weißen
+ * Hintergrund kreuzen diese Linien das Text-Glyphen-Innere, was die Lesbarkeit
+ * massiv reduziert — siehe `[invalid]` über der ersten Lifeline und
+ * `400 Bad Request` über der Operand-Trennlinie im PNG-Sample.
+ *
+ * Das Hintergrund-Rechteck wird mit einer überschlägigen Text-Breite
+ * (`BODY_CHAR_WIDTH * label.length`) und [LABEL_BG_HPAD] horizontalem Polster
+ * dimensioniert. Bei [anchor] == "middle" wird zentriert, bei "start" links-
+ * bündig, bei "end" rechtsbündig gerechnet — analog zu SVG `text-anchor`.
+ */
+private fun drawLabelWithWhiteBackground(
+    label: String,
+    x: Float,
+    y: Float,
+    anchor: String,
+    builder: SvgBuilder,
+    cssClass: String = "kuml-body",
+) {
+    val textW = label.length * BODY_CHAR_WIDTH
+    val bgW = textW + 2f * LABEL_BG_HPAD
+    val bgH = BODY_TEXT_ASCENT + BODY_TEXT_DESCENT
+    val bgX =
+        when (anchor) {
+            "middle" -> x - bgW / 2f
+            "end" -> x - bgW
+            else -> x - LABEL_BG_HPAD
+        }
+    // y im `<text>` ist die Baseline. Das Rechteck beginnt eine Cap-Höhe
+    // darüber und endet knapp unterhalb der Baseline — knapp genug, um
+    // Nachrichten-Pfeile (zeichnen 4 px unterhalb der Baseline) NICHT zu
+    // überdecken.
+    val bgY = y - BODY_TEXT_ASCENT
+    builder.tag(
+        "rect",
+        mapOf(
+            "x" to fmt(bgX),
+            "y" to fmt(bgY),
+            "width" to fmt(bgW),
+            "height" to fmt(bgH),
+            "fill" to "white",
+            "stroke" to "none",
+        ),
+    )
+    val attrs =
+        if (anchor == "start") {
+            mapOf("class" to cssClass, "x" to fmt(x), "y" to fmt(y))
+        } else {
+            mapOf("class" to cssClass, "x" to fmt(x), "y" to fmt(y), "text-anchor" to anchor)
+        }
+    builder.tag("text", attrs) { text(label) }
 }
 
 private fun renderUmlSelfCall(
@@ -149,9 +273,13 @@ private fun renderUmlSelfCall(
             ),
         )
         renderOpenArrowheadUml(cx, y + SELF_CALL_H, +8f, this)
-        tag("text", mapOf("class" to "kuml-body", "x" to fmt(cx + SELF_CALL_W + 4f), "y" to fmt(y - 2f))) {
-            text(msg.label)
-        }
+        drawLabelWithWhiteBackground(
+            label = msg.label,
+            x = cx + SELF_CALL_W + 4f,
+            y = y - 2f,
+            anchor = "start",
+            builder = this,
+        )
     }
 }
 
@@ -193,10 +321,14 @@ private fun renderUmlFragment(
     val minLifelineX = visibleLifelineLayouts.minOf { it.bounds.origin.x }
     val maxLifelineX = visibleLifelineLayouts.maxOf { it.bounds.origin.x + it.bounds.size.width }
 
-    val frameX = minLifelineX - FRAGMENT_PADDING
-    val frameW = (maxLifelineX - minLifelineX) + 2f * FRAGMENT_PADDING
-    val frameY = headBottom + (minSeq - 0.5f) * SEQ_ROW_HEIGHT - FRAGMENT_PADDING
-    val frameBottom = headBottom + (maxSeq + 0.5f) * SEQ_ROW_HEIGHT + FRAGMENT_PADDING
+    val frameX = minLifelineX - FRAGMENT_PADDING_H
+    val frameW = (maxLifelineX - minLifelineX) + 2f * FRAGMENT_PADDING_H
+    // UML-Pfeil-Y für Sequenz n: `headBottom + n * SEQ_ROW_HEIGHT`. Frame-Top
+    // 24 px ÜBER dem ersten enthaltenen Pfeil, Frame-Bottom 8 px UNTER dem
+    // letzten enthaltenen Pfeil — asymmetrisch wegen Label-Position-Über-Pfeil
+    // (siehe KDoc von FRAGMENT_TOP_OUTSET / FRAGMENT_BOTTOM_OUTSET).
+    val frameY = headBottom + minSeq * SEQ_ROW_HEIGHT - FRAGMENT_TOP_OUTSET
+    val frameBottom = headBottom + maxSeq * SEQ_ROW_HEIGHT + FRAGMENT_BOTTOM_OUTSET
     val frameH = frameBottom - frameY
 
     builder.tag("g", mapOf("id" to xmlEscapeAttr(fragment.id))) {
@@ -242,7 +374,12 @@ private fun renderUmlFragment(
             val opMinSeq = opMsgSeqs.minOrNull()
             val guardY: Float
             if (index == 0) {
-                guardY = tagY + FRAGMENT_TAG_H + 4f
+                // V3.0.x: Guard sits BELOW the ALT pentagon (not next to it) and
+                // an extra +10 below the pentagon's bottom so the body-text
+                // ascenders clear the pentagon outline. Together with the wider
+                // FRAGMENT_PADDING (24) this keeps `[valid]` clear of the
+                // leftmost lifeline's dashed time axis.
+                guardY = tagY + FRAGMENT_TAG_H + 14f
                 val opMaxSeq = opMsgSeqs.maxOrNull()
                 if (opMaxSeq != null) {
                     prevOperandBottom = headBottom + (opMaxSeq + 0.5f) * SEQ_ROW_HEIGHT
@@ -287,14 +424,20 @@ private fun renderUmlFragment(
                 val trimmed = guard.trim()
                 val displayGuard =
                     if (trimmed.startsWith("[") && trimmed.endsWith("]")) trimmed else "[$trimmed]"
-                tag(
-                    "text",
-                    mapOf(
-                        "class" to "kuml-body",
-                        "x" to fmt(tagX + FRAGMENT_TAG_W + 6f),
-                        "y" to fmt(guardY),
-                    ),
-                ) { text(displayGuard) }
+                // V3.0.x: Guard sits at the LEFT edge of the frame instead of
+                // hanging off the right side of the ALT pentagon. With the
+                // wider FRAGMENT_PADDING the guard text now lives in the
+                // breathing room left of the leftmost lifeline — its dashed
+                // time-axis no longer crosses through the brackets.
+                // A white background covers any dashed line that still passes
+                // under the text (e.g. the operand-separator).
+                drawLabelWithWhiteBackground(
+                    label = displayGuard,
+                    x = frameX + 4f,
+                    y = guardY,
+                    anchor = "start",
+                    builder = this,
+                )
             }
         }
     }
