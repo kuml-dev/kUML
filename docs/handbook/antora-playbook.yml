@@ -1,15 +1,16 @@
 #
-# Antora playbook for local site generation.
+# Antora playbook — used for both local preview and GitHub Pages deployment.
 #
-# Generate the site with:
-#   npx antora generate docs/handbook/antora-playbook.yml --to-dir docs/handbook/build/site
-#
-# Open the result:
+# Local preview:
+#   npx antora generate docs/handbook/antora-playbook.yml
 #   open docs/handbook/build/site/index.html
+#
+# CI deployment: .github/workflows/docs.yml builds this and pushes to gh-pages.
+# The live site is served at https://docs.kuml.dev
 #
 site:
   title: kUML Handbook
-  url: https://kuml.dev/handbook
+  url: https://docs.kuml.dev
   start_page: kuml::index.adoc
 
 content:
