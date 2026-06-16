@@ -84,13 +84,13 @@ kuml render order-domain.kuml.kts --format svg
 | `sdk install kuml` — supports Linux x86_64, Linux ARM64, macOS, Windows x86_64.
 
 | *Docker*
-| `docker pull ghcr.io/kuml-dev/kuml-cli:<version>` — minimal CLI image (V2.0.38).
+| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.12.0` — minimal CLI image.
 
 | *Native installers*
-| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (V2.0.38). Download from the GitHub Releases page.
+| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.12.0). Download from the GitHub Releases page.
 
 | *Maven Central* (library modules)
-| `implementation("dev.kuml:kuml-core-dsl:0.7.0")` — library modules published to Maven Central.
+| `implementation("dev.kuml:kuml-core-dsl:0.12.0")` — library modules published to Maven Central.
 |===
 
 == Features
@@ -125,6 +125,80 @@ kuml render order-domain.kuml.kts --format svg
 
 | *Interactive execution (`kuml run`)*
 | Drive state machines and activity diagrams interactively. Three adapters: `stdin` (REPL), `mcp` (local REST server for programmatic event injection), `batch` (replay events JSON). Supports `--restore` / `--snapshot-out` for persistent sessions. UML, SysML 2 STM and ACT all supported. (V2.0.38)
+
+| *Reverse Engineering*
+| `kuml reverse` reconstructs a UML class diagram from existing source code. Supports Java (via JavaParser, V3.0.7) and Kotlin (via Compiler PSI, V3.0.8). Optional `--transformer` flag passes the recovered model through any registered M2M transformer.
+
+| *XMI Import / Export*
+| Full bidirectional XMI (Eclipse EMF/UML2) via `kuml-io-emf`. Supports Class, Interface, Enum, Association, Generalization, InterfaceRealization, Dependency. Compatible with Enterprise Architect, Papyrus, and MagicDraw. (V3.0.15–17)
+
+| *AI Assistant*
+| `kuml-ai` module embeds a Koog-based multi-LLM agent (OpenAI, Anthropic, Google, DeepSeek, OpenRouter, Ollama) with an AI panel in the Desktop app and patch-preview workflow. (V3.0.22–23)
+|===
+
+== UML 2.x Support
+
+kUML implements all 14 UML 2.x diagram types as first-class peers alongside SysML 2 and C4:
+
+[cols="1,3,1"]
+|===
+| Diagram type | Description | Simulate
+
+| *Class Diagram*
+| Classes, interfaces, enumerations, associations, generalisations, dependencies, realisations
+| —
+
+| *Object Diagram*
+| Snapshots of instance-level object graphs and slot values
+| —
+
+| *Package Diagram*
+| Package hierarchy, imports, merges, and namespace dependencies
+| —
+
+| *Component Diagram*
+| Logical components, provided/required interfaces, and connectors
+| —
+
+| *Composite Structure Diagram*
+| Internal part/port structure of a classifier and its connectors
+| —
+
+| *Deployment Diagram*
+| Node topology, artefact deployment, and communication paths
+| —
+
+| *Profile Diagram*
+| Metaclass extensions, stereotypes, tagged values, and constraints
+| —
+
+| *Use Case Diagram*
+| Actor/use-case relationships, include/extend associations, and system boundaries
+| —
+
+| *Activity Diagram*
+| Token-flow activity semantics, partitions (swimlanes), decision and fork/join nodes
+| ✅ `kuml simulate`
+
+| *State Machine Diagram*
+| Hierarchical state machines with guards, effects, internal transitions, and history pseudo-states
+| ✅ `kuml simulate`
+
+| *Sequence Diagram*
+| Lifeline interactions, synchronous/asynchronous messages, and Combined Fragments (alt/opt/loop/par)
+| —
+
+| *Communication Diagram*
+| Object interactions with numbered message flows along associations
+| —
+
+| *Timing Diagram*
+| State/condition timelines across multiple lifelines with timing constraints
+| —
+
+| *Interaction Overview Diagram*
+| Control flow overview combining activity and sequence diagram fragments
+| —
 |===
 
 == SysML 2 Support
@@ -154,6 +228,35 @@ Notable features added since v0.5.0:
 * *Web UI LaTeX download* — `POST /api/render` in `kuml serve` accepts `format = "latex"` for all 10 diagram types, including all 8 SysML 2 kinds (V2.0.36).
 * *Snapshot/Restore for SysML 2* — `snapshotFull` / `restoreFrom` preserve complete runtime state for SysML 2 STM and ACT instances (V2.0.35).
 * *`kuml run` SysML 2 support* — all three adapters (stdin / mcp / batch) accept SysML 2 STM and ACT scripts (V2.0.38).
+
+== C4 Support
+
+kUML implements all 6 C4 diagram types as first-class peers alongside UML 2.x and SysML 2:
+
+[cols="1,3"]
+|===
+| Diagram type | Description
+
+| *Context Diagram*
+| System boundaries, external actors (persons and external systems), and their relationships
+
+| *Container Diagram*
+| Applications, services, and databases within a system boundary and their interactions
+
+| *Component Diagram*
+| Internal components within a container and their dependencies
+
+| *Deployment Diagram*
+| Deployment topology with nodes, infrastructure elements, and container instances
+
+| *Dynamic Diagram*
+| Numbered interaction sequences between persons, systems, containers, or components
+
+| *Landscape Diagram*
+| Multi-system enterprise overview — persons and systems across organisational boundaries
+|===
+
+Structurizr DSL round-trip is supported via `kuml import --format structurizr` and `kuml export --format structurizr`, allowing interoperability with existing Structurizr workspaces.
 
 == How kUML compares
 
@@ -228,10 +331,16 @@ Notable features added since v0.5.0:
 | Idempotent text formatter for `*.kuml.kts`; `--check` mode exits `5` if reformat needed.
 
 | `kuml generate`
-| Code generation via plugin (`--plugin kotlin` ships built-in).
+| Code generation via plugin (`--plugin kotlin\|java\|sql` built-in).
 
 | `kuml import`
-| Import a diagram from another format (V1: Structurizr DSL → `*.kuml.kts`).
+| Import a diagram from another format: `--format structurizr` (Structurizr DSL → `*.kuml.kts`) or `--format xmi` (XMI/EMF → `*.kuml.kts`).
+
+| `kuml export`
+| Export a model to another format: `--format structurizr` (Structurizr DSL) or `--format xmi` (XMI/EMF).
+
+| `kuml reverse`
+| Reconstruct a UML class diagram from existing source code. `--lang java\|kotlin\|auto` selects the parser engine (JavaParser for Java, Kotlin Compiler PSI for Kotlin). Optional `--transformer <id>` passes the recovered model through a registered M2M transformer. (V3.0.9)
 
 | `kuml markdown`
 | Render `kuml`-fenced code blocks in a Markdown file to inline SVG, linked SVG, or linked PNG.
@@ -263,8 +372,14 @@ Notable features added since v0.5.0:
 | `kuml run <script> [--adapter stdin\|mcp\|batch]`
 | Interactive and live-mirror execution of state machines and activity diagrams. `--adapter stdin` (default) — interactive REPL with built-in `snapshot` / `status` / `quit` commands. `--adapter mcp` — starts a local REST server (`POST /run/event`, `GET /run/snapshot`, `POST /run/patch`, `POST /run/stop`, `GET /run/health`). `--adapter batch` — replays `--events <file.json>`, writes trace via `--out`. `--restore <snapshot.json>` resumes from a prior snapshot; `--snapshot-out <path>` persists on exit. Added in V2.0.38.
 
+| `kuml profile list\|show\|validate`
+| List all registered profiles, inspect a specific profile's stereotypes and tagged values, or validate a model against a profile's constraints.
+
 | `kuml update check` / `kuml update notes`
 | Poll GitHub Releases for the latest version (`check`) or display release notes for a specific version (`notes`). Added in V2.0.1.
+
+| `kuml version`
+| Print the installed kUML version and build metadata.
 |===
 
 == Roadmap
@@ -315,9 +430,31 @@ JetBrains plugin — annotator, quick fixes, live SVG preview, structure view, c
 Web UI: `kuml serve` Ktor/Netty + CodeMirror 6 SPA + SVG/PNG/LaTeX ✅ +
 Snapshot/Restore + MigrationPolicy ✅ +
 `kuml run` (stdin/mcp/batch adapters) ✅ +
-Distribution Phase 1: DEB/RPM/DMG/MSI + Docker + SDKMAN! Windows/ARM64 ✅ +
-KerML, reverse engineering, XMI, Compose Desktop 🚧
-| ✅ v0.7.0 released — V2.0.22–V2.0.38
+Distribution Phase 1: DEB/RPM/DMG/MSI + Docker + SDKMAN! Windows/ARM64 ✅
+| ✅ Done (`v0.4.0–v0.11.0`)
+
+| *V3.0*
+| `kuml reverse` — Java→UML (JavaParser, V3.0.7) + Kotlin→UML (Compiler PSI, V3.0.8) ✅ +
+`kuml-desktop` — file I/O, MRU recent-files, Plugin Manager UI, jpackage distribution (DMG/MSI/DEB/RPM) ✅ +
+AI assistant — Koog multi-LLM agent (OpenAI, Anthropic, Google, DeepSeek, OpenRouter, Ollama),
+AI panel in Desktop app, patch-preview workflow ✅ +
+`kuml-io-emf` — XMI import/export (EA, Papyrus, MagicDraw interop), Class/Interface/Enum/Association/
+Generalization/InterfaceRealization/Dependency ✅ +
+`kuml-runtime-trace` — OTLP-JSON trace export ✅ +
+`kuml-runtime-sandbox` — EffectExecutor, TimeLimitedGuardEvaluator, SandboxValidator ✅ +
+`kuml-ai-tools` — @Tool DSL builder suite + MCP bridge + AgentEditingContext ✅ +
+`kuml-core-config` — kuml.config.kts DSL + Script Host ✅ +
+`kuml-core-expr` — Typed Expression AST + Parser + Evaluator ✅ +
+`kuml-metamodel-kerml` + `kuml-metamodel-sysml2` — KerML foundation + SysML 2 sealed hierarchy ✅ +
+`kuml-widget-compose` — Executable behaviour widget (Compose Multiplatform) ✅ +
+`kuml-vault-examples-tests` — 31 CI smoke tests rendering all vault examples ✅
+| ✅ Done (`v0.12.0`)
+
+| *V3.x*
+| Plugin ecosystem — `kuml-plugin-api` marketplace SPI, plugin registry, CLI plugin manager, Desktop plugin manager +
+AUTOSAR ARXML import/export (`kuml-io-arxml`) +
+Chain-backed models — `kuml-runtime-chain-api` + EVM adapter
+| 🗓 Planned
 |===
 
 == Modules
@@ -326,82 +463,112 @@ KerML, reverse engineering, XMI, Compose Desktop 🚧
 ----
 kuml-core/
   kuml-core-model    ✅  Sealed Kotlin metamodel base types
-  kuml-core-dsl      ✅  DSL builders: UML (14 diagram types in V1.1) + C4 (6 builders)
+  kuml-core-dsl      ✅  DSL builders: UML (14 diagram types) + C4 (6 builders) + SysML 2 (8 diagram types)
   kuml-core-script   ✅  Kotlin Scripting host + KumlScriptDefinition + DiagramExtractor
-  kuml-core-ocl      ✅  OCL subset interpreter (navigation, forAll, exists, implies, …)
+  kuml-core-config   ✅  kuml.config.kts DSL + Script Host (V1.1.3)
+  kuml-core-ocl      ✅  OCL subset interpreter
+  kuml-core-expr     ✅  Typed Expression AST + Parser + Evaluator (V2.0.20a)
 
 kuml-metamodel/
-  kuml-metamodel-uml ✅  UML 2.x sealed hierarchy + serialization (all V1.1 element types)
-  kuml-metamodel-c4  ✅  C4 sealed hierarchy + C4Model
+  kuml-metamodel-uml    ✅  UML 2.x sealed hierarchy (all 14 diagram types)
+  kuml-metamodel-c4     ✅  C4 sealed hierarchy + C4Model (all 6 diagram types)
+  kuml-metamodel-kerml  ✅  KerML foundation for SysML 2 (V2.0.3)
+  kuml-metamodel-sysml2 ✅  SysML 2 on KerML (all 8 diagram types, V2.0.3+)
 
 kuml-renderer/
   kuml-layout-api    ✅  Engine-agnostic layout contract (LayoutGraph, LayoutResult, EdgeRoute)
-  kuml-layout-bridge ✅  KumlDiagram / C4 → LayoutGraph bridge
-  kuml-layout-elk    ✅  ELK 0.11.0 adapter (Sugiyama layered)
-  kuml-layout-grid   ✅  Pure-Kotlin grid layout engine (V1.1.12); default for Class/Component/UseCase
+  kuml-layout-bridge ✅  KumlDiagram / C4 / SysML 2 → LayoutGraph bridge
+  kuml-layout-elk    ✅  ELK 0.11.0 adapter (Sugiyama layered, default)
+  kuml-layout-grid   ✅  Pure-Kotlin grid layout engine (V1.1.12)
   kuml-kuiver        ✅  Compose Multiplatform renderer backend
-  kuml-themes-core   ✅  Framework-neutral theme data (KumlColor, KumlTheme)
-  kuml-themes        ✅  4 themes: Plain, kUML (navy/gold), Elegant, Playful — Compose adapter + SPI
+  kuml-themes-core   ✅  Framework-neutral theme data
+  kuml-themes        ✅  4 themes: Plain, kUML, Elegant, Playful
 
 kuml-io/
-  kuml-io-svg        ✅  Direct SVG writer from LayoutResult (GraalVM-ready)
+  kuml-io-svg        ✅  Direct SVG writer (GraalVM-ready)
   kuml-io-png        ✅  SVG → PNG via Apache Batik 1.19 (Fat-JAR only)
-  kuml-io-latex      ✅  LaTeX / TikZ export pipeline
-
-kuml-cli/            ✅  Command-line interface
-  render             ✅  kuml render model.kuml.kts [--format svg|png|latex] [--layout grid|elk|auto]
-  watch              ✅  kuml watch model.kuml.kts  (live-reload, 500ms polling)
-  validate           ✅  kuml validate model.kuml.kts --output text|json [--strict] [--no-check-structure]
-  fmt                ✅  kuml fmt model.kuml.kts [--check]
-  generate           ✅  kuml generate --plugin kotlin|java|sql model.kuml.kts
-  completion         ✅  kuml completion bash|zsh|fish
-  import             ✅  kuml import --format structurizr workspace.dsl
-  export             ✅  kuml export --format structurizr model.kuml.kts
-  markdown           ✅  kuml markdown --input in.md --output out.md --mode inline|linked-svg|linked-png
-  simulate           ✅  kuml simulate model.kuml.kts --events events.json  (UML + SysML 2 STM/ACT)
-  transform          ✅  kuml transform model.kuml.kts --transformer <id> --output gen/
-                         Built-in: uml-to-jpa, uml-to-rest, uml-to-k8s, uml-to-docker, c4-to-uml
-  profile            ✅  kuml profile list|show|validate
-  serve              ✅  kuml serve [--port N] [--host H]  (Web UI: CodeMirror 6 SPA + SVG/PNG/LaTeX)
-  run                ✅  kuml run model.kuml.kts [--adapter stdin|mcp|batch] [--restore snap.json]
-  update             ✅  kuml update check|notes  (GitHub Releases integration)
-
-kuml-mcp/            ✅  MCP server — stdio JSON-RPC 2.0, Protocol 2024-11-05
-                         Authoring tools (5): kuml.diagram.*, kuml.validate.*, ...
-                         Runtime tools (5, V2.0.27): kuml.run.start / event / snapshot / patch / stop
-
-kuml-runtime/        ✅  Behaviour runtime (V2.0.35)
-  kuml-runtime-core  ✅  StateMachineRuntime + ActivityRuntime + Snapshot/Restore + MigrationPolicy
-
-kuml-web/            ✅  Browser-based editing environment (V2.0.34)
-                         Ktor/Netty HTTP server + CodeMirror 6 SPA
-                         REST API: POST /api/render (SVG/PNG/LaTeX), GET /api/themes, /api/examples
+  kuml-io-json       ✅  Model persistence via kotlinx.serialization
+  kuml-io-latex      ✅  LaTeX / TikZ export
+  kuml-io-emf        ✅  XMI import/export via Eclipse EMF/UML2 (JVM-only, V3.0.15–17)
+                         kuml import --format xmi / kuml export --format xmi
+                         Full bidirectional: Class, Interface, Enum, Association,
+                         Generalization, InterfaceRealization, Dependency
 
 kuml-codegen/
-  kuml-codegen-api   ✅  KumlCodeGenerator plugin interface (ServiceLoader SPI)
-  kuml-gen-kotlin    ✅  Kotlin code generator (data class / interface / enum)
-  kuml-gen-java      ✅  Java code generator with JPA annotations from JavaEE stereotypes
-  kuml-gen-sql       ✅  SQL DDL generator (CREATE TABLE + FK constraints from multiplicities)
+  kuml-codegen-api          ✅  KumlCodeGenerator plugin interface (ServiceLoader SPI)
+  kuml-codegen-m2m          ✅  M2M Transformer Foundation: KumlTransformer, rule-DSL,
+                                5 built-in transformers (V2.0.21+)
+  kuml-gen-kotlin           ✅  Kotlin code generator (data class / interface / enum)
+  kuml-gen-java             ✅  Java POJO / Records / Lombok generator
+  kuml-gen-sql              ✅  SQL DDL generator (Postgres / MySQL / H2 / SQLite)
+  kuml-codegen-reverse-api  ✅  Language-agnostic KumlReverseEngine interface (V3.0.7)
+  kuml-codegen-reverse-java ✅  JavaParser-based Java → UML engine (V3.0.7)
+  kuml-codegen-reverse-kotlin ✅ Kotlin Compiler PSI → UML engine (V3.0.8)
 
-kuml-gradle/         ✅  Gradle plugin (plugin ID: dev.kuml)
-                         Tasks: kumlRender, kumlGenerate, kumlValidate (@CacheableTask, incremental)
+kuml-runtime/
+  kuml-runtime-core    ✅  StateMachineRuntime + ActivityRuntime + Snapshot/Restore + MigrationPolicy
+  kuml-runtime-trace   ✅  Trace replay + OTLP-JSON export (V2.0.39)
+  kuml-runtime-sandbox ✅  Sandbox guarantees: EffectExecutor, TimeLimitedGuardEvaluator,
+                           SandboxValidator (V2.0.40)
 
-kuml-jetbrains/      ✅  JetBrains IDE plugin (IntelliJ IDEA 2024.3+)
-                         Annotator + 4 quick fixes, live SVG preview (Batik), structure view, code folding
+kuml-mcp/              ✅  MCP server — stdio JSON-RPC 2.0
+                           Authoring tools (5): kuml.diagram.*
+                           Runtime tools (5): kuml.run.start / event / snapshot / patch / stop
 
-kuml-vscode-plugin/  ✅  VS Code extension
-                         TextMate grammar + DSL snippets + kUML: Render to SVG command
+kuml-web/              ✅  Browser-based editing environment (V2.0.34)
+                           Ktor/Netty HTTP + CodeMirror 6 SPA + SVG/PNG/LaTeX REST API
+
+kuml-widget/
+  kuml-widget-compose  ✅  Executable behaviour widget (Compose Multiplatform, V2.0.43)
+
+kuml-desktop/          ✅  Compose Desktop app (V3.0.10–14)
+                           Editor (RSyntaxTextArea) + Live preview (JSVGCanvas/Batik)
+                           File I/O + MRU recent-files + persistent settings
+                           Plugin Manager UI (ServiceLoader introspection)
+                           jpackage distribution: DMG / MSI / DEB / RPM
+
+kuml-ai/
+  kuml-ai-core         ✅  Koog-based AI agent: Multi-LLM executor (OpenAI, Anthropic,
+                           Google, DeepSeek, OpenRouter, Ollama), API key vault (V3.0.22)
+  kuml-ai-tools        ✅  @Tool DSL builder suite + MCP bridge + AgentEditingContext (V3.0.23)
+
+kuml-cli/              ✅  Command-line interface (all commands above)
+
+kuml-gradle/           ✅  Gradle plugin (plugin ID: dev.kuml)
+                           Tasks: kumlRender, kumlGenerate, kumlValidate (@CacheableTask)
+
+kuml-jetbrains/        ✅  JetBrains IDE plugin (IntelliJ IDEA 2024.3+)
+                           Annotator + 4 quick fixes, live SVG preview, structure view, code folding
+
+kuml-vscode-plugin/    ✅  VS Code extension
+                           TextMate grammar + DSL snippets + kUML: Render to SVG
 
 kuml-llm/
-  kuml-llm-core      ✅  LlmBackend interface + LlmMockBackend
-  kuml-llm-anthropic ✅  Claude API backend via JDK HttpClient (no extra deps)
-  kuml-llm-bench     ✅  10-task benchmark suite (kUML/PlantUML/Mermaid, DE+EN)
+  kuml-llm-core        ✅  LlmBackend interface
+  kuml-llm-anthropic   ✅  Claude API backend
+  kuml-llm-bench       ✅  10-task benchmark suite
 
 kuml-docs/
-  kuml-markdown      ✅  Markdown ` ```kuml ` block processor (inline/linked SVG/PNG)
-  kuml-asciidoc      ✅  AsciiDoc [kuml] block macro preprocessor (Antora-compatible)
+  kuml-markdown        ✅  Markdown kuml code block processor
+  kuml-asciidoc        ✅  AsciiDoc [kuml] block macro (Antora-compatible)
 
-kuml-packaging/      🚧  GraalVM Native Image infrastructure done; full native deferred (ADR-0009)
+kuml-profile/
+  kuml-profile-api     ✅  KumlProfile SPI + KumlStereotypeApplication
+  kuml-profile-autosar ✅  AUTOSAR Classic R22-11 profile
+  kuml-profile-javaee  ✅  JavaEE / Jakarta EE profile
+  kuml-profile-spring  ✅  Spring Framework profile
+  kuml-profile-openapi ✅  OpenAPI 3.x profile
+  kuml-profile-soaml   ✅  SoaML profile
+
+kuml-packaging/        ✅  GraalVM Native Image + DEB/RPM/DMG/MSI + Docker + SDKMAN!
+
+kuml-tests/
+  kuml-dsl-tests              ✅  DSL unit tests
+  kuml-renderer-tests         ✅  SVG snapshot tests
+  kuml-codegen-tests          ✅  Codegen tests
+  kuml-cli-tests              ✅  CLI end-to-end tests
+  kuml-vault-examples-tests   ✅  31 CI smoke tests: render all 30 vault examples (V3.0.x)
+  kuml-mcp-tests, kuml-ocl-tests, kuml-llm-tests  ✅
 ----
 
 == Documentation
