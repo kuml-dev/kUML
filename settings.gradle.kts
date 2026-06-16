@@ -9,6 +9,10 @@ dependencyResolutionManagement {
     repositories {
         mavenCentral()
         google()
+        maven {
+            name = "Eclipse Releases"
+            url = uri("https://repo.eclipse.org/content/repositories/releases/")
+        }
     }
 }
 
@@ -81,7 +85,7 @@ include(
     "kuml-io:kuml-io-json",         // Phase 2 — Modell-Persistenz (kotlinx.serialization)
     "kuml-io:kuml-io-latex",        // V2.0.2 — LaTeX/TikZ-Export (MVP: Klassendiagramme, plain theme, snippet)
     // "kuml-io:kuml-io-structurizr",  // V1.1 — C4 ⇌ Structurizr DSL
-    // "kuml-io:kuml-io-emf",          // V2 — OPTIONAL XMI ⇌ Eclipse UML2
+    "kuml-io:kuml-io-emf",             // V3.0.15 — OPTIONAL XMI ⇌ Eclipse UML2 (JVM-only)
 )
 
 // ── LLM ──────────────────────────────────────────────── Phase 2 ──
@@ -127,16 +131,26 @@ include("kuml-web")  // V2.0.34 — Ktor server with live SVG preview
 // ── Executable Behaviour Widget ─────────────────────── V2.0.43 ──
 include("kuml-widget:kuml-widget-compose")
 
-// ── Desktop App ──────────────────────────────────────────── V3.0.10 ──
-include("kuml-desktop")
+// ── Desktop App ─────────────────────────────────────────── V3.0.10 / V3.0.24 ──
+include("kuml-desktop")              // V3.0.10 — Compose Desktop main window + V3.0.24 AI panel
+
+// ── AI Assistant (Koog-based) ────────────────────────── V3.0.22 / V3.0.23 ──
+val noAi = (settings.startParameter.projectProperties["kuml.noAi"] ?: "false").toBoolean()
+if (!noAi) {
+    include(
+        "kuml-ai:kuml-ai-core",       // V3.0.22 — Koog integration + MultiLLM executor + secure API key vault
+        "kuml-ai:kuml-ai-tools",      // V3.0.23 — @Tool-based DSL builder suite + MCP bridge + AgentEditingContext
+    )
+}
 
 // ── Tests ────────────────────────────────────────────────────────
 include(
-    "kuml-tests:kuml-dsl-tests",        // Phase 1  — DSL Unit Tests (alle Diagrammtypen)
-    "kuml-tests:kuml-ocl-tests",        // Phase 2  — OCL-Constraint-Validierung
-    "kuml-tests:kuml-renderer-tests",   // Phase 1  — SVG Snapshot-Tests
-    "kuml-tests:kuml-codegen-tests",    // Phase 2  — Kotlin/Java/SQL Generatoren
-    "kuml-tests:kuml-mcp-tests",        // Phase 2  — MCP-Tool-Aufrufe
-    "kuml-tests:kuml-cli-tests",        // Phase 2  — CLI end-to-end
-    "kuml-tests:kuml-llm-tests",        // Phase 2  — LLM-Mock + @Tag("live")
+    "kuml-tests:kuml-dsl-tests",              // Phase 1  — DSL Unit Tests (alle Diagrammtypen)
+    "kuml-tests:kuml-ocl-tests",              // Phase 2  — OCL-Constraint-Validierung
+    "kuml-tests:kuml-renderer-tests",         // Phase 1  — SVG Snapshot-Tests
+    "kuml-tests:kuml-codegen-tests",          // Phase 2  — Kotlin/Java/SQL Generatoren
+    "kuml-tests:kuml-mcp-tests",              // Phase 2  — MCP-Tool-Aufrufe
+    "kuml-tests:kuml-cli-tests",              // Phase 2  — CLI end-to-end
+    "kuml-tests:kuml-llm-tests",              // Phase 2  — LLM-Mock + @Tag("live")
+    "kuml-tests:kuml-vault-examples-tests",   // V3.0.x  — CI render smoke tests for all 30 vault examples
 )

@@ -1,6 +1,8 @@
 [versions]
 kotlin                 = "2.4.0"
 shadow                 = "9.4.2"
+koog                   = "0.7.3"
+jna                    = "5.14.0"
 batik                  = "1.19"
 compose-multiplatform  = "1.9.0"
 kuiver                 = "0.3.0"
@@ -19,6 +21,11 @@ vanniktech-publish     = "0.36.0"
 intellij-platform      = "2.16.0"
 intellij-idea          = "2024.3"
 javaparser             = "3.26.4"
+eclipse-emf-ecore      = "2.36.0"
+eclipse-emf-ecore-xmi  = "2.36.0"
+eclipse-uml2           = "5.0.1.v20140910-1354"
+eclipse-uml2-types     = "2.0.0.v20140910-1354"
+eclipse-uml2-common    = "2.0.1.v20140910-1354"
 
 [libraries]
 # ── Compose / Kuiver ─────────────────────────────────────────────────────────
@@ -50,6 +57,19 @@ kotlinx-serialization-json      = { module = "org.jetbrains.kotlinx:kotlinx-seri
 kotlinx-coroutines-core         = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core",       version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test         = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test",       version.ref = "kotlinx-coroutines" }
 
+# ── Koog (AI Agent Framework) ────────────────────────────────────────────────
+# Note: provider clients are under group "ai.koog", not "ai.koog.prompt" (plan had wrong group)
+koog-agents-jvm                         = { module = "ai.koog:koog-agents-jvm",                          version.ref = "koog" }
+koog-agents-mcp                         = { module = "ai.koog:agents-mcp-jvm",                            version.ref = "koog" }
+koog-prompt-executor-openai-client      = { module = "ai.koog:prompt-executor-openai-client",            version.ref = "koog" }
+koog-prompt-executor-anthropic-client   = { module = "ai.koog:prompt-executor-anthropic-client",         version.ref = "koog" }
+koog-prompt-executor-google-client      = { module = "ai.koog:prompt-executor-google-client",            version.ref = "koog" }
+koog-prompt-executor-ollama-client      = { module = "ai.koog:prompt-executor-ollama-client",            version.ref = "koog" }
+
+# ── JNA (Platform Keystore Backends) ────────────────────────────────────────
+jna                                     = { module = "net.java.dev.jna:jna",                              version.ref = "jna" }
+jna-platform                            = { module = "net.java.dev.jna:jna-platform",                     version.ref = "jna" }
+
 # ── Ktor (MCP server — Phase 2 / Web UI — V2.0.34) ───────────────────────────
 ktor-server-core                = { module = "io.ktor:ktor-server-core",                            version.ref = "ktor" }
 ktor-server-netty               = { module = "io.ktor:ktor-server-netty",                           version.ref = "ktor" }
@@ -72,6 +92,13 @@ junit-bom                       = { module = "org.junit:junit-bom",             
 junit-jupiter                   = { module = "org.junit.jupiter:junit-jupiter",                    version.ref = "junit" }
 assertj-core                    = { module = "org.assertj:assertj-core",                           version.ref = "assertj" }
 clikt                           = { module = "com.github.ajalt.clikt:clikt",                         version.ref = "clikt" }
+
+# ── Eclipse EMF / UML2 (kuml-io-emf, JVM-only) ──────────────────────────────
+eclipse-emf-ecore      = { module = "org.eclipse.emf:org.eclipse.emf.ecore",            version.ref = "eclipse-emf-ecore" }
+eclipse-emf-ecore-xmi  = { module = "org.eclipse.emf:org.eclipse.emf.ecore.xmi",        version.ref = "eclipse-emf-ecore-xmi" }
+eclipse-uml2-uml       = { module = "org.eclipse.uml2:org.eclipse.uml2.uml",            version.ref = "eclipse-uml2" }
+eclipse-uml2-types     = { module = "org.eclipse.uml2:org.eclipse.uml2.types",          version.ref = "eclipse-uml2-types" }
+eclipse-uml2-common    = { module = "org.eclipse.uml2:org.eclipse.uml2.common",         version.ref = "eclipse-uml2-common" }
 
 # ── JavaParser (Reverse Engineering — V3.0.7) ────────────────────────────────
 javaparser-core                 = { module = "com.github.javaparser:javaparser-core",                version.ref = "javaparser" }

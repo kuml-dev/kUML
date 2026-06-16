@@ -34,8 +34,8 @@ import dev.kuml.uml.UmlProperty
  * }
  * ```
  */
-internal object UmlModelDslPrinter {
-    fun print(model: KumlModel): String {
+public object UmlModelDslPrinter {
+    public fun print(model: KumlModel): String {
         val diagram =
             model.root as? KumlDiagram
                 ?: return "// model root is not a KumlDiagram — cannot serialize\n"

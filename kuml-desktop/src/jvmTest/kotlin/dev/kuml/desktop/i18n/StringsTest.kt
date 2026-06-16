@@ -29,4 +29,14 @@ class StringsTest : FunSpec({
     test("EN and DE differ on menuEdit") { Strings.EN.menuEdit shouldNotBe Strings.DE.menuEdit }
     test("EN and DE differ on statusReady") { Strings.EN.statusReady shouldNotBe Strings.DE.statusReady }
     test("EN and DE differ on statusNoDiagram") { Strings.EN.statusNoDiagram shouldNotBe Strings.DE.statusNoDiagram }
+
+    // --- V3.0.12 new keys (both languages non-empty) ---
+    test("EN menuFileRecent is non-empty") { Strings.EN.menuFileRecent.isNotEmpty() shouldBe true }
+    test("DE menuFileRecent is non-empty") { Strings.DE.menuFileRecent.isNotEmpty() shouldBe true }
+    test("EN menuFileRecentEmpty is non-empty") { Strings.EN.menuFileRecentEmpty.isNotEmpty() shouldBe true }
+    test("DE menuFileRecentEmpty is non-empty") { Strings.DE.menuFileRecentEmpty.isNotEmpty() shouldBe true }
+    test("EN dialogUnsavedTitle is non-empty") { Strings.EN.dialogUnsavedTitle.isNotEmpty() shouldBe true }
+    test("DE dialogUnsavedTitle is non-empty") { Strings.DE.dialogUnsavedTitle.isNotEmpty() shouldBe true }
+    test("EN aboutTitle is non-empty") { Strings.EN.aboutTitle.isNotEmpty() shouldBe true }
+    test("DE aboutTitle is non-empty") { Strings.DE.aboutTitle.isNotEmpty() shouldBe true }
 })

@@ -73,4 +73,13 @@ internal object ExitCodes {
 
     /** `kuml reverse` could not detect any source files in the given directory. */
     internal const val REVERSE_NO_SOURCES: Int = 16
+
+    // ── `kuml import/export` format availability (V3.0.17) ───────────────────
+
+    /**
+     * The requested format requires a distribution that is not available in this build.
+     * Example: `--format xmi` requires the Fat-JAR distribution (EMF is JVM-only and
+     * not included in the Native Image binary).
+     */
+    internal const val FORMAT_NOT_AVAILABLE: Int = 24
 }

@@ -1,5 +1,6 @@
 package dev.kuml.runtime.trace.otlp
 
+import dev.kuml.runtime.AiTraceEntry
 import dev.kuml.runtime.TraceEntry
 import dev.kuml.runtime.TraceFile
 import kotlinx.serialization.encodeToString
@@ -41,7 +42,9 @@ public class OtlpExporter(
         val modelId = traceFile.modelId ?: "(anon)"
         val traceId = OtlpIds.traceId(modelId)
 
-        val sortedEntries = traceFile.entries.sortedBy { it.seqNo }
+        // Separate AI-lifecycle entries — they go into a dedicated kuml.ai resource span.
+        val aiEntries = traceFile.entries.filterIsInstance<AiTraceEntry>()
+        val sortedEntries = traceFile.entries.filter { it !is AiTraceEntry }.sortedBy { it.seqNo }
 
         // Derive bounding timestamps
         val firstNanos = sortedEntries.firstOrNull()?.timestampNanos(0L) ?: 0L
@@ -237,20 +240,27 @@ public class OtlpExporter(
 
         val allSpans = listOf(rootSpan) + finishedSpans
 
+        val runtimeResourceSpans =
+            OtlpResourceSpans(
+                resource = OtlpResource(attributes = resourceAttrs),
+                scopeSpans =
+                    listOf(
+                        OtlpScopeSpans(
+                            scope = OtlpScope(name = scopeName, version = scopeVersion),
+                            spans = allSpans,
+                        ),
+                    ),
+            )
+
+        // AI-lifecycle entries live in their own kuml.ai resource span (V3.0.25).
+        val aiResourceSpans = buildAiOtlpResourceSpans(traceFile, aiEntries)
+
         return OtlpExport(
             resourceSpans =
-                listOf(
-                    OtlpResourceSpans(
-                        resource = OtlpResource(attributes = resourceAttrs),
-                        scopeSpans =
-                            listOf(
-                                OtlpScopeSpans(
-                                    scope = OtlpScope(name = scopeName, version = scopeVersion),
-                                    spans = allSpans,
-                                ),
-                            ),
-                    ),
-                ),
+                buildList {
+                    add(runtimeResourceSpans)
+                    aiResourceSpans?.let { add(it) }
+                },
         )
     }
 
@@ -433,4 +443,7 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
         is TraceEntry.StateExited -> null
         is TraceEntry.TokenPlaced -> null
         is TraceEntry.TokenConsumed -> null
+        // AI-lifecycle entries (V3.0.25) are separated out before the main loop
+        // and processed by buildAiOtlpResourceSpans() — they never reach here.
+        is AiTraceEntry -> null
     }

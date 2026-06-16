@@ -91,11 +91,12 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
         when (flavour) {
             TraceFlavour.STM -> runStmReplay(scriptResult, traceData)
             TraceFlavour.ACTIVITY -> runActivityReplay(scriptResult, traceData)
-            TraceFlavour.EMPTY, TraceFlavour.MIXED -> {
+            TraceFlavour.EMPTY, TraceFlavour.MIXED, TraceFlavour.AI -> {
                 System.err.println(
                     "Unsupported trace flavour '$flavour': " +
                         "only STM and ACTIVITY traces can be replayed. " +
-                        "EMPTY traces have no entries; MIXED traces contain both STM and Activity entries.",
+                        "EMPTY traces have no entries; MIXED traces contain both STM and Activity entries. " +
+                        "AI traces contain AI-patch lifecycle entries and are not replayable.",
                 )
                 throw ProgramResult(ExitCodes.TRACE_UNSUPPORTED_FLAVOUR)
             }

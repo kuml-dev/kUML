@@ -57,7 +57,7 @@ val nonPublishedModules =
         "kuml-examples",
         "kuml-packaging",
         "kuml-web",
-        "kuml-desktop",
+        "kuml-desktop",        // V3.0.10 — Compose Desktop app (not published to Maven Central)
         // Test sub-modules (path-aware listing — Gradle subprojects iteration
         // sees them as separate projects with these leaf names).
         "kuml-cli-tests",
@@ -67,6 +67,7 @@ val nonPublishedModules =
         "kuml-mcp-tests",
         "kuml-ocl-tests",
         "kuml-renderer-tests",
+        "kuml-vault-examples-tests",  // V3.0.x — CI render smoke tests (not published)
         // V1.1+ tooling-side artefacts published through other channels
         // (Gradle Plugin Portal, JetBrains Marketplace, VS Code Marketplace).
         "kuml-gradle-plugin",
@@ -83,6 +84,7 @@ val nonPublishedModules =
         "kuml-llm",
         "kuml-metamodel",
         "kuml-profile",
+        "kuml-ai",             // V3.0.22 — AI aggregator parent (kuml-ai-core is published separately)
     )
 
 subprojects {

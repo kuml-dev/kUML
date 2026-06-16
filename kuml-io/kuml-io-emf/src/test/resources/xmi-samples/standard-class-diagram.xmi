@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="20131001" xmlns:xmi="http://www.omg.org/spec/XMI/20131001"
+           xmlns:uml="http://www.eclipse.org/uml2/5.0.0/UML"
+           xmi:id="_model" name="OrderDomain">
+  <packagedElement xmi:type="uml:Class" xmi:id="_order" name="Order" isAbstract="false">
+    <ownedAttribute xmi:id="_id" name="id" visibility="private"/>
+    <ownedOperation xmi:id="_confirm" name="confirm" visibility="public"/>
+  </packagedElement>
+  <packagedElement xmi:type="uml:Class" xmi:id="_item" name="Item" isAbstract="false"/>
+  <packagedElement xmi:type="uml:Association" xmi:id="_assoc" name="contains">
+    <memberEnd xmi:idref="_end1"/>
+    <memberEnd xmi:idref="_end2"/>
+    <ownedEnd xmi:type="uml:Property" xmi:id="_end1" name="order" type="_order"/>
+    <ownedEnd xmi:type="uml:Property" xmi:id="_end2" name="item" type="_item"/>
+  </packagedElement>
+</uml:Model>

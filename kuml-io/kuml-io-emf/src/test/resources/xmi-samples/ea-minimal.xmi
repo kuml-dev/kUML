@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xmi:XMI xmi:version="2.1" xmlns:xmi="http://www.omg.org/XMI"
+          xmlns:uml="http://www.eclipse.org/uml2/5.0.0/UML">
+  <uml:Model xmi:type="uml:Model" xmi:id="_model" name="EA_Model_OrderDomain">
+    <packagedElement xmi:type="uml:Class" xmi:id="_order" name="Order" visibility="public"/>
+    <packagedElement xmi:type="uml:Class" xmi:id="_item" name="Item" visibility="public" isAbstract="true"/>
+  </uml:Model>
+</xmi:XMI>

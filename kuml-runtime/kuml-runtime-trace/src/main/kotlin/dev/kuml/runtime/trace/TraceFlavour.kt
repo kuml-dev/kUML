@@ -1,9 +1,10 @@
 package dev.kuml.runtime.trace
 
+import dev.kuml.runtime.AiTraceEntry
 import dev.kuml.runtime.TraceEntry
 import dev.kuml.runtime.TraceFile
 
-public enum class TraceFlavour { STM, ACTIVITY, EMPTY, MIXED }
+public enum class TraceFlavour { STM, ACTIVITY, AI, EMPTY, MIXED }
 
 public object TraceFlavourDetector {
     public fun detect(traceFile: TraceFile): TraceFlavour = detect(traceFile.entries)
@@ -12,10 +13,12 @@ public object TraceFlavourDetector {
         if (entries.isEmpty()) return TraceFlavour.EMPTY
         val hasStm = entries.any { isStmEntry(it) }
         val hasAct = entries.any { isActivityEntry(it) }
+        val hasAi = entries.any { it is AiTraceEntry }
         return when {
             hasStm && hasAct -> TraceFlavour.MIXED
             hasStm -> TraceFlavour.STM
             hasAct -> TraceFlavour.ACTIVITY
+            hasAi -> TraceFlavour.AI
             else -> TraceFlavour.EMPTY
         }
     }

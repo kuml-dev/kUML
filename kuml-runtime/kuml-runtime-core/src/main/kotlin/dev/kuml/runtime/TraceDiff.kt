@@ -96,6 +96,12 @@ internal fun TraceEntry.withoutTimestamp(): TraceEntry =
         is TraceEntry.ActivityActionInvoked -> copy(timestamp = "")
         is TraceEntry.FlowFinalConsumed -> copy(timestamp = "")
         is TraceEntry.ActivityTerminated -> copy(timestamp = "")
+        // AI-lifecycle entries (V3.0.25) — timestamp stripping for stable diffs
+        is AiTraceEntry.SessionStarted -> copy(timestamp = "")
+        is AiTraceEntry.Validated -> copy(timestamp = "")
+        is AiTraceEntry.Applied -> copy(timestamp = "")
+        is AiTraceEntry.Rejected -> copy(timestamp = "")
+        is AiTraceEntry.SessionAborted -> copy(timestamp = "")
     }
 
 /** Kurze textuelle Beschreibung eines TraceEntry für Diff-Reports. */
@@ -120,4 +126,10 @@ internal fun TraceEntry.shortDescr(): String =
         is TraceEntry.ActivityActionInvoked -> "ActivityActionInvoked($nodeId, body='$body')"
         is TraceEntry.FlowFinalConsumed -> "FlowFinalConsumed($nodeId)"
         is TraceEntry.ActivityTerminated -> "ActivityTerminated(clock=$clock)"
+        // AI-lifecycle entries (V3.0.25)
+        is AiTraceEntry.SessionStarted -> "AiSessionStarted(session=$sessionId)"
+        is AiTraceEntry.Validated -> "AiValidated(patch=$patchId, phase=$phase, errors=$errorCount)"
+        is AiTraceEntry.Applied -> "AiApplied(patch=$patchId, element=$elementId)"
+        is AiTraceEntry.Rejected -> "AiRejected(patch=$patchId, reason=$reason)"
+        is AiTraceEntry.SessionAborted -> "AiSessionAborted(session=$sessionId, rejected=${rejectedPatchIds.size})"
     }

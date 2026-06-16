@@ -1,0 +1,167 @@
+= kuml-ai-core — Koog AI Integration for kUML
+:toc: left
+:toc-title: Contents
+:icons: font
+
+== Overview
+
+`kuml-ai-core` is the AI foundation layer for kUML.
+It wraps the JetBrains https://github.com/jetbrains/koog[Koog] AI framework to provide:
+
+* *Multi-provider prompt execution* via `KumlAiExecutor` (OpenAI, Anthropic, Google Gemini, Ollama)
+* *Privacy mode* — local-only execution enforced at the executor entry point (privacy-by-default)
+* *Secure API key vault* with OS-native backends (macOS Keychain, Linux libsecret, Windows DPAPI)
+* *Persisted settings* at an XDG-conformant path with forward-compatible schema migration
+
+== Quick Start
+
+[source,kotlin]
+----
+// Load or create settings (privacy mode ON by default)
+val store = KumlAiSettingsStore()
+val settings = store.load()
+
+// Resolve the OS-native key vault
+val vault = ApiKeyVault.detect()
+
+// Store an API key (first-time setup — only needed for cloud providers)
+vault.put(LLMProvider.OpenAI, System.getenv("OPENAI_API_KEY"))
+
+// Build the executor
+val executor = KumlAiExecutor.fromSettings(
+    settings = settings.copy(
+        defaultProvider = "openai",
+        privacyMode = false,     // switch off privacy mode to allow cloud providers
+    ),
+    vault = vault,
+)
+
+// Run a prompt
+val prompt = prompt("kuml-demo") {
+    user("Generate a simple kUML class diagram for a library system.")
+}
+val response = executor.execute(prompt, OpenAIModels.Chat.GPT4o)
+println(response.first())
+----
+
+== Privacy Mode
+
+Privacy mode is *enabled by default* (`privacyMode = true` in `KumlAiSettings`).
+When enabled, only local providers (currently Ollama) may be invoked.
+Cloud provider calls throw `KumlAiException.PrivacyModeViolation` immediately —
+including the streaming path (eager guard, not on first collect).
+
+This is the recommended mode for regulated industries or environments where
+data must not leave the local machine.
+
+[source,kotlin]
+----
+// Privacy mode ON: only Ollama is allowed
+val executor = KumlAiExecutor.fromSettings(
+    settings = KumlAiSettings(),  // privacyMode = true by default
+    vault = ApiKeyVault.detect(),
+)
+
+val ollamaModel = LLModel(LLMProvider.Ollama, "llama3.2")
+val result = executor.execute(prompt, ollamaModel)  // OK
+
+// This throws KumlAiException.PrivacyModeViolation:
+executor.execute(prompt, OpenAIModels.Chat.GPT4o)
+----
+
+== --no-ai Profile
+
+To exclude the entire `kuml-ai-core` module from the build
+(useful for slim CLI-only or native image builds):
+
+[source,bash]
+----
+./gradlew build -Pkuml.noAi=true
+----
+
+== API Key Vault — Platform Matrix
+
+[cols="1,2,2,2"]
+|===
+| OS | Backend | Mechanism | Fallback
+
+| macOS
+| macOS Keychain
+| `security` CLI shell-out
+| Plain JSON with WARNING
+
+| Linux
+| libsecret
+| `secret-tool` CLI shell-out (requires `libsecret-tools`)
+| Plain JSON with WARNING
+
+| Windows
+| Windows DPAPI
+| JNA `Crypt32.dll` (`CryptProtectData`)
+| Plain JSON with WARNING
+
+| Other (BSD, etc.)
+| —
+| —
+| Plain JSON with WARNING
+|===
+
+Set `KUML_AI_PLAIN_OK=1` to suppress the plain-JSON warning (e.g. in CI).
+
+Override the backend for tests via `-Dkuml.ai.vault.backend=plain|macos|linux|windows`.
+
+== Settings Path
+
+[cols="1,2"]
+|===
+| OS | Path
+
+| macOS
+| `~/Library/Application Support/kuml/ai-settings.json`
+
+| Linux
+| `$XDG_CONFIG_HOME/kuml/ai-settings.json` (default: `~/.config/kuml/ai-settings.json`)
+
+| Windows
+| `%APPDATA%\kuml\ai-settings.json`
+
+| Test override
+| `-Dkuml.config.home=/tmp/test-config`
+|===
+
+== Module Scope
+
+This module is the *foundation layer only*. The following are deferred to later waves:
+
+* Custom tool integration (V3.0.23)
+* Desktop UI (V3.0.24)
+* Streaming response rendering (V3.0.24)
+* MCP-bridge integration (V3.0.25)
+* Budget enforcement for `costBudgetUsd` (V3.0.26)
+
+== Architecture
+
+[kuml, kuml-ai-core-overview, svg]
+----
+// Architecture diagram — render with kUML V3.0.22+
+package("kuml-ai-core") {
+    class_("KumlAiExecutor") {
+        note("Thin wrapper over Koog MultiLLMPromptExecutor")
+    }
+    class_("KumlAiSettings") {
+        note("@Serializable, privacy-by-default")
+    }
+    class_("ApiKeyVault") {
+        note("OS-native keystore facade")
+    }
+    class_("ProviderRegistry") {
+        note("OpenAI / Anthropic / Google / Ollama")
+    }
+    class_("PrivacyEnforcer") {
+        note("Guard at executor entry point")
+    }
+}
+----
+
+NOTE: The `[kuml]` block above requires the `kuml-asciidoc` Asciidoctor extension
+(Maven Central: `dev.kuml:kuml-asciidoc`).

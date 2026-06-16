@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uml:Model xmi:version="20131001" xmlns:xmi="http://www.omg.org/spec/XMI/20131001"
+           xmlns:uml="http://www.eclipse.org/uml2/5.0.0/UML"
+           xmi:id="_model" name="OrderDomain">
+  <packagedElement xmi:type="uml:Class" xmi:id="_order" name="Order"/>
+  <packagedElement xmi:type="uml:Interface" xmi:id="_iface" name="Orderable"/>
+  <packagedElement xmi:type="uml:Enumeration" xmi:id="_status" name="OrderStatus">
+    <ownedLiteral xmi:type="uml:EnumerationLiteral" xmi:id="_draft" name="DRAFT"/>
+    <ownedLiteral xmi:type="uml:EnumerationLiteral" xmi:id="_confirmed" name="CONFIRMED"/>
+  </packagedElement>
+</uml:Model>

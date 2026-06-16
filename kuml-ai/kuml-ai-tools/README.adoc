@@ -1,0 +1,112 @@
+= kuml-ai-tools — @Tool-based DSL Builder Suite + MCP Bridge
+:toc: left
+:sectnums:
+:source-language: kotlin
+
+== Purpose
+
+`kuml-ai-tools` exposes kUML's type-safe DSL as a family of Koog `ToolSet` classes.
+An AI agent calls structured `@Tool` functions instead of generating free-text DSL — every
+tool call is validated against the metamodel before the edit is applied.
+
+All mutations target an in-memory `AgentEditingContext` clone.
+An append-only `ModelPatch` audit log is built as a side-effect of each tool call,
+preparing the ground for V3.0.25 diff-preview and per-patch accept/reject.
+
+=== Key design decisions
+
+* `AgentEditingContext` holds one `AnyKumlModel` instance (UML, C4, or SysML 2) and
+  serializes all concurrent tool calls via a `Mutex`.
+* `AnyKumlModel.Uml` stores a flat list of `@Serializable` UML elements/relationships.
+  `KumlModel`/`KumlDiagram` (not serializable) are built on demand via `toKumlModel()`
+  when the renderer is invoked.
+* `@Tool` parameters are always primitives or plain `String` (enum values as strings)
+  to stay within Koog 0.7.3's `BasicJsonSchemaGenerator` capabilities.
+  Sealed result types (`PatchApplyResult`, `RenderResult`, etc.) are fine — they are
+  handled by `kotlinx.serialization`.
+* `McpBridgeToolSet` bridges the 10 existing `kuml-mcp` tools (kuml.render, kuml.validate,
+  kuml.list_elements, …) into the Koog tool surface via in-process reflection.
+
+== Quick Start
+
+[source,kotlin]
+----
+// Create an editing context seeded with an empty UML model
+val ctx = AgentEditingContext.emptyUml("MyDomain")
+
+// Build a UML-only registry and wire it into a Koog AIAgent
+val registry = KumlToolRegistry.forUml(ctx)
+
+// The agent will call add_class, add_attribute, add_association,
+// render_preview, list_elements, etc. as structured tool calls.
+val agent = AIAgent(
+    promptExecutor = executor,
+    strategy   = strategy { ... },
+    toolRegistry = registry,
+)
+agent.run("Create a simple Order domain model with Order, Customer and OrderItem")
+
+// After the agent session: retrieve the edited model + patch audit log
+val model   = runBlocking { ctx.resolveModel() }    // AnyKumlModel.Uml
+val patches = runBlocking { ctx.patches() }          // List<ModelPatch>
+----
+
+== Tool Families
+
+[cols="1,1,3",options="header"]
+|===
+| Class | Factory | Tools
+
+| `UmlEditingTools`
+| `KumlToolRegistry.forUml(ctx)`
+| add_class, add_interface, add_attribute, add_operation, add_association, add_generalization, remove_element, rename_element, set_current_diagram
+
+| `C4EditingTools`
+| `KumlToolRegistry.forC4(ctx)`
+| add_person, add_software_system, add_container, add_component, add_relationship
+
+| `Sysml2EditingTools`
+| `KumlToolRegistry.forSysml2(ctx)`
+| add_part_def, add_attribute_def, add_state, add_transition, add_use_case, add_requirement, add_action, add_constraint
+
+| `RenderingTools`
+| included in all per-family registries
+| render_preview (SVG/PNG, returns file path), validate_model, simulate_state_machine
+
+| `ModelInspectionTools`
+| `KumlToolRegistry.inspectionOnly(ctx)`
+| list_elements, get_element_details, find_unused_elements
+
+| `McpBridgeToolSet`
+| `KumlToolRegistry.withMcpBridge(base)`
+| Bridges 10 kuml-mcp tools via in-process reflection
+|===
+
+== Token-Budget Discipline
+
+`render_preview` writes SVG/PNG to a temp file and returns only the file path + a short
+summary (< 80 chars). The LLM never sees raw SVG bytes — a typical SVG is 30–100 KB
+(10k+ tokens) and would exhaust the context window after 3–4 renders.
+
+V3.0.24 (AI-Panel desktop widget) will read the returned path and display the diagram
+inline. The LLM only needs the path as an opaque handle.
+
+== Sandbox Layer (V3.0.25 Preparation)
+
+`AgentEditingContext` accepts an optional `SandboxValidator` slot (currently no-op).
+V3.0.25 will wire in `kuml-runtime-sandbox::SandboxValidator` to validate each
+`applyPatch` result before committing it to the working model.
+
+Snapshot + rollback (`ctx.snapshot()` / `ctx.resetTo(snapshot)`) are already
+implemented. V3.0.25 will expose a "Reject all AI changes" button that calls
+`ctx.resetTo(preSessionSnapshot)`.
+
+== MCP Bridge — Reflection Hop
+
+`McpBridgeToolSet` uses reflection to call `kuml-mcp`'s `internal object ToolRegistry`
+(Kotlin's internal-visibility mangling makes the method name look like
+`dispatch$dev_kuml_kuml_mcp`). The bridge is limited to a single class and two methods.
+
+Migration path to a clean API: when `kuml-mcp` exposes a public surface, replace the
+`InProcessMcpTransport` reflection calls with direct Kotlin calls and delete the bridge
+shim.

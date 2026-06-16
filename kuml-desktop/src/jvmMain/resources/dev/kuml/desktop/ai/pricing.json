@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "providers": [
+    {
+      "id": "openai",
+      "models": [
+        { "id": "gpt-4o",       "inputPer1kTokens": 0.005,   "outputPer1kTokens": 0.015 },
+        { "id": "gpt-4o-mini",  "inputPer1kTokens": 0.00015, "outputPer1kTokens": 0.0006 },
+        { "id": "gpt-4-turbo",  "inputPer1kTokens": 0.01,    "outputPer1kTokens": 0.03 }
+      ]
+    },
+    {
+      "id": "anthropic",
+      "models": [
+        { "id": "claude-sonnet-4-5", "inputPer1kTokens": 0.003,  "outputPer1kTokens": 0.015 },
+        { "id": "claude-opus-4",     "inputPer1kTokens": 0.015,  "outputPer1kTokens": 0.075 }
+      ]
+    },
+    {
+      "id": "google",
+      "models": [
+        { "id": "gemini-1.5-pro",   "inputPer1kTokens": 0.00125, "outputPer1kTokens": 0.005 },
+        { "id": "gemini-2.0-flash", "inputPer1kTokens": 0.0001,  "outputPer1kTokens": 0.0004 }
+      ]
+    },
+    {
+      "id": "ollama",
+      "models": [
+        { "id": "llama3.2",  "inputPer1kTokens": 0.0, "outputPer1kTokens": 0.0 },
+        { "id": "qwen2.5",   "inputPer1kTokens": 0.0, "outputPer1kTokens": 0.0 },
+        { "id": "mistral",   "inputPer1kTokens": 0.0, "outputPer1kTokens": 0.0 }
+      ]
+    }
+  ]
+}

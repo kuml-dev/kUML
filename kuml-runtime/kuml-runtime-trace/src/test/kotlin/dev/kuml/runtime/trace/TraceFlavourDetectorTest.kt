@@ -1,5 +1,6 @@
 package dev.kuml.runtime.trace
 
+import dev.kuml.runtime.AiTraceEntry
 import dev.kuml.runtime.TraceEntry
 import dev.kuml.runtime.TraceFile
 import io.kotest.core.spec.style.FunSpec
@@ -42,6 +43,28 @@ class TraceFlavourDetectorTest :
                 )
 
             TraceFlavourDetector.detect(entries) shouldBe TraceFlavour.MIXED
+        }
+
+        test("pure AI entries → AI flavour") {
+            val entries =
+                listOf(
+                    AiTraceEntry.SessionStarted(
+                        seqNo = 0L,
+                        timestamp = "",
+                        sessionId = "S1",
+                        baseModelFingerprint = "aabb",
+                    ),
+                    AiTraceEntry.Applied(
+                        seqNo = 1L,
+                        timestamp = "",
+                        sessionId = "S1",
+                        patchId = "P1",
+                        patchKind = "uml.class",
+                        elementId = "cls1",
+                    ),
+                )
+
+            TraceFlavourDetector.detect(entries) shouldBe TraceFlavour.AI
         }
 
         test("detect from TraceFile delegates correctly") {

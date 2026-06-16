@@ -2,6 +2,7 @@ package dev.kuml.desktop.editor
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
@@ -29,6 +30,13 @@ fun EditorPane(
         }
     }
 
+    // Sync editor text when state.script is changed programmatically (e.g. Open action)
+    LaunchedEffect(state.script) {
+        if (textArea.text != state.script) {
+            textArea.text = state.script
+        }
+    }
+
     DisposableEffect(textArea) {
         val listener = object : DocumentListener {
             override fun insertUpdate(e: DocumentEvent) = onChanged()
@@ -36,6 +44,9 @@ fun EditorPane(
             override fun changedUpdate(e: DocumentEvent) = onChanged()
             private fun onChanged() {
                 val newScript = textArea.text
+                if (newScript != state.script) {
+                    state.isDirty = true
+                }
                 state.script = newScript
                 controller.scheduleRender(newScript)
             }
