@@ -6,6 +6,201 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-06-16
+
+### Reverse Engineering (`kuml reverse`)
+
+New end-to-end **Source → UML** pipeline via three new modules under
+`kuml-codegen/`. Java sources are parsed with JavaParser, Kotlin sources with
+`kotlin-compiler-embeddable` PSI, and a new `kuml reverse` CLI command wraps
+both engines to emit `.kuml.kts` scripts via `UmlModelDslPrinter`.
+
+**Java → UML via JavaParser (`kuml-codegen-reverse-java`)**
+- `JavaReverseEngine` maps Java source trees to `UmlClass`, `UmlInterface`,
+  `UmlEnum`, `UmlOperation`, `UmlProperty`, `UmlAssociation`, and
+  `UmlGeneralization` model elements.
+- Visibility, multiplicity (`1`, `0..1`, `*`), generic type parameters,
+  method signatures, and field types are preserved in the output model.
+- 30 new tests: mapper unit tests + three end-to-end corpora (bank, library,
+  edge-case class hierarchies).
+
+**Kotlin → UML via Kotlin Compiler PSI (`kuml-codegen-reverse-kotlin`)**
+- `KotlinReverseEngine` uses `kotlin-compiler-embeddable` to parse `.kt` source
+  files and map them to the same `kuml-codegen-reverse-api` output model.
+- Handles `data class`, `sealed class`, `object`, `companion object`, `interface`,
+  `enum class`, nullable types (`?`), and standard visibility modifiers.
+- ~30 new tests covering the full Kotlin type hierarchy and nullability.
+
+**`kuml reverse` CLI (`kuml-codegen-reverse-api` + CLI integration)**
+- New `kuml-codegen-reverse-api` module: language-agnostic `KumlReverseEngine`
+  interface, `ReverseRequest` / `ReverseResult` DTOs, `ReverseDiagnostic`
+  (ERROR/WARN/INFO), and `ReverseEngineRegistry` (`ServiceLoader` wrapper with
+  `byId`, `all`, `detectLanguage`). Native-Image-compatible, publishable on
+  Maven Central.
+- `kuml reverse <dir> [--lang java|kotlin|auto] [--transformer <id>]
+  [--out-dir <path>]` — new top-level CLI subcommand wired into `KumlCli`.
+- `--lang auto` heuristically detects language from file extensions.
+- `UmlModelDslPrinter` serialises the in-memory `UmlModel` back to a formatted
+  `.kuml.kts` script.
+- ~12 new CLI integration tests.
+
+### Desktop App (`kuml-desktop`)
+
+**File I/O & Persistence (V3.0.12)**
+- OS-native Open/Save/Save-As dialogs via `JFileChooser` (AWT fallback on Linux).
+- MRU recent-files list (max 10 entries) persisted across restarts.
+- Atomic JSON `app-settings.json` written to the OS-appropriate config directory
+  (`XDG_CONFIG_HOME` on Linux, `~/Library/Application Support` on macOS,
+  `%APPDATA%` on Windows).
+- Theme (`LIGHT`/`DARK`) and UI language (`DE`/`EN`) survive restarts.
+- Window geometry (size + position) restored on next launch.
+- ~75 new tests covering dialog state, settings serialisation, and MRU logic.
+
+**Plugin Manager UI (V3.0.13)**
+- New `PluginManagerDialog` — `DialogWindow` with three tabs: **Themes**,
+  **Transformers**, and **Reverse Engines**.
+- `ServiceLoader`-based introspection: lists all registered `KumlTheme`,
+  `KumlTransformer`, and `KumlReverseEngine` implementations at runtime.
+- Hot-reload: activating a theme or transformer from the dialog applies it
+  immediately to the current editor/preview pane without restart.
+- ~10 new tests (tab rendering, ServiceLoader mock, hot-reload state machine).
+
+**jpackage Distribution (V3.0.14)**
+- `kuml-packaging` Gradle module produces native installers via `jpackage`:
+  DMG (macOS), MSI (Windows), DEB + RPM (Linux).
+- macOS `CFBundleShortVersionString` requires first component ≥ 1; pre-1.0
+  versions map `0.x.y → x.y.0` automatically (e.g. `0.12.0 → 12.0.0`).
+- `kuml-packaging` Exec tasks use `object : Action<Task>` + plain-String vals
+  to satisfy Gradle 9 Configuration Cache serialisation rules.
+- ~12 new tests (version-mapping, DMG path computation, multi-OS matrix).
+
+### AI Assistant (`kuml-ai`)
+
+Koog-based multi-LLM AI assistant embedded in the Desktop editor, with a
+secure key vault, DSL-builder tool suite, MCP bridge, streaming UI, patch
+apply flow, privacy mode, and Langfuse telemetry.
+
+**Koog Integration & Multi-LLM Executor (V3.0.22)**
+- New `kuml-ai/kuml-ai-core` module: `KumlAiExecutor` wraps JetBrains Koog
+  `KoogAgent` and dispatches to OpenAI, Anthropic, Google (Gemini), or a local
+  Ollama endpoint based on `AiProvider` configuration.
+- `ApiKeyVault`: platform-aware secure storage — macOS Keychain, Windows
+  Credential Manager, plain-file fallback (Linux / CI).
+- `AiSettings` JSON config stored alongside `app-settings.json`; editable via
+  the new Settings dialog.
+- ~37 new tests (executor dispatch, key-vault platform matrix, settings
+  serialisation).
+
+**DSL Builder Tools (V3.0.23)**
+- New `kuml-ai/kuml-ai-tools` module: `@Tool`-annotated Kotlin functions
+  covering the full kUML DSL surface:
+  - **Context tools**: `getScript`, `getLastSvg`, `getLastError`, `listOpenFiles`.
+  - **UML tools**: `addClass`, `addInterface`, `addEnum`, `addAssociation`,
+    `addGeneralization`, `addOperation`, `addProperty`.
+  - **C4 tools**: `addPerson`, `addSystem`, `addContainer`, `addComponent`,
+    `addC4Relation`.
+  - **SysML 2 tools**: `addBlock`, `addPort`, `addConnector`, `addFlow`,
+    `addState`, `addTransition`.
+  - **Inspection tools**: `validateScript`, `renderPreview`, `listDiagramTypes`.
+- `McpBridge`: exposes all tools as an MCP server so external agents (Claude,
+  Copilot, Cursor, etc.) can drive the editor via the Model Context Protocol.
+- `AgentEditingContext`: snapshot-based undo/redo aware state carrier for
+  tool-call sequences.
+- `AnyKumlModel` sealed union + `ModelPatch` sealed hierarchy + `DeepCopy`.
+- 91 new tests (context, UML, C4, SysML 2, inspection, MCP, registry).
+
+**AI Panel UI (V3.0.24)**
+- `AiPanel` composable: streaming chat UI embedded in the Desktop right sidebar.
+- `ToolTraceCard`: expandable card showing tool name, input JSON, output JSON,
+  and timing for each tool call in the current conversation turn.
+- `PricingTable`: real-time token cost estimate per provider/model.
+- `TokenUsageTracker`: cumulative input/output/cache token counters per session.
+- `ConversationStore`: persists the full conversation history (messages +
+  tool traces) in JSON alongside `app-settings.json`.
+- ~32 new tests (streaming state machine, trace serialisation, token arithmetic).
+
+**Patch Apply & Sandbox (V3.0.25)**
+- `PatchApplyEngine`: captures a pre-session snapshot of the open script, then
+  applies `ModelPatch` operations one-by-one with rollback on failure.
+- `PatchValidator`: structural checks (`StructuralPatchChecks`), type checks
+  (`TypeCheckPatchChecks`), and a `RenderSmokeCheck` that fast-renders the
+  patched model before accepting.
+- `PatchPreviewDialog`: shows diff between current and patched script; Accept /
+  Reject buttons commit or discard the pending patch.
+- `ModelMutationRouter`: routes `ModelPatch` to the correct DSL builder mutator.
+- `AiTraceSink` injection for OTLP-compatible trace capture per patch step.
+- ~25 new tests (validator, patch engine, dialog state, trace serialisation).
+
+**Ollama Local Mode, Privacy Mode & Langfuse Telemetry (V3.0.26)**
+- Ollama local-mode showcase: auto-detects a running Ollama daemon at
+  `http://localhost:11434` and lists available models in the Settings dialog.
+- Privacy mode: when enabled, no script content or diagram data is sent to
+  remote LLM providers; only Ollama local calls are allowed.
+- Langfuse integration: optional observability backend — each AI conversation
+  turn is traced as a `LangfuseSpan` with token counts, latency, and tool
+  call metadata. Opt-in via `AiSettings.langfuseEnabled`.
+- ~30 new tests (Ollama discovery, privacy-mode gate, Langfuse span builder).
+
+### XMI Import/Export (`kuml-io-emf`)
+
+Full bidirectional XMI/EMF round-trip for UML models, with CLI integration
+and compatibility filters for Enterprise Architect and Papyrus.
+
+**EMF/UML2 Module Skeleton (V3.0.15)**
+- New `kuml-io-emf` Gradle module bootstraps Eclipse EMF + UML2 via the
+  `org.eclipse.emf.ecore` / `org.eclipse.uml2.uml` Maven artifacts (JVM-only,
+  reflection-guarded so Native Image builds are unaffected).
+- MVP converters: `EmfToUmlConverter` and `UmlToEmfConverter` with round-trip
+  coverage for `UmlClass` ↔ EMF `Class`.
+- ~15 new tests.
+
+**Bidirectional UML ↔ EMF Conversion (V3.0.16)**
+- Full classifier support: `Class`, `Interface`, `Enum` (with literals).
+- Full feature support: `Property` (attribute + association end), `Operation`
+  (with `Parameter` in/out/return), static/abstract modifiers.
+- Full relationship support: `Association` (unidirectional + bidirectional),
+  `Generalization`, `InterfaceRealization`, `Dependency`.
+- Package namespacing: nested `UmlPackage` structures map to EMF `Package`
+  hierarchies and back.
+- 54 new tests (39 net-new on top of V3.0.15), covering the full classifier /
+  feature / relationship matrix.
+
+**XMI CLI Integration (V3.0.17)**
+- `kuml import --format xmi <file>` reads an XMI/UML2 file and emits a
+  `.kuml.kts` script.
+- `kuml export --format xmi <file>` renders a `.kuml.kts` script and writes
+  an XMI/UML2 file.
+- `XmiReader` / `XmiWriter` wrap the EMF resource layer; both handle multi-root
+  XMI documents.
+- `XmiToolFilter`: post-processing pass that strips tool-specific artefacts:
+  EA `EAStub` prefix removal, Papyrus `_x` encoding normalisation, VP
+  version-prefix stripping.
+- Sample XMI files for EA, Papyrus, and plain EMF/UML2 checked into
+  `kuml-io-emf/src/test/resources/`.
+- `ExitCodes.FORMAT_NOT_AVAILABLE = 24` — returned when XMI support is
+  unavailable (Native Image build without the EMF shim).
+- ~75 new tests (21 net-new), including round-trip tests for all three XMI
+  flavours.
+
+### Infrastructure
+
+**Vault Examples CI Tests (`kuml-tests/kuml-vault-examples-tests`)**
+- New test module `kuml-tests/kuml-vault-examples-tests` with 31 Kotest specs
+  that render all 30 active Vault example diagrams as SVG + PNG.
+- CI-safe: examples are committed as Classpath resources under
+  `src/test/resources/vault-examples/` — no direct Vault file-system access,
+  no absolute paths. Loads via `getResourceAsStream`.
+- Gradle input hashing: any change to a resource file automatically invalidates
+  the test cache and triggers a re-run (`@InputFiles` on the resource directory).
+- `afterSpec` hook writes a rendered index (`build/sample-output/vault-examples-index.md`)
+  listing every example with its render time and output file paths — avoids the
+  Gradle Configuration Cache serialisation issues that `CustomTask` lambdas would
+  cause.
+- Sync tooling: `scripts/sync-vault-examples.sh` mirrors Vault `.md` files →
+  Classpath resources and extracts ` ```kuml ` blocks →
+  `kuml.dev/playground-sources/*.kuml.kts`. `scripts/watch-vault-examples.sh`
+  wraps `fswatch` for continuous syncing during edit sessions.
+
 ## [0.11.0] — 2026-06-15
 
 ### Renderer & Layout Improvements
