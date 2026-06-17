@@ -6,6 +6,42 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-06-17
+
+### Structurizr Migration Showcase (V3.0.19)
+
+Adds the canonical **Big Bank Plc** reference architecture (Simon Brown,
+https://structurizr.com/share/36141) as a committed DSL fixture and a
+comprehensive showcase for `kuml import --format structurizr`.
+
+**Test fixture (`bigbankplc.dsl`)**
+- Full workspace with 3 persons (Personal Banking Customer, Customer Service
+  Staff, Back Office Staff), 4 software systems (Internet Banking System,
+  Mainframe Banking System, E-mail System, ATM), 5 containers inside the
+  Internet Banking System, 6 components inside API Application, and 31
+  top-level relationships across all elements.
+- Covers all four Structurizr view types: System Landscape, System Context,
+  Container, Component.
+- Uses only `//` line comments — the `StructurizrDslParser` tokeniser
+  handles only line comments, not `/* */` block comments.
+
+**19 new tests (`StructurizrBigBankPlcShowcaseTest`)**
+- Workspace metadata: name, description.
+- Element counts: 3 persons, ≥ 7 top-level elements, Internet Banking System
+  with exactly 5 containers, API Application with ≥ 5 components.
+- Relationship coverage: ≥ 10 relationships; customer → internetBankingSystem
+  present.
+- View structure: 4 views; SystemContext and Container views reference the
+  correct system identifier.
+- `KumlDslGenerator` roundtrip: non-empty output, `c4Model` entry point,
+  no Structurizr-specific `workspace` keyword in output.
+
+**Handbook page (`showcases/structurizr-migration.adoc`)**
+- Step-by-step walkthrough: source workspace summary, `kuml import` command,
+  generated kUML C4 DSL excerpt, feature-gap table (tags, styles, deployment
+  environments, dynamic views), rendering and next-steps sections.
+- Added to the handbook sidebar navigation under *Showcases*.
+
 ## [0.13.0] — 2026-06-17
 
 ### Plugin Ecosystem

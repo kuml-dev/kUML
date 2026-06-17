@@ -5,6 +5,7 @@
 * xref:showcases/index.adoc[Showcases]
 ** xref:showcases/pepela-thermostat.adoc[Pepela Thermostat]
 ** xref:showcases/car2x-intersection.adoc[Car2X Intersection]
+** xref:showcases/structurizr-migration.adoc[Structurizr Migration (Big Bank Plc)]
 
 .Project
 * https://kuml.dev[kuml.dev,window=_blank]
