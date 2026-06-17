@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "dev.kuml.plugin.layout.elk",
+  "name": "ELK Layout Engine",
+  "version": "1.0.0",
+  "kumlVersionRange": ">=0.12.0",
+  "extensions": [
+    {
+      "category": "layout",
+      "implementation": "dev.kuml.plugin.examples.elk.ElkLayoutPlugin",
+      "id": "elk-layout-plugin"
+    }
+  ],
+  "permissions": [],
+  "licenseSpdx": "Apache-2.0"
+}

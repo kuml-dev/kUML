@@ -6,6 +6,109 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-06-17
+
+### Plugin Ecosystem
+
+A full **plugin SPI + loader + CLI + signature verification + desktop UI** stack
+allowing third-party extensions to add themes, renderers, layout engines, codegen
+engines, and reverse engines without modifying the core codebase.
+
+**`kuml-plugin-api` SPI Module Group (V3.0.27)**
+
+Six new independently-versionable SPI modules define stable binary contracts:
+
+- `kuml-plugin-api-core`: `PluginDescriptor`, `PluginVersion`, `KumlVersionRange`,
+  `PluginCapability`, `PluginPermission`, `KumlPlugin` — the root extension-point
+  interface implemented by all plugin categories.
+- `kuml-plugin-api-theme`: `KumlThemePlugin` — implement to ship custom themes.
+- `kuml-plugin-api-renderer`: `KumlRendererPlugin` + `RendererCapabilities` — for
+  new output formats (PDF, SVG variants, …).
+- `kuml-plugin-api-layout`: `KumlLayoutPlugin` — alternate layout engines.
+- `kuml-plugin-api-codegen`: `KumlCodegenPlugin` — source-code generation targets.
+- `kuml-plugin-api-reverse`: `KumlReversePlugin` — new reverse-engineering engines.
+
+Built-in themes, codegen engines and reverse engines are migrated to implement
+the new SPI. Binary-compatibility guard via `japicmp` enforced in CI.
+
+**`kuml-plugin-loader` (V3.0.28)**
+
+- `kuml-plugin.json` manifest schema (`schemaVersion`, `id`, `name`, `version`,
+  `kumlVersionRange`, `extensions[]`, `permissions[]`, `maintainer`,
+  `licenseSpdx`, `signature`).
+- `PluginManifestParser` with Jackson + JSON Schema validation.
+- `PluginLoader`: scans `~/.kuml/plugins/`, `$KUML_HOME/plugins/`, and classpath;
+  enforces `kumlVersionRange` on load.
+- Isolated `URLClassLoader` per plugin (parent = `kuml-plugin-api` class-loader,
+  not the application class-loader — prevents version conflicts).
+- `kumlVersionRange` parser: Maven-style range syntax (`[1.0,2.0)`, `>=3.0.27`).
+- Plugin lifecycle: `onLoad()` / `onUnload()` hooks called by the loader.
+
+**`kuml plugin` CLI + Permission Enforcement (V3.0.29)**
+
+- New top-level `kuml plugin` subcommand group:
+  - `list [--installed|--available]`
+  - `install <id|maven-coords|jar-path>`
+  - `remove <id>`
+  - `info <id>`
+  - `permissions <id>`
+  - `reload`
+- `PluginPermissionEnforcer` (`require` / `has` / `withPermission`); integrates the
+  V2.0.40 Sandbox for Codegen/Reverse plugins.
+- Permission model: `render.read-resources`, `fs.read`, `fs.write`,
+  `network.http`, `process.exec`.
+- New exit codes: `PLUGIN_NOT_FOUND=40`, `PLUGIN_VERSION_INCOMPATIBLE=41`,
+  `PLUGIN_PERMISSION_DENIED=42`, `PLUGIN_SIGNATURE_INVALID=43`.
+
+**Signature Verification + Registry Client (V3.0.30)**
+
+- `PluginSignatureVerifier`: EdDSA (Ed25519) via Java 21 built-in
+  `java.security`; verifies `sha256(jar-bytes)` against the plugin's registered
+  public key in the registry.
+- `PluginRegistryClient`: Java `HttpClient` fetch of
+  `plugins.kuml.dev/plugins/index.json`; `PluginRegistryIndex` data class.
+- `kuml plugin install` defaults to `--verify-signature=true`; opt-out via
+  `--skip-signature-check` shows a prominent warning banner.
+
+**Desktop Plugin Manager UI (V3.0.31 — extends V3.0.13)**
+
+- `PluginManagerPane` extended from 3 to 5 tabs: **Theme / Renderer / Layout /
+  Codegen / Reverse**.
+- New **Browse Registry** tab: fetches `PluginRegistryIndex`, lists available
+  plugins with a one-click Install button.
+- Install flow: Click → `PermissionsDialog` (human-readable permission
+  explanations) → Confirm → progress bar → hot-reload.
+- Plugin detail card: manifest metadata, signature status (✅/⚠️/❌),
+  maintainer, public-key fingerprint.
+
+**Five Reference Plugins (`kuml-plugin-examples`) (V3.0.32)**
+
+- `plugin-theme-pdv`: PdV Branding theme — Aureolin / Biscay / Ucla-Gold
+  palette, Inter typography, Light + Dark variants.
+- `plugin-renderer-pdf`: PDF renderer via Apache PDFBox 3.x; all UML / SysML 2 /
+  C4 diagram types → single-page vector PDF.
+- `plugin-layout-elk-bridge`: Eclipse Layout Kernel bridge (`elk-alg-layered`,
+  `elk-alg-mrtree`, `elk-alg-radial`); selectable via `layout: elk-layered`
+  frontmatter.
+- `plugin-codegen-typescript`: UML Class / Interface / Enum → TypeScript `.ts`
+  skeletons with JSDoc; requires `fs.write` permission.
+- `plugin-reverse-typescript`: regex-based TypeScript → UML reverse engine;
+  `kuml reverse --format typescript`; requires `fs.read` permission.
+
+### Theme Overhaul
+
+- **`KumlColors.nodeFill`**: new colour slot separating canvas background from
+  node fill colour, preventing node-on-node bleed in themes where canvas ≠ white.
+- **`ElegantTheme` redesign**: editorial-classical aesthetic — cream canvas, dark
+  slate nodes, amber accent; now visually distinct from the kUML brand theme.
+- **`KumlBrandTheme`**: updated to pure white canvas; logo-colour elements carry
+  the brand identity on a neutral field.
+- **`SvgDocument`**: background rendering updated to honour the new
+  `nodeFill` / `canvasBackground` split.
+- **Vault-examples test suite**: all examples are now rendered in every registered
+  theme (`plain`, `kuml`, `elegant`, `playful`) with per-theme outputs stored under
+  `build/sample-output/vault-examples/<theme>/`.
+
 ## [0.12.0] — 2026-06-16
 
 ### Reverse Engineering (`kuml reverse`)

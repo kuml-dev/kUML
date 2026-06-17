@@ -33,10 +33,16 @@ class KumlBrandThemeTest :
             theme.borders shouldNotBe null
         }
 
-        test("KumlBrandTheme background is Off-White and foreground is Ink") {
+        test("KumlBrandTheme background is pure white — only elements carry brand colours") {
             val theme = KumlBrandTheme()
-            theme.colors.background.toHex() shouldBe "#F8F5F0"
+            theme.colors.background.toHex() shouldBe "#FFFFFF"
             theme.colors.foreground.toHex() shouldBe "#0D1525"
+        }
+
+        test("KumlBrandTheme nodes are subtly tinted off-white (distinct from white canvas)") {
+            val theme = KumlBrandTheme()
+            theme.colors.nodeFill?.toHex() shouldBe "#F8F5F0"
+            theme.colors.effectiveNodeFill.toHex() shouldBe "#F8F5F0"
         }
 
         test("KumlBrandTheme border and edge are Navy") {

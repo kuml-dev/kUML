@@ -3,6 +3,7 @@ package dev.kuml.renderer.theme.core
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 
 class ElegantThemeTest :
     FunSpec({
@@ -25,33 +26,43 @@ class ElegantThemeTest :
             theme.borders shouldNotBe null
         }
 
-        test("ElegantTheme uses warm-off-white background and dark warm-grey foreground") {
+        test("ElegantTheme uses parchment cream background and espresso-black foreground") {
             val theme = ElegantTheme()
-            theme.colors.background.toHex() shouldBe "#FAFAF7"
-            theme.colors.foreground.toHex() shouldBe "#2A2520"
+            theme.colors.background.toHex() shouldBe "#F4EDDD"
+            theme.colors.foreground.toHex() shouldBe "#1C1814"
         }
 
-        test("ElegantTheme accent is dusty rose") {
-            ElegantTheme().colors.accent.toHex() shouldBe "#A0524D"
+        test("ElegantTheme accent is deep bordeaux") {
+            ElegantTheme().colors.accent.toHex() shouldBe "#7A1F2D"
         }
 
-        test("ElegantTheme uses a serif font stack") {
-            val expected = "EB Garamond, Garamond, Cambria, Georgia, serif"
+        test("ElegantTheme uses a classical serif font stack with Garamond/Cormorant") {
             val theme = ElegantTheme()
-            theme.typography.title.family shouldBe expected
-            theme.typography.body.family shouldBe expected
-            theme.typography.stereotype.family shouldBe expected
+            theme.typography.title.family shouldContain "Garamond"
+            theme.typography.body.family shouldContain "serif"
+            theme.typography.stereotype.family shouldContain "Garamond"
         }
 
         test("ElegantTheme stereotype font is italic") {
             ElegantTheme().typography.stereotype.italic shouldBe true
         }
 
-        test("ElegantTheme borders are subtle (low cornerRadius, thin strokes)") {
+        test("ElegantTheme borders are sharp-edged with very fine strokes — editorial print look") {
             val borders = ElegantTheme().borders
-            borders.cornerRadiusPx shouldBe 2f
-            borders.thinPx shouldBe 0.75f
-            borders.thickPx shouldBe 1.5f
+            borders.cornerRadiusPx shouldBe 0f
+            borders.thinPx shouldBe 0.5f
+            borders.regularPx shouldBe 0.75f
+            borders.thickPx shouldBe 1.25f
+        }
+
+        test("ElegantTheme uses mahogany ink border (distinct from kuml's navy)") {
+            ElegantTheme().colors.border.toHex() shouldBe "#4A2F22"
+        }
+
+        test("ElegantTheme title is slightly larger than body — editorial hierarchy") {
+            val typo = ElegantTheme().typography
+            typo.title.sizePt shouldBe 15f
+            typo.body.sizePt shouldBe 11f
         }
 
         test("ElegantThemeProvider exposes the theme under key 'elegant'") {

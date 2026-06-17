@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "dev.kuml.plugin.theme.pdv",
+  "name": "PdV Branding Theme",
+  "version": "1.0.0",
+  "kumlVersionRange": ">=0.12.0",
+  "extensions": [
+    {
+      "category": "theme",
+      "implementation": "dev.kuml.plugin.examples.pdv.PdvThemePlugin",
+      "id": "pdv-theme-plugin"
+    }
+  ],
+  "permissions": [],
+  "maintainer": "Partei der Vernunft",
+  "homepage": "https://parteidervernunft.de",
+  "licenseSpdx": "Apache-2.0"
+}

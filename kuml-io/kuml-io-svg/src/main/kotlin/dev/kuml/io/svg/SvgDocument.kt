@@ -101,32 +101,35 @@ internal object SvgDocument {
         val c = theme.colors
         val ty = theme.typography
         val bo = theme.borders
+        // Node fill defaults to the canvas background unless the theme
+        // explicitly defines `nodeFill` (e.g. white canvas + tinted nodes).
+        val nodeFill = c.effectiveNodeFill.toHex()
         val css =
             buildString {
-                append(".kuml-class { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-class { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
-                append(".kuml-interface { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-interface { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
-                append(".kuml-enum { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-enum { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
-                append(".kuml-component { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-component { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
-                append(".kuml-state { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-state { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
-                append(".kuml-usecase { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-usecase { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
-                append(".kuml-system { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-system { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.thickPx}; }\n")
-                append(".kuml-container { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-container { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.thinPx}; }\n")
-                append(".kuml-c4component { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-c4component { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.thinPx}; }\n")
                 // UmlInstanceSpecification (Object Diagram). Ohne diese Regel fielen
                 // Instanz-Knoten auf den SVG-Default `fill: black` zurück und überdeckten
                 // Header und Slot-Compartment vollständig — derselbe Bug-Typ wie der
                 // V3.0.11-Fix für `kuml-action`/`kuml-decision`. Konvention identisch zu
-                // `.kuml-class`: Hintergrund-Fill + regulärer Border.
-                append(".kuml-instance { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                // `.kuml-class`: Node-Fill + regulärer Border.
+                append(".kuml-instance { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-title { font-family: ${ty.title.family}; font-size: ${ty.title.sizePt}px;")
                 append(" font-weight: ${ty.title.weight}; fill: ${c.foreground.toHex()}; }\n")
@@ -185,15 +188,15 @@ internal object SvgDocument {
                 //    Punkt, Fork/Join eine massive Synchronisations-Bar).
                 //  - kuml-final-outer: Donut-Außenring — Hintergrund-Fill, damit der
                 //    gefüllte innere Pseudostate-Kreis als Ring erkennbar bleibt.
-                append(".kuml-action { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-action { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
-                append(".kuml-decision { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-decision { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-fork-bar { fill: ${c.foreground.toHex()}; stroke: ${c.foreground.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-pseudostate { fill: ${c.foreground.toHex()}; stroke: ${c.foreground.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
-                append(".kuml-final-outer { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-final-outer { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 // V1.1 — UML-Deployment-Diagramm (Node-Würfel, Artifact, Stereotype-Box)
                 // und UML-Timing-Diagramm (Lifeline-Frame, Step-Line). Diese Klassen werden
@@ -208,19 +211,19 @@ internal object SvgDocument {
                 //  - kuml-artifact-ear (Eselsecke): gedämpfte Fill als Kontrast zur Hauptfläche.
                 //  - kuml-timing-frame: Hintergrund-Fill + Border (Rahmen der Lifeline).
                 //  - kuml-timing-line: Kanten-Stroke ohne Fill (Zustandswechsel-Pfad).
-                append(".kuml-node { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-node { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-node-top { fill: ${c.muted.toHex()}; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-node-side { fill: ${c.muted.toHex()}; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
-                append(".kuml-artifact { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-artifact { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-artifact-ear { fill: ${c.muted.toHex()}; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
-                append(".kuml-stereotype-box { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-stereotype-box { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
-                append(".kuml-timing-frame { fill: ${c.background.toHex()}; stroke: ${c.border.toHex()};")
+                append(".kuml-timing-frame { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-timing-line { stroke: ${c.edge.toHex()}; stroke-width: ${bo.regularPx}; fill: none; }\n")
             }

@@ -11,6 +11,7 @@ import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
+import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
@@ -69,7 +70,11 @@ object VaultExampleRenderer {
 
             when (extracted) {
                 is ExtractedDiagram.Uml -> {
-                    val graph = UmlLayoutBridge.toLayoutGraph(extracted.diagram)
+                    // Content-aware sizing — without this, all nodes fall back to the
+                    // 160×80 default and enum literals (e.g. OrderStatus.CANCELLED) overflow
+                    // the box.
+                    val sizeProvider = UmlContentSizeProvider(extracted.diagram)
+                    val graph = UmlLayoutBridge.toLayoutGraph(extracted.diagram, sizeProvider)
                     val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
                     val svg = KumlSvgRenderer.toSvg(extracted.diagram, layout, theme)
                     val latex =
@@ -84,7 +89,7 @@ object VaultExampleRenderer {
                     val graph = C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model, sizeProvider)
                     val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
                     val svg = KumlSvgRenderer.toSvg(extracted.diagram, extracted.model, layout, theme)
-                    // C4 LaTeX not yet implemented — skip gracefully
+                    // C4 LaTeX support added in feature/c4-latex-renderer (not yet on master)
                     RenderResult(svg, null, null)
                 }
 
@@ -228,6 +233,11 @@ object VaultExampleRenderer {
     }
 
     @Volatile private var initialized = false
+
+    /** Explicit initialisation entry-point — safe to call multiple times. */
+    fun init() {
+        ensureInit()
+    }
 
     private fun ensureInit() {
         if (initialized) return

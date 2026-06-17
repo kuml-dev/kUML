@@ -14,7 +14,7 @@ plugins {
 
 allprojects {
     group = "dev.kuml"
-    version = "0.12.0"
+    version = "0.13.0"
 }
 
 // Apply ktlint to all subprojects that use the Kotlin JVM plugin.
@@ -85,6 +85,7 @@ val nonPublishedModules =
         "kuml-metamodel",
         "kuml-profile",
         "kuml-ai",             // V3.0.22 — AI aggregator parent (kuml-ai-core is published separately)
+        "kuml-plugin-api",     // V3.0.27 — Plugin API aggregator parent (sub-modules are published separately)
     )
 
 subprojects {

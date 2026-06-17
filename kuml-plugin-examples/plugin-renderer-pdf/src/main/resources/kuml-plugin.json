@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "dev.kuml.plugin.renderer.pdf",
+  "name": "PDF Renderer",
+  "version": "1.0.0",
+  "kumlVersionRange": ">=0.12.0",
+  "extensions": [
+    {
+      "category": "renderer",
+      "implementation": "dev.kuml.plugin.examples.pdf.PdfRendererPlugin",
+      "id": "pdf-renderer-plugin"
+    }
+  ],
+  "permissions": [],
+  "licenseSpdx": "Apache-2.0"
+}

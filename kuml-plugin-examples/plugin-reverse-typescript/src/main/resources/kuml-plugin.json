@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "dev.kuml.plugin.reverse.typescript",
+  "name": "TypeScript Reverse Engine",
+  "version": "1.0.0",
+  "kumlVersionRange": ">=0.12.0",
+  "extensions": [
+    {
+      "category": "reverse",
+      "implementation": "dev.kuml.plugin.examples.tsreverse.TypeScriptReversePlugin",
+      "id": "typescript-reverse-plugin"
+    }
+  ],
+  "permissions": ["fs.read"],
+  "licenseSpdx": "Apache-2.0"
+}

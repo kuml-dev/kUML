@@ -64,6 +64,19 @@ include(
     "kuml-codegen:kuml-gen-sql",      // V1.1.4 — SQL DDL generator (Postgres/MySQL/H2/SQLite)
 )
 
+// ── Plugin API ──────────────────────────────────────────────── V3.0.27 ──
+include(
+    "kuml-plugin-api:kuml-plugin-api-core",
+    "kuml-plugin-api:kuml-plugin-api-theme",
+    "kuml-plugin-api:kuml-plugin-api-renderer",
+    "kuml-plugin-api:kuml-plugin-api-layout",
+    "kuml-plugin-api:kuml-plugin-api-codegen",
+    "kuml-plugin-api:kuml-plugin-api-reverse",
+)
+
+// ── Plugin Loader ────────────────────────────────────────────── V3.0.28 ──
+include("kuml-plugin-loader")
+
 // ── Reverse Engineering (Source → UML) ────────────────────────────── V3.0.7 ──
 include(
     "kuml-codegen:kuml-codegen-reverse-api",    // V3.0.7 — Language-agnostic Reverse-Engine interface
@@ -142,6 +155,15 @@ if (!noAi) {
         "kuml-ai:kuml-ai-tools",      // V3.0.23 — @Tool-based DSL builder suite + MCP bridge + AgentEditingContext
     )
 }
+
+// ── Reference Plugins (V3.0.32) ─────────────────────────────────
+include(
+    "kuml-plugin-examples:plugin-theme-pdv",
+    "kuml-plugin-examples:plugin-renderer-pdf",
+    "kuml-plugin-examples:plugin-layout-elk-bridge",
+    "kuml-plugin-examples:plugin-codegen-typescript",
+    "kuml-plugin-examples:plugin-reverse-typescript",
+)
 
 // ── Tests ────────────────────────────────────────────────────────
 include(

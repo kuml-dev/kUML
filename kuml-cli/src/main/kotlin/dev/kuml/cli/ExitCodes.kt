@@ -82,4 +82,18 @@ internal object ExitCodes {
      * not included in the Native Image binary).
      */
     internal const val FORMAT_NOT_AVAILABLE: Int = 24
+
+    // ── `kuml plugin` (V3.0.29) ──────────────────────────────────────────────────
+
+    /** Plugin ID not found in [dev.kuml.plugin.loader.registry.PluginRegistry]. */
+    internal const val PLUGIN_NOT_FOUND: Int = 40
+
+    /** Plugin's kumlVersionRange excludes the current kUML runtime version. */
+    internal const val PLUGIN_VERSION_INCOMPATIBLE: Int = 41
+
+    /** Plugin attempted an operation it lacks a declared permission for. */
+    internal const val PLUGIN_PERMISSION_DENIED: Int = 42
+
+    /** Plugin JAR signature verification failed (V3.0.30). */
+    internal const val PLUGIN_SIGNATURE_INVALID: Int = 43
 }

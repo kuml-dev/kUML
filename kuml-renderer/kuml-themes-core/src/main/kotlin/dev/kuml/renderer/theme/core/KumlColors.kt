@@ -20,7 +20,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 public data class KumlColors(
-    /** Canvas- / Knoten-Füllfarbe. */
+    /** Canvas-Füllfarbe (Hintergrund des gesamten Diagramms). */
     public val background: KumlColor,
     /** Primäre Text- und Icon-Farbe. */
     public val foreground: KumlColor,
@@ -34,4 +34,14 @@ public data class KumlColors(
     public val edge: KumlColor,
     /** Gedämpfte Kantenfarbe (gestrichelte Beziehungen). */
     public val edgeMuted: KumlColor,
-)
+    /**
+     * Optionale Füllfarbe für Knoten-Inneres. Wenn `null`, wird [background]
+     * verwendet (Rückwärtskompatibilität). Themes können hier eine eigene
+     * Knoten-Füllung definieren, die sich vom Canvas-Hintergrund unterscheidet
+     * — z. B. weißer Canvas mit subtil getönter Knoten-Füllung.
+     */
+    public val nodeFill: KumlColor? = null,
+) {
+    /** Effektive Knoten-Füllung: [nodeFill] wenn gesetzt, sonst [background]. */
+    public val effectiveNodeFill: KumlColor get() = nodeFill ?: background
+}
