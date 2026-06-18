@@ -222,9 +222,25 @@ synchrones Update der kuml.dev-Webseite:
    werden um neue Features ergänzt, sodass kuml.dev nie hinter dem aktuellen Code zurück
    bleibt.
 4. **Build-Smoke-Test**: `npm run build` muss clean durchlaufen.
-5. **Commit-Format auf kuml.dev**:
+5. **Maven-Central-Badge-Verifikation**: Direkt nach dem Maven-Central-Sync (sobald
+   die JARs im Sync-Cache sind) den Badge-Endpoint **live** prüfen, statt sich auf
+   das CDN-cachende `<img>` zu verlassen:
+   ```bash
+   curl -sL "https://img.shields.io/maven-central/v/dev.kuml/kuml-core-dsl.json"
+   ```
+   Erwartet: `"message":"vX.Y.Z"` (nicht `"not found"`). Wenn `"not found"`:
+   entweder ist der GAV-Pfad im Badge falsch (z. B. weil das Anker-Artefakt
+   umbenannt/zerteilt wurde) oder der Maven-Central-Sync hängt noch. Der Badge
+   im Root-`README.adoc` zeigt aktuell auf `dev.kuml:kuml-core-dsl`. **Wenn das
+   Anker-Artefakt jemals umbenannt, zerteilt oder durch ein anderes ersetzt wird,
+   muss die Badge-URL in `README.adoc` Zeile 13 mitgepflegt werden** — sonst meldet
+   shields.io dauerhaft `not found`, obwohl die JARs auf Central liegen. Erkenntnis
+   2026-06-18: Der vorherige Badge zeigte auf `dev.kuml:kuml-core` (Single-Artefakt
+   vor dem Modulsplit) — existierte auf Maven Central nie und produzierte einen
+   roten „not found"-Badge auf GitHub.
+6. **Commit-Format auf kuml.dev**:
    `Sync site with kUML vX.Y.Z (<kurzbeschreibung der hauptneuerung>)`
-6. **Social-Media-Ankündigungen** (automatisch, kein expliziter Prompt nötig): Sofort
+7. **Social-Media-Ankündigungen** (automatisch, kein expliziter Prompt nötig): Sofort
    nach dem Tag-Push erstellt Claudian im Obsidian-Vault einen vollständigen Satz
    Ankündigungsdateien in `03 Bereiche/kUML/Ankündigungen/` — LinkedIn, X (Thread),
    Reddit und Facebook. Grundlage: die CHANGELOG-Sektion der neuen Version und die
@@ -642,7 +658,7 @@ image::docs/images/kuml-banner.png[kUML Banner,link=https://kuml.dev]
 type-safe Kotlin-DSL ausdrückt — das erste UML-Werkzeug, das bewusst
 für die LLM-Ära entworfen wurde.
 
-image:https://img.shields.io/maven-central/v/dev.kuml/kuml-core[Maven Central]
+image:https://img.shields.io/maven-central/v/dev.kuml/kuml-core-dsl[Maven Central]
 image:https://img.shields.io/github/license/kuml-dev/kUML[Apache 2.0]
 
 == Quick Start

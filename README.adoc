@@ -10,7 +10,7 @@ image::docs/images/kuml-banner.png[kUML — Kotlin UML Modelling,link=https://gi
 *kUML* is a modelling tool that expresses UML 2.x, SysML 2 and C4 as a
 type-safe Kotlin DSL — the first UML tool deliberately designed for the LLM era.
 
-image:https://img.shields.io/maven-central/v/dev.kuml/kuml-core[Maven Central]
+image:https://img.shields.io/maven-central/v/dev.kuml/kuml-core-dsl[Maven Central]
 image:https://img.shields.io/github/license/kuml-dev/kUML[Apache 2.0]
 image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/ci.yml[CI]
 
