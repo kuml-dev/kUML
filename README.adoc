@@ -1,9 +1,14 @@
 = kUML
+:description: Architecture that compiles. One source. Any diagram. Readable for humans and AI.
 :toc:
 :toc-placement: preamble
 :icons: font
 
 image::docs/images/kuml-banner.png[kUML — Kotlin UML Modelling,link=https://github.com/kuml-dev/kUML]
+
+[.lead]
+*Architecture that compiles.* +
+One source. Any diagram. Readable for humans and AI.
 
 *Website:* https://kuml.dev · *Handbook:* https://docs.kuml.dev · *Releases:* https://github.com/kuml-dev/kUML/releases
 
@@ -17,6 +22,8 @@ image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/ci.yml
 == Why kUML?
 
 [.lead]
+*Modeling deserves a compiler.*
+
 Every feature in kUML exists in _some_ tool on the market. The specific combination does not exist anywhere else: *type-safe Kotlin DSL · UML 2.x + SysML 2 + C4 as first-class peers · executable behaviour runtime · LLM-first design · Apache 2.0.*
 
 Existing UML tools fall into two categories:
