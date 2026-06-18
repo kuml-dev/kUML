@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: Plain · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 417 330"
+     width="417"
+     height="330">
+  <defs>
+  <style>
+    .kuml-class { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-interface { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-enum { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-component { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-state { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-usecase { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-system { fill: #FFFFFF; stroke: #000000; stroke-width: 2.0; }
+.kuml-container { fill: #FFFFFF; stroke: #000000; stroke-width: 1.0; }
+.kuml-c4component { fill: #FFFFFF; stroke: #000000; stroke-width: 1.0; }
+.kuml-instance { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-title { font-family: system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #000000; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #000000; }
+.kuml-body { font-family: system-ui, sans-serif; font-size: 11.0px; fill: #000000; }
+.kuml-small { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #666666; }
+.kuml-edge-label { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #666666; }
+.kuml-edge-label-halo { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #666666; }
+.kuml-tagged-value { font-family: system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #666666; }
+.kuml-edge { stroke: #000000; stroke-width: 1.5; fill: none; }
+.kuml-edge-dashed { stroke: #999999; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #000000; stroke-width: 1.0; }
+.kuml-actor { stroke: #000000; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #000000; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #000000; stroke-width: 1.5; }
+.kuml-port { fill: #000000; stroke: #000000; stroke-width: 1.0; }
+.kuml-port-label { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #000000; }
+.kuml-action { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-decision { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #000000; stroke: #000000; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #000000; stroke: #000000; stroke-width: 1.5; }
+.kuml-final-outer { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-node { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-node-top { fill: #666666; stroke: #000000; stroke-width: 1.5; }
+.kuml-node-side { fill: #666666; stroke: #000000; stroke-width: 1.5; }
+.kuml-artifact { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #666666; stroke: #000000; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #000000; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="417" height="330" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="OrderStatus" transform="translate(32,32)">
+      <rect width="160" height="116" class="kuml-enum"/>
+      <text class="kuml-stereotype" x="80" y="18" text-anchor="middle">
+        «enumeration»
+      </text>
+      <text class="kuml-title" x="80" y="32" text-anchor="middle">
+        OrderStatus
+      </text>
+      <line x1="0" y1="38" x2="160" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="8" y="52">
+        DRAFT
+      </text>
+      <text class="kuml-body" x="8" y="65">
+        CONFIRMED
+      </text>
+      <text class="kuml-body" x="8" y="78">
+        SHIPPED
+      </text>
+      <text class="kuml-body" x="8" y="91">
+        CANCELLED
+      </text>
+    </g>
+    <g id="Order" transform="translate(218.50,32)">
+      <rect width="176" height="112" class="kuml-class"/>
+      <text class="kuml-title" x="88" y="18" text-anchor="middle">
+        Order
+      </text>
+      <line x1="0" y1="24" x2="176" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - id: UUID
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - status: OrderStatus
+      </text>
+      <line x1="0" y1="64" x2="176" y2="64" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="78">
+        + confirm()
+      </text>
+      <text class="kuml-body" x="5" y="91">
+        + cancel()
+      </text>
+    </g>
+    <g id="OrderItem" transform="translate(212,234)">
+      <rect width="189" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="94.50" y="18" text-anchor="middle">
+        OrderItem
+      </text>
+      <line x1="0" y1="24" x2="189" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - quantity: Int
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - unitPrice: BigDecimal
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="306.50" y1="144" x2="306.50" y2="234" class="kuml-edge"/>
+    <path d="M 301.50,222 L 306.50,234 L 311.50,222" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small" x="296.50" y="218" text-anchor="middle">
+      1..*
+    </text>
+  </g>
+</svg>
