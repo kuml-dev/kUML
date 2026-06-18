@@ -72,7 +72,7 @@ kuml render order-domain.kuml.kts --format svg
 ----
 
 That command produces the diagram below — rendered straight from the script above
-with ELK Sugiyama layout and the default Plain theme:
+with ELK Sugiyama layout and the kUML theme:
 
 image::docs/images/order-domain.svg[Order Domain — class diagram with OrderStatus enum and OrderItem composition,align=center]
 

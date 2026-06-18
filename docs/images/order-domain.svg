@@ -1,51 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- kUML SVG · theme: Plain · engine: elk.layered -->
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
 <svg xmlns="http://www.w3.org/2000/svg"
      viewBox="0 0 417 330"
      width="417"
      height="330">
   <defs>
   <style>
-    .kuml-class { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-interface { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-enum { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-component { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-state { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-usecase { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-system { fill: #FFFFFF; stroke: #000000; stroke-width: 2.0; }
-.kuml-container { fill: #FFFFFF; stroke: #000000; stroke-width: 1.0; }
-.kuml-c4component { fill: #FFFFFF; stroke: #000000; stroke-width: 1.0; }
-.kuml-instance { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-title { font-family: system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #000000; }
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
 .kuml-title-abstract { font-style: italic; }
-.kuml-subtitle { font-family: system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #000000; }
-.kuml-body { font-family: system-ui, sans-serif; font-size: 11.0px; fill: #000000; }
-.kuml-small { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #666666; }
-.kuml-edge-label { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #666666; }
-.kuml-edge-label-halo { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
-.kuml-stereotype { font-family: system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #666666; }
-.kuml-tagged-value { font-family: system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #666666; }
-.kuml-edge { stroke: #000000; stroke-width: 1.5; fill: none; }
-.kuml-edge-dashed { stroke: #999999; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
-.kuml-divider { stroke: #000000; stroke-width: 1.0; }
-.kuml-actor { stroke: #000000; stroke-width: 1.5; fill: none; }
-.kuml-frame { fill: none; stroke: #000000; stroke-width: 1.5; }
-.kuml-collaboration { fill: none; stroke: #000000; stroke-width: 1.5; }
-.kuml-port { fill: #000000; stroke: #000000; stroke-width: 1.0; }
-.kuml-port-label { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #000000; }
-.kuml-action { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-decision { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-fork-bar { fill: #000000; stroke: #000000; stroke-width: 1.5; }
-.kuml-pseudostate { fill: #000000; stroke: #000000; stroke-width: 1.5; }
-.kuml-final-outer { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-node { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-node-top { fill: #666666; stroke: #000000; stroke-width: 1.5; }
-.kuml-node-side { fill: #666666; stroke: #000000; stroke-width: 1.5; }
-.kuml-artifact { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-artifact-ear { fill: #666666; stroke: #000000; stroke-width: 1.5; }
-.kuml-stereotype-box { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-timing-frame { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-timing-line { stroke: #000000; stroke-width: 1.5; fill: none; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
 
   </style>
   </defs>
@@ -109,7 +109,7 @@
   </g>
   <g id="edges">
     <line x1="306.50" y1="144" x2="306.50" y2="234" class="kuml-edge"/>
-    <path d="M 301.50,222 L 306.50,234 L 311.50,222" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <path d="M 301.50,222 L 306.50,234 L 311.50,222" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
     <text class="kuml-small" x="296.50" y="218" text-anchor="middle">
       1..*
     </text>
