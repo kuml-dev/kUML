@@ -86,9 +86,10 @@ include(
 
 // ── Runtime ──────────────────────────────────────────── V1.1.5 ──
 include(
-    "kuml-runtime:kuml-runtime-core",    // V1.1.5 — State-Machine-Headless-Simulator (kuml simulate)
-    "kuml-runtime:kuml-runtime-trace",   // V2.0.39 — Trace-Replay + OTLP-JSON-Export
-    "kuml-runtime:kuml-runtime-sandbox", // V2.0.40 — Sandbox-Garantien (EffectExecutor, TimeLimitedGuardEvaluator, SandboxValidator)
+    "kuml-runtime:kuml-runtime-core",      // V1.1.5 — State-Machine-Headless-Simulator (kuml simulate)
+    "kuml-runtime:kuml-runtime-trace",     // V2.0.39 — Trace-Replay + OTLP-JSON-Export
+    "kuml-runtime:kuml-runtime-sandbox",   // V2.0.40 — Sandbox-Garantien (EffectExecutor, TimeLimitedGuardEvaluator, SandboxValidator)
+    "kuml-runtime:kuml-runtime-chain-api", // V3.0.1  — Chain-Adapter-Interfaces + ModelHasher (pure Kotlin, Native-Image-tauglich)
 )
 
 // ── I/O ──────────────────────────────────────────────── Phase 2 ──

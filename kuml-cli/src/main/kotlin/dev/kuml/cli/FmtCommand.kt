@@ -25,6 +25,8 @@ import java.io.IOException
  * kuml fmt order.kuml.kts
  * kuml fmt *.kuml.kts
  * kuml fmt --check order.kuml.kts
+ * kuml fmt --canonical order.kuml.kts
+ * kuml fmt --canonical --check order.kuml.kts
  * ```
  */
 internal class FmtCommand : CliktCommand(name = "fmt") {
@@ -37,7 +39,16 @@ internal class FmtCommand : CliktCommand(name = "fmt") {
                 "Exit ${ExitCodes.FMT_CHECK_FAILED} if any files need changes.",
     ).flag()
 
-    override fun help(context: Context): String = "Format kUML scripts in place. Use --check for CI verification."
+    private val canonical by option(
+        "--canonical",
+        help =
+            "Apply the canonical normal form (removes all blank lines, unifies EOL) used for " +
+                "deterministic model hashing (V3.0.1). Stricter than the default format. " +
+                "Combine with --check for CI hash-stability verification.",
+    ).flag()
+
+    override fun help(context: Context): String =
+        "Format kUML scripts in place. Use --check for CI verification, --canonical for hash-stable form."
 
     override fun run() {
         var needsChanges = false
@@ -50,7 +61,7 @@ internal class FmtCommand : CliktCommand(name = "fmt") {
                     System.err.println("I/O error reading '$inputPath': ${e.message}")
                     throw ProgramResult(ExitCodes.IO_ERROR)
                 }
-            val formatted = KumlFormatter.format(original)
+            val formatted = if (canonical) KumlFormatter.canonical(original) else KumlFormatter.format(original)
             when {
                 original == formatted -> {
                     if (check) echo("$inputPath: ok")

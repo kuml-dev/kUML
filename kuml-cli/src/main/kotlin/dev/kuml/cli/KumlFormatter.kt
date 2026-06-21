@@ -1,5 +1,7 @@
 package dev.kuml.cli
 
+import dev.kuml.runtime.chain.ModelHasher
+
 /**
  * Idempotent text formatter for `*.kuml.kts` scripts.
  *
@@ -13,8 +15,25 @@ package dev.kuml.cli
  * Comments and non-DSL Kotlin code are preserved verbatim (modulo whitespace).
  *
  * Idempotency: `format(format(source)) == format(source)` for all inputs.
+ *
+ * See also [canonical] for the stricter V3.0.1 canonical form used by [ModelHasher].
  */
 internal object KumlFormatter {
+    /**
+     * Canonical normal form for deterministic model hashing (V3.0.1).
+     *
+     * Stricter than [format]: removes ALL blank lines (instead of collapsing to one)
+     * and unifies line endings to LF. Produces exactly the normalised form over which
+     * [ModelHasher.hashCanonical] calculates — so a file formatted with `kuml fmt --canonical`
+     * has a byte-stable, reproducible model hash.
+     *
+     * Delegates to [ModelHasher.canonicalize] (single source of truth):
+     * `canonical(s) == ModelHasher.canonicalize(s)` for all s.
+     *
+     * Idempotent: `canonical(canonical(s)) == canonical(s)`.
+     */
+    internal fun canonical(source: String): String = ModelHasher.canonicalize(source)
+
     internal fun format(source: String): String {
         val lines = source.split("\n")
         val result = mutableListOf<String>()
