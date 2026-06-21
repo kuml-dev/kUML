@@ -1,5 +1,6 @@
 package dev.kuml.runtime.chain.evm
 
+import dev.kuml.runtime.chain.ModelSignature
 import java.math.BigInteger
 
 /**
@@ -64,6 +65,29 @@ public class Eip712Verifier {
         return "0x" + addressFromPublicKey(pubKey)
     }
 
+    /**
+     * Verifiziert eine [ModelSignature] gegen den lokalen Modell-Quelltext.
+     *
+     * Sicherheits-Design: bindet an [modelSource] (wird frisch gehasht), nicht an
+     * [ModelSignature.modelHash] aus dem .sig-File. Zusätzlich prüft [ModelSigner.recover],
+     * dass `sig.modelHash == hash(modelSource)` — Manipulation des modelHash im .sig-File
+     * wird damit erkannt.
+     *
+     * @param modelSource Roher Quelltext des kUML-Modells.
+     * @param sig         Die zu prüfende Signatur.
+     * @return true gdw. Signatur kryptografisch gültig ist und der Signer der in [ModelSignature.signer]
+     *         angegebenen Adresse entspricht.
+     */
+    public fun verifyModelSignature(
+        modelSource: String,
+        sig: ModelSignature,
+    ): Boolean =
+        try {
+            ModelSigner().recover(modelSource, sig).equals(sig.signer, ignoreCase = true)
+        } catch (_: IllegalArgumentException) {
+            false
+        }
+
     public companion object {
         /**
          * keccak256 (Ethereum-Variante, NICHT SHA3-256).
@@ -89,6 +113,26 @@ public class Eip712Verifier {
             require(publicKey.size == 64) { "Public key must be 64 bytes (uncompressed, no 0x04 prefix)" }
             val hash = keccak256(publicKey)
             return hash.takeLast(20).joinToString("") { "%02x".format(it) }
+        }
+
+        /**
+         * Konvertiert eine Ethereum-Adresse in EIP-55-Checksum-Darstellung.
+         *
+         * Eingabe: optionales "0x"-Präfix, beliebige Groß-/Kleinschreibung.
+         * Ausgabe: "0x" + 40 gemischte Zeichen gemäß EIP-55.
+         */
+        public fun toChecksumAddress(address: String): String {
+            val lower = address.removePrefix("0x").removePrefix("0X").lowercase()
+            require(lower.length == 40 && lower.all { it.isDigit() || it in 'a'..'f' }) {
+                "Invalid Ethereum address: $address"
+            }
+            val hash = keccak256(lower.toByteArray(Charsets.US_ASCII))
+            val sb = StringBuilder("0x")
+            lower.forEachIndexed { i, c ->
+                val nibble = (hash[i / 2].toInt() and 0xFF) ushr (if (i % 2 == 0) 4 else 0) and 0xF
+                sb.append(if (nibble >= 8) c.uppercaseChar() else c)
+            }
+            return sb.toString()
         }
     }
 }
@@ -360,6 +404,17 @@ internal object Secp256k1 {
     private val HALF_N = N.shiftRight(1)
 
     /**
+     * Computes the public key point (x, y) from a private key scalar d.
+     * Returns (x, y) as a pair of 256-bit BigIntegers.
+     *
+     * `internal` — used by [ModelSigner] to derive the signer address from the private key.
+     */
+    internal fun publicKeyPoint(d: BigInteger): Pair<BigInteger, BigInteger> {
+        val pt = scalarMul(d, Point(Gx, Gy))
+        return Pair(pt.x, pt.y)
+    }
+
+    /**
      * Recovers the 64-byte uncompressed public key from (digest, r, s, recoveryId).
      * Returns null if recovery fails.
      *
@@ -410,8 +465,10 @@ internal object Secp256k1 {
      * Converts a non-negative BigInteger to a big-endian 32-byte array.
      * Left-pads with zeros if shorter; truncates to last 32 bytes if longer
      * (BigInteger.toByteArray may include a leading 0x00 sign byte).
+     *
+     * `internal` so [ModelSigner] can use it for r/s/timestamp serialisation.
      */
-    private fun bigIntTo32Bytes(n: BigInteger): ByteArray {
+    internal fun bigIntTo32Bytes(n: BigInteger): ByteArray {
         val ba = n.toByteArray()
         return when {
             ba.size == 32 -> ba
@@ -422,5 +479,116 @@ internal object Secp256k1 {
                 padded
             }
         }
+    }
+
+    /**
+     * Deterministisches ECDSA-Sign mit RFC 6979-Nonce (HMAC-SHA-256) + Low-S-Normalisierung (EIP-2).
+     *
+     * Gibt Triple(r, s, recId) zurück mit:
+     * - `r`, `s` ∈ (0, N)
+     * - `s <= HALF_N` (Low-S, EIP-2)
+     * - `recId ∈ {0, 1}` (Paritätsbit von R_y, nach Low-S-Flip ggf. invertiert)
+     *
+     * Niemals zufälliges `k` — deterministisches k nach RFC 6979 verhindert
+     * Private-Key-Leak bei Nonce-Wiederholung.
+     *
+     * @param digest   32-Byte-Digest der zu signierenden Nachricht.
+     * @param d        Private Key (muss im Bereich (0, N) liegen).
+     */
+    internal fun signRecoverable(
+        digest: ByteArray,
+        d: BigInteger,
+    ): Triple<BigInteger, BigInteger, Int> {
+        require(d > BigInteger.ZERO && d < N) { "private key out of range" }
+        val e = BigInteger(1, digest)
+        val kGen = rfc6979KSequence(digest, d)
+        while (true) {
+            val k = kGen.next()
+            if (k <= BigInteger.ZERO || k >= N) continue
+            val rPoint = scalarMul(k, Point(Gx, Gy))
+            val r = rPoint.x.mod(N)
+            if (r == BigInteger.ZERO) continue
+            var s = k.modInverse(N).multiply(e.add(d.multiply(r))).mod(N)
+            if (s == BigInteger.ZERO) continue
+            // recId: y-parity of R + overflow flag (recId >= 2 when rPoint.x >= N, rare)
+            var recId = (if (rPoint.y.testBit(0)) 1 else 0) or (if (rPoint.x >= N) 2 else 0)
+            // EIP-2 Low-S: flip s if high; flippping s also flips the parity bit of R
+            if (s > HALF_N) {
+                s = N.subtract(s)
+                recId = recId xor 1
+            }
+            return Triple(r, s, recId)
+        }
+    }
+
+    /**
+     * RFC 6979 deterministischer k-Generator (HMAC-SHA-256).
+     *
+     * Implementiert §3.2 von RFC 6979. Gibt einen Iterator über kandidaten-k-Werte zurück —
+     * normalerweise liefert die erste Iteration ein gültiges k; in sehr seltenen Fällen
+     * (k == 0 oder k >= N) wird die nächste Iteration versucht.
+     */
+    private fun rfc6979KSequence(
+        digest: ByteArray,
+        d: BigInteger,
+    ): Iterator<BigInteger> {
+        val qLen = 32 // N ist 256 Bit → 32 Byte
+        val dBytes = bigIntTo32Bytes(d)
+        val raw = digest.copyOf()
+        val hBytes =
+            if (raw.size >= qLen) {
+                raw.copyOfRange(raw.size - qLen, raw.size)
+            } else {
+                ByteArray(qLen).also { pad -> raw.copyInto(pad, qLen - raw.size) }
+            }
+
+        // §3.2a-b: V = 0x01 × qLen, K = 0x00 × qLen
+        var v = ByteArray(qLen) { 0x01.toByte() }
+        var k = ByteArray(qLen) { 0x00.toByte() }
+
+        // §3.2c: K = HMAC_K(V || 0x00 || int2octets(d) || bits2octets(h1))
+        k = hmacSha256(k, v, byteArrayOf(0x00), dBytes, hBytes)
+        // §3.2d: V = HMAC_K(V)
+        v = hmacSha256(k, v)
+        // §3.2e: K = HMAC_K(V || 0x01 || int2octets(d) || bits2octets(h1))
+        k = hmacSha256(k, v, byteArrayOf(0x01), dBytes, hBytes)
+        // §3.2f: V = HMAC_K(V)
+        v = hmacSha256(k, v)
+
+        return object : Iterator<BigInteger> {
+            // Copies of mutable k/v captured from outer scope — updated per §3.2h
+            private var kState = k
+            private var vState = v
+
+            override fun hasNext(): Boolean = true
+
+            override fun next(): BigInteger {
+                // §3.2g/h: generate T from HMAC rounds, derive k candidate
+                val t = ByteArray(qLen)
+                var tLen = 0
+                while (tLen < qLen) {
+                    vState = hmacSha256(kState, vState)
+                    val copyLen = minOf(vState.size, qLen - tLen)
+                    vState.copyInto(t, tLen, 0, copyLen)
+                    tLen += copyLen
+                }
+                val candidate = BigInteger(1, t)
+                // §3.2h.3: update K and V for potential next iteration
+                kState = hmacSha256(kState, vState, byteArrayOf(0x00))
+                vState = hmacSha256(kState, vState)
+                return candidate
+            }
+        }
+    }
+
+    /** HMAC-SHA-256 über beliebig viele Part-Arrays (konkateniert). JDK-built-in, GraalVM-safe. */
+    private fun hmacSha256(
+        key: ByteArray,
+        vararg parts: ByteArray,
+    ): ByteArray {
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        mac.init(javax.crypto.spec.SecretKeySpec(key, "HmacSHA256"))
+        parts.forEach { mac.update(it) }
+        return mac.doFinal()
     }
 }

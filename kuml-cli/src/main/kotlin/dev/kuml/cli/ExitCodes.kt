@@ -97,11 +97,17 @@ internal object ExitCodes {
     /** Plugin JAR signature verification failed (V3.0.30). */
     internal const val PLUGIN_SIGNATURE_INVALID: Int = 43
 
-    // ── `kuml chain` (V3.0.4) ────────────────────────────────────────────────
+    // ── `kuml chain` (V3.0.4 / V3.0.5) ──────────────────────────────────────
 
     /** `kuml chain verify` — on-chain modelHash differs from the local model's hash. */
     internal const val CHAIN_HASH_MISMATCH: Int = 50
 
     /** `kuml chain connect/verify/events` — could not connect to or read from the chain. */
     internal const val CHAIN_CONNECT_ERROR: Int = 51
+
+    /** `kuml chain verify-sig` — EIP-712 model signature failed to verify (or malformed .sig file). */
+    internal const val CHAIN_INVALID_SIGNATURE: Int = 52
+
+    /** `kuml chain verify-sig --expected-signer` — signature valid but recovered signer ≠ expected. */
+    internal const val CHAIN_SIGNER_MISMATCH: Int = 53
 }

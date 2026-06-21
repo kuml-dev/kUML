@@ -15,15 +15,18 @@ import dev.kuml.runtime.chain.ChainEvent
 import dev.kuml.runtime.chain.ContractIdentity
 import dev.kuml.runtime.chain.KumlChainAdapter
 import dev.kuml.runtime.chain.ModelHasher
+import dev.kuml.runtime.chain.ModelSignature
+import dev.kuml.runtime.chain.evm.Eip712Verifier
 import dev.kuml.runtime.chain.evm.EvmChainAdapter
 import dev.kuml.runtime.chain.evm.EvmChainAdapterException
+import dev.kuml.runtime.chain.evm.ModelSigner
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.IOException
 
-/** The `kuml chain` subcommand group (V3.0.4). */
+/** The `kuml chain` subcommand group (V3.0.5). */
 internal class ChainCommand(
     adapterFactory: () -> KumlChainAdapter = { EvmChainAdapter() },
 ) : CliktCommand(name = "chain") {
@@ -32,10 +35,13 @@ internal class ChainCommand(
             ChainConnectCommand(adapterFactory),
             ChainVerifyCommand(adapterFactory),
             ChainEventsCommand(adapterFactory),
+            ChainSignCommand(),
+            ChainVerifySigCommand(),
         )
     }
 
-    override fun help(context: Context): String = "Inspect an on-chain registered kUML model (connect, verify hash, list events)."
+    override fun help(context: Context): String =
+        "Inspect an on-chain registered kUML model (connect, verify hash, list events, sign, verify-sig)."
 
     override fun run() = Unit
 }
@@ -158,6 +164,110 @@ internal class ChainEventsCommand(
     }
 }
 
+// ── kuml chain sign ──────────────────────────────────────────────────────────
+
+/**
+ * `kuml chain sign <model> --private-key <hex>` — erzeugt eine EIP-712-Signatur
+ * über den kanonischen Modell-Hash und schreibt sie als JSON in `<model>.sig`.
+ *
+ * SECURITY: Der Private Key sollte nie direkt als Shell-Argument übergeben werden
+ * (erscheint dann in der Prozessliste). Empfohlen: via Environment-Variable +
+ * Shell-Command-Substitution, z.B. `--private-key "$KUML_SIGNING_KEY"`.
+ */
+internal class ChainSignCommand : CliktCommand(name = "sign") {
+    private val model by argument(help = "Local *.kuml.kts model file to sign")
+    private val privateKey by option(
+        "--private-key",
+        help =
+            "secp256k1 private key (64-char hex, optional 0x prefix). " +
+                "SECURITY: prefer passing via shell command substitution from an env var, e.g. " +
+                "--private-key \"\$KUML_SIGNING_KEY\", so the key never appears in shell history.",
+    ).required()
+    private val out by option("--out", help = "Output path for the .sig file (default: <model>.sig)")
+
+    override fun help(context: Context): String =
+        "Sign a local kUML model with a secp256k1 private key (EIP-712). " +
+            "Writes a JSON signature file. Exit ${ExitCodes.CHAIN_INVALID_SIGNATURE} on key error."
+
+    override fun run() {
+        val source = readFileOrIoExit(model, this)
+        val sig =
+            try {
+                ModelSigner().sign(source, privateKey)
+            } catch (e: IllegalArgumentException) {
+                echo("Invalid private key or signing failure: ${e.message}", err = true)
+                throw ProgramResult(ExitCodes.CHAIN_INVALID_SIGNATURE)
+            }
+        val json = sig.toJson()
+        val target = out ?: "$model.sig"
+        try {
+            File(target).writeText(json)
+        } catch (e: IOException) {
+            echo("I/O error writing '$target': ${e.message}", err = true)
+            throw ProgramResult(ExitCodes.IO_ERROR)
+        }
+        echo("Signed by ${sig.signer}")
+        echo("Signature written to $target")
+        echo(json)
+    }
+}
+
+// ── kuml chain verify-sig ─────────────────────────────────────────────────────
+
+/**
+ * `kuml chain verify-sig <model> [--sig <file>] [--expected-signer <addr>]` —
+ * prüft eine EIP-712-Signatur gegen den lokalen Modell-Quelltext.
+ */
+internal class ChainVerifySigCommand : CliktCommand(name = "verify-sig") {
+    private val model by argument(help = "Local *.kuml.kts model file the signature covers")
+    private val sigFile by option(
+        "--sig",
+        help = "Path to the .sig JSON file (default: <model>.sig)",
+    )
+    private val expectedSigner by option(
+        "--expected-signer",
+        help = "Require the recovered address to equal this (EIP-55 or lowercase, case-insensitive)",
+    )
+
+    override fun help(context: Context): String =
+        "Verify a kUML model EIP-712 signature (.sig file). " +
+            "Exit ${ExitCodes.CHAIN_INVALID_SIGNATURE} if invalid; " +
+            "${ExitCodes.CHAIN_SIGNER_MISMATCH} if --expected-signer does not match."
+
+    override fun run() {
+        val source = readFileOrIoExit(model, this)
+        val sigPath = sigFile ?: "$model.sig"
+        val sigJson = readFileOrIoExit(sigPath, this)
+        val sig =
+            try {
+                ModelSignature.fromJson(sigJson)
+            } catch (e: Exception) {
+                echo("Malformed signature file '$sigPath': ${e.message}", err = true)
+                throw ProgramResult(ExitCodes.CHAIN_INVALID_SIGNATURE)
+            }
+
+        val valid = Eip712Verifier().verifyModelSignature(source, sig)
+        if (!valid) {
+            echo("INVALID — signature does not verify against this model.", err = true)
+            throw ProgramResult(ExitCodes.CHAIN_INVALID_SIGNATURE)
+        }
+        echo("VALID — signed by ${sig.signer}")
+
+        val expected = expectedSigner
+        if (expected != null) {
+            val recovered = ModelSigner().recover(source, sig) // == sig.signer (already verified)
+            if (!recovered.equals(expected, ignoreCase = true)) {
+                echo(
+                    "SIGNER MISMATCH — expected $expected but signature is from $recovered",
+                    err = true,
+                )
+                throw ProgramResult(ExitCodes.CHAIN_SIGNER_MISMATCH)
+            }
+            echo("Signer matches expected address.")
+        }
+    }
+}
+
 // ── shared connect helper ────────────────────────────────────────────────────
 
 /**
@@ -180,4 +290,18 @@ private fun chainConnectOrExit(
     } catch (e: EvmChainAdapterException) {
         cmd.echo("Could not connect to chain: ${e.message}", err = true)
         throw ProgramResult(ExitCodes.CHAIN_CONNECT_ERROR)
+    }
+
+// ── shared file-read helper ───────────────────────────────────────────────────
+
+/** Reads a file, or exits with [ExitCodes.IO_ERROR] if reading fails. */
+private fun readFileOrIoExit(
+    path: String,
+    cmd: CliktCommand,
+): String =
+    try {
+        File(path).readText()
+    } catch (e: IOException) {
+        cmd.echo("I/O error reading '$path': ${e.message}", err = true)
+        throw ProgramResult(ExitCodes.IO_ERROR)
     }
