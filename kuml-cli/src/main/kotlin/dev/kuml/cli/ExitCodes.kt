@@ -96,4 +96,12 @@ internal object ExitCodes {
 
     /** Plugin JAR signature verification failed (V3.0.30). */
     internal const val PLUGIN_SIGNATURE_INVALID: Int = 43
+
+    // ── `kuml chain` (V3.0.4) ────────────────────────────────────────────────
+
+    /** `kuml chain verify` — on-chain modelHash differs from the local model's hash. */
+    internal const val CHAIN_HASH_MISMATCH: Int = 50
+
+    /** `kuml chain connect/verify/events` — could not connect to or read from the chain. */
+    internal const val CHAIN_CONNECT_ERROR: Int = 51
 }

@@ -37,6 +37,7 @@ dependencies {
     implementation(project(":kuml-runtime:kuml-runtime-trace")) // V2.0.39 — kuml trace replay/export
     implementation(project(":kuml-runtime:kuml-runtime-sandbox")) // V2.0.40 — Sandbox-Garantien
     implementation(project(":kuml-runtime:kuml-runtime-chain-api")) // V3.0.1 — fmt --canonical + ModelHasher
+    implementation(project(":kuml-runtime:kuml-runtime-chain-evm")) // V3.0.4 — kuml chain subcommand (EvmChainAdapter)
     implementation(project(":kuml-core:kuml-core-ocl"))
     // V2.0.20a — validate-expressions command
     implementation(project(":kuml-core:kuml-core-expr"))

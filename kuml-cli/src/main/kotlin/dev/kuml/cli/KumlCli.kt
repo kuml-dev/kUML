@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.versionOption
+import dev.kuml.cli.chain.ChainCommand
 import dev.kuml.cli.plugin.PluginCommand
 import dev.kuml.cli.run.RunCommand
 import dev.kuml.cli.sandbox.SandboxCommand
@@ -41,6 +42,7 @@ internal class KumlCli : CliktCommand(name = "kuml") {
             SandboxCommand(),
             RunCommand(),
             ReverseCommand(),
+            ChainCommand(),
             PluginCommand(),
             VersionCommand(),
             UpdateCommand(),
