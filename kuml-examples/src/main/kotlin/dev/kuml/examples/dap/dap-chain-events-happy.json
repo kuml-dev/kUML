@@ -1,0 +1,11 @@
+{
+    "schema": "kuml.events.v1",
+    "events": [
+        { "name": "einreichen", "payload": { "autor": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" } },
+        { "name": "annehmenZurDiskussion" },
+        { "name": "after", "payload": { "dauer": "7d" } },
+        { "name": "stimme", "payload": { "ja": 87, "nein": 9, "enthaltung": 4, "stimmberechtigte": 120 } },
+        { "name": "after", "payload": { "dauer": "3d" } },
+        { "name": "after", "payload": { "dauer": "14d" } }
+    ]
+}

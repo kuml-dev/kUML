@@ -20,6 +20,8 @@ dependencies {
     testImplementation(libs.kotest.assertions.core)
     testImplementation(project(":kuml-io:kuml-io-svg"))
     testImplementation(project(":kuml-renderer:kuml-themes-core"))
+    testImplementation(project(":kuml-runtime:kuml-runtime-chain-api")) // V3.0.6 — DAP Verfassungs-Showcase
+    testImplementation(project(":kuml-runtime:kuml-runtime-chain-evm")) // V3.0.6 — DAP Verfassungs-Showcase
 }
 
 tasks.withType<Test>().configureEach { useJUnitPlatform() }
