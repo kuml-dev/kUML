@@ -34,6 +34,12 @@ tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     // Script compilation is memory-intensive
     jvmArgs("-Xmx1g")
+    // Declare sample-output as an explicit task output so that:
+    //   • Gradle build cache stores SVGs/PNGs/index alongside test results
+    //   • `clean` removes it correctly (it is inside build/ anyway, but the
+    //     declaration makes the relationship explicit for cache restore)
+    //   • A cache hit restores sample-output instead of silently leaving it absent
+    outputs.dir(layout.buildDirectory.dir("sample-output"))
 }
 
 // The vault example .md files live under src/test/resources/vault-examples/
