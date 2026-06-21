@@ -92,8 +92,8 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 | *Homebrew* (macOS/Linux)
 | `brew install kuml-dev/kuml/kuml`
 
-| *SDKMAN!*
-| `sdk install kuml` — supports Linux x86_64, Linux ARM64, macOS, Windows x86_64.
+| *SDKMAN!* (coming soon)
+| `sdk install kuml` — *not available yet*; SDKMAN! vendor onboarding (API keys) is still pending. Planned platforms: Linux x86_64, Linux ARM64, macOS, Windows x86_64. Use Homebrew or the native installers in the meantime.
 
 | *Docker*
 | `docker pull ghcr.io/kuml-dev/kuml-cli:v0.12.0` — minimal CLI image.
