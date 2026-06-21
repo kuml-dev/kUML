@@ -6,6 +6,77 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-06-21
+
+### Blockchain-backed Models — Chain-Adapter-Linie (V3.0.1–6, V3.0.20–21)
+
+Full blockchain integration for kUML: any `.kuml.kts` model can now be anchored
+on-chain (Ethereum/L2, Sui, Aptos), its canonical hash stored in a smart contract
+slot, its history replayed from chain events, and its authorship proved via
+EIP-712 signatures. Covers EVM + Move (Sui/Aptos) out of the box, extensible
+to any chain via the `KumlChainAdapter` SPI.
+
+**`kuml-runtime-chain-api` — Chain-Adapter SPI + ModelHasher (V3.0.1)**
+- New module (pure Kotlin, GraalVM-Native-Image-compatible).
+- `KumlChainAdapter` interface: `connect()`, `subscribe(): Flow<ChainEvent>`,
+  `replay(fromBlock)`, `blockClock(): BlockClock`.
+- `ModelHasher`: `canonicalize()` (CRLF→LF, tab→spaces, blank-line removal),
+  `hashCanonical()` (SHA-256), `hashTransitive()` (cycle-safe import traversal).
+- `kuml fmt --canonical` — new flag that writes the normalised canonical form
+  instead of the standard formatted output.
+- `KumlBackedContractSpec.V1` + ABI-JSON resource + `ContractTestVector.STANDARD_VECTORS`
+  (chain-agnostic contract specification, V3.0.3).
+- `MultiChainAdapter` + `ConflictResolver` (EarliestBlock / PriorityChain / FirstObserved)
+  for deterministic multi-chain event merge with configurable conflict resolution (V3.0.21).
+
+**`kuml-runtime-chain-evm` — Ethereum / L2 Adapter (V3.0.2)**
+- JVM-only adapter using raw `java.net.http.HttpClient` — no Web3j.
+- `EvmChainAdapter`: `eth_getLogs`-based event replay, finality-aware `EvmBlockClock`,
+  SSRF-protected URL validation (http/https + RFC 1918 + APIPA + ::1 blocklist).
+- `AbiCodec`: pure-Kotlin Keccak-256 (no Bouncy Castle).
+- `Eip712Verifier`: EIP-712 typed-data `domainSeparator` + `hashStruct` + `ecrecover`
+  via `java.security.Signature` with null/all-ones protection.
+
+**`kuml-runtime-chain-move` — Sui + Aptos Move-VM Adapters (V3.0.20)**
+- New JVM-only module, no native Move SDK.
+- `SuiChainAdapter`: `suix_queryEvents` + `sui_getObject` + checkpoint-based `BlockClock`;
+  Base64-BCS payload decoding; `SuiRpcUrlValidator` SSRF guard.
+- `AptosChainAdapter`: `/v1/accounts/.../events` + `.../resource` REST API;
+  `event.data` JSON → UTF-8 `payloadAbi`; `AptosUrlValidator`.
+- `MoveAddress`: value class, 0x + 64 hex with leading-zero normalisation.
+
+**EIP-712 Model Signatures + `*.kuml.kts.sig` (V3.0.5)**
+- `ModelSigner.sign(modelSource, privateKeyHex)`: EIP-712 TypedData over
+  `ModelCommit { modelHash: bytes32, timestamp: uint256 }` via secp256k1 ECDSA.
+- `ModelSigner.recover()`: ecrecover → EIP-55 checksummed Ethereum address.
+- `Eip712Verifier.verifyModelSignature()`: Boolean.
+- Signature-malleability guard (s ≤ secp256k1 half-N, EIP-2); null/all-ones protection.
+
+**`kuml chain` CLI subcommands (V3.0.4–5)**
+- `kuml chain connect --rpc URL --contract ADDR`: shows `ContractIdentity` from chain.
+- `kuml chain verify --rpc URL --contract ADDR <model.kuml.kts>`: hash-match check;
+  exit 0 = match, exit 50 = `CHAIN_HASH_MISMATCH`.
+- `kuml chain events --rpc URL --contract ADDR [--from-block N] [--limit N]`.
+- `kuml chain sign <model.kuml.kts> --private-key <hex>`: writes `<model>.kuml.kts.sig`.
+- `kuml chain verify-sig <model.kuml.kts> [--expected-signer ADDR]`:
+  exit 0 = valid, exit 52 = `CHAIN_INVALID_SIGNATURE`, exit 53 = `CHAIN_SIGNER_MISMATCH`.
+
+**DAP Constitution Showcase (V3.0.6)**
+- `kuml-examples/dap/` — three `.kuml.kts` scripts modelling a DAP governance constitution:
+  class diagram (`VerfassungsArtikel` + `Abstimmung` + OCL guards), article lifecycle STM
+  (8 states, OCL-guarded transitions), amendment lifecycle STM.
+- Two event-trace JSON fixtures: happy path (→ IN_KRAFT) and quorum-fail (→ ABGELEHNT).
+- 14-test showcase (`DapConstitutionShowcaseTest`) demonstrating hash, signing, and
+  offline `EvmChainAdapter` round-trip against a `MockRpcServer`.
+
+### Plugin Registry — `kuml plugin search` (V3.0.18+)
+
+- `kuml plugin search [query]` — browses `plugins.kuml.dev` registry with optional keyword
+  filter. Prints id, version, type, description, and homepage for each match.
+- `kuml plugin search --type <category>` — filter by plugin type (theme, renderer, layout,
+  codegen, reverse).
+- `PluginRegistryClient` uses the live `https://plugins.kuml.dev/index.json` feed.
+
 ## [0.14.0] — 2026-06-17
 
 ### Structurizr Migration Showcase (V3.0.19)
