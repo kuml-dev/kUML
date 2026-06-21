@@ -96,13 +96,13 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 | `sdk install kuml` — *not available yet*; SDKMAN! vendor onboarding (API keys) is still pending. Planned platforms: Linux x86_64, Linux ARM64, macOS, Windows x86_64. Use Homebrew or the native installers in the meantime.
 
 | *Docker*
-| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.12.0` — minimal CLI image.
+| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.14.0` — minimal CLI image.
 
 | *Native installers*
-| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.12.0). Download from the GitHub Releases page.
+| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.14.0). Download from the GitHub Releases page.
 
 | *Maven Central* (library modules)
-| `implementation("dev.kuml:kuml-core-dsl:0.12.0")` — library modules published to Maven Central.
+| `implementation("dev.kuml:kuml-core-dsl:0.14.0")` — library modules published to Maven Central.
 |===
 
 == Features
