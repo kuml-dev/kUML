@@ -1,0 +1,35 @@
+{
+    "schemaVersion": 1,
+    "events": [
+        {
+            "name": "ModelRegistered",
+            "signature": "ModelRegistered(bytes32,string,uint256)",
+            "description": "Einmalige Registrierung des Modells beim Deploy."
+        },
+        {
+            "name": "ModelUpdated",
+            "signature": "ModelUpdated(bytes32,string)",
+            "description": "Aktualisierung von modelHash/modelUri."
+        }
+    ],
+    "functions": [
+        {
+            "name": "modelHash",
+            "signature": "modelHash()",
+            "stateMutability": "view",
+            "description": "Kanonischer SHA-256-Hash des kUML-Modells (bytes32)."
+        },
+        {
+            "name": "modelUri",
+            "signature": "modelUri()",
+            "stateMutability": "view",
+            "description": "Auflösbare URI des Modell-Quelltexts (string)."
+        },
+        {
+            "name": "schemaVersion",
+            "signature": "schemaVersion()",
+            "stateMutability": "view",
+            "description": "On-Chain-Schema-Versions-Diskriminator (uint256)."
+        }
+    ]
+}
