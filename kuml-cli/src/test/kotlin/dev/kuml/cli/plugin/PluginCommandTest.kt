@@ -1,13 +1,17 @@
 package dev.kuml.cli.plugin
 
 import com.github.ajalt.clikt.testing.test
+import com.sun.net.httpserver.HttpServer
 import dev.kuml.plugin.loader.loader.LoadedPlugin
 import dev.kuml.plugin.loader.manifest.ExtensionEntry
 import dev.kuml.plugin.loader.manifest.PluginManifest
 import dev.kuml.plugin.loader.registry.PluginRegistry
+import dev.kuml.plugin.loader.registry.PluginRegistryClient
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
+import java.net.InetSocketAddress
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -204,6 +208,82 @@ class PluginCommandTest :
             }
         }
 
+        // ── kuml plugin search ───────────────────────────────────────────────────
+
+        "search: lists all plugins when no query given" {
+            val (server, port) = startMockRegistry(MOCK_INDEX_JSON)
+            try {
+                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val result = cmd.test("")
+                result.statusCode shouldBe 0
+                result.output shouldContain "Available plugins (2)"
+                result.output shouldContain "dev.kuml.plugin.pdv-theme"
+                result.output shouldContain "dev.kuml.plugin.elk-layout"
+            } finally {
+                server.stop(0)
+            }
+        }
+
+        "search: filters by query substring (case-insensitive)" {
+            val (server, port) = startMockRegistry(MOCK_INDEX_JSON)
+            try {
+                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val result = cmd.test("elk")
+                result.statusCode shouldBe 0
+                result.output shouldContain "Matching plugins (1)"
+                result.output shouldContain "dev.kuml.plugin.elk-layout"
+                result.output shouldNotContain "pdv-theme"
+            } finally {
+                server.stop(0)
+            }
+        }
+
+        "search: --category filter shows only matching category" {
+            val (server, port) = startMockRegistry(MOCK_INDEX_JSON)
+            try {
+                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val result = cmd.test("--category theme")
+                result.statusCode shouldBe 0
+                result.output shouldContain "Matching plugins (1)"
+                result.output shouldContain "dev.kuml.plugin.pdv-theme"
+                result.output shouldNotContain "elk-layout"
+            } finally {
+                server.stop(0)
+            }
+        }
+
+        "search: no results prints hint to broaden query" {
+            val (server, port) = startMockRegistry(MOCK_INDEX_JSON)
+            try {
+                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val result = cmd.test("zzz-no-match")
+                result.statusCode shouldBe 0
+                result.output shouldContain "No plugins found"
+                result.output shouldContain "without filters"
+            } finally {
+                server.stop(0)
+            }
+        }
+
+        "search: shows kumlVersionRange when present" {
+            val (server, port) = startMockRegistry(MOCK_INDEX_JSON)
+            try {
+                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val result = cmd.test("pdv")
+                result.statusCode shouldBe 0
+                result.output shouldContain ">=0.13.0"
+            } finally {
+                server.stop(0)
+            }
+        }
+
+        "search: registry unreachable exits with ONLINE_ERROR (1)" {
+            // Port 1 is privileged and never open → connection refused immediately
+            val cmd = PluginSearchCommand(PluginRegistryClient("http://127.0.0.1:1", timeoutSeconds = 2))
+            val result = cmd.test("")
+            result.statusCode shouldBe 1
+        }
+
         // ── kuml plugin reload ────────────────────────────────────────────────────
 
         "reload: runs without exception even with no plugins on disk" {
@@ -220,6 +300,57 @@ class PluginCommandTest :
     })
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * Minimal registry index served by [startMockRegistry] for `PluginSearchCommand` tests.
+ * Contains two entries so both "all" and "filtered" paths can be exercised.
+ */
+private val MOCK_INDEX_JSON =
+    """
+    {
+      "schemaVersion": 1,
+      "baseUrl": "http://localhost",
+      "plugins": [
+        {
+          "id": "dev.kuml.plugin.pdv-theme",
+          "category": "theme",
+          "name": "PdV Branding Theme",
+          "version": "1.0.0",
+          "kumlVersionRange": ">=0.13.0",
+          "manifest": "plugins/dev.kuml.plugin.pdv-theme/kuml-plugin.json",
+          "downloads": "plugins/dev.kuml.plugin.pdv-theme/releases/",
+          "maintainer": "Partei der Vernunft"
+        },
+        {
+          "id": "dev.kuml.plugin.elk-layout",
+          "category": "layout",
+          "name": "ELK Layout Engine",
+          "version": "2.0.0",
+          "manifest": "plugins/dev.kuml.plugin.elk-layout/kuml-plugin.json",
+          "downloads": "plugins/dev.kuml.plugin.elk-layout/releases/"
+        }
+      ]
+    }
+    """.trimIndent()
+
+/**
+ * Starts a lightweight in-process HTTP server on a random free port that serves
+ * [indexJson] at `/plugins/index.json` (the path [PluginRegistryClient.fetchIndex] requests).
+ *
+ * @return Pair of the started [HttpServer] and the actual port number.
+ *         Caller must call `server.stop(0)` in a `finally` block.
+ */
+private fun startMockRegistry(indexJson: String): Pair<HttpServer, Int> {
+    val server = HttpServer.create(InetSocketAddress(0), 0)
+    server.createContext("/plugins/index.json") { exchange ->
+        val body = indexJson.toByteArray(Charsets.UTF_8)
+        exchange.responseHeaders.add("Content-Type", "application/json")
+        exchange.sendResponseHeaders(200, body.size.toLong())
+        exchange.responseBody.use { it.write(body) }
+    }
+    server.start()
+    return server to server.address.port
+}
 
 private fun createJarWithoutManifest(): java.io.File {
     val jar = java.io.File.createTempFile("test-plugin-", ".jar")

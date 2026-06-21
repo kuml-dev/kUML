@@ -13,6 +13,7 @@ public data class PluginRegistryEntry(
     val category: String,
     val name: String,
     val version: String,
+    val kumlVersionRange: String = "",
     val manifest: String,
     val downloads: String,
     val signaturePublicKey: String? = null,

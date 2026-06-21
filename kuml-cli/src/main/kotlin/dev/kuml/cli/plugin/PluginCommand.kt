@@ -5,6 +5,7 @@ import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
+import com.github.ajalt.clikt.parameters.arguments.optional
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.file
@@ -17,6 +18,8 @@ import dev.kuml.plugin.loader.error.VersionMismatchException
 import dev.kuml.plugin.loader.loader.PluginLoader
 import dev.kuml.plugin.loader.manifest.PluginManifestParser
 import dev.kuml.plugin.loader.registry.PluginRegistry
+import dev.kuml.plugin.loader.registry.PluginRegistryClient
+import dev.kuml.plugin.loader.registry.PluginRegistryException
 import dev.kuml.plugin.loader.scan.PluginScanPath
 import java.io.File
 import java.io.IOException
@@ -27,6 +30,7 @@ import java.util.zip.ZipFile
  *
  * Sub-subcommands:
  * - `list`        — list installed plugins
+ * - `search`      — search the remote registry (plugins.kuml.dev)
  * - `install`     — install a plugin from a JAR path
  * - `remove`      — remove an installed plugin
  * - `info`        — show plugin details
@@ -37,6 +41,7 @@ internal class PluginCommand : CliktCommand(name = "plugin") {
     init {
         subcommands(
             PluginListCommand(),
+            PluginSearchCommand(),
             PluginInstallCommand(),
             PluginRemoveCommand(),
             PluginInfoCommand(),
@@ -78,7 +83,76 @@ internal class PluginListCommand : CliktCommand(name = "list") {
     }
 }
 
+// ── `kuml plugin search` ─────────────────────────────────────────────────────
+
+/**
+ * Searches the remote kUML plugin registry at [plugins.kuml.dev](https://plugins.kuml.dev).
+ *
+ * Without a [query] argument all available plugins are listed.
+ * An optional [category] filter narrows results to one of the five plugin categories.
+ *
+ * @param client Injected for testing; defaults to [PluginRegistryClient] with the production URL.
+ */
+internal class PluginSearchCommand(
+    private val client: PluginRegistryClient = PluginRegistryClient(),
+) : CliktCommand(name = "search") {
+    private val query by argument(
+        help = "Search term matched against plugin id, name or category (case-insensitive). Omit to list all.",
+    ).optional()
+
+    private val category by option(
+        "--category",
+        help = "Filter by category: theme, renderer, layout, codegen, reverse",
+    )
+
+    override fun help(context: Context): String =
+        "Search the kUML plugin registry (plugins.kuml.dev). Omit the query to list all available plugins."
+
+    override fun run() {
+        val index =
+            try {
+                client.fetchIndex()
+            } catch (e: PluginRegistryException) {
+                System.err.println("Error: Could not reach the plugin registry: ${e.message}")
+                System.err.println("Check your internet connection or visit https://plugins.kuml.dev directly.")
+                throw ProgramResult(ExitCodes.ONLINE_ERROR)
+            }
+
+        var results = index.search(query ?: "")
+
+        category?.let { cat ->
+            results = results.filter { it.category.equals(cat, ignoreCase = true) }
+        }
+
+        if (results.isEmpty()) {
+            echo("No plugins found.")
+            if (!query.isNullOrBlank() || category != null) {
+                echo("Try 'kuml plugin search' without filters to list all available plugins.")
+            }
+            return
+        }
+
+        val label = if (query.isNullOrBlank() && category == null) "Available" else "Matching"
+        echo("$label plugins (${results.size}):\n")
+        for (e in results.sortedBy { it.id }) {
+            echo("  ${e.id}  v${e.version}")
+            echo("    Name:      ${e.name}")
+            echo("    Category:  ${e.category}")
+            if (e.kumlVersionRange.isNotBlank()) echo("    kUML:      ${e.kumlVersionRange}")
+            if (e.maintainer.isNotBlank()) echo("    Maintainer: ${e.maintainer}")
+            if (e.homepage.isNotBlank()) echo("    Homepage:  ${e.homepage}")
+            echo("")
+        }
+        echo("Install a plugin: kuml plugin install <path-to-plugin.jar>")
+    }
+}
+
 // ── `kuml plugin install` ─────────────────────────────────────────────────────
+//
+// TODO (Folge-Welle): install by registry ID — `kuml plugin install dev.kuml.plugin.theme.pdv`
+//   Voraussetzung: PluginRegistryEntry braucht je Release vollständige jarUrl + sigUrl + sha256.
+//   Dann: fetchIndex().find(id) → HTTP-Download in Temp-Dir → bestehende Validierungs-
+//   Pipeline (Manifest-Parse, Version-Check, Signaturprüfung, Copy, Load) anwenden.
 
 internal class PluginInstallCommand : CliktCommand(name = "install") {
     private val jarFile by argument(help = "Path to the plugin JAR file")

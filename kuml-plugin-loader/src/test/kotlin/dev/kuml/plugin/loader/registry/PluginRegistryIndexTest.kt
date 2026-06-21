@@ -22,6 +22,7 @@ class PluginRegistryIndexTest :
                   "category": "theme",
                   "name": "PdV Branding Theme",
                   "version": "1.0.0",
+                  "kumlVersionRange": ">=0.13.0",
                   "manifest": "plugins/dev.kuml.plugin.pdv-theme/kuml-plugin.json",
                   "downloads": "plugins/dev.kuml.plugin.pdv-theme/releases/",
                   "signaturePublicKey": "MCowBQYDK2VwAyEA...",
@@ -75,5 +76,57 @@ class PluginRegistryIndexTest :
             val emptyJson = """{"schemaVersion": 1, "plugins": []}"""
             val index = json.decodeFromString<PluginRegistryIndex>(emptyJson)
             index.plugins shouldHaveSize 0
+        }
+
+        // ── search ──────────────────────────────────────────────────────────────
+
+        "search: blank query returns all plugins" {
+            val index = json.decodeFromString<PluginRegistryIndex>(sampleJson)
+            index.search("") shouldHaveSize 2
+        }
+
+        "search: whitespace-only query returns all plugins" {
+            val index = json.decodeFromString<PluginRegistryIndex>(sampleJson)
+            index.search("   ") shouldHaveSize 2
+        }
+
+        "search: matches by id substring (case-insensitive)" {
+            val index = json.decodeFromString<PluginRegistryIndex>(sampleJson)
+            val results = index.search("elk")
+            results shouldHaveSize 1
+            results[0].id shouldBe "dev.kuml.plugin.elk-layout"
+        }
+
+        "search: matches by name (case-insensitive)" {
+            val index = json.decodeFromString<PluginRegistryIndex>(sampleJson)
+            val results = index.search("BRANDING")
+            results shouldHaveSize 1
+            results[0].id shouldBe "dev.kuml.plugin.pdv-theme"
+        }
+
+        "search: matches by category" {
+            val index = json.decodeFromString<PluginRegistryIndex>(sampleJson)
+            val results = index.search("layout")
+            results shouldHaveSize 1
+            results[0].id shouldBe "dev.kuml.plugin.elk-layout"
+        }
+
+        "search: no match returns empty list" {
+            val index = json.decodeFromString<PluginRegistryIndex>(sampleJson)
+            index.search("zzz-does-not-exist") shouldHaveSize 0
+        }
+
+        // ── kumlVersionRange ─────────────────────────────────────────────────────
+
+        "kumlVersionRange: parsed from JSON when present" {
+            val index = json.decodeFromString<PluginRegistryIndex>(sampleJson)
+            val pdv = index.find("dev.kuml.plugin.pdv-theme")
+            pdv?.kumlVersionRange shouldBe ">=0.13.0"
+        }
+
+        "kumlVersionRange: defaults to empty string when absent in JSON" {
+            val index = json.decodeFromString<PluginRegistryIndex>(sampleJson)
+            val elk = index.find("dev.kuml.plugin.elk-layout")
+            elk?.kumlVersionRange shouldBe ""
         }
     })
