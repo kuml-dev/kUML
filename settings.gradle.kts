@@ -43,6 +43,7 @@ include(
     "kuml-metamodel:kuml-metamodel-c4",     // Phase 1 — C4 (vollständig)
     "kuml-metamodel:kuml-metamodel-kerml",  // V2.0.3 — KerML-Basis für SysML 2
     "kuml-metamodel:kuml-metamodel-sysml2", // V2.0.3 — SysML 2 auf KerML (BDD-MVP)
+    "kuml-metamodel:kuml-metamodel-bpmn",   // V3.1.1 — BPMN 2.0 Process Core-Metamodell
 )
 
 // ── Renderer ─────────────────────────────────────────── Phase 1 ──
