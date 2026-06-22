@@ -1,0 +1,124 @@
+= BPMN 2.0 XML I/O
+:description: Import and export standard OMG BPMN 2.0 XML with the kuml-io-bpmn module.
+
+The `kuml-io-bpmn` module reads and writes standard OMG BPMN 2.0 XML
+(namespace `http://www.omg.org/spec/BPMN/20100524/MODEL`). It lets a kUML BPMN model
+interoperate with any BPMN-conformant tool — Camunda, Flowable, Zeebe, bpmn.io, and the
+BPMN editors built into most modern IDEs.
+
+The codec is JAXB-free: the exporter writes XML with a plain `StringBuilder`, and the
+importer uses a namespace-aware DOM parser hardened against XML attacks.
+
+[NOTE]
+====
+BPMN XML I/O is currently a *library API* (`dev.kuml.io.bpmn.BpmnXml`). It is not yet wired
+into the `kuml import` / `kuml export` CLI subcommands — call it from your own JVM code or a
+Gradle task. CLI integration is planned.
+====
+
+== Quick example
+
+[source,kotlin]
+----
+import dev.kuml.io.bpmn.BpmnXml
+import dev.kuml.bpmn.dsl.*
+
+val model = bpmnModel("Order Process") {
+    process(id = "p", name = "Order Process") {
+        val start = startEvent("Order Received", definition = EventDefinition.MESSAGE)
+        val ship  = task("Ship Order", type = TaskType.USER)
+        start flowsTo ship flowsTo endEvent("Done")
+    }
+    diagram("Order Process", processId = "p")
+}
+
+// Export to BPMN 2.0 XML
+val xml: String = BpmnXml.export(model)
+
+// Import it back
+val roundTripped = BpmnXml.import(xml)
+----
+
+== API surface
+
+The `BpmnXml` object is the convenience entry point:
+
+[cols="2,3"]
+|===
+| Function | Description
+
+| `BpmnXml.export(model: BpmnModel): String`
+| Serialise a model to a BPMN 2.0 XML string.
+
+| `BpmnXml.import(xml: String): BpmnModel`
+| Parse a BPMN 2.0 XML string into a model.
+
+| `BpmnXml.import(stream: InputStream): BpmnModel`
+| Parse from a stream (file, classpath resource, network).
+|===
+
+Behind the convenience object sit `BpmnXmlExporter` and `BpmnXmlImporter`, which you can use
+directly if you need to configure them.
+
+== What round-trips
+
+The codec covers the full V3.1 Process and Collaboration scope:
+
+[cols="1,3"]
+|===
+| Element | XML mapping
+
+| Process
+| `<process id name>` with all child flow nodes and sequence flows.
+
+| Events
+| `<startEvent>` / `<endEvent>` / `<intermediateCatchEvent>` / `<boundaryEvent>`, each with a
+nested event-definition element (`<messageEventDefinition/>`, `<timerEventDefinition/>`,
+`<terminateEventDefinition/>`, …). Boundary events emit `attachedToRef` + `cancelActivity`.
+
+| Gateways
+| `<exclusiveGateway>` / `<inclusiveGateway>` / `<parallelGateway>` / `<eventBasedGateway>` /
+`<complexGateway>`, with the optional `default` attribute.
+
+| Tasks
+| `<task>` / `<userTask>` / `<serviceTask>` / `<sendTask>` / `<receiveTask>` / `<manualTask>` /
+`<scriptTask>` / `<businessRuleTask>`.
+
+| Sub-processes
+| `<subProcess>` with nested flow nodes; `triggeredByEvent` preserved.
+
+| Call activities
+| `<callActivity calledElement>`.
+
+| Sequence flows
+| `<sequenceFlow sourceRef targetRef>` with optional `<conditionExpression>` and `isDefault`.
+
+| Data
+| `<dataObject>`, `<dataStore>`.
+
+| Collaboration
+| `<collaboration>` with `<participant processRef>` and `<messageFlow sourceRef targetRef>`.
+|===
+
+A round-trip (export → import) is structurally consistent for ids, names, and element types.
+Black-Box-Pools (no `processRef`) and unknown elements are handled gracefully — the importer
+ignores tags it does not recognise rather than failing.
+
+== Security
+
+The importer is hardened against the standard XML attack classes:
+
+* *XXE (XML External Entity)* — the `DocumentBuilderFactory` is configured with
+  `disallow-doctype-decl = true` plus external general and parameter entities disabled. An XML
+  payload that attempts to read the local filesystem or reach an internal URL throws an
+  exception instead.
+* *Billion Laughs / entity expansion* — blocked by the same DOCTYPE prohibition.
+
+On the export side, every attribute value passes through `xmlAttr()` and every text node
+through `xmlText()`, so model content containing `<`, `>`, `&`, or `"` cannot break out of the
+XML structure or inject markup.
+
+== Cross-references
+
+* xref:bpmn-dsl.adoc[BPMN 2.0 DSL Reference] — author the model the codec serialises
+* xref:export.adoc[Structurizr Export] — the analogous round-trip for C4 models

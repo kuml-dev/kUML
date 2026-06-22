@@ -1,6 +1,8 @@
 * xref:uml-dsl.adoc[UML DSL]
 * xref:sysml2.adoc[SysML 2 DSL]
 * xref:c4-dsl.adoc[C4 DSL]
+* xref:bpmn-dsl.adoc[BPMN 2.0 DSL]
+* xref:bpmn-xml.adoc[BPMN 2.0 XML I/O]
 * xref:ocl.adoc[OCL constraints]
 * xref:profiles.adoc[Profiles]
 * xref:themes.adoc[Themes & config]

@@ -15,10 +15,14 @@ kUML's metamodel is plain Kotlin data classes, organised in three layers:
   `UmlAssociationEnd`, and so on. All immutable, all serializable.
 * `dev.kuml.c4.model` — C4 metaclasses: `C4Workspace`, `C4SoftwareSystem`, `C4Container`,
   `C4Component`, `C4Person`, `C4Relationship`.
+* `dev.kuml.bpmn.model` — BPMN 2.0 metaclasses: `BpmnProcess`, `BpmnEvent` (one class with a
+  position/definition/behaviour triplet, not 36 subclasses), `BpmnGateway`, `BpmnTask`,
+  `BpmnSubProcess`, `BpmnCallActivity`, `SequenceFlow`, `BpmnCollaboration`, `BpmnParticipant`,
+  `BpmnLane`, `MessageFlow`. A standalone metamodel — not a profile on UML activities.
 
-The DSL builders (`dev.kuml.uml.dsl`, `dev.kuml.c4.dsl`) produce instances of these data
-classes. Everything you do in a `*.kuml.kts` script is sugar over `UmlClass(...)`,
-`UmlAssociation(...)`, etc.
+The DSL builders (`dev.kuml.uml.dsl`, `dev.kuml.c4.dsl`, `dev.kuml.bpmn.dsl`) produce instances
+of these data classes. Everything you do in a `*.kuml.kts` script is sugar over `UmlClass(...)`,
+`UmlAssociation(...)`, `BpmnEvent(...)`, etc.
 
 == The scripting host
 
@@ -42,11 +46,13 @@ val result = KumlScriptHost.eval("""
 
 When you render a diagram, four stages run in sequence:
 
-. *Extract* — `DiagramExtractor` pulls `KumlDiagram` (UML) or `C4Workspace + C4View`
-  (C4) out of the script's return value. The script returns the result of its last
-  top-level call, which is always a `diagram(...)` or `c4Model { ... }`.
-. *Bridge* — `UmlLayoutBridge` / `C4LayoutBridge` convert the metamodel into a
-  layout-engine-agnostic `LayoutGraph` (just nodes + edges + groups).
+. *Extract* — `DiagramExtractor` pulls `KumlDiagram` (UML), `C4Workspace + C4View`
+  (C4), or `BpmnModel` (BPMN) out of the script's return value. The script returns the result
+  of its last top-level call, which is always a `diagram(...)`, `c4Model { ... }`, or
+  `bpmnModel { ... }`.
+. *Bridge* — `UmlLayoutBridge` / `C4LayoutBridge` / `BpmnLayoutBridge` convert the metamodel
+  into a layout-engine-agnostic `LayoutGraph` (just nodes + edges + groups). The BPMN bridge
+  also maps pools and lanes to container nodes and boundary events to child nodes.
 . *Layout* — a `KumlLayoutEngine` computes positions. Two engines ship: `elk.layered`
   (default, ELK Sugiyama-based) and `kuml.grid` (pure Kotlin, deterministic, hint-based).
 . *Render* — `KumlSvgRenderer` or `KumlPngRenderer` turn the laid-out graph into vector

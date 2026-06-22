@@ -1,8 +1,8 @@
 = kUML Handbook
-:description: Type-safe Kotlin DSL for UML 2.x, SysML 2 and C4. The first UML tool designed for the LLM era.
+:description: Type-safe Kotlin DSL for UML 2.x, SysML 2, C4 and BPMN 2.0. The first UML tool designed for the LLM era.
 
 [.lead]
-*kUML* is a modelling tool that expresses UML 2.x, SysML 2 and C4 as a type-safe Kotlin DSL.
+*kUML* is a modelling tool that expresses UML 2.x, SysML 2, C4 and BPMN 2.0 as a type-safe Kotlin DSL.
 It is the first UML tool deliberately designed for AI-assisted workflows: every diagram is
 ordinary Kotlin source code, fully versionable in Git, and validatable at compile time.
 
@@ -42,8 +42,8 @@ kUML closes the gap:
 | Installation, quick start, conceptual model behind kUML.
 
 | xref:reference:uml-dsl.adoc[Reference]
-| Full DSL for all 13 UML diagram types, C4, OCL, profiles, code generation,
-  themes, state-machine simulation, layout engines.
+| Full DSL for all 14 UML diagram types, SysML 2, C4, BPMN 2.0, OCL, profiles,
+  code generation, themes, state-machine simulation, layout engines.
 
 | xref:tooling:cli.adoc[Tooling]
 | CLI, Gradle plugin, JetBrains plugin, VS Code plugin, AsciiDoc / Markdown

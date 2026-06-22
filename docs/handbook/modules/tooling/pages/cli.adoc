@@ -30,7 +30,8 @@ kuml render [options] <script>...
 Options:
 
 * `--output <path>` — output file (or directory if multiple scripts)
-* `--format svg|png` — default `svg`
+* `--format svg|png|latex|tex` — default `svg`. `latex` / `tex` emit TikZ output (UML, SysML 2,
+  C4, and BPMN are all supported).
 * `--theme <name>` — theme name (e.g. `plain`, `kuml`, `elegant`, `playful`)
 * `--engine <id>` — layout engine ID (e.g. `elk.layered`, `kuml.grid`)
 * `--layout grid|elk|auto` — shorthand layout selector added in V2.0.26; `auto` lets
@@ -42,6 +43,11 @@ Options:
 
 If the script contains a `umlModel { ... }` with multiple diagrams, each diagram renders
 to its own file using the diagram name as the file stem.
+
+`kuml render` auto-detects the modelling language from the script's return value — UML,
+SysML 2, C4, or BPMN (`bpmnModel { ... }`). For BPMN models it also runs the
+xref:reference:bpmn-dsl.adoc#_constraint_checking[BPMN constraint checker] and prints any
+violations as warnings before writing the output.
 
 == `kuml generate`
 

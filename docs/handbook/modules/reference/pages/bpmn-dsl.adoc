@@ -1,0 +1,321 @@
+= BPMN 2.0 DSL Reference
+:description: kUML's BPMN 2.0 modelling language — process, collaboration, events, gateways, and the type-safe builder DSL.
+
+BPMN 2.0 is kUML's fourth modelling language, alongside UML 2.x, SysML 2 and C4. It is a
+standalone, pure-Kotlin metamodel — not a profile on UML activities — that implements the
+OMG Business Process Model and Notation 2.0 standard. The current scope covers *Process*
+and *Collaboration*; *Choreography* and *Conversation* follow in a later release.
+
+The BPMN DSL entry point is `bpmnModel`:
+
+[source,kotlin]
+----
+bpmnModel("Order Management") {
+    process(id = "p_order", name = "Order Process") {
+        // flow nodes and sequence flows go here
+    }
+    diagram("Order Process", processId = "p_order")
+}
+----
+
+== Concepts at a glance
+
+[cols="1,3"]
+|===
+| Concept | Notes
+
+| `bpmnModel(name) { ... }`
+| Top-level container. Holds processes, collaborations, data stores, and diagram views.
+
+| `process(id, name) { ... }`
+| A single executable process. Populated through a `ProcessBuilder`.
+
+| `collaboration(name, id) { ... }`
+| Multi-pool container with message flows. Populated through a `CollaborationBuilder`.
+
+| `diagram(name, processId)`
+| A view scoped to one process.
+
+| `collaborationDiagram(name, collaborationId)`
+| A view scoped to one collaboration (renders swimlanes).
+|===
+
+Every builder method that creates an element *returns its auto-generated, deterministic id*
+(for example `p_order_task_1`). Capture the return value in a `val` and pass it to
+`sequenceFlow` / `flowsTo`. There is no manual id management.
+
+== Events — the Event-Matrix design
+
+kUML models BPMN's ~50 notational event variants as a *single* `BpmnEvent` class carrying a
+triplet:
+
+* `EventPosition` — `START`, `INTERMEDIATE`, or `END`
+* `EventDefinition` — one of 13: `NONE`, `MESSAGE`, `TIMER`, `ERROR`, `ESCALATION`, `SIGNAL`,
+  `COMPENSATION`, `CONDITIONAL`, `LINK`, `CANCEL`, `MULTIPLE`, `PARALLEL_MULTIPLE`, `TERMINATE`
+* `EventBehaviour` — `CATCHING` or `THROWING`
+
+Instead of 36+ subclasses, one data class with `init{}` guards enforces the legal
+combinations (a `START` event is always catching; `TERMINATE` is only valid at `END`; `LINK`
+only at `INTERMEDIATE`; and so on). This keeps the metamodel small and trivially extensible.
+
+[source,kotlin]
+----
+bpmnModel("Order Flow") {
+    process(id = "p_order", name = "Order Process") {
+        val received = startEvent("Order Received", definition = EventDefinition.MESSAGE)
+        val timeout  = intermediateEvent("Wait 24h",  definition = EventDefinition.TIMER)
+        val done     = endEvent("Order Shipped")
+        val aborted  = endEvent("Cancelled", definition = EventDefinition.TERMINATE)
+
+        received flowsTo timeout flowsTo done
+    }
+    diagram("Order Flow", processId = "p_order")
+}
+----
+
+The event builders:
+
+[cols="2,3"]
+|===
+| Builder | Signature
+
+| `startEvent`
+| `startEvent(name: String? = null, definition: EventDefinition = NONE): String`
+
+| `endEvent`
+| `endEvent(name: String? = null, definition: EventDefinition = NONE): String`
+
+| `intermediateEvent`
+| `intermediateEvent(name: String? = null, definition: EventDefinition = NONE, throwing: Boolean = false): String`
+
+| `boundaryEvent`
+| `boundaryEvent(attachedTo: String, name: String? = null, definition: EventDefinition = NONE, interrupting: Boolean = true): String`
+|===
+
+A boundary event attaches to an activity by id. Non-interrupting boundary events render with
+a dashed border:
+
+[source,kotlin]
+----
+val review  = subProcess(name = "Review Cycle", expanded = true) { /* ... */ }
+val timer   = boundaryEvent(review, name = "Deadline",
+                            definition = EventDefinition.TIMER, interrupting = false)
+val expired = endEvent("Review Expired", definition = EventDefinition.TERMINATE)
+
+timer flowsTo expired
+----
+
+== Tasks and activities
+
+[source,kotlin]
+----
+bpmnModel("Fulfilment") {
+    process(id = "p", name = "Fulfilment") {
+        val check  = task("Check Stock",      type = TaskType.SERVICE)
+        val pick   = task("Pick & Pack",      type = TaskType.MANUAL)
+        val notify = task("Notify Customer",  type = TaskType.SEND)
+        val approve = task("Approve Refund",  type = TaskType.USER) {
+            standardLoop(testBefore = true)          // loop marker ↻
+        }
+        val batch = task("Process Items",     type = TaskType.SCRIPT) {
+            multiInstance(sequential = false)        // parallel ‖ marker
+        }
+        check flowsTo pick flowsTo notify
+    }
+    diagram("Fulfilment", processId = "p")
+}
+----
+
+[cols="2,3"]
+|===
+| Builder | Notes
+
+| `task(name, type, block)`
+| `TaskType`: `NONE`, `USER`, `SERVICE`, `SEND`, `RECEIVE`, `MANUAL`, `SCRIPT`, `BUSINESS_RULE`.
+The trailing block configures loop markers and boundary events via `TaskBuilder`.
+
+| `subProcess(name, expanded, triggeredByEvent, transactional, block)`
+| Inner flow nodes and sequence flows are declared inside the block with a nested
+`ProcessBuilder`. `expanded = true` renders the contents inline; `transactional = true`
+draws a double frame; `triggeredByEvent = true` marks an Event Sub-Process.
+
+| `callActivity(name, calledElement)`
+| References a globally defined process by `calledElement`. Renders with a thick border.
+|===
+
+`TaskBuilder` (the trailing block on `task`) offers:
+
+* `standardLoop(testBefore: Boolean = true, ...)` — a while/until loop marker.
+* `multiInstance(sequential: Boolean = false, ...)` — a parallel (`‖`) or sequential (`≡`) marker.
+* `boundaryEvent(eventId)` — attach a boundary event that was declared elsewhere.
+
+== Gateways
+
+[source,kotlin]
+----
+bpmnModel("Routing") {
+    process(id = "p", name = "Routing") {
+        val start = startEvent("Start")
+        val split = gateway(GatewayType.EXCLUSIVE, name = "In Stock?")
+        val ship  = task("Ship Order",   type = TaskType.USER)
+        val order = task("Reorder Stock", type = TaskType.SERVICE)
+        val join  = gateway(GatewayType.EXCLUSIVE)
+        val end   = endEvent("Done")
+
+        start flowsTo split
+        sequenceFlow(split, ship,  condition = "stock > 0", name = "yes")
+        sequenceFlow(split, order, condition = "stock == 0", name = "no", default = true)
+        ship  flowsTo join
+        order flowsTo join flowsTo end
+    }
+    diagram("Routing", processId = "p")
+}
+----
+
+`gateway(type, name, default)` accepts the five BPMN gateway kinds:
+`EXCLUSIVE` (X), `INCLUSIVE` (O), `PARALLEL` (+), `EVENT_BASED` (⊚), `COMPLEX` (✱).
+The optional `default` parameter names the default outgoing flow.
+
+== Sequence flows and the `flowsTo` infix
+
+There are two equivalent ways to connect flow nodes:
+
+[source,kotlin]
+----
+// Explicit — supports condition, name, and default flag:
+sequenceFlow(from = split, to = ship, condition = "stock > 0", name = "yes")
+
+// Infix chain — concise, left-associative, returns the target:
+start flowsTo check flowsTo gateway
+----
+
+`sequenceFlow` is a *Pattern A* edge: it lives on the model itself (not only on the diagram),
+so it is available to the constraint checker, the XML exporter, and the layout bridge.
+
+== Data objects and data stores
+
+[source,kotlin]
+----
+bpmnModel("Invoicing") {
+    val ledger = dataStore(name = "Ledger", unlimited = true)   // model-level RootElement
+    process(id = "p", name = "Invoicing") {
+        val invoice = dataObject(name = "Invoice")
+        val emit    = task("Emit Invoice", type = TaskType.SERVICE)
+        dataAssociation(from = emit, to = invoice)
+    }
+    diagram("Invoicing", processId = "p")
+}
+----
+
+`dataObject(name, collection)` is process-scoped; `dataStore(id, name, unlimited)` is a
+model-level RootElement that can be referenced from multiple processes.
+
+== Collaboration — pools, lanes, message flows
+
+A collaboration places two or more participants (pools) side by side and connects them with
+message flows. A pool either references an internal process or is a *Black-Box Pool*
+(`processRef = null`).
+
+[source,kotlin]
+----
+bpmnModel("Customer-Supplier Collaboration") {
+    process(id = "p_customer", name = "Customer") {
+        val place   = startEvent("Place Order", definition = EventDefinition.MESSAGE)
+        val receive = task("Receive Goods", type = TaskType.USER)
+        place flowsTo receive flowsTo endEvent("Order Complete")
+    }
+    process(id = "p_supplier", name = "Supplier") {
+        val order = startEvent("Receive Order", definition = EventDefinition.MESSAGE)
+        val ship  = task("Ship Goods", type = TaskType.SERVICE)
+        order flowsTo ship flowsTo endEvent("Goods Shipped", definition = EventDefinition.MESSAGE)
+    }
+
+    collaboration(name = "Order Flow") {
+        val customer = pool(name = "Customer") { process("p_customer") }
+        val supplier = pool(name = "Supplier") { process("p_supplier") }
+        messageFlow(from = "p_customer_start_1", to = "p_supplier_start_1", name = "Purchase Order")
+        messageFlow(from = "p_supplier_end_1",   to = "p_customer_task_1",  name = "Shipping Notice")
+    }
+    collaborationDiagram("Customer-Supplier", collaborationId = "collab_1")
+}
+----
+
+[cols="2,3"]
+|===
+| Builder | Notes
+
+| `pool(name, id, horizontal, block)`
+| `horizontal = true` (default) draws a vertical header band on the left; `false` draws a
+horizontal header on top. The block configures lanes and the `process(processId)` reference.
+
+| `blackBoxPool(name, id)`
+| A participant with no internal process — renders as an empty framed pool.
+
+| `messageFlow(from, to, name)`
+| Connects elements in *different* pools. Renders as a dashed line with an open arrowhead and
+a small circle at the source. Message flows within a single pool are invalid — use a
+sequence flow instead.
+|===
+
+=== Lanes
+
+Lanes subdivide a pool. A lane *references* flow nodes by id (`contains(...)`) — it does not
+own them. Lanes nest via inner `lane { ... }` blocks.
+
+[source,kotlin]
+----
+collaboration(name = "Bank") {
+    pool(name = "Bank") {
+        process("p_bank")
+        lane(name = "Front Office") {
+            contains("p_bank_task_1", "p_bank_task_2")
+        }
+        lane(name = "Back Office") {
+            contains("p_bank_task_3")
+            lane(name = "Risk") { contains("p_bank_task_4") }   // nested child lane
+        }
+    }
+}
+----
+
+== Constraint checking
+
+`BpmnConstraintChecker.check(model)` returns a list of `ConstraintViolation`s with
+`ERROR` or `WARNING` severity. Seven rules ship:
+
+[cols="3,1"]
+|===
+| Rule | Severity
+
+| Process has no start event | WARNING
+| Process has no end event | WARNING
+| Sequence flow `sourceRef` / `targetRef` not found in process | ERROR
+| Exclusive/Inclusive gateway with multiple outgoing flows but no `defaultFlow` | WARNING
+| Boundary event `attachedToRef` does not exist | ERROR
+| Message flow source equals target | ERROR
+| Participant `processRef` points to an unknown process | ERROR
+|===
+
+The CLI runs these checks automatically when rendering a BPMN model and prints any violations
+as warnings.
+
+== Rendering and export
+
+A BPMN model renders to SVG (with full OMG notation), PNG, and LaTeX/TikZ exactly like the
+other modelling languages:
+
+[source,bash]
+----
+kuml render order-process.kuml.kts --format svg
+kuml render order-process.kuml.kts --format png --width 1600
+kuml render order-process.kuml.kts --format latex --latex-standalone
+----
+
+BPMN models also round-trip through standard BPMN 2.0 XML — see
+xref:bpmn-xml.adoc[BPMN 2.0 XML I/O].
+
+== Cross-references
+
+* xref:bpmn-xml.adoc[BPMN 2.0 XML I/O] — import from / export to OMG BPMN 2.0 XML
+* xref:cli.adoc[CLI Reference] — `kuml render`, `kuml import`, `kuml export`
+* xref:uml-dsl.adoc[UML DSL Reference] · xref:sysml2.adoc[SysML 2 DSL] · xref:c4-dsl.adoc[C4 DSL]
