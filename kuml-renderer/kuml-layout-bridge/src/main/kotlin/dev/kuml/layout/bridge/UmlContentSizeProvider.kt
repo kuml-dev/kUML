@@ -343,15 +343,28 @@ public class UmlContentSizeProvider
          *
          * Spiegelt die Stack-Mathe in `renderUmlComponent`:
          *   Chrome-Höhe + Top-Gap + Σ Part-Höhen + (n-1)·Part-Gap + Bottom-Pad.
+         *
+         * [depth] wird bei jedem rekursiven Abstieg dekrementiert. Erreicht er 0,
+         * wird ein [IllegalStateException] geworfen — Schutz gegen zyklische oder
+         * pathologisch tiefe `nestedComponents`-Graphen (z.B. nach XMI-Import).
          */
-        private fun compositeHeight(c: UmlComponent): Float {
+        private fun compositeHeight(
+            c: UmlComponent,
+            depth: Int = MAX_NESTING_DEPTH,
+        ): Float {
+            if (depth <= 0) {
+                throw IllegalStateException(
+                    "UmlComponent nesting depth exceeds $MAX_NESTING_DEPTH — " +
+                        "possible cycle in nestedComponents (component id: ${c.id})",
+                )
+            }
             val chrome = chromeHeight(c)
             if (c.nestedComponents.isEmpty()) {
                 return maxOf(chrome + NESTED_BOTTOM_PAD, NESTED_PART_MIN_H)
             }
             val parts = c.nestedComponents
             val stack =
-                parts.sumOf { compositeHeight(it).toDouble() }.toFloat() +
+                parts.sumOf { compositeHeight(it, depth - 1).toDouble() }.toFloat() +
                     (parts.size - 1) * NESTED_PART_GAP
             return chrome + NESTED_TOP_GAP + stack + NESTED_BOTTOM_PAD
         }
@@ -359,12 +372,25 @@ public class UmlContentSizeProvider
         /**
          * Gesamtbreite einer Component-Box inklusive verschachtelter Parts.
          * Rekursiv: max(eigene Chrome-Breite, breitester Part + 2·Seiten-Inset).
+         *
+         * [depth] wird bei jedem rekursiven Abstieg dekrementiert. Erreicht er 0,
+         * wird ein [IllegalStateException] geworfen — Schutz gegen zyklische oder
+         * pathologisch tiefe `nestedComponents`-Graphen (z.B. nach XMI-Import).
          */
-        private fun compositeWidth(c: UmlComponent): Float {
+        private fun compositeWidth(
+            c: UmlComponent,
+            depth: Int = MAX_NESTING_DEPTH,
+        ): Float {
+            if (depth <= 0) {
+                throw IllegalStateException(
+                    "UmlComponent nesting depth exceeds $MAX_NESTING_DEPTH — " +
+                        "possible cycle in nestedComponents (component id: ${c.id})",
+                )
+            }
             val cw = chromeWidth(c)
             if (c.nestedComponents.isEmpty()) return cw
             val sideInset = NESTED_SIDE_PAD + if (c.ports.isNotEmpty()) NESTED_PORT_CLEARANCE else 0f
-            val innerMax = c.nestedComponents.maxOf { compositeWidth(it) }
+            val innerMax = c.nestedComponents.maxOf { compositeWidth(it, depth - 1) }
             return maxOf(cw, innerMax + sideInset * 2f)
         }
 
@@ -385,11 +411,11 @@ public class UmlContentSizeProvider
             val hasFeatures = c.attributes.isNotEmpty() || c.operations.isNotEmpty()
             if (hasFeatures) {
                 cy += NESTED_FEATURE_TOP_GAP + NESTED_FEATURE_DIVIDER_GAP
-                cy += c.attributes.size * FEATURE_LINE_H
+                cy += c.attributes.size * NESTED_FEATURE_LINE_H
                 if (c.attributes.isNotEmpty() && c.operations.isNotEmpty()) {
                     cy += NESTED_FEATURE_DIVIDER_GAP
                 }
-                cy += c.operations.size * FEATURE_LINE_H
+                cy += c.operations.size * NESTED_FEATURE_LINE_H
             }
             return cy
         }
@@ -547,6 +573,14 @@ public class UmlContentSizeProvider
             public const val NESTED_FEATURE_TOP_GAP: Float = 6f
             public const val NESTED_FEATURE_DIVIDER_GAP: Float = 12f
 
+            /**
+             * Höhe einer Feature-Zeile (Attribut oder Operation) im Kontext der
+             * Composite-Structure-Chrome. Spiegelt `NESTED_FEATURE_LINE_H` in
+             * [dev.kuml.io.svg.uml.UmlComponentSvg] — beide Stellen müssen
+             * denselben Wert haben damit Layout und Renderer übereinstimmen.
+             */
+            public const val NESTED_FEATURE_LINE_H: Float = 13f
+
             // ── Connection-aware sizing (V2.x — siehe CLAUDE.md "Renderer-Sizing-Heuristik") ─
 
             /**
@@ -564,5 +598,14 @@ public class UmlContentSizeProvider
              * 200 px ≈ 14 Kanten — ab da gewinnt nur noch ELK über mehr Layer.
              */
             public const val CONNECTION_PUFFER_MAX_PX: Float = 200f
+
+            /**
+             * Maximale Schachtelungstiefe für `compositeHeight` / `compositeWidth`.
+             * Schützt gegen zyklische `nestedComponents`-Graphen (z.B. nach
+             * XMI-Import: A enthält B, B enthält A) und pathologisch tiefe,
+             * nicht-zyklische Hierarchien, die einen StackOverflow auslösen würden.
+             * 64 ist weit über jedem realistischen UML-Composite-Structure-Modell.
+             */
+            public const val MAX_NESTING_DEPTH: Int = 64
         }
     }

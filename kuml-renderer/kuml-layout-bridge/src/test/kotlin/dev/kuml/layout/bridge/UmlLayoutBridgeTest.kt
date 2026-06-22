@@ -144,7 +144,20 @@ class UmlLayoutBridgeTest :
             edge.target.portId shouldBe PortId("pub")
         }
 
-        test("UmlLayoutBridge resolves ports on nested components") {
+        // A connector whose source is a nested-part component (OrderRepository, which is
+        // a nestedComponent of OrderService) and whose target is an external top-level
+        // component (Database) must NOT enter the ELK layout graph. OrderRepository is
+        // not an ELK layout node — it is drawn by the SVG renderer inside the OrderService
+        // box. Including it in the ELK graph would reference a non-existent node, causing
+        // an orphan edge or a layout exception.
+        //
+        // NOTE: A part-to-external connector (one endpoint in a nested part, the other in
+        // a top-level ELK node) is currently UNSUPPORTED — it is silently dropped: ELK
+        // does not route it (filtered here) and the SVG renderer does not draw it either
+        // (buildInternalConnectorIndex requires BOTH endpoints to fall within the same
+        // parent subtree). This is intentional for this iteration; support for cross-
+        // boundary connectors (part → external node) is deferred to a future release.
+        test("UmlLayoutBridge excludes connector from nested-part component to external node from ELK graph") {
             val inner =
                 UmlComponent(
                     id = "OrderRepository",
@@ -174,12 +187,11 @@ class UmlLayoutBridgeTest :
 
             val graph = UmlLayoutBridge.toLayoutGraph(diagram)
 
-            graph.edges shouldHaveSize 1
-            val edge = graph.edges[0]
-            edge.source.nodeId shouldBe NodeId("OrderRepository")
-            edge.source.portId shouldBe PortId("db")
-            edge.target.nodeId shouldBe NodeId("Database")
-            edge.target.portId shouldBe PortId("conn")
+            // The connector must NOT appear as a LayoutEdge — OrderRepository is a nested
+            // part that never becomes an ELK node. Only the two top-level nodes appear.
+            graph.nodes shouldHaveSize 2
+            graph.nodes.map { it.id }.toSet() shouldBe setOf(NodeId("OrderService"), NodeId("Database"))
+            graph.edges shouldHaveSize 0
         }
 
         test("UmlLayoutBridge leaves part-only connectors (no ports) unsplit") {
@@ -201,6 +213,140 @@ class UmlLayoutBridgeTest :
             edge.source.portId.shouldBeNull()
             edge.target.nodeId shouldBe NodeId("B")
             edge.target.portId.shouldBeNull()
+        }
+
+        // CRITICAL fix: boundary-to-boundary connectors (both endpoint nodeIds resolve
+        // to the same composite-structure parent) must NOT become LayoutEdges — the SVG
+        // renderer draws them inside the parent box, so ELK routing them as well would
+        // cause a double-draw.
+        test("UmlLayoutBridge excludes boundary-to-boundary connector from ELK graph (double-draw guard)") {
+            val service =
+                UmlComponent(
+                    id = "OrderService",
+                    name = "OrderService",
+                    ports =
+                        listOf(
+                            UmlPort(id = "OrderService::api1", name = "api1"),
+                            UmlPort(id = "OrderService::api2", name = "api2"),
+                        ),
+                    nestedComponents = listOf(UmlComponent(id = "Validator", name = "Validator")),
+                )
+            // Both endpoints resolve to nodeId "OrderService" (the parent component itself).
+            val boundaryConnector =
+                UmlConnector(
+                    id = "conn::boundary",
+                    end1Id = "OrderService::api1",
+                    end2Id = "OrderService::api2",
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "BoundaryTest",
+                    elements = listOf(service, boundaryConnector),
+                )
+
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+
+            // The connector must NOT appear as a LayoutEdge — the SVG renderer
+            // handles it internally. Only the top-level node is expected.
+            graph.nodes shouldHaveSize 1
+            graph.edges shouldHaveSize 0
+        }
+
+        // MAJOR fix: delegation connectors (boundary-port → nested-part-port, e.g.
+        // "OrderService::api" → "Validator::in") must also be excluded from the ELK
+        // layout graph. The source nodeId resolves to the top-level parent
+        // ("OrderService"), which is NOT in nestedPartIds, but the target nodeId resolves
+        // to the nested part ("Validator"), which IS in nestedPartIds. The fix changes
+        // the filter from `&&` to `||` so that connectors with EITHER endpoint in a
+        // nested-part are excluded. Without this guard the ELK graph would contain a
+        // LayoutEdge referencing a node ("Validator") that was never added — causing an
+        // orphan edge or a layout exception.
+        test("UmlLayoutBridge excludes delegation connector (boundary-to-part) from ELK graph") {
+            val validator =
+                UmlComponent(
+                    id = "Validator",
+                    name = "Validator",
+                    ports = listOf(UmlPort(id = "Validator::in", name = "in")),
+                )
+            val service =
+                UmlComponent(
+                    id = "OrderService",
+                    name = "OrderService",
+                    ports = listOf(UmlPort(id = "OrderService::api", name = "api")),
+                    nestedComponents = listOf(validator),
+                )
+            // Delegation connector: boundary port "OrderService::api" (resolves to nodeId
+            // "OrderService") → nested-part port "Validator::in" (resolves to nodeId
+            // "Validator", which is in nestedPartIds). Must NOT enter ELK graph.
+            val delegationConnector =
+                UmlConnector(
+                    id = "conn::delegation",
+                    end1Id = "OrderService::api",
+                    end2Id = "Validator::in",
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "DelegationTest",
+                    elements = listOf(service, delegationConnector),
+                )
+
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+
+            // Only the top-level OrderService node must appear; Validator is a nested part.
+            // The delegation connector must NOT appear as a LayoutEdge — the SVG renderer
+            // draws it inside the parent's local coordinate frame.
+            graph.nodes shouldHaveSize 1
+            graph.nodes[0].id shouldBe NodeId("OrderService")
+            graph.edges shouldHaveSize 0
+        }
+
+        // Regression: a UmlComponent with NO nestedComponents but with a
+        // boundary-to-boundary UmlConnector (both endpoint nodeIds resolve to the
+        // same flat component) must NOT produce a spurious ELK self-edge.
+        //
+        // Before the fix, collectCompositeParentIds() only included components with
+        // nestedComponents.isNotEmpty(), so a flat component's id was absent from
+        // compositeParentIds. The boundary-to-boundary guard therefore failed and the
+        // connector fell through to the ELK edge list as a self-loop — a meaningless
+        // edge referencing the component as both source and target that could confuse
+        // the layout engine.
+        //
+        // After the fix the guard is: sourceNodeId == targetNodeId (unconditional),
+        // so the connector is excluded from ELK regardless of whether the component
+        // has nested parts. The SVG renderer's drawComponentBox() also skips drawing
+        // internal connectors on flat components (nestedComponents.isNotEmpty() guard),
+        // so the connector is cleanly dropped end-to-end with zero kuml-connector lines.
+        test("UmlLayoutBridge excludes boundary-to-boundary connector on flat component from ELK graph (no nested parts)") {
+            val flatService =
+                UmlComponent(
+                    id = "FlatService",
+                    name = "FlatService",
+                    ports =
+                        listOf(
+                            UmlPort(id = "FlatService::in", name = "in"),
+                            UmlPort(id = "FlatService::out", name = "out"),
+                        ),
+                    // Deliberately NO nestedComponents — this is the flat-component case.
+                )
+            val boundaryConnector =
+                UmlConnector(
+                    id = "conn::flat-boundary",
+                    end1Id = "FlatService::in",
+                    end2Id = "FlatService::out",
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "FlatBoundaryTest",
+                    elements = listOf(flatService, boundaryConnector),
+                )
+
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+
+            // Only the single flat node, zero edges — the connector must NOT become
+            // an ELK self-edge (it is unsupported on flat components and silently dropped).
+            graph.nodes shouldHaveSize 1
+            graph.nodes[0].id shouldBe NodeId("FlatService")
+            graph.edges shouldHaveSize 0
         }
 
         test("UmlLayoutBridge keeps unknown ::-suffixes as raw node IDs (fallback)") {

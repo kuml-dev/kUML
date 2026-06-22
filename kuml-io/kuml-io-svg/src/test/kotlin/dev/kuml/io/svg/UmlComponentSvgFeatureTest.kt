@@ -1,5 +1,6 @@
 package dev.kuml.io.svg
 
+import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutResult
@@ -11,6 +12,7 @@ import dev.kuml.layout.Size
 import dev.kuml.profile.KumlStereotypeApplication
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.uml.UmlComponent
+import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlPort
 import dev.kuml.uml.UmlProperty
@@ -162,6 +164,248 @@ class UmlComponentSvgFeatureTest :
             val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("flat"), PlainTheme())
 
             Regex("«component»").findAll(svg).count() shouldBe 1
+        }
+
+        // V3.x — Port-zu-Part-Connectors: Delegation-Connector (boundary-port → nested part port)
+        test("composite structure delegation connector boundary-port to nested part port renders kuml-connector line") {
+            val validator =
+                UmlComponent(
+                    id = "Validator",
+                    name = "Validator",
+                    ports = listOf(UmlPort(id = "Validator::in", name = "in")),
+                )
+            val service =
+                UmlComponent(
+                    id = "OrderService",
+                    name = "OrderService",
+                    ports = listOf(UmlPort(id = "OrderService::api", name = "api")),
+                    nestedComponents = listOf(validator),
+                )
+            val delegation =
+                UmlConnector(
+                    id = "conn::OrderService::api--Validator::in",
+                    end1Id = "OrderService::api",
+                    end2Id = "Validator::in",
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "D",
+                    type = DiagramType.COMPOSITE_STRUCTURE,
+                    elements = listOf(service, delegation),
+                )
+            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
+
+            // The internal connector is drawn as a line, NOT routed by ELK
+            // (singleNodeLayout has edges = emptyMap()), proving it bypasses ELK.
+            svg shouldContain "kuml-connector"
+            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
+            // Boundary port "api" is the only outer port → left side → its center x = 0 in the
+            // OrderService local <g>; the line must start at x1=0 (the box left wall).
+            val line = Regex("""<line ([^>]*)>""").find(svg)!!.groupValues[1]
+            line shouldContain "x1=\"0\""
+        }
+
+        // V3.x — Port-zu-Part-Connectors: Assembly-Connector (part port → part port)
+        test("composite structure assembly connector part-to-part renders a second kuml-connector line") {
+            val validator =
+                UmlComponent(
+                    id = "Validator",
+                    name = "Validator",
+                    ports = listOf(UmlPort(id = "Validator::out", name = "out")),
+                )
+            val persistence =
+                UmlComponent(
+                    id = "Persistence",
+                    name = "Persistence",
+                    ports = listOf(UmlPort(id = "Persistence::in", name = "in")),
+                )
+            val service =
+                UmlComponent(
+                    id = "OrderService",
+                    name = "OrderService",
+                    nestedComponents = listOf(validator, persistence),
+                )
+            val assembly =
+                UmlConnector(
+                    id = "conn::Validator::out--Persistence::in",
+                    end1Id = "Validator::out",
+                    end2Id = "Persistence::in",
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "D",
+                    type = DiagramType.COMPOSITE_STRUCTURE,
+                    elements = listOf(service, assembly),
+                )
+            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
+
+            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
+            // Both nested parts still render.
+            svg shouldContain "Validator"
+            svg shouldContain "Persistence"
+            Regex("«component»").findAll(svg).count() shouldBe 3
+        }
+
+        // V3.x — Named connector: drawInternalConnectors() emits a <text class="kuml-connector-label">
+        // at the midpoint when connector.name is non-null. This test guards against regressions
+        // in xmlEscapeText or midpoint arithmetic on that path.
+        test("internal connector with a non-empty name emits a kuml-connector-label text element") {
+            val validator =
+                UmlComponent(
+                    id = "Validator",
+                    name = "Validator",
+                    ports = listOf(UmlPort(id = "Validator::in", name = "in")),
+                )
+            val service =
+                UmlComponent(
+                    id = "OrderService",
+                    name = "OrderService",
+                    ports = listOf(UmlPort(id = "OrderService::api", name = "api")),
+                    nestedComponents = listOf(validator),
+                )
+            val delegation =
+                UmlConnector(
+                    id = "conn::named",
+                    end1Id = "OrderService::api",
+                    end2Id = "Validator::in",
+                    name = "delegate",
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "D",
+                    type = DiagramType.COMPOSITE_STRUCTURE,
+                    elements = listOf(service, delegation),
+                )
+            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
+
+            // The connector line itself is still present.
+            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
+            // And the name label is emitted.
+            svg shouldContain "kuml-connector-label"
+            svg shouldContain "delegate"
+        }
+
+        // V3.x — resolvePortCenter() must return null (and skip silently) when the
+        // endpoint references a port name that does not exist on the component. This
+        // guards against a crash / NPE on that path.
+        test("internal connector referencing a non-existent port name is silently skipped — zero connector lines") {
+            val service =
+                UmlComponent(
+                    id = "OrderService",
+                    name = "OrderService",
+                    ports = listOf(UmlPort(id = "OrderService::api", name = "api")),
+                    nestedComponents =
+                        listOf(
+                            UmlComponent(
+                                id = "Validator",
+                                name = "Validator",
+                                // No port "in" declared — end2Id below references a ghost port.
+                                ports = emptyList(),
+                            ),
+                        ),
+                )
+            val badConnector =
+                UmlConnector(
+                    id = "conn::bad-port",
+                    end1Id = "OrderService::api",
+                    // "Validator::in" cannot be resolved because Validator has no port named "in".
+                    end2Id = "Validator::in",
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "D",
+                    type = DiagramType.COMPOSITE_STRUCTURE,
+                    elements = listOf(service, badConnector),
+                )
+            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
+
+            // resolvePortCenter() returns null for the missing port → the connector is
+            // skipped entirely (continue), so exactly zero kuml-connector lines appear.
+            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 0
+            // The component box itself still renders normally.
+            svg shouldContain "OrderService"
+        }
+
+        // Regression: a UmlComponent with NO nestedComponents but with a
+        // boundary-to-boundary UmlConnector (internalConnectorsByParentId[nodeId]
+        // is non-null, but element.nestedComponents is empty) must render cleanly
+        // with exactly zero kuml-connector lines and must not double-draw via ELK.
+        //
+        // Before the layout-bridge fix, such a connector became an ELK self-edge.
+        // The SVG renderer's drawComponentBox() correctly skips the connector block
+        // when nestedComponents.isNotEmpty() is false — so the SVG side was already
+        // silent, but the ELK side produced a spurious edge. This test verifies the
+        // full end-to-end invariant: zero connector lines, component box still renders.
+        //
+        // Note: buildInternalConnectorIndex() does classify this connector as
+        // "internal" (both nodeIds are in the flat component's own subtree), so
+        // internalConnectorsByParentId[nodeId] is non-null — but drawComponentBox()
+        // guards with nestedComponents.isNotEmpty() and skips the connector block.
+        // The expected result is zero kuml-connector lines (silent drop), not a crash.
+        test("flat component with boundary-to-boundary connector renders cleanly with zero kuml-connector lines") {
+            val flatService =
+                UmlComponent(
+                    id = "FlatService",
+                    name = "FlatService",
+                    ports =
+                        listOf(
+                            UmlPort(id = "FlatService::in", name = "in"),
+                            UmlPort(id = "FlatService::out", name = "out"),
+                        ),
+                    // Deliberately NO nestedComponents.
+                )
+            val boundaryConnector =
+                UmlConnector(
+                    id = "conn::flat-boundary",
+                    end1Id = "FlatService::in",
+                    end2Id = "FlatService::out",
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "D",
+                    type = DiagramType.COMPOSITE_STRUCTURE,
+                    elements = listOf(flatService, boundaryConnector),
+                )
+            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("FlatService"), PlainTheme())
+
+            // The flat component box still renders.
+            svg shouldContain "FlatService"
+            Regex("«component»").findAll(svg).count() shouldBe 1
+            // The boundary-to-boundary connector is silently dropped — zero connector lines.
+            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 0
+        }
+
+        // V3.x — Port-zu-Part-Connectors: no double-drawing when ELK has no edge for them
+        test("internal connectors are not double-drawn when ELK provides no route for them") {
+            val validator =
+                UmlComponent(
+                    id = "Validator",
+                    name = "Validator",
+                    ports = listOf(UmlPort(id = "Validator::in", name = "in")),
+                )
+            val service =
+                UmlComponent(
+                    id = "OrderService",
+                    name = "OrderService",
+                    ports = listOf(UmlPort(id = "OrderService::api", name = "api")),
+                    nestedComponents = listOf(validator),
+                )
+            val delegation =
+                UmlConnector(
+                    id = "conn::OrderService::api--Validator::in",
+                    end1Id = "OrderService::api",
+                    end2Id = "Validator::in",
+                )
+            val diagram =
+                KumlDiagram(
+                    name = "D",
+                    type = DiagramType.COMPOSITE_STRUCTURE,
+                    elements = listOf(service, delegation),
+                )
+            // singleNodeLayout intentionally has edges = emptyMap(): the ELK edge loop
+            // contributes nothing, so the only line comes from the in-box renderer.
+            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
+            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
         }
     })
 

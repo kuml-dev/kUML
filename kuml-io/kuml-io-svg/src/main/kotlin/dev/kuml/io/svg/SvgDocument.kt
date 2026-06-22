@@ -176,6 +176,14 @@ internal object SvgDocument {
                 append(" stroke-width: ${bo.thinPx}; }\n")
                 append(".kuml-port-label { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
                 append(" fill: ${c.foreground.toHex()}; }\n")
+                // V3.x — UML 2.x Composite-Structure internal connector (delegation or assembly).
+                // Drawn as a plain line inside the parent component's local frame — no ELK routing.
+                // Uses the same stroke style as a kuml-divider (thin, border colour) so it blends
+                // with the composite-structure visual language. Label uses the small body font.
+                append(".kuml-connector { fill: none; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-connector-label { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" fill: ${c.foreground.toHex()}; }\n")
                 // V3.0.11 — UML-Activity-Diagramm (Action-Box, Decision-Raute, Fork/Join-Bar,
                 // Initial-/Final-Marker). Diese Klassen werden in `UmlV11Svg.renderUmlActivityNode`
                 // referenziert; ohne CSS-Regel renderten SVG-Konsumenten alle Shapes mit

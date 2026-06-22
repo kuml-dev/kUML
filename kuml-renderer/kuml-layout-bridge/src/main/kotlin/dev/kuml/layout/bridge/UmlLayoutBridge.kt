@@ -16,6 +16,7 @@ import dev.kuml.layout.Size
 import dev.kuml.uml.UmlActivityNode
 import dev.kuml.uml.UmlActivityNodeKind
 import dev.kuml.uml.UmlComponent
+import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlInteraction
 import dev.kuml.uml.UmlNamedElement
@@ -135,6 +136,23 @@ public object UmlLayoutBridge {
         // sub-packages and nested components transitively.
         val componentPorts: Map<String, Set<String>> = collectComponentPorts(diagram)
 
+        // Pre-pass: collect IDs of nested-part components (i.e. components that
+        // appear as nestedComponents of another component). These are NOT top-level
+        // ELK nodes — they are drawn by the SVG renderer inside their parent box.
+        // UmlConnectors whose BOTH endpoints resolve to nested-part node IDs are
+        // "internal connectors" that must NOT become LayoutEdges — the SVG renderer
+        // draws them with pure math inside the parent's local coordinate frame.
+        // Also includes the parent component id for boundary ports
+        // (e.g. "OrderService::api" → nodeId="OrderService", which IS a top-level
+        // ELK node and must NOT be filtered).
+        val nestedPartIds: Set<String> = collectNestedPartIds(diagram)
+
+        // Note: boundary-to-boundary connectors (both endpoint nodeIds resolve to the
+        // SAME top-level component, e.g. "OrderService::api1" → "OrderService::api2")
+        // are excluded from ELK unconditionally — see the same-node guard below at the
+        // UmlConnector filter. This covers both composite-structure parents (with nested
+        // parts) and flat components (no nested parts), preventing spurious ELK self-edges.
+
         // Pre-pass: collect UmlUseCaseSubject elements → LayoutGroups and build
         // a reverse map (useCaseId → groupId) so that individual UmlUseCase nodes
         // receive the correct groupId when encountered in the main loop below.
@@ -231,9 +249,49 @@ public object UmlLayoutBridge {
                     }
                 }
                 is UmlRelationship -> {
-                    val endpoints = EndpointResolver.resolveWithPorts(element, componentPorts)
-                    if (endpoints != null) {
-                        edges.add(toEdge(element.id, endpoints))
+                    // Skip UmlConnectors whose BOTH endpoint nodeIds are nested
+                    // parts — these are "internal connectors" drawn by the SVG
+                    // renderer inside the parent component's local frame.
+                    // A boundary-port connector (e.g. "OrderService::api" → nodeId
+                    // "OrderService") has at least one top-level node id, so it
+                    // only qualifies as internal if BOTH resolved nodeIds are in
+                    // the nested-part set.
+                    if (element is UmlConnector) {
+                        val endpoints = EndpointResolver.resolveWithPorts(element, componentPorts)
+                        if (endpoints != null &&
+                            (
+                                endpoints.sourceNodeId in nestedPartIds ||
+                                    endpoints.targetNodeId in nestedPartIds
+                            )
+                        ) {
+                            // At least one endpoint is a nested part → internal connector,
+                            // skip from ELK graph entirely.
+                            // This covers both assembly connectors (part→part, both in
+                            // nestedPartIds) and delegation connectors (boundary-port→part,
+                            // only the target is a nested part). In either case the SVG
+                            // renderer handles drawing inside the parent's local frame.
+                        } else if (endpoints != null &&
+                            endpoints.sourceNodeId == endpoints.targetNodeId
+                        ) {
+                            // Both endpoints resolve to the same node
+                            // (e.g. "OrderService::api1" → "OrderService::api2",
+                            // both resolving to nodeId "OrderService"). This covers:
+                            //  • Flat components (no nested parts): boundary-to-boundary
+                            //    connectors would produce a meaningless ELK self-edge and
+                            //    are not drawn by the SVG renderer either; drop silently.
+                            //  • Composite-structure parents (with nested parts): the SVG
+                            //    renderer draws these boundary-to-boundary connectors inside
+                            //    the parent box via drawInternalConnectors(); routing them
+                            //    through ELK as well would cause a double-draw.
+                            // In both cases: exclude from ELK unconditionally.
+                        } else if (endpoints != null) {
+                            edges.add(toEdge(element.id, endpoints))
+                        }
+                    } else {
+                        val endpoints = EndpointResolver.resolveWithPorts(element, componentPorts)
+                        if (endpoints != null) {
+                            edges.add(toEdge(element.id, endpoints))
+                        }
                     }
                 }
                 is UmlInteraction -> {
@@ -434,6 +492,35 @@ public object UmlLayoutBridge {
         out[component.id] = component.ports.map { it.name }.toSet()
         for (nested in component.nestedComponents) {
             collectFromComponent(nested, out)
+        }
+    }
+
+    /**
+     * Collects the IDs of all components that appear as [UmlComponent.nestedComponents]
+     * of another component in [diagram]. These are NOT top-level ELK layout nodes —
+     * they are drawn by the SVG renderer inside their parent component's local frame.
+     *
+     * Used by [toLayoutGraph] to determine which [dev.kuml.uml.UmlConnector] instances
+     * are "internal connectors" that must be excluded from the ELK layout graph.
+     *
+     * Walks the element tree recursively (nested inside nested is also collected).
+     */
+    private fun collectNestedPartIds(diagram: KumlDiagram): Set<String> {
+        val result = mutableSetOf<String>()
+        for (element in diagram.elements) {
+            if (element is UmlComponent) collectNestedPartsFromComponent(element, result)
+        }
+        return result
+    }
+
+    private fun collectNestedPartsFromComponent(
+        component: UmlComponent,
+        out: MutableSet<String>,
+    ) {
+        for (nested in component.nestedComponents) {
+            if (nested.id in out) continue // cycle guard: skip already-visited nodes
+            out += nested.id
+            collectNestedPartsFromComponent(nested, out)
         }
     }
 }

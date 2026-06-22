@@ -185,6 +185,32 @@ public object KumlSvgRenderer {
             effectiveLayoutResult.nodes.keys
                 .map { it.value }
                 .toSet()
+
+        // V3.x Composite-Structure: collect UmlConnectors whose BOTH endpoint
+        // nodeIds (split by "::") are within a given top-level component's
+        // subtree. These "internal connectors" are drawn by the SVG renderer
+        // inside the parent box — without ELK routing. The map is keyed by the
+        // top-level component id. For COMPONENT diagrams and all other types the
+        // map remains empty (no internal connectors).
+        //
+        // Classification: an endpoint id "X::portName" → nodeId "X". If "X" is
+        // the parent component id OR is one of its nestedComponents ids, the
+        // endpoint belongs to the parent's subtree. A connector qualifies as
+        // internal iff BOTH endpoints resolve into the same parent's subtree.
+        //
+        // Note: the layout bridge already filtered these out from LayoutEdges, so
+        // effectiveLayoutResult.edges contains NO entry for them — the ELK edge
+        // loop below will never see them. The only renderer for these connectors
+        // is the one added to drawComponentBox.
+        val internalConnectorsByParentId: Map<String, List<UmlConnector>> =
+            if (diagram.type == DiagramType.COMPOSITE_STRUCTURE ||
+                diagram.type == DiagramType.COMPONENT
+            ) {
+                buildInternalConnectorIndex(diagram.elements)
+            } else {
+                emptyMap()
+            }
+
         val needsContractPadding =
             diagram.type == DiagramType.COMPONENT &&
                 elementIndex.values.any {
@@ -259,7 +285,15 @@ public object KumlSvgRenderer {
                                         ),
                                 ),
                         )
-                    NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                    // V3.x Composite-Structure: pass internal connectors for
+                    // UmlComponent nodes so they are drawn inside the parent box.
+                    val connectors = internalConnectorsByParentId[nodeId.value]
+                    if (connectors != null && element is UmlComponent) {
+                        dev.kuml.io.svg.uml
+                            .renderUmlComponent(element, shifted, theme, nodesBuilder, connectors)
+                    } else {
+                        NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+                    }
                 }
             }
 
@@ -2345,8 +2379,19 @@ public object KumlSvgRenderer {
                 }
             }
 
+            // IDs that were added as phantom LayoutNodes (size 0×0) to serve as
+            // message-flow anchors for pool participants. These same IDs are already
+            // rendered above via the group loop as full pool frames, so we must skip
+            // them here to avoid a second, degenerate render derived from the 0×0
+            // phantom bounds.
+            val phantomNodeIds: Set<String> =
+                layoutResult.groups.keys
+                    .map { it.value }
+                    .toSet()
+
             // Nodes (flow nodes inside pools)
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                if (nodeId.value in phantomNodeIds) continue
                 val element = allElementIndex[nodeId.value] ?: continue
                 val shifted =
                     nodeLayout.copy(
@@ -2521,6 +2566,80 @@ public object KumlSvgRenderer {
                 EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
             }
         }
+    }
+
+    /**
+     * Builds a map from top-level [UmlComponent] id to the list of [UmlConnector]s
+     * that are "internal" to that component — i.e. both endpoint nodeIds (the part
+     * before the last `"::"` separator) fall within that component's subtree
+     * (the component itself for boundary ports, or any of its nestedComponents for
+     * part ports).
+     *
+     * Internal connectors are NOT routed by ELK ([dev.kuml.layout.bridge.UmlLayoutBridge]
+     * filters them out). They are drawn by the SVG renderer inside the component's
+     * local coordinate frame via `drawComponentBox`.
+     *
+     * Only top-level [UmlComponent]s in [elements] are considered as potential
+     * parent containers. UmlConnectors that do not qualify as internal (at least
+     * one endpoint is a top-level ELK node) are excluded from the result.
+     */
+    private fun buildInternalConnectorIndex(elements: List<dev.kuml.core.model.KumlElement>): Map<String, List<UmlConnector>> {
+        val result = mutableMapOf<String, MutableList<UmlConnector>>()
+        val sep = "::"
+
+        // Collect top-level components and their nested subtree ids.
+        data class ComponentSubtree(
+            val parent: UmlComponent,
+            val subtreeIds: Set<String>,
+        )
+
+        // Collects all component ids in the subtree rooted at [comp].
+        // [visited] is a shared cycle-detection set: a component id already in
+        // [visited] is skipped to prevent infinite recursion on cyclic graphs
+        // (e.g. XMI-imported models where A.nestedComponents contains B and
+        // B.nestedComponents contains A).
+        fun collectSubtreeIds(
+            comp: UmlComponent,
+            visited: MutableSet<String> = mutableSetOf(),
+        ): Set<String> {
+            if (!visited.add(comp.id)) return emptySet() // cycle guard
+            val ids = mutableSetOf(comp.id)
+            for (nested in comp.nestedComponents) ids += collectSubtreeIds(nested, visited)
+            return ids
+        }
+
+        val subtrees: List<ComponentSubtree> =
+            elements.filterIsInstance<UmlComponent>().map { comp ->
+                ComponentSubtree(comp, collectSubtreeIds(comp))
+            }
+
+        // For each UmlConnector in elements, check whether both endpoint nodeIds
+        // fall within a single top-level component's subtree.
+        for (element in elements) {
+            if (element !is UmlConnector) continue
+            val end1NodeId =
+                element.end1Id.let { id ->
+                    val sepIdx = id.lastIndexOf(sep)
+                    if (sepIdx > 0) id.substring(0, sepIdx) else id
+                }
+            val end2NodeId =
+                element.end2Id.let { id ->
+                    val sepIdx = id.lastIndexOf(sep)
+                    if (sepIdx > 0) id.substring(0, sepIdx) else id
+                }
+            // Find the unique top-level component whose subtree contains both endpoints.
+            val parentSubtree =
+                subtrees.firstOrNull { st ->
+                    end1NodeId in st.subtreeIds && end2NodeId in st.subtreeIds
+                } ?: continue
+            // The connector is internal only if at least one endpoint is a NESTED part
+            // (not the parent component itself on both sides). A connector between two
+            // boundary ports of the same component has both nodeIds == parent.id, which
+            // would still qualify here — include it (a self-boundary connector is still
+            // drawn inside the box, not by ELK).
+            result.getOrPut(parentSubtree.parent.id) { mutableListOf() } += element
+        }
+        return result
     }
 }
 

@@ -27,6 +27,8 @@ import kotlin.math.sqrt
  * - [OPEN] / [OPEN_MUTED]: open chevron (two lines, no fill).
  * - [TRIANGLE] / [TRIANGLE_MUTED]: hollow triangle (closed, background fill).
  * - [FILLED] / [FILLED_MUTED]: solid filled triangle.
+ * - [DIAMOND]: hollow diamond (background fill) — UML shared aggregation.
+ * - [DIAMOND_FILLED]: solid filled diamond — UML composition.
  */
 internal enum class ArrowStyle {
     OPEN,
@@ -35,6 +37,8 @@ internal enum class ArrowStyle {
     TRIANGLE_MUTED,
     FILLED,
     FILLED_MUTED,
+    DIAMOND,
+    DIAMOND_FILLED,
 }
 
 /** Length from arrowhead tip to its base, in pixels. */
@@ -42,6 +46,12 @@ private const val ARROW_LEN = 12f
 
 /** Half-width of the arrowhead at its base, in pixels. */
 private const val ARROW_WING = 5f
+
+/** Tip-to-back length of an aggregation/composition diamond, in pixels. */
+private const val DIAMOND_LEN = 16f
+
+/** Half-width of the diamond at its widest (mid) point, in pixels. */
+private const val DIAMOND_WING = 5f
 
 /**
  * Returns the two points that define the direction of the last edge segment:
@@ -58,6 +68,24 @@ internal fun EdgeRoute.arrowDirection(): Pair<Point, Point> =
             (waypoints.lastOrNull() ?: source) to target
         is EdgeRoute.Bezier ->
             (controlPoints.lastOrNull() ?: source) to target
+    }
+
+/**
+ * Mirror of [arrowDirection] for the **source** end: returns `(from, tip)` with
+ * the tip placed at [EdgeRoute.source], oriented along the first edge segment so
+ * an endpoint decoration (e.g. an aggregation/composition diamond) points into
+ * the source node.
+ */
+internal fun EdgeRoute.sourceArrowDirection(): Pair<Point, Point> =
+    when (this) {
+        is EdgeRoute.Direct ->
+            target to source
+        is EdgeRoute.OrthogonalRounded ->
+            (waypoints.firstOrNull() ?: target) to source
+        is EdgeRoute.TreeRounded ->
+            (waypoints.firstOrNull() ?: target) to source
+        is EdgeRoute.Bezier ->
+            (controlPoints.firstOrNull() ?: target) to source
     }
 
 /**
@@ -156,6 +184,27 @@ internal fun renderInlineArrow(
                 mapOf(
                     "points" to "${fa(tip.x)},${fa(tip.y)} ${fa(lx)},${fa(ly)} ${fa(rx)},${fa(ry)}",
                     "style" to "stroke:$mutedColor;stroke-width:1;fill:$mutedColor;stroke-linejoin:round;",
+                ),
+            )
+        }
+        ArrowStyle.DIAMOND, ArrowStyle.DIAMOND_FILLED -> {
+            // Four-point rhombus: tip at the node border, back point along the
+            // edge, two side wings at the mid-length. SHARED → hollow (background
+            // fill); COMPOSITE → solid edge-colour fill.
+            val bx = tip.x - nx * DIAMOND_LEN
+            val by = tip.y - ny * DIAMOND_LEN
+            val mlx = tip.x - nx * (DIAMOND_LEN / 2f) + px * DIAMOND_WING
+            val mly = tip.y - ny * (DIAMOND_LEN / 2f) + py * DIAMOND_WING
+            val mrx = tip.x - nx * (DIAMOND_LEN / 2f) - px * DIAMOND_WING
+            val mry = tip.y - ny * (DIAMOND_LEN / 2f) - py * DIAMOND_WING
+            val fill = if (style == ArrowStyle.DIAMOND_FILLED) edgeColor else bgColor
+            builder.tag(
+                "polygon",
+                mapOf(
+                    "points" to
+                        "${fa(tip.x)},${fa(tip.y)} ${fa(mlx)},${fa(mly)} " +
+                        "${fa(bx)},${fa(by)} ${fa(mrx)},${fa(mry)}",
+                    "style" to "stroke:$edgeColor;stroke-width:1.5;fill:$fill;stroke-linejoin:round;",
                 ),
             )
         }

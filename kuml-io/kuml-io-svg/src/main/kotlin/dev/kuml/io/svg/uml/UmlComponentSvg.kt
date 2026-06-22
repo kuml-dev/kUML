@@ -3,10 +3,11 @@ package dev.kuml.io.svg.uml
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.io.svg.xmlEscapeContent
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.Rect
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.UmlComponent
+import dev.kuml.uml.UmlConnector
 
 /**
  * Rendert eine [UmlComponent] — Rechteck mit zwei kleinen Rechteck-Glyphen
@@ -14,12 +15,20 @@ import dev.kuml.uml.UmlComponent
  *
  * In V1.1: Wenn [UmlComponent.appliedStereotypes] gesetzt sind, werden diese als
  * zusätzliche `«…»`-Zeile vor dem `«component»`-Keyword gerendert.
+ *
+ * In V3.x (Composite-Structure): [internalConnectors] enthält die [UmlConnector]s
+ * deren BEIDE Endpunkte in den Subtree dieser Komponente fallen (Boundary-Ports
+ * oder verschachtelte Part-Ports). Diese werden als `<line class="kuml-connector">`
+ * innerhalb des lokalen Koordinatenrahmens gezeichnet — ohne ELK-Routing.
+ *
+ * @see drawComponentBox
  */
 internal fun renderUmlComponent(
     element: UmlComponent,
     layout: NodeLayout,
     theme: KumlTheme,
     builder: SvgBuilder,
+    internalConnectors: List<UmlConnector> = emptyList(),
 ) {
     drawComponentBox(
         element = element,
@@ -29,6 +38,7 @@ internal fun renderUmlComponent(
         h = layout.bounds.size.height,
         theme = theme,
         builder = builder,
+        internalConnectors = internalConnectors,
     )
 }
 
@@ -42,6 +52,14 @@ internal fun renderUmlComponent(
  * `NESTED_*`-Konstanten + `chromeHeight`/`compositeHeight`), damit der vom
  * Layout reservierte Platz exakt zur gezeichneten Innenstruktur passt.
  * kuml-io-svg hängt bewusst nicht an kuml-layout-bridge → Konstanten doppelt.
+ *
+ * [internalConnectors] werden nach den verschachtelten Parts gezeichnet — als
+ * `<line class="kuml-connector">` im lokalen Koordinatenrahmen dieses `<g>`-Blocks.
+ * Rekursive Aufrufe für nested Parts erhalten eine leere Liste (interne Connectors
+ * leben nur auf der Ebene des DIRECT parents).
+ *
+ * [depth] wird bei jedem rekursiven Abstieg dekrementiert. Erreicht er 0, wird ein
+ * [IllegalStateException] geworfen — Schutz gegen zyklische `nestedComponents`-Graphen.
  */
 private fun drawComponentBox(
     element: UmlComponent,
@@ -51,7 +69,15 @@ private fun drawComponentBox(
     h: Float,
     theme: KumlTheme,
     builder: SvgBuilder,
+    internalConnectors: List<UmlConnector> = emptyList(),
+    depth: Int = NESTED_MAX_DEPTH,
 ) {
+    if (depth <= 0) {
+        throw IllegalStateException(
+            "UmlComponent nesting depth exceeds $NESTED_MAX_DEPTH — " +
+                "possible cycle in nestedComponents (component id: ${element.id})",
+        )
+    }
     val cx = (w - 20f) / 2f
 
     builder.tag(
@@ -109,7 +135,7 @@ private fun drawComponentBox(
                 "y" to fmt(cy),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
 
         // V1.1.3 — feature compartments (attributes/operations) when present.
         // Backward-compat: feature-free components render exactly as before
@@ -191,10 +217,78 @@ private fun drawComponentBox(
             val sideInset = NESTED_SIDE_PAD + if (element.ports.isNotEmpty()) NESTED_PORT_CLEARANCE else 0f
             val interiorW = (w - sideInset * 2f).coerceAtLeast(NESTED_MIN_INTERIOR_W)
             var py = chromeHeight(element) + NESTED_TOP_GAP
+
+            // Build a local id→Rect map (in parent-local coords) used both for
+            // drawing the parts and for resolving connector anchor points.
+            // The outer box itself is keyed by element.id at (0,0,w,h).
+            val partRects = mutableMapOf<String, Rect>()
+            partRects[element.id] =
+                Rect(origin = dev.kuml.layout.Point(0f, 0f), size = dev.kuml.layout.Size(w, h))
+
             for (part in element.nestedComponents) {
-                val ph = compositeHeight(part)
-                drawComponentBox(part, sideInset, py, interiorW, ph, theme, this)
+                val ph = compositeHeight(part, depth - 1)
+                partRects[part.id] =
+                    Rect(
+                        origin = dev.kuml.layout.Point(sideInset, py),
+                        size = dev.kuml.layout.Size(interiorW, ph),
+                    )
+                drawComponentBox(part, sideInset, py, interiorW, ph, theme, this, depth = depth - 1)
                 py += ph + NESTED_PART_GAP
+            }
+
+            // Draw internal connectors AFTER parts so lines sit on top of part fills.
+            if (internalConnectors.isNotEmpty()) {
+                // Build component-lookup and rect maps for the full subtree so
+                // resolvePortCenter can find port lists and bounding boxes for any
+                // endpoint — including grandchild components (2+-level nesting).
+                // collectSubtreeComponents walks the tree recursively and accumulates
+                // each descendant's bounding rect in the top-level parent-local frame
+                // by adding the ancestor offset passed in via (offsetX, offsetY).
+                // [visited] is a cycle-detection set: if a component id is encountered
+                // a second time we skip it instead of recursing infinitely.
+                val componentById = mutableMapOf<String, UmlComponent>()
+                componentById[element.id] = element
+                val visited = mutableSetOf(element.id)
+
+                fun collectSubtreeComponents(
+                    comp: UmlComponent,
+                    offsetX: Float,
+                    offsetY: Float,
+                    depth: Int,
+                ) {
+                    val compSideInset =
+                        NESTED_SIDE_PAD + if (comp.ports.isNotEmpty()) NESTED_PORT_CLEARANCE else 0f
+                    val compInteriorW =
+                        ((partRects[comp.id]?.size?.width ?: 0f) - compSideInset * 2f)
+                            .coerceAtLeast(NESTED_MIN_INTERIOR_W)
+                    var childPy = chromeHeight(comp) + NESTED_TOP_GAP
+                    for (child in comp.nestedComponents) {
+                        if (!visited.add(child.id)) continue // cycle guard
+                        val childH = compositeHeight(child, depth - 1)
+                        val childAbsX = offsetX + compSideInset
+                        val childAbsY = offsetY + childPy
+                        partRects[child.id] =
+                            Rect(
+                                origin = dev.kuml.layout.Point(childAbsX, childAbsY),
+                                size = dev.kuml.layout.Size(compInteriorW, childH),
+                            )
+                        componentById[child.id] = child
+                        if (child.nestedComponents.isNotEmpty()) {
+                            collectSubtreeComponents(child, childAbsX, childAbsY, depth - 1)
+                        }
+                        childPy += childH + NESTED_PART_GAP
+                    }
+                }
+
+                for (part in element.nestedComponents) {
+                    componentById[part.id] = part
+                    val partRect = partRects[part.id]
+                    if (part.nestedComponents.isNotEmpty() && partRect != null) {
+                        collectSubtreeComponents(part, partRect.origin.x, partRect.origin.y, depth)
+                    }
+                }
+
+                drawInternalConnectors(internalConnectors, partRects, componentById, this)
             }
         }
     }
@@ -214,6 +308,25 @@ private const val NESTED_BOTTOM_PAD = 14f
 private const val NESTED_PART_MIN_H = 48f
 private const val NESTED_MIN_INTERIOR_W = 40f
 private const val NESTED_PORT_CLEARANCE = 30f
+
+/**
+ * Maximale Schachtelungstiefe für `compositeHeight`, `drawComponentBox` und
+ * `collectSubtreeComponents`. Schützt gegen zyklische `nestedComponents`-Graphen
+ * (z.B. nach XMI-Import: A enthält B, B enthält A) und pathologisch tiefe,
+ * nicht-zyklische Hierarchien, die einen StackOverflow auslösen würden.
+ * 64 liegt weit über jedem realistischen UML-Composite-Structure-Modell.
+ * Muss mit [dev.kuml.layout.bridge.UmlContentSizeProvider.MAX_NESTING_DEPTH]
+ * übereinstimmen.
+ */
+private const val NESTED_MAX_DEPTH = 64
+
+/**
+ * Maximum number of internal connectors rendered per component. Guards against
+ * resource exhaustion (DoS-adjacent) when adversarial or auto-generated models
+ * contain hundreds or thousands of [UmlConnector]s within a single component
+ * subtree. Connectors beyond this limit are silently dropped with a logged warning.
+ */
+private const val MAX_INTERNAL_CONNECTORS = 500
 
 private const val NESTED_CHROME_START = 20f
 private const val NESTED_STEREO_H = 18f
@@ -249,15 +362,28 @@ private fun chromeHeight(c: UmlComponent): Float {
 /**
  * Gesamthöhe einer (ggf. verschachtelten) Part-Box. Rekursiv. Spiegelt
  * `UmlContentSizeProvider.compositeHeight`.
+ *
+ * [depth] wird bei jedem rekursiven Abstieg dekrementiert. Erreicht er 0,
+ * wird ein [IllegalStateException] geworfen — Schutz gegen zyklische oder
+ * pathologisch tiefe `nestedComponents`-Graphen (z.B. nach XMI-Import).
  */
-private fun compositeHeight(c: UmlComponent): Float {
+private fun compositeHeight(
+    c: UmlComponent,
+    depth: Int = NESTED_MAX_DEPTH,
+): Float {
+    if (depth <= 0) {
+        throw IllegalStateException(
+            "UmlComponent nesting depth exceeds $NESTED_MAX_DEPTH — " +
+                "possible cycle in nestedComponents (component id: ${c.id})",
+        )
+    }
     val chrome = chromeHeight(c)
     if (c.nestedComponents.isEmpty()) {
         return maxOf(chrome + NESTED_BOTTOM_PAD, NESTED_PART_MIN_H)
     }
     val parts = c.nestedComponents
     val stack =
-        parts.sumOf { compositeHeight(it).toDouble() }.toFloat() +
+        parts.sumOf { compositeHeight(it, depth - 1).toDouble() }.toFloat() +
             (parts.size - 1) * NESTED_PART_GAP
     return chrome + NESTED_TOP_GAP + stack + NESTED_BOTTOM_PAD
 }
@@ -319,6 +445,123 @@ private fun SvgBuilder.renderPorts(
             ),
         ) { text(port.name) }
     }
+}
+
+// ── Internal Connector Rendering (Composite-Structure) ────────────────────────
+//
+// Internal connectors are drawn as `<line class="kuml-connector">` inside the
+// parent component's `<g transform="translate(x,y)">` — all coordinates are
+// local to the parent box origin (0,0). No ELK routing is used; anchor points
+// are computed with the SAME alternating-side rule as [renderPorts], so line
+// endpoints touch the port-square centers exactly.
+
+/**
+ * Draws all [connectors] as SVG lines within the current parent-local coordinate
+ * frame.  [partRects] maps component-id → bounding [Rect] in parent-local coords.
+ * [componentById] maps component-id → [UmlComponent] for port-list lookup.
+ *
+ * Called from [drawComponentBox] after the nested-part sub-boxes are rendered,
+ * so lines appear on top of part box fills while port squares (drawn recursively
+ * by each part's own `renderPorts`) remain visible at the line endpoints.
+ */
+private fun drawInternalConnectors(
+    connectors: List<UmlConnector>,
+    partRects: Map<String, Rect>,
+    componentById: Map<String, UmlComponent>,
+    builder: SvgBuilder,
+) {
+    val cappedConnectors =
+        if (connectors.size > MAX_INTERNAL_CONNECTORS) {
+            System.err.println(
+                "[kUML] WARNING: component subtree has ${connectors.size} internal connectors; " +
+                    "rendering is capped at $MAX_INTERNAL_CONNECTORS to prevent resource exhaustion.",
+            )
+            connectors.subList(0, MAX_INTERNAL_CONNECTORS)
+        } else {
+            connectors
+        }
+    val sep = "::"
+    for (connector in cappedConnectors) {
+        val (c1x, c1y) = resolvePortCenter(connector.end1Id, sep, partRects, componentById) ?: continue
+        val (c2x, c2y) = resolvePortCenter(connector.end2Id, sep, partRects, componentById) ?: continue
+
+        builder.tag(
+            "line",
+            mapOf(
+                "x1" to fmt(c1x),
+                "y1" to fmt(c1y),
+                "x2" to fmt(c2x),
+                "y2" to fmt(c2y),
+                "class" to "kuml-connector",
+            ),
+        )
+
+        // Optional name label at midpoint.
+        val connectorName = connector.name
+        if (connectorName != null) {
+            val mx = (c1x + c2x) / 2f
+            val my = (c1y + c2y) / 2f - 3f
+            builder.tag(
+                "text",
+                mapOf(
+                    "class" to "kuml-connector-label",
+                    "x" to fmt(mx),
+                    "y" to fmt(my),
+                    "text-anchor" to "middle",
+                ),
+            ) { text(connectorName) }
+        }
+    }
+}
+
+/**
+ * Resolves an endpoint id of the form `"<componentId>::<portName>"` to its
+ * port-center (cx, cy) in parent-local coordinates.
+ *
+ * Uses the SAME alternating-side rule as [renderPorts]:
+ *   - Even port index (0,2,4,…) → left side, center x = box.origin.x
+ *   - Odd port index (1,3,5,…) → right side, center x = box.origin.x + box.size.width
+ *   - y = box.origin.y + box.size.height × (indexOnSide + 1) / (sideCount + 1)
+ *
+ * Returns `null` if the endpoint id cannot be split, the component is unknown,
+ * or the port is not found.
+ */
+private fun resolvePortCenter(
+    endId: String,
+    sep: String,
+    partRects: Map<String, Rect>,
+    componentById: Map<String, UmlComponent>,
+): Pair<Float, Float>? {
+    val sepIdx = endId.lastIndexOf(sep)
+    if (sepIdx <= 0) return null
+    val componentId = endId.substring(0, sepIdx)
+    val portName = endId.substring(sepIdx + sep.length)
+    if (portName.isEmpty()) return null
+
+    val box = partRects[componentId] ?: return null
+    val component = componentById[componentId] ?: return null
+    val ports = component.ports
+    val portIndex = ports.indexOfFirst { it.name == portName }
+    if (portIndex < 0) return null
+
+    val isLeft = portIndex % 2 == 0
+    val sideList = ports.filterIndexed { idx, _ -> idx % 2 == (if (isLeft) 0 else 1) }
+    val iOnSide = sideList.indexOfFirst { it.name == portName }
+    if (iOnSide < 0) return null
+
+    val bx = box.origin.x
+    val by = box.origin.y
+    val bw = box.size.width
+    val bh = box.size.height
+
+    // y center within the box: same formula as renderPorts
+    // (py = bh*(iOnSide+1)/(sideList.size+1) - portSize/2 → center = py + portSize/2)
+    val cyLocal = bh * (iOnSide + 1) / (sideList.size + 1)
+    // x center: left-side port square sits at x=-portSize/2 → center x=bx;
+    //           right-side port square sits at x=bw-portSize/2 → center x=bx+bw.
+    val cxLocal = if (isLeft) bx else bx + bw
+
+    return Pair(cxLocal, by + cyLocal)
 }
 
 private fun fmt(v: Float): String {

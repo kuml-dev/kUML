@@ -210,6 +210,10 @@ private fun SvgBuilder.renderPinColumn(
                 "y" to fmt(py),
                 "width" to fmt(PIN_SIZE),
                 "height" to fmt(PIN_SIZE),
+                // SysML v2 zeichnet Parameter (directed features) als ABGERUNDETE
+                // Quadrate auf der Aktionskante — nicht scharfkantig wie ein UML-Pin.
+                "rx" to fmt(PIN_CORNER_RADIUS),
+                "ry" to fmt(PIN_CORNER_RADIUS),
                 "class" to "kuml-class",
                 "fill" to "white",
             ),
@@ -236,6 +240,14 @@ private fun SvgBuilder.renderPinColumn(
  * ever decides to put the name inside the square.
  */
 internal const val PIN_SIZE: Float = 10f
+
+/**
+ * Corner radius (px) of a pin square. SysML v2 notates action parameters
+ * (directed features) as **rounded** squares on the action boundary; a small
+ * 2 px radius gives that rounded-corner cue without softening the port into a
+ * blob.
+ */
+private const val PIN_CORNER_RADIUS: Float = 2f
 
 /**
  * Vertical padding inside the action box where pins must not be placed

@@ -6,9 +6,11 @@ import dev.kuml.io.svg.EdgePathBuilder
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.arrowDirection
 import dev.kuml.io.svg.renderInlineArrow
+import dev.kuml.io.svg.sourceArrowDirection
 import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
@@ -38,6 +40,21 @@ internal fun renderUmlAssociation(
     builder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
     val (arrowFrom, arrowTip) = route.arrowDirection()
     renderInlineArrow(arrowFrom, arrowTip, ArrowStyle.OPEN, theme, builder)
+
+    // Aggregation/composition diamond at the SOURCE end (the "whole"). UML places
+    // the rhombus on the aggregating classifier: SHARED → hollow, COMPOSITE →
+    // filled. NONE leaves the source end undecorated.
+    val diamondStyle =
+        when (rel.aggregation) {
+            AggregationKind.SHARED -> ArrowStyle.DIAMOND
+            AggregationKind.COMPOSITE -> ArrowStyle.DIAMOND_FILLED
+            AggregationKind.NONE -> null
+        }
+    diamondStyle?.let { style ->
+        val (diaFrom, diaTip) = route.sourceArrowDirection()
+        renderInlineArrow(diaFrom, diaTip, style, theme, builder)
+    }
+
     // Stereotype label takes precedence over association name; name is appended below it
     val (mx, my) = routeLabelMid(route)
     val hadStereo = StereotypeHelper.renderEdgeStereotype(rel, theme, builder, mx, my)
@@ -59,32 +76,69 @@ internal fun renderUmlAssociation(
     //
     // 16 px along-edge margin keeps the label clear of the arrowhead / node
     // border; 10 px perpendicular offset keeps it off the line itself.
+    //
+    // V0.17 — role names are rendered alongside the multiplicity at each end.
+    // Two-axis separation so the pair never collides regardless of edge
+    // orientation: the multiplicity sits on the `+perp` side close to the node
+    // (mulMargin); the role name on the `−perp` side a bit further along the
+    // edge (roleMargin). For a vertical edge they end up diagonally apart, for a
+    // horizontal edge they straddle the line at different along-edge offsets.
     if (rel.ends.size >= 2) {
         val sourceEnd = rel.ends[0]
         val targetEnd = rel.ends[1]
-        val srcLabel = sourceEnd.multiplicity.toLabel()
-        val tgtLabel = targetEnd.multiplicity.toLabel()
-        val margin = 16f
+        val mulMargin = 14f
+        val roleMargin = 30f
         val perpOff = 10f
-        if (srcLabel != null) {
-            val (tx, ty) = EdgeLabelGeometry.sourceSegmentTangent(route)
-            val lx = route.source.x + tx * margin - ty * perpOff
-            val ly = route.source.y + ty * margin + tx * perpOff
-            builder.tag(
-                "text",
-                mapOf("class" to "kuml-small", "x" to fmt(lx), "y" to fmt(ly), "text-anchor" to "middle"),
-            ) { text(srcLabel) }
+
+        val (stx, sty) = EdgeLabelGeometry.sourceSegmentTangent(route)
+        sourceEnd.multiplicity.toLabel()?.let { label ->
+            endpointLabel(
+                builder,
+                route.source.x + stx * mulMargin - sty * perpOff,
+                route.source.y + sty * mulMargin + stx * perpOff,
+                label,
+            )
         }
-        if (tgtLabel != null) {
-            val (tx, ty) = EdgeLabelGeometry.targetSegmentTangent(route)
-            val lx = route.target.x - tx * margin - ty * perpOff
-            val ly = route.target.y - ty * margin + tx * perpOff
-            builder.tag(
-                "text",
-                mapOf("class" to "kuml-small", "x" to fmt(lx), "y" to fmt(ly), "text-anchor" to "middle"),
-            ) { text(tgtLabel) }
+        sourceEnd.role?.let { label ->
+            endpointLabel(
+                builder,
+                route.source.x + stx * roleMargin + sty * perpOff,
+                route.source.y + sty * roleMargin - stx * perpOff,
+                label,
+            )
+        }
+
+        val (ttx, tty) = EdgeLabelGeometry.targetSegmentTangent(route)
+        targetEnd.multiplicity.toLabel()?.let { label ->
+            endpointLabel(
+                builder,
+                route.target.x - ttx * mulMargin - tty * perpOff,
+                route.target.y - tty * mulMargin + ttx * perpOff,
+                label,
+            )
+        }
+        targetEnd.role?.let { label ->
+            endpointLabel(
+                builder,
+                route.target.x - ttx * roleMargin + tty * perpOff,
+                route.target.y - tty * roleMargin - ttx * perpOff,
+                label,
+            )
         }
     }
+}
+
+/** Renders a small endpoint label (multiplicity or role) centred at [x], [y]. */
+private fun endpointLabel(
+    builder: SvgBuilder,
+    x: Float,
+    y: Float,
+    label: String,
+) {
+    builder.tag(
+        "text",
+        mapOf("class" to "kuml-small", "x" to fmt(x), "y" to fmt(y), "text-anchor" to "middle"),
+    ) { text(label) }
 }
 
 /** Returns a multiplicity label string, or null if the multiplicity is the trivial "1". */
