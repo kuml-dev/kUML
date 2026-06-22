@@ -13,6 +13,7 @@ dependencies {
     api(project(":kuml-metamodel:kuml-metamodel-uml"))
     api(project(":kuml-metamodel:kuml-metamodel-c4"))
     api(project(":kuml-metamodel:kuml-metamodel-sysml2")) // V2.0.4 — SysML 2 BDD-Rendering
+    api(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.3 — BPMN Process SVG-Renderer
     implementation(project(":kuml-core:kuml-core-model"))
 
     testImplementation(libs.kotest.runner.junit5)

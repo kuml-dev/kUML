@@ -12,6 +12,7 @@ dependencies {
     api(project(":kuml-metamodel:kuml-metamodel-uml"))
     api(project(":kuml-metamodel:kuml-metamodel-c4"))
     api(project(":kuml-metamodel:kuml-metamodel-sysml2")) // V2.0.4 — SysML 2 BDD-Bridge
+    api(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.3 — BPMN Layout Bridge
     implementation(project(":kuml-core:kuml-core-model"))
     // Reflection für LayoutHintWriter.copyWithMetadata — data-class copy() via KFunction.callBy
     implementation(libs.kotlin.reflect)

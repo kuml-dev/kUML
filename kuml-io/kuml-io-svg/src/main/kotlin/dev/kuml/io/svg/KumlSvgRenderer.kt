@@ -1,5 +1,6 @@
 package dev.kuml.io.svg
 
+import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
 import dev.kuml.c4.model.DynamicDiagram
@@ -99,6 +100,12 @@ public object KumlSvgRenderer {
         // STATE diagrams have their own renderer-direct path (vertex/transition dispatch)
         if (diagram.type == DiagramType.STATE) {
             return renderUmlStateDiagram(diagram, layoutResult, theme, options)
+        }
+        // BPMN_PROCESS diagrams have a dedicated rendering path with explicit z-order:
+        // expanded SubProcess frames (groups) are painted BEFORE their child nodes so the
+        // frame background never occludes its contents — identical fix as C4/SysML-2 groups.
+        if (diagram.type == DiagramType.BPMN_PROCESS) {
+            return renderBpmnProcess(diagram, layoutResult, theme, options)
         }
         // V11.x package-diagram fix: build a flat (id → element) lookup that
         // recurses into UmlPackage.members. Without this, classes/interfaces
@@ -2184,6 +2191,142 @@ public object KumlSvgRenderer {
             l == null -> s
             s.length >= l.length -> s
             else -> l
+        }
+    }
+
+    /**
+     * Rendert ein BPMN-Prozess-Diagramm als SVG.
+     *
+     * Dieser dedizierte Pfad stellt die korrekte Z-Reihenfolge für expandierte
+     * SubProcesses sicher: der Rahmen eines [BpmnSubProcess] wird in einem
+     * ersten Pass gerendert (Gruppen-Schleife), danach werden die Knoten im
+     * zweiten Pass darüber gelegt. Ohne diesen Pfad würden SubProcess-Frames
+     * im generischen [toSvg]-Loop (der maps in Einfügereihenfolge iteriert)
+     * ihre Kind-Knoten überdecken — derselbe Bug wie der C4-Groups-Fix.
+     *
+     * Render-Reihenfolge:
+     *  1. Expanded-SubProcess-Rahmen (Gruppen-Loop) — immer im Hintergrund.
+     *  2. Alle anderen Flow-Nodes (Knoten-Loop) — im Vordergrund der Rahmen.
+     *  3. SequenceFlows (Kanten-Loop) — ganz oben.
+     */
+    private fun renderBpmnProcess(
+        diagram: KumlDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+    ): String {
+        // Build a flat element index (id → element) for all BPMN elements.
+        // BPMN diagrams are flat (no recursive containers beyond SubProcess, which
+        // the bridge handles as a group rather than nesting in the element list).
+        val elementIndex = diagram.elements.associateBy { it.id }
+
+        // Collect the IDs of expanded SubProcesses that surface as LayoutGroups,
+        // so the groups loop can identify them for SubProcess-frame rendering.
+        val expandedSubProcessIds: Set<String> =
+            diagram.elements
+                .filterIsInstance<BpmnSubProcess>()
+                .filter { it.expanded }
+                .map { it.id }
+                .toSet()
+
+        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+            val padding = options.paddingPx
+
+            // 1. Groups FIRST — render expanded SubProcess frames behind their contents.
+            //    Any group whose id matches an expanded SubProcess is rendered as a
+            //    SubProcess background rect; unknown groups get the generic kuml-system rect.
+            for ((groupId, groupLayout) in layoutResult.groups) {
+                val gx = groupLayout.bounds.origin.x + padding
+                val gy = groupLayout.bounds.origin.y + padding
+                val gw = groupLayout.bounds.size.width
+                val gh = groupLayout.bounds.size.height
+
+                if (groupId.value in expandedSubProcessIds) {
+                    val sp = elementIndex[groupId.value] as? BpmnSubProcess
+                    if (sp != null) {
+                        // Render the expanded SubProcess as a rounded frame.
+                        // We delegate to the existing activity renderer via a synthetic
+                        // NodeLayout so the frame + label + transactional inner rect
+                        // are all drawn consistently.
+                        val groupNodeLayout =
+                            dev.kuml.layout.NodeLayout(
+                                bounds =
+                                    dev.kuml.layout.Rect(
+                                        origin = dev.kuml.layout.Point(gx, gy),
+                                        size = dev.kuml.layout.Size(gw, gh),
+                                    ),
+                            )
+                        NodeRendererDispatcher.dispatch(sp, groupNodeLayout, theme, nodesBuilder)
+                    } else {
+                        // Fallback: generic frame rect if element not found
+                        nodesBuilder.tag(
+                            "g",
+                            mapOf(
+                                "id" to xmlEscapeAttr("bpmn-subprocess-${groupId.value}"),
+                                "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+                            ),
+                        ) {
+                            tag(
+                                "rect",
+                                mapOf(
+                                    "width" to fmt(gw),
+                                    "height" to fmt(gh),
+                                    "rx" to "8",
+                                    "fill" to "white",
+                                    "stroke" to "#333",
+                                    "stroke-width" to "1.5",
+                                ),
+                            )
+                        }
+                    }
+                } else {
+                    // Generic group rect (pools, lanes, or unknown groups)
+                    nodesBuilder.tag(
+                        "g",
+                        mapOf(
+                            "id" to xmlEscapeAttr("bpmn-group-${groupId.value}"),
+                            "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+                        ),
+                    ) {
+                        tag(
+                            "rect",
+                            mapOf(
+                                "width" to fmt(gw),
+                                "height" to fmt(gh),
+                                "class" to "kuml-system",
+                                "rx" to fmt(theme.borders.cornerRadiusPx),
+                                "ry" to fmt(theme.borders.cornerRadiusPx),
+                            ),
+                        )
+                    }
+                }
+            }
+
+            // 2. Nodes SECOND — all flow nodes (events, gateways, tasks, collapsed
+            //    sub-processes, call activities, data objects, boundary events) are
+            //    rendered on top of the group backgrounds.
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val element = elementIndex[nodeId.value] ?: continue
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+            }
+
+            // 3. Edges LAST — SequenceFlows and any other BPMN edges render on top.
+            for ((edgeId, route) in layoutResult.edges) {
+                val element = elementIndex[edgeId.value] ?: continue
+                val shiftedRoute = shiftRoute(route, padding)
+                EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
+            }
         }
     }
 }

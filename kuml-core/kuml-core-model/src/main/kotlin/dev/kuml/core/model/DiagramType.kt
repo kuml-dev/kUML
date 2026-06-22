@@ -24,4 +24,7 @@ enum class DiagramType {
     COMMUNICATION,
     TIMING,
     INTERACTION_OVERVIEW,
+
+    // ── BPMN 2.0 — V3.1.3 ───────────────────────────────────────────────────
+    BPMN_PROCESS,
 }

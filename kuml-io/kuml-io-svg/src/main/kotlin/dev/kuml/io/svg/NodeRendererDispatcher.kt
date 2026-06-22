@@ -1,11 +1,23 @@
 package dev.kuml.io.svg
 
+import dev.kuml.bpmn.model.BpmnCallActivity
+import dev.kuml.bpmn.model.BpmnDataObject
+import dev.kuml.bpmn.model.BpmnEvent
+import dev.kuml.bpmn.model.BpmnGateway
+import dev.kuml.bpmn.model.BpmnSubProcess
+import dev.kuml.bpmn.model.BpmnTask
 import dev.kuml.c4.model.C4Component
 import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4DeploymentNode
 import dev.kuml.c4.model.C4Person
 import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.core.model.KumlElement
+import dev.kuml.io.svg.bpmn.renderBpmnCallActivity
+import dev.kuml.io.svg.bpmn.renderBpmnDataObject
+import dev.kuml.io.svg.bpmn.renderBpmnEvent
+import dev.kuml.io.svg.bpmn.renderBpmnGateway
+import dev.kuml.io.svg.bpmn.renderBpmnSubProcess
+import dev.kuml.io.svg.bpmn.renderBpmnTask
 import dev.kuml.io.svg.c4.renderC4Component
 import dev.kuml.io.svg.c4.renderC4Container
 import dev.kuml.io.svg.c4.renderC4DeploymentNode
@@ -108,6 +120,13 @@ internal object NodeRendererDispatcher {
             is C4DeploymentNode -> renderC4DeploymentNode(element, layout, theme, builder)
             is Sysml2Definition -> renderSysml2Definition(element, layout, theme, builder)
             is Sysml2Usage -> renderSysml2Usage(element, layout, theme, builder)
+            // BPMN — V3.1.3
+            is BpmnEvent -> renderBpmnEvent(element, layout, theme, builder)
+            is BpmnGateway -> renderBpmnGateway(element, layout, theme, builder)
+            is BpmnTask -> renderBpmnTask(element, layout, theme, builder)
+            is BpmnSubProcess -> renderBpmnSubProcess(element, layout, theme, builder)
+            is BpmnCallActivity -> renderBpmnCallActivity(element, layout, theme, builder)
+            is BpmnDataObject -> renderBpmnDataObject(element, layout, theme, builder)
             else -> renderFallbackNode(element, layout, builder)
         }
     }
