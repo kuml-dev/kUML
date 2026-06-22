@@ -28,6 +28,8 @@ data class BpmnProcess(
      * Looks up any element by ID within this process.
      *
      * Searches flow nodes, sequence flows, data objects, and data associations.
+     * For expanded sub-processes, also recurses into their inner flow elements,
+     * sequence flows, data objects, and data associations.
      *
      * @param id The element ID to look up.
      * @return The matching [BpmnElement], or `null` if not found.
@@ -37,4 +39,10 @@ data class BpmnProcess(
             ?: sequenceFlows.firstOrNull { it.id == id }
             ?: dataObjects.firstOrNull { it.id == id }
             ?: dataAssociations.firstOrNull { it.id == id }
+            ?: flowNodes.filterIsInstance<BpmnSubProcess>().firstNotNullOfOrNull { sp ->
+                sp.flowElementNodes.firstOrNull { it.id == id }
+                    ?: sp.innerSequenceFlows.firstOrNull { it.id == id }
+                    ?: sp.innerDataObjects.firstOrNull { it.id == id }
+                    ?: sp.innerDataAssociations.firstOrNull { it.id == id }
+            }
 }

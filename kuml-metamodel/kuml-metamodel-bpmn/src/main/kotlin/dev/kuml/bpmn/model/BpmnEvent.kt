@@ -44,7 +44,7 @@ enum class EventDefinition {
  * - END events must be THROWING.
  * - TERMINATE definition is only valid at END position.
  * - LINK definition is only valid at INTERMEDIATE position.
- * - CANCEL definition is only valid at END position.
+ * - CANCEL definition is only valid at END position or as a boundary event (INTERMEDIATE + attachedToRef).
  *
  * @property id Stable element identifier.
  * @property name Optional human-readable label.
@@ -83,8 +83,12 @@ data class BpmnEvent(
         require(definition != EventDefinition.LINK || position == EventPosition.INTERMEDIATE) {
             "LINK definition is only valid for INTERMEDIATE events (got position=$position)"
         }
-        require(definition != EventDefinition.CANCEL || position == EventPosition.END) {
-            "CANCEL definition is only valid for END events (got position=$position)"
+        require(
+            definition != EventDefinition.CANCEL ||
+                position == EventPosition.END ||
+                (position == EventPosition.INTERMEDIATE && attachedToRef != null),
+        ) {
+            "CANCEL is only valid at END or as a boundary event (INTERMEDIATE + attachedToRef)"
         }
     }
 }

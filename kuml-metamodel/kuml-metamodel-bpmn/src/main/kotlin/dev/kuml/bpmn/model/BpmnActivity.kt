@@ -45,7 +45,13 @@ data class BpmnTask(
  * @property expanded When `true`, the sub-process is shown in an expanded (inline) form.
  * @property triggeredByEvent When `true`, this is an Event Sub-Process.
  * @property transactional When `true`, this is a Transactional Sub-Process.
- * @property flowElements IDs of the contained flow elements.
+ * @property flowElements IDs of the contained flow elements (for reference).
+ * @property flowElementNodes Actual [BpmnFlowNode] objects of the contained flow elements.
+ *   Populated only when [expanded] is `true`. Allows callers to resolve inner elements
+ *   directly without going through the parent process.
+ * @property innerSequenceFlows Sequence flows inside this sub-process (only when [expanded]).
+ * @property innerDataObjects Data objects inside this sub-process (only when [expanded]).
+ * @property innerDataAssociations Data associations inside this sub-process (only when [expanded]).
  * @property loopCharacteristics Optional loop behaviour.
  * @property boundaryEvents IDs of attached boundary events.
  * @property incoming IDs of incoming sequence flows.
@@ -60,6 +66,10 @@ data class BpmnSubProcess(
     val triggeredByEvent: Boolean = false,
     val transactional: Boolean = false,
     val flowElements: List<String> = emptyList(),
+    val flowElementNodes: List<BpmnFlowNode> = emptyList(),
+    val innerSequenceFlows: List<SequenceFlow> = emptyList(),
+    val innerDataObjects: List<BpmnDataObject> = emptyList(),
+    val innerDataAssociations: List<DataAssociation> = emptyList(),
     override val loopCharacteristics: LoopCharacteristics? = null,
     override val boundaryEvents: List<String> = emptyList(),
     override val incoming: List<String> = emptyList(),
