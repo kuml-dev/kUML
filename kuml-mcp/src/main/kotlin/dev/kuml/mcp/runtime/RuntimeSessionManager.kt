@@ -356,6 +356,7 @@ internal class RuntimeSessionManager(
                     Sysml2StateMachineAdapter.toUmlStateMachine(extracted.model, diagram)
                 }
                 is ExtractedDiagram.C4 -> error("C4 diagrams cannot be simulated as STM")
+                is ExtractedDiagram.Bpmn -> error("BPMN diagrams cannot be simulated as STM")
             }
 
         val runtime = StateMachineRuntime(guards = OclGuardEvaluator())

@@ -1,5 +1,7 @@
 package dev.kuml.core.script
 
+import dev.kuml.bpmn.model.BpmnDiagram
+import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
 import dev.kuml.core.model.KumlDiagram
@@ -46,6 +48,18 @@ public sealed class ExtractedDiagram {
     public data class Sysml2(
         val model: Sysml2Model,
         val diagram: Sysml2Diagram,
+    ) : ExtractedDiagram()
+
+    /**
+     * A BPMN diagram with its parent [BpmnModel].
+     *
+     * `BpmnLayoutBridge` needs both the model (holds all processes, collaborations,
+     * data stores) and the specific diagram view ([BpmnDiagram]) to determine
+     * which elements to render. V3.1.6 introduced this for BPMN CLI support.
+     */
+    public data class Bpmn(
+        val model: BpmnModel,
+        val diagram: BpmnDiagram,
     ) : ExtractedDiagram()
 }
 
@@ -212,6 +226,11 @@ object DiagramExtractor {
                         "so the renderer has access to the surrounding Sysml2Model.",
                 )
             }
+            if (value is BpmnModel) {
+                value.firstDiagramOrNull()?.let {
+                    return ExtractedDiagram.Bpmn(value, it)
+                }
+            }
         }
 
         // Case 2: scan script instance for properties
@@ -265,16 +284,32 @@ object DiagramExtractor {
                     val model = prop.get(instance) as Sysml2Model
                     return ExtractedDiagram.Sysml2(model, model.firstDiagramOrNull()!!)
                 }
+
+            // BpmnModel property with at least one diagram (V3.1.6).
+            properties
+                .firstOrNull { prop ->
+                    try {
+                        val v = prop.get(instance)
+                        v is BpmnModel && v.firstDiagramOrNull() != null
+                    } catch (_: Exception) {
+                        false
+                    }
+                }?.let { prop ->
+                    @Suppress("UNCHECKED_CAST")
+                    val model = prop.get(instance) as BpmnModel
+                    return ExtractedDiagram.Bpmn(model, model.firstDiagramOrNull()!!)
+                }
         }
 
         throw ScriptEvaluationException(
             "Script '${input.name}' did not produce a renderable diagram. " +
                 "End the script with a `classDiagram { … }` (UML), " +
                 "a `c4Model(name = \"…\") { systemContextDiagram(name = \"…\") { … } }` (C4), " +
-                "or a `sysml2Model(\"…\") { bdd(\"…\") { … } }` (SysML 2 BDD) / " +
+                "a `sysml2Model(\"…\") { bdd(\"…\") { … } }` (SysML 2 BDD) / " +
                 "`sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` (SysML 2 IBD) / " +
                 "`sysml2Model(\"…\") { stmDiagram(\"…\") { … } }` (SysML 2 STM) / " +
-                "`sysml2Model(\"…\") { actDiagram(\"…\") { … } }` (SysML 2 ACT) expression.",
+                "`sysml2Model(\"…\") { actDiagram(\"…\") { … } }` (SysML 2 ACT), " +
+                "or a `bpmnModel(\"…\") { process(…) { … }; diagram(\"…\", processId = \"…\") }` (BPMN) expression.",
         )
     }
 
@@ -287,4 +322,7 @@ object DiagramExtractor {
      * render through the same path.
      */
     private fun Sysml2Model.firstDiagramOrNull(): Sysml2Diagram? = diagrams.firstOrNull()
+
+    /** V3.1.6: picks the first diagram in declaration order from a [BpmnModel]. */
+    private fun BpmnModel.firstDiagramOrNull(): BpmnDiagram? = diagrams.firstOrNull()
 }

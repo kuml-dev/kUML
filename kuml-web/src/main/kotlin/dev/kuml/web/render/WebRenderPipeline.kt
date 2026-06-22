@@ -1,5 +1,7 @@
 package dev.kuml.web.render
 
+import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
@@ -24,6 +26,7 @@ import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.sysml2.ActDiagram
@@ -119,6 +122,7 @@ internal object WebRenderPipeline {
                 is ExtractedDiagram.Uml -> renderUml(extracted, format, theme, layoutOverride, widthPx, durationMs, standaloneTex)
                 is ExtractedDiagram.C4 -> renderC4(extracted, format, theme, widthPx, durationMs, standaloneTex)
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, format, theme, widthPx, durationMs, standaloneTex)
+                is ExtractedDiagram.Bpmn -> renderBpmn(extracted, format, theme, widthPx, durationMs)
             }
         } catch (e: ScriptEvaluationException) {
             WebRenderResult.Error(e.message ?: "Script error")
@@ -482,6 +486,61 @@ internal object WebRenderPipeline {
                 else -> this
             },
         )
+
+    /**
+     * BPMN render branch for the web render pipeline (V3.1.6).
+     *
+     * Supports SVG and PNG output for both [ProcessDiagram] and [CollaborationDiagram].
+     * Returns a generic unsupported-format error for other format values.
+     */
+    private fun renderBpmn(
+        extracted: ExtractedDiagram.Bpmn,
+        format: String,
+        theme: KumlTheme,
+        widthPx: Int,
+        durationMs: Long,
+    ): WebRenderResult {
+        val model = extracted.model
+        val bpmnDiagram = extracted.diagram
+        val bpmnEngine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: return WebRenderResult.Error("ELK layout engine not available for BPMN rendering")
+        return when (bpmnDiagram) {
+            is ProcessDiagram -> {
+                val process = model.processes.firstOrNull { it.id == bpmnDiagram.processId }
+                val elements: List<dev.kuml.core.model.KumlElement> =
+                    if (process != null) process.flowNodes + process.sequenceFlows + process.dataObjects else emptyList()
+                val kumlDiagram =
+                    KumlDiagram(
+                        name = bpmnDiagram.name,
+                        type = DiagramType.BPMN_PROCESS,
+                        elements = elements,
+                    )
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                when (format) {
+                    "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(kumlDiagram, layoutResult, theme), durationMs)
+                    "png" -> {
+                        val pngBytes = KumlPngRenderer.toPng(kumlDiagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx))
+                        WebRenderResult.Png(pngBytes, durationMs)
+                    }
+                    else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
+                }
+            }
+            is CollaborationDiagram -> {
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                when (format) {
+                    "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme), durationMs)
+                    "png" -> {
+                        val svg = KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme)
+                        WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
+                    }
+                    else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
+                }
+            }
+        }
+    }
 
     private fun DiagramType.toDiagramKind(): DiagramKind =
         when (this) {

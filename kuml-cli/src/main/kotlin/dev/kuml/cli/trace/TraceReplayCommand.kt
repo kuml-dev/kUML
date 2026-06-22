@@ -337,6 +337,10 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
                 System.err.println("C4 diagrams have no executable behaviour and cannot be replayed.")
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
+            is ExtractedDiagram.Bpmn -> {
+                System.err.println("BPMN diagrams are not supported by `kuml trace replay`.")
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
         }
     }
 }

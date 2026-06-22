@@ -21,6 +21,7 @@ dependencies {
     implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
     implementation(project(":kuml-metamodel:kuml-metamodel-sysml2"))
     implementation(project(":kuml-metamodel:kuml-metamodel-kerml"))
+    implementation(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN web render
     implementation(project(":kuml-renderer:kuml-layout-api"))
     implementation(project(":kuml-renderer:kuml-layout-bridge"))
     implementation(project(":kuml-renderer:kuml-layout-elk"))

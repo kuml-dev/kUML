@@ -155,6 +155,10 @@ internal class SandboxValidateCommand : CliktCommand(name = "validate") {
                 echo("C4 diagrams have no executable behaviour and cannot be sandbox-validated.", err = true)
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
+            is ExtractedDiagram.Bpmn -> {
+                echo("BPMN diagrams are not supported by `kuml sandbox validate`. Use a UML or SysML 2 STM script instead.", err = true)
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
         }
     }
 }

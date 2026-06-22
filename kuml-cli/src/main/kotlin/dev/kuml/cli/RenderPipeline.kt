@@ -1,5 +1,9 @@
 package dev.kuml.cli
 
+import dev.kuml.bpmn.constraint.BpmnConstraintChecker
+import dev.kuml.bpmn.constraint.ViolationSeverity
+import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.core.config.KumlConfig
 import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.DiagramType
@@ -25,6 +29,7 @@ import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -199,6 +204,7 @@ internal object RenderPipeline {
                     renderUml(extracted, output, format, width, theme, layoutEngineOverride, latexStandalone)
                 is ExtractedDiagram.C4 -> renderC4(extracted, output, format, width, theme)
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme)
+                is ExtractedDiagram.Bpmn -> renderBpmn(extracted, output, format, width, theme)
             }
         } catch (e: IOException) {
             throw e
@@ -524,6 +530,85 @@ internal object RenderPipeline {
                 writeText(output, tex)
             }
             else -> throw ScriptEvaluationException("Unsupported format: $format")
+        }
+    }
+
+    /**
+     * BPMN render branch (V3.1.6).
+     *
+     * Dispatches on the concrete [BpmnDiagram] type:
+     * - [ProcessDiagram] → `BpmnLayoutBridge.toLayoutGraph` + `KumlSvgRenderer.toSvg(KumlDiagram, …)`
+     * - [CollaborationDiagram] → `BpmnLayoutBridge.toLayoutGraph(collab)` + `KumlSvgRenderer.toSvg(model, collab, …)`
+     *
+     * Before rendering, [BpmnConstraintChecker] is run. ERROR violations are printed as
+     * warnings (not thrown) — the model may still be partially renderable and the user
+     * should see the diagram even if some constraints are violated. WARNING violations
+     * are printed as informational messages.
+     */
+    private fun renderBpmn(
+        extracted: ExtractedDiagram.Bpmn,
+        output: Path,
+        format: String,
+        width: Int,
+        theme: dev.kuml.renderer.theme.core.KumlTheme,
+    ) {
+        val model = extracted.model
+        val bpmnDiagram = extracted.diagram
+
+        // Run constraint checker and report violations
+        val violations = BpmnConstraintChecker().check(model)
+        violations.forEach { v ->
+            val prefix = if (v.severity == ViolationSeverity.ERROR) "BPMN ERROR" else "BPMN WARNING"
+            System.err.println("[$prefix] ${v.elementId ?: "model"}: ${v.message}")
+        }
+
+        ensureEnginesRegistered()
+        val bpmnEngine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: error("ELK layout engine not available for BPMN diagrams.")
+
+        when (bpmnDiagram) {
+            is ProcessDiagram -> {
+                // Build a KumlDiagram view for the SVG renderer:
+                // collect all flow nodes + sequence flows of the referenced process.
+                val process = model.processes.firstOrNull { it.id == bpmnDiagram.processId }
+                val elements: List<dev.kuml.core.model.KumlElement> =
+                    if (process != null) {
+                        process.flowNodes + process.sequenceFlows + process.dataObjects
+                    } else {
+                        emptyList()
+                    }
+                val kumlDiagram =
+                    KumlDiagram(
+                        name = bpmnDiagram.name,
+                        type = DiagramType.BPMN_PROCESS,
+                        elements = elements,
+                    )
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                when (format) {
+                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(kumlDiagram, layoutResult, theme))
+                    "png" -> {
+                        val pngBytes =
+                            KumlPngRenderer.toPng(kumlDiagram, layoutResult, theme, PngRenderOptions(widthPx = width))
+                        writeBinary(output, pngBytes)
+                    }
+                    else -> throw ScriptEvaluationException("Unsupported format for BPMN: $format (supported: svg, png)")
+                }
+            }
+            is CollaborationDiagram -> {
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                when (format) {
+                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme))
+                    "png" -> {
+                        val svg = KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme)
+                        val pngBytes = KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = width))
+                        writeBinary(output, pngBytes)
+                    }
+                    else -> throw ScriptEvaluationException("Unsupported format for BPMN: $format (supported: svg, png)")
+                }
+            }
         }
     }
 

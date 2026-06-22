@@ -146,6 +146,10 @@ internal class ValidateExpressionsCommand : CliktCommand(name = "validate-expres
             is ExtractedDiagram.C4 -> {
                 // C4 diagrams have no executable guards
             }
+            is ExtractedDiagram.Bpmn -> {
+                // BPMN diagrams — sequence flow conditions are string expressions;
+                // not checked here (no OCL-like type system for BPMN conditions).
+            }
         }
         return result
     }

@@ -102,6 +102,14 @@ internal class ExportCommand : CliktCommand(name = "export") {
                     )
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                 }
+                is ExtractedDiagram.Bpmn -> {
+                    System.err.println(
+                        "kuml export --format structurizr requires a C4 model — " +
+                            "the script '${scriptFile.name}' produces a BPMN model. " +
+                            "Use `kuml render --format svg|png` for BPMN diagrams.",
+                    )
+                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                }
             }
 
         writeOutput(outputFile, text)
@@ -135,6 +143,14 @@ internal class ExportCommand : CliktCommand(name = "export") {
                     System.err.println(
                         "kuml export --format xmi supports UML models only — " +
                             "the script '${scriptFile.name}' produces a SysML 2 model.",
+                    )
+                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                }
+                is ExtractedDiagram.Bpmn -> {
+                    System.err.println(
+                        "kuml export --format xmi supports UML models only — " +
+                            "the script '${scriptFile.name}' produces a BPMN model. " +
+                            "Use `kuml render --format svg|png` for BPMN diagrams.",
                     )
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                 }

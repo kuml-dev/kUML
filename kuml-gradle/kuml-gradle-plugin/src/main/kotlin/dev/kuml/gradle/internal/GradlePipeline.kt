@@ -1,5 +1,9 @@
 package dev.kuml.gradle.internal
 
+import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ProcessDiagram
+import dev.kuml.core.model.DiagramType
+import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScript
@@ -12,6 +16,7 @@ import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
@@ -219,6 +224,22 @@ internal object GradlePipeline {
                         KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                     }
                 }
+            is ExtractedDiagram.Bpmn -> {
+                when (val diagram = extracted.diagram) {
+                    is ProcessDiagram -> {
+                        val process = extracted.model.processes.firstOrNull { it.id == diagram.processId }
+                        val elements: List<dev.kuml.core.model.KumlElement> =
+                            if (process != null) process.flowNodes + process.sequenceFlows + process.dataObjects else emptyList()
+                        val kumlDiagram = KumlDiagram(name = diagram.name, type = DiagramType.BPMN_PROCESS, elements = elements)
+                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        KumlSvgRenderer.toSvg(kumlDiagram, layout, theme)
+                    }
+                    is CollaborationDiagram -> {
+                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                    }
+                }
+            }
         }
 
     /** Render an extracted diagram to PNG bytes. */
@@ -248,6 +269,23 @@ internal object GradlePipeline {
                 "PNG-Export für SysML 2 (${extracted.diagram::class.simpleName}) ist V2.x — " +
                     "bis dahin bitte SVG oder LaTeX nutzen.",
             )
+            is ExtractedDiagram.Bpmn -> {
+                when (val diagram = extracted.diagram) {
+                    is ProcessDiagram -> {
+                        val process = extracted.model.processes.firstOrNull { it.id == diagram.processId }
+                        val elements: List<dev.kuml.core.model.KumlElement> =
+                            if (process != null) process.flowNodes + process.sequenceFlows + process.dataObjects else emptyList()
+                        val kumlDiagram = KumlDiagram(name = diagram.name, type = DiagramType.BPMN_PROCESS, elements = elements)
+                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        KumlPngRenderer.toPng(kumlDiagram, layout, theme, options)
+                    }
+                    is CollaborationDiagram -> {
+                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlPngRenderer.toPng(svg, options)
+                    }
+                }
+            }
         }
     }
 
@@ -257,6 +295,7 @@ internal object GradlePipeline {
             is ExtractedDiagram.Uml -> extracted.diagram.name
             is ExtractedDiagram.C4 -> extracted.diagram.name
             is ExtractedDiagram.Sysml2 -> extracted.diagram.name
+            is ExtractedDiagram.Bpmn -> extracted.diagram.name
         }
 
     /** Default (fallback) theme — used when the user's pick fails to resolve. */

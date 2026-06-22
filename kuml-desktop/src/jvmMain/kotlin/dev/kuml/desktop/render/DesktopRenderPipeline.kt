@@ -1,5 +1,9 @@
 package dev.kuml.desktop.render
 
+import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ProcessDiagram
+import dev.kuml.core.model.DiagramType
+import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
@@ -12,6 +16,7 @@ import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
@@ -125,6 +130,40 @@ internal object DesktopRenderPipeline {
                                 elkEngine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT),
                                 theme,
                             )
+                    }
+                }
+                is ExtractedDiagram.Bpmn -> {
+                    when (val diagram = extracted.diagram) {
+                        is ProcessDiagram -> {
+                            val process =
+                                extracted.model.processes.firstOrNull { it.id == diagram.processId }
+                            val elements =
+                                if (process != null) {
+                                    process.flowNodes + process.sequenceFlows + process.dataObjects
+                                } else {
+                                    emptyList()
+                                }
+                            val kumlDiagram =
+                                KumlDiagram(
+                                    name = diagram.name,
+                                    type = DiagramType.BPMN_PROCESS,
+                                    elements = elements,
+                                )
+                            val layout =
+                                elkEngine.layout(
+                                    BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram),
+                                    LayoutHints.DEFAULT,
+                                )
+                            KumlSvgRenderer.toSvg(kumlDiagram, layout, theme)
+                        }
+                        is CollaborationDiagram -> {
+                            val layout =
+                                elkEngine.layout(
+                                    BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram),
+                                    LayoutHints.DEFAULT,
+                                )
+                            KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        }
                     }
                 }
             }

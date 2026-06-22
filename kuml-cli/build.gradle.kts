@@ -69,6 +69,7 @@ dependencies {
     implementation(project(":kuml-io:kuml-io-latex")) // V2.0.2 — TikZ/LaTeX-Export
     implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
     implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
+    implementation(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN CLI-Integration
     implementation(project(":kuml-docs:kuml-markdown"))
 
     // V3.0.9 — `kuml reverse` subcommand. API is needed at compile time,

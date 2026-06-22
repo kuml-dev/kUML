@@ -14,6 +14,7 @@ dependencies {
     testImplementation(project(":kuml-metamodel:kuml-metamodel-uml"))
     testImplementation(project(":kuml-metamodel:kuml-metamodel-c4"))
     testImplementation(project(":kuml-metamodel:kuml-metamodel-sysml2"))
+    testImplementation(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN vault examples
     testImplementation(project(":kuml-renderer:kuml-layout-api"))
     testImplementation(project(":kuml-renderer:kuml-layout-bridge"))
     testImplementation(project(":kuml-renderer:kuml-layout-elk"))
