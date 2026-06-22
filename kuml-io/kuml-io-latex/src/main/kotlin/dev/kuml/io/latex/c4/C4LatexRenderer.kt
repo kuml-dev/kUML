@@ -14,7 +14,6 @@ import dev.kuml.io.latex.escapeLatex
 import dev.kuml.io.latex.fmtCoord
 import dev.kuml.io.latex.tikzId
 import dev.kuml.io.latex.uml.UmlEdgeLatexRenderer
-import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
@@ -209,6 +208,12 @@ internal object C4LatexRenderer {
     private const val DESCRIPTION_MAX_CHARS = 200
 
     /**
+     * Fraction of the node width used for the description `\parbox` — leaves a small
+     * visual margin so the word-wrapped text does not touch the node border.
+     */
+    private const val PARBOX_WIDTH_RATIO = 0.85f
+
+    /**
      * Emits the outer frame + centered label node for any C4 element.
      *
      * The outer frame is an anchor=north west rectangle at the layout bounds.
@@ -287,7 +292,7 @@ internal object C4LatexRenderer {
                 // Wrap in \parbox so very long (but within the char cap) descriptions
                 // word-wrap inside the node rather than overflowing the canvas edge.
                 if (safeDescription != null) {
-                    add("\\small \\parbox{${fmtCoord(w * 0.85f)}pt}{\\centering $safeDescription}")
+                    add("\\small \\parbox{${fmtCoord(w * PARBOX_WIDTH_RATIO)}pt}{\\centering $safeDescription}")
                 }
             }
         val tabularContent = rows.joinToString("\\\\")
@@ -318,14 +323,13 @@ internal object C4LatexRenderer {
         val relById = relationships.associateBy { it.id }
         for ((edgeId, route) in layoutResult.edges) {
             val rel = relById[edgeId.value]
-            renderEdge(rel, route, edgeId, options, out)
+            renderEdge(rel, route, options, out)
         }
     }
 
     private fun renderEdge(
         relationship: C4Relationship?,
         route: EdgeRoute,
-        @Suppress("UnusedParameter") edgeId: EdgeId,
         options: LatexRenderOptions,
         out: StringBuilder,
     ) {
@@ -401,5 +405,4 @@ internal object C4LatexRenderer {
         val b = allPoints[mid]
         return (a.x + b.x) / 2f to (a.y + b.y) / 2f
     }
-
 }
