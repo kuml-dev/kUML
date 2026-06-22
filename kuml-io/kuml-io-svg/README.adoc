@@ -10,11 +10,23 @@ or file — without Skiko, Compose, or AWT. GraalVM Native Image compatible.
 == Features
 
 * Semantic SVG output (`<rect>`, `<text>`, `<path>`, `<line>`) with `<defs>/<style>`
-* All 11 V1 element types (UML + C4) and 8 edge types
+* All element types across four modelling languages: UML, SysML 2, C4, and BPMN 2.0
 * Edge routing: `Direct`, `OrthogonalRounded`, `Bezier`
 * Theme-driven CSS classes for easy styling
 * `<?xml ...?>` declaration optional via `SvgRenderOptions`
 * Full XML escape: `&`, `<`, `>`, `"`, `'` in both text nodes and attributes
+
+== BPMN 2.0 SVG Support
+
+Added in V3.1.3 and V3.1.5. `KumlSvgRenderer` dispatches to a dedicated BPMN renderer path when the model is a `BpmnModel`:
+
+* *Events* — all OMG symbols: None, Message, Timer, Error, Escalation, Signal, Compensation, Conditional, Link, Cancel, Multiple, Parallel Multiple, Terminate. Rendered at Start / Intermediate / End position with the correct border weight and inner marker.
+* *Gateways* — diamond shapes for Exclusive (X), Inclusive (O), Parallel (+), Event-Based (⬡), Complex (*).
+* *Tasks* — 7 task type icons (User 👤, Service ⚙, Send ✉, Receive ✉, Manual ✋, Script 📜, Business Rule 📋) plus plain task.
+* *Sub-Process / Call Activity* — expanded and collapsed variants with correct corner-marker conventions.
+* *Pools and Lanes* — horizontal/vertical swimlane layout via `BpmnLayoutBridge`.
+* *Message Flows* — dashed cross-pool arrows with open arrowhead.
+* *Sequence Flows* — solid arrows; conditional flows with diamond marker; default flows with slash marker.
 
 == Usage
 

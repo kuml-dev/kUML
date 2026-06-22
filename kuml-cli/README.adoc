@@ -22,11 +22,11 @@ kuml render order.kuml.kts -o /tmp/diagram.svg     # explicit output
 kuml render order.kuml.kts --width 1920 --format png
 ----
 
-Renders once and exits. Auto-detects UML vs C4 from the script's last
+Renders once and exits. Auto-detects model type from the script's last
 expression — UML scripts end with `classDiagram { … }` / `diagram { … }`,
-C4 scripts end with `c4Model(name = "…") { … }` (the first diagram in the
-model is rendered). PNG output is produced by transcoding the SVG via
-Apache Batik.
+C4 scripts end with `c4Model(name = "…") { … }`, BPMN scripts end with
+`bpmnModel(…) { … }` (the first diagram in the model is rendered). PNG output
+is produced by transcoding the SVG via Apache Batik.
 
 === `kuml watch`
 
@@ -214,7 +214,7 @@ for the release workflow details.
 ----
 *.kuml.kts
   → KumlScriptHost.eval()
-  → UmlLayoutBridge.toLayoutGraph()
+  → UmlLayoutBridge / C4LayoutBridge / Sysml2LayoutBridge / BpmnLayoutBridge .toLayoutGraph()
   → ElkLayoutEngine.layout()
   → KumlSvgRenderer / KumlPngRenderer
   → output.svg / output.png

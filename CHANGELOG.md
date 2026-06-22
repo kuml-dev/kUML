@@ -6,6 +6,78 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-06-22
+
+### BPMN 2.0 — Neue Modellierungssprache (V3.1.1–V3.1.8)
+
+Vollständige BPMN 2.0-Unterstützung als eigenständiges Metamodell
+(eigenständiges pure-Kotlin-Metamodell, analog zu SysML 2).
+Deckt Process, Collaboration, CLI-Integration, XML-IO und LaTeX-Renderer ab.
+Choreography und Conversation folgen in V3.2.
+
+**Metamodell (`kuml-metamodel-bpmn`) — V3.1.1+V3.1.4**
+
+- Sealed-Interface-Hierarchie: `BpmnElement` → `BpmnFlowElement` → `BpmnFlowNode`
+- `BpmnEvent` (Event-Matrix-Design): einzelne Klasse mit `(EventPosition × EventDefinition × EventBehaviour)`-Triplet + `init{}`-Guards (13 EventDefinitions, 3 Positions, 2 Behaviours)
+- `BpmnGateway`: 5 Typen (EXCLUSIVE, INCLUSIVE, PARALLEL, EVENT_BASED, COMPLEX)
+- `BpmnTask`, `BpmnSubProcess` (expanded/collapsed/transactional/triggeredByEvent), `BpmnCallActivity`, `LoopCharacteristics` (Standard + MultiInstance)
+- `SequenceFlow` als Pattern-A-Edge: auf dem Modell mit `sourceRef`/`targetRef` + `conditionExpression`
+- `BpmnDataObject`, `BpmnDataStore`, `DataAssociation`
+- `BpmnProcess` mit `elementById()`
+- Collaboration-Typen: `BpmnCollaboration`, `BpmnParticipant` (Pool), `BpmnLane` (verschachtelt via `childLanes`, Lane referenziert FlowNodes via `flowNodeRefs`), `MessageFlow` (Pattern A)
+- `BpmnModel` + `ProcessDiagram` + `CollaborationDiagram` als `BpmnDiagram sealed interface`
+
+**DSL (`@BpmnDsl`) — V3.1.2+V3.1.4**
+
+- `bpmnModel { }` — Top-Level-Builder-Funktion
+- `ProcessBuilder`: `startEvent()`, `endEvent()`, `intermediateEvent()`, `boundaryEvent()`, `task()`, `subProcess { }`, `callActivity()`, `gateway()`, `dataObject()`, `dataAssociation()`, `sequenceFlow()`
+- Infix-Syntax: `"sourceId" flowsTo "targetId"`
+- Auto-IDs: `{processId}_{type}_{counter}` (deterministisch)
+- `CollaborationBuilder`: `pool { }`, `blackBoxPool()`, `messageFlow()`
+- `PoolBuilder`: `lane { }`, `process()`; `LaneBuilder`: `contains()`, verschachtelte `lane { }`
+
+**SVG-Renderer (`kuml-io-svg`) — V3.1.3+V3.1.5**
+
+- Alle OMG-BPMN-Symbole: Events (dünner Ring START, Doppelring INTERMEDIATE, dicker Ring END), Gateways (Diamant + 5 Typ-Symbole), Tasks (abgerundete Rechtecke + 7 Typ-Marker), SubProcess (`+`-Marker), CallActivity (fetter Rahmen)
+- Loop-/MultiInstance-Marker (↻ / ≡ / ‖)
+- `BpmnSequenceFlowSvg`: gefüllter Pfeilkopf, Default-Slash, Condition-Label, Marker-ID per Regex sanitized
+- Boundary-Events: `stroke-dasharray` für non-interrupting, `attachedToRef`-Positionierung
+- Event-Symbole für alle 13 `EventDefinition`-Typen (catching=outline, throwing=filled)
+- `BpmnPoolSvg`: Swimlane-Rahmen + gedrehtes Titel-Band (horizontal links, vertikal oben)
+- `BpmnLaneSvg`: Lane-Trennlinien + Lane-Titel, rekursiv für verschachtelte Lanes
+- `BpmnMessageFlowSvg`: gestrichelte Linie + offener Pfeilkopf + Kreis am Source
+- `BpmnLayoutBridge`: FlowNodes → LayoutGraph (Task 120×60, Gateway 50×50, Event 36×36, DataObject 40×55); Pools als Container-Nodes; Boundary-Events als Child-Nodes
+
+**CLI-Integration, Constraint-Checker, Vault-Beispiele — V3.1.6**
+
+- `BpmnConstraintChecker` mit 7 Regeln: fehlende Start-/EndEvents (WARNING), unbekannte SequenceFlow-Referenzen (ERROR), XOR/OR-Gateway ohne defaultFlow (WARNING), ungültige BoundaryEvent-attachedToRef (ERROR), MessageFlow source == target (ERROR), Participant.processRef auf nicht-existierenden Prozess (ERROR)
+- CLI erkennt `BpmnModel` als Skript-Rückgabetyp und ruft BPMN-Renderer auf
+- Constraint-Violations werden als Warnings in CLI-Output integriert
+- 3 neue Vault-Beispiele: Order Fulfillment (Process), Document Review (SubProcess+Loop), Customer-Supplier (Collaboration 2 Pools)
+
+**BPMN 2.0 XML Import/Export (`kuml-io-bpmn`) — V3.1.7**
+
+- Neues Modul `kuml-io-bpmn` (analog zu `kuml-io-arxml`)
+- `BpmnXmlExporter`: BPMN 2.0 XML ohne JAXB (Kotlin stdlib), Namespace `http://www.omg.org/spec/BPMN/20100524/MODEL`; alle FlowNode-Typen, SequenceFlow+ConditionExpression, Collaboration
+- `BpmnXmlImporter`: namespace-aware DOM-Parser, XXE-Schutz (`disallow-doctype-decl` + external-entities deaktiviert), unbekannte Tags ignoriert
+- `BpmnXml`: Convenience-API (`export()`, `import()`)
+- Roundtrip-Konsistenz: Export → Import → gleiche id/name/Typen
+
+**LaTeX/TikZ-Renderer (`kuml-io-latex`) — V3.1.8**
+
+- `BpmnLatexRenderer`: ProcessDiagram + CollaborationDiagram als TikZ-Output
+- 15 neue TikZ-Styles: `kuml-bpmn-start/end/intermediate/boundary`, `kuml-bpmn-gateway`, `kuml-bpmn-task/subprocess/callactivity`, `kuml-bpmn-pool/lane/pool-header/lane-header`, `kuml-bpmn-flow/msgflow`
+- Event-Symbole über LaTeX-Math-Zeichen (`\bowtie`, `\bullet`, `\lightning`, `\triangle` etc.)
+- Gateway-Typ-Symbole (`\times`, `+`, `\bigcirc` etc.)
+- Pool-Header mit `\rotatebox{90}`
+- LaTeX-Injection-Schutz: alle Modell-Felder durch `LatexEscape.escape()`
+- TikZ-ID-Sanitizing: `[^a-zA-Z0-9]` → `_`
+- 3 neue `KumlLatexRenderer.toLatex()`-Überladungen für BPMN
+
+### C4 LaTeX/TikZ-Renderer (`kuml-io-latex`) — V3.1
+
+- `C4LatexRenderer`: alle 6 C4-Elementtypen (Person, System, Container, Component, ExternalSystem, DeploymentNode) für alle 5 C4-Diagrammtypen als TikZ-Output; 10 neue TikZ-Styles (`kuml-c4-person`, `kuml-c4-system` etc.); monochrom/weiß als Default, überschreibbar
+
 ## [0.15.0] — 2026-06-21
 
 ### Blockchain-backed Models — Chain-Adapter-Linie (V3.0.1–6, V3.0.20–21)

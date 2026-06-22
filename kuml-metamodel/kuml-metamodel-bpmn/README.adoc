@@ -1,0 +1,93 @@
+= kuml-metamodel-bpmn
+:description: BPMN 2.0 metamodel for kUML — eigenständiges pure-Kotlin-Metamodell
+
+Pure-Kotlin BPMN 2.0 metamodel for kUML. Standalone — no EMF, no UML-Activity profile.
+
+== Supported Elements
+
+=== Flow Nodes
+
+[cols="1,3"]
+|===
+| Type | Description
+
+| `BpmnEvent`
+| Event-Matrix design: single class with `(EventPosition × EventDefinition × EventBehaviour)` triplet.
+13 event definitions (NONE, MESSAGE, TIMER, ERROR, ESCALATION, SIGNAL, COMPENSATION, CONDITIONAL, LINK, CANCEL, MULTIPLE, PARALLEL_MULTIPLE, TERMINATE).
+3 positions (START, INTERMEDIATE, END). Boundary events via `attachedToRef`.
+
+| `BpmnGateway`
+| 5 types: EXCLUSIVE, INCLUSIVE, PARALLEL, EVENT_BASED, COMPLEX. Optional `defaultFlow` reference.
+
+| `BpmnTask`
+| 7 task types: USER, SERVICE, SEND, RECEIVE, MANUAL, SCRIPT, BUSINESS_RULE, NONE.
+Optional `LoopCharacteristics` (StandardLoop or MultiInstanceLoop).
+
+| `BpmnSubProcess`
+| Expanded / collapsed / transactional / triggeredByEvent variants. Nested FlowNodes and SequenceFlows.
+
+| `BpmnCallActivity`
+| External process reference via `calledElement`.
+|===
+
+=== Sequence and Message Flows
+
+`SequenceFlow` — Pattern A: lives on the model (not just the diagram) with `sourceRef` / `targetRef` + optional `conditionExpression` and `isDefault`. `MessageFlow` — cross-pool edge in a Collaboration.
+
+=== Collaboration
+
+`BpmnCollaboration` → `BpmnParticipant` (Pool) → `BpmnLane` (nested via `childLanes`). Lanes reference FlowNodes via `flowNodeRefs` — no ownership. Black-Box-Pools: `processRef = null`.
+
+=== Data
+
+`BpmnDataObject`, `BpmnDataStore`, `DataAssociation`.
+
+== DSL
+
+[source,kotlin]
+----
+import dev.kuml.bpmn.dsl.*
+
+val model = bpmnModel("Order Process") {
+    process(id = "p1", name = "Order Fulfillment") {
+        val start = startEvent("Order Received", EventDefinition.MESSAGE)
+        val check = task("Check Stock", TaskType.SERVICE)
+        val gw    = gateway(GatewayType.EXCLUSIVE, "In Stock?")
+        val ship  = task("Ship Order", TaskType.USER)
+        val end   = endEvent("Order Shipped")
+
+        sequenceFlow(start, check)
+        sequenceFlow(check, gw)
+        sequenceFlow(gw, ship, condition = "stock > 0", name = "Yes")
+        sequenceFlow(ship, end)
+    }
+
+    collaboration(name = "Two Companies") {
+        val pool1 = pool(name = "Customer") { process("p1") }
+        val pool2 = blackBoxPool(name = "Supplier")
+        messageFlow(from = pool1, to = pool2, name = "Purchase Order")
+    }
+
+    diagram("Order", "p1")
+}
+----
+
+== Constraint Checker
+
+`BpmnConstraintChecker` enforces 7 rules:
+
+* Process without StartEvent → WARNING
+* Process without EndEvent → WARNING
+* SequenceFlow sourceRef / targetRef not found → ERROR
+* XOR / OR Gateway with multiple outgoing flows but no defaultFlow → WARNING
+* BoundaryEvent with invalid attachedToRef → ERROR
+* MessageFlow with source == target → ERROR
+* Participant.processRef points to unknown process → ERROR
+
+== V3.2 Openness
+
+`BpmnFlowElement` is not used as the base for Collaboration, Choreography, or Conversation types. All new BPMN concepts inherit directly from `BpmnElement` to avoid `when`-exhaustiveness breakage when Choreography and Conversation are added in V3.2.
+
+== License
+
+Apache 2.0
