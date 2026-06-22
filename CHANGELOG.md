@@ -78,6 +78,25 @@ Choreography und Conversation folgen in V3.2.
 
 - `C4LatexRenderer`: alle 6 C4-Elementtypen (Person, System, Container, Component, ExternalSystem, DeploymentNode) für alle 5 C4-Diagrammtypen als TikZ-Output; 10 neue TikZ-Styles (`kuml-c4-person`, `kuml-c4-system` etc.); monochrom/weiß als Default, überschreibbar
 
+### Composite-Structure-Renderer
+
+- **Nested-Parts-Rendering-Fix**: `UmlComponent.nestedComponents` werden jetzt von `UmlContentSizeProvider` und `UmlComponentSvg` berücksichtigt — composite Components renderten zuvor als leere Box. Rekursives Rendering verschachtelter Parts als gestapelte Boxen; Port-Clearance rückt Parts ein, wenn der Parent Boundary-Ports hat.
+- **Port-zu-Part-Connectors**: Delegation-Connectors (Boundary-Port → innerer Part-Port) und Assembly-Connectors (Part-Port → Part-Port) in Composite-Structure-Diagrammen. Connector-Routing rein im SVG-Renderer (ohne ELK); `UmlLayoutBridge` filtert diese Connectors aus dem ELK-Graph. Guards: Cycle/Depth-Schutz, Connector-Cap (500).
+
+### UML-Association-Decoration
+
+- Rollennamen werden jetzt zusammen mit der Multiplizität an jedem Association-Ende gerendert (`UmlEdgesSvg`) — zuvor fehlten die Rollennamen im Output. Regressionstest am Order-Domain-Beispiel.
+
+### BPMN-Process-Renderer-Fix
+
+- BPMN-**Process**-Diagramme renderten über die CLI/Web-Pipeline als leeres Canvas, wenn das DSL `diagram(name, processId)` ohne expliziten `include()`-Block verwendet wurde. Drei gestapelte Ursachen behoben: leeres `elementIds` = „alle Elemente anzeigen" (Konvention wie `Sysml2LayoutBridge`), expandierte Sub-Process-Kinder + innere Flows korrekt einbezogen, neuer rekursiver `BpmnProcess.renderableElements()`-Helfer für den Renderer-Index (CLI + Web).
+
+### Beispiele & Dokumentation
+
+- **Named-Parameter-Sweep**: alle DSL-Beispiele (`kuml-examples`, Vault-Beispiele, Handbuch-Snippets) auf benannte Parameter umgestellt — konsistent mit kUMLs LLM-first-Designprinzip.
+- 3 neue BPMN-Vault-Beispiele (Order Fulfillment, Sub-Process Loop, Customer-Supplier Collaboration) in die CI-Smoke-Tests aufgenommen (jetzt 33 Beispiele).
+- READMEs + Antora-Handbuch um BPMN-2.0-DSL- und XML-I/O-Referenz erweitert.
+
 ## [0.15.0] — 2026-06-21
 
 ### Blockchain-backed Models — Chain-Adapter-Linie (V3.0.1–6, V3.0.20–21)
