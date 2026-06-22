@@ -21,10 +21,37 @@ internal fun renderUmlComponent(
     theme: KumlTheme,
     builder: SvgBuilder,
 ) {
-    val x = layout.bounds.origin.x
-    val y = layout.bounds.origin.y
-    val w = layout.bounds.size.width
-    val h = layout.bounds.size.height
+    drawComponentBox(
+        element = element,
+        x = layout.bounds.origin.x,
+        y = layout.bounds.origin.y,
+        w = layout.bounds.size.width,
+        h = layout.bounds.size.height,
+        theme = theme,
+        builder = builder,
+    )
+}
+
+/**
+ * Zeichnet eine [UmlComponent]-Box an expliziten Bounds. Rekursiv: enthält die
+ * Komponente verschachtelte Parts ([UmlComponent.nestedComponents], Composite-
+ * Structure-Diagramm), werden diese als gestapelte Boxen im Inneren gerendert.
+ *
+ * Die Innen-Layout-Mathe ist mit dem Size-Provider
+ * [dev.kuml.layout.bridge.UmlContentSizeProvider] gespiegelt (identische
+ * `NESTED_*`-Konstanten + `chromeHeight`/`compositeHeight`), damit der vom
+ * Layout reservierte Platz exakt zur gezeichneten Innenstruktur passt.
+ * kuml-io-svg hängt bewusst nicht an kuml-layout-bridge → Konstanten doppelt.
+ */
+private fun drawComponentBox(
+    element: UmlComponent,
+    x: Float,
+    y: Float,
+    w: Float,
+    h: Float,
+    theme: KumlTheme,
+    builder: SvgBuilder,
+) {
     val cx = (w - 20f) / 2f
 
     builder.tag(
@@ -148,7 +175,91 @@ internal fun renderUmlComponent(
         // horizontal width (left + right port-label widths) so the inside labels
         // never overlap the centred title.
         renderPorts(element, w, h)
+
+        // V3.x — Composite-Structure: verschachtelte Parts als Innenstruktur.
+        // Parts werden vertikal gestapelt und füllen die Innenbreite uniform
+        // (w − 2·SIDE_PAD). Dadurch braucht der Renderer KEINE eigene
+        // Zeichenbreiten-Schätzung — die Breite kommt aus der vom Size-Provider
+        // gelieferten Parent-Box. Die Höhen kommen aus `compositeHeight` (rein
+        // zeilenbasiert, identisch zum Size-Provider). Die rekursiven
+        // drawComponentBox-Aufrufe laufen INNERHALB dieses <g>-Blocks, ihre
+        // (x,y) sind also relativ zum Parent-Ursprung.
+        if (element.nestedComponents.isNotEmpty()) {
+            // Hat der Parent eigene Boundary-Ports, rücken die Parts links/rechts
+            // ein, damit die Port-Quadrate + Inside-Labels in einem freien
+            // Rand-Streifen sitzen statt von den Part-Boxen verdeckt zu werden.
+            val sideInset = NESTED_SIDE_PAD + if (element.ports.isNotEmpty()) NESTED_PORT_CLEARANCE else 0f
+            val interiorW = (w - sideInset * 2f).coerceAtLeast(NESTED_MIN_INTERIOR_W)
+            var py = chromeHeight(element) + NESTED_TOP_GAP
+            for (part in element.nestedComponents) {
+                val ph = compositeHeight(part)
+                drawComponentBox(part, sideInset, py, interiorW, ph, theme, this)
+                py += ph + NESTED_PART_GAP
+            }
+        }
     }
+}
+
+// ── Composite-Structure Innen-Layout (gespiegelt zu UmlContentSizeProvider) ──
+//
+// Diese Konstanten und Funktionen MÜSSEN mit den gleichnamigen Werten in
+// [dev.kuml.layout.bridge.UmlContentSizeProvider] übereinstimmen. kuml-io-svg
+// hängt bewusst nicht an kuml-layout-bridge, daher Spiegelung statt Import
+// (Hauskonvention, vgl. C4DescriptionWrap ↔ C4ContentSizeProvider).
+
+private const val NESTED_TOP_GAP = 12f
+private const val NESTED_PART_GAP = 12f
+private const val NESTED_SIDE_PAD = 14f
+private const val NESTED_BOTTOM_PAD = 14f
+private const val NESTED_PART_MIN_H = 48f
+private const val NESTED_MIN_INTERIOR_W = 40f
+private const val NESTED_PORT_CLEARANCE = 30f
+
+private const val NESTED_CHROME_START = 20f
+private const val NESTED_STEREO_H = 18f
+private const val NESTED_KEYWORD_H = 15f
+private const val NESTED_NAME_H = 16f
+private const val NESTED_FEATURE_TOP_GAP = 6f
+private const val NESTED_FEATURE_DIVIDER_GAP = 12f
+private const val NESTED_FEATURE_LINE_H = 13f
+
+/**
+ * Y-Position direkt unter der "Chrome" (Stereotyp + «component» + Titel +
+ * Feature-Compartments), ab der die Innenstruktur beginnt. Rein zeilenbasiert —
+ * spiegelt `UmlContentSizeProvider.chromeHeight`.
+ */
+private fun chromeHeight(c: UmlComponent): Float {
+    val hasStereoHeader = c.appliedStereotypes.isNotEmpty() || c.stereotypes.any { it.isNotBlank() }
+    var cy = NESTED_CHROME_START
+    if (hasStereoHeader) cy += NESTED_STEREO_H
+    cy += NESTED_KEYWORD_H
+    cy += NESTED_NAME_H
+    val hasFeatures = c.attributes.isNotEmpty() || c.operations.isNotEmpty()
+    if (hasFeatures) {
+        cy += NESTED_FEATURE_TOP_GAP + NESTED_FEATURE_DIVIDER_GAP
+        cy += c.attributes.size * NESTED_FEATURE_LINE_H
+        if (c.attributes.isNotEmpty() && c.operations.isNotEmpty()) {
+            cy += NESTED_FEATURE_DIVIDER_GAP
+        }
+        cy += c.operations.size * NESTED_FEATURE_LINE_H
+    }
+    return cy
+}
+
+/**
+ * Gesamthöhe einer (ggf. verschachtelten) Part-Box. Rekursiv. Spiegelt
+ * `UmlContentSizeProvider.compositeHeight`.
+ */
+private fun compositeHeight(c: UmlComponent): Float {
+    val chrome = chromeHeight(c)
+    if (c.nestedComponents.isEmpty()) {
+        return maxOf(chrome + NESTED_BOTTOM_PAD, NESTED_PART_MIN_H)
+    }
+    val parts = c.nestedComponents
+    val stack =
+        parts.sumOf { compositeHeight(it).toDouble() }.toFloat() +
+            (parts.size - 1) * NESTED_PART_GAP
+    return chrome + NESTED_TOP_GAP + stack + NESTED_BOTTOM_PAD
 }
 
 private fun SvgBuilder.renderPorts(

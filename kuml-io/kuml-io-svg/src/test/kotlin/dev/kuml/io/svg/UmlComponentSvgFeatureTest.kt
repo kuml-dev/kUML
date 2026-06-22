@@ -12,6 +12,7 @@ import dev.kuml.profile.KumlStereotypeApplication
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlOperation
+import dev.kuml.uml.UmlPort
 import dev.kuml.uml.UmlProperty
 import dev.kuml.uml.UmlTypeRef
 import io.kotest.core.spec.style.FunSpec
@@ -114,6 +115,53 @@ class UmlComponentSvgFeatureTest :
             svg shouldContain "kuml-feature-stereotype"
             svg shouldContain "font-style=\"italic\""
             svg shouldContain "computeSteeringAngle"
+        }
+
+        // V3.x — Composite-Structure: verschachtelte Parts (nestedComponents)
+        // werden als Boxen INNERHALB der äußeren Komponente gerendert.
+        // Regressionsschutz gegen den Bug "OrderService rendert leer, Parts fehlen".
+        test("component with nested parts renders them inside as sub-boxes") {
+            val validator =
+                UmlComponent(
+                    id = "validator",
+                    name = "Validator",
+                    ports = listOf(UmlPort(id = "validator::in", name = "in")),
+                )
+            val persistence =
+                UmlComponent(
+                    id = "persistence",
+                    name = "Persistence",
+                    ports = listOf(UmlPort(id = "persistence::out", name = "out")),
+                )
+            val service =
+                UmlComponent(
+                    id = "svc",
+                    name = "OrderService",
+                    ports = listOf(UmlPort(id = "svc::api", name = "api")),
+                    nestedComponents = listOf(validator, persistence),
+                )
+            val diagram = KumlDiagram(name = "D", elements = listOf(service))
+            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("svc"), PlainTheme())
+
+            // Outer component + both nested parts each emit a «component» keyword.
+            Regex("«component»").findAll(svg).count() shouldBe 3
+            svg shouldContain "OrderService"
+            svg shouldContain "Validator"
+            svg shouldContain "Persistence"
+            // Nested parts are drawn as their own <g id="…"> groups (proves they
+            // are rendered, not silently dropped).
+            svg shouldContain "id=\"validator\""
+            svg shouldContain "id=\"persistence\""
+            // All three ports render: parent `api` + nested `in` + nested `out`.
+            Regex("class=\"kuml-port-label\"").findAll(svg).count() shouldBe 3
+        }
+
+        test("component without nested parts emits exactly one «component» keyword") {
+            val cmp = UmlComponent(id = "flat", name = "FlatService")
+            val diagram = KumlDiagram(name = "D", elements = listOf(cmp))
+            val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("flat"), PlainTheme())
+
+            Regex("«component»").findAll(svg).count() shouldBe 1
         }
     })
 

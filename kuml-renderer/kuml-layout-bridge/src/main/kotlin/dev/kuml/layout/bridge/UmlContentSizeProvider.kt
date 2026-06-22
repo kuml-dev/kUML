@@ -286,32 +286,23 @@ public class UmlContentSizeProvider
         }
 
         private fun componentSize(c: UmlComponent): Size {
-            val nameLine = c.name
-            val stereoLine = stereoLabel(c.appliedStereotypes) ?: ""
-
-            val attrLines = c.attributes.map { it.toFormattedLine() }
-            val opLines = c.operations.map { it.toFormattedLine() }
-
-            var w = boxWidth(nameLine, stereoLine, attrLines + opLines)
-            // Reserve horizontal space for port labels (port square 12px + label gap)
-            // V2.0.45 — Ports alternate between left (even index) and right (odd index)
-            // sides, and INSIDE-labels sit on the same horizontal row as the centred
-            // title. The previous one-sided `maxOf(maxPortLabel) + PORT_RESERVE`
-            // formula was too narrow whenever both sides carried a port: the title
-            // text bled over the right-port label (see AUTOSAR engine-control bug).
-            // Compute left/right label maxima separately and add BOTH plus a gap
-            // around the title so labels and title coexist on the same row.
-            if (c.ports.isNotEmpty()) {
-                val leftPorts = c.ports.filterIndexed { idx, _ -> idx % 2 == 0 }
-                val rightPorts = c.ports.filterIndexed { idx, _ -> idx % 2 == 1 }
-                val maxLeftLabel = leftPorts.maxOfOrNull { estimateLabelWidth(it.name, SMALL_CHAR_PX) } ?: 0
-                val maxRightLabel = rightPorts.maxOfOrNull { estimateLabelWidth(it.name, SMALL_CHAR_PX) } ?: 0
-                val portReserve = maxLeftLabel + maxRightLabel + PORT_RESERVE * 2f
-                w += portReserve
+            // V3.x — Composite-Structure: Wenn die Komponente verschachtelte
+            // Parts (`nestedComponents`) hat, wächst die Box so weit, dass sie
+            // alle Parts als Innenstruktur umschließt. Die Innen-Layout-Mathe
+            // (Stack + Insets) ist mit dem SVG-Renderer
+            // [dev.kuml.io.svg.uml.renderUmlComponent] spiegelbar gehalten —
+            // beide nutzen identische `chromeHeight` / `nestedPart*`-Konstanten,
+            // weil kuml-io-svg bewusst NICHT an kuml-layout-bridge hängt.
+            if (c.nestedComponents.isNotEmpty()) {
+                val (wExtra, hExtra) = connectionPuffer(c.id)
+                return Size(compositeWidth(c) + wExtra, maxOf(compositeHeight(c), DEFAULT_H) + hExtra)
             }
 
+            // ── Klassischer (flacher) Component ohne Innenleben — unverändert ──
+            var w = chromeWidth(c)
             val hasFeatures = c.attributes.isNotEmpty() || c.operations.isNotEmpty()
             // Component always has «component» line + optional applied stereo line.
+            val stereoLine = stereoLabel(c.appliedStereotypes) ?: ""
             val h =
                 COMP_HEADER_H +
                     (if (stereoLine.isNotEmpty()) STEREO_LINE_H else 0f) +
@@ -320,6 +311,87 @@ public class UmlContentSizeProvider
                     BOX_BOTTOM_PAD
             val (wExtra, hExtra) = connectionPuffer(c.id)
             return Size(w + wExtra, maxOf(h, DEFAULT_H) + hExtra)
+        }
+
+        /**
+         * Inhalts-Breite einer Component-Box (Titel/Stereotyp/Features + Port-
+         * Label-Reserve), OHNE Anschluss-Puffer und OHNE Innenstruktur.
+         *
+         * V2.0.45 — Ports wechseln zwischen links (gerader Index) und rechts
+         * (ungerader Index); Inside-Labels sitzen auf der Titel-Zeile. Links/
+         * rechts-Maxima werden getrennt addiert plus Gap, damit Titel und Labels
+         * auf derselben Zeile koexistieren (AUTOSAR engine-control Bug).
+         */
+        private fun chromeWidth(c: UmlComponent): Float {
+            val stereoLine = stereoLabel(c.appliedStereotypes) ?: ""
+            val attrLines = c.attributes.map { it.toFormattedLine() }
+            val opLines = c.operations.map { it.toFormattedLine() }
+            var w = boxWidth(c.name, stereoLine, attrLines + opLines)
+            if (c.ports.isNotEmpty()) {
+                val leftPorts = c.ports.filterIndexed { idx, _ -> idx % 2 == 0 }
+                val rightPorts = c.ports.filterIndexed { idx, _ -> idx % 2 == 1 }
+                val maxLeftLabel = leftPorts.maxOfOrNull { estimateLabelWidth(it.name, SMALL_CHAR_PX) } ?: 0
+                val maxRightLabel = rightPorts.maxOfOrNull { estimateLabelWidth(it.name, SMALL_CHAR_PX) } ?: 0
+                w += maxLeftLabel + maxRightLabel + PORT_RESERVE * 2f
+            }
+            return w
+        }
+
+        /**
+         * Gesamthöhe einer Component-Box inklusive verschachtelter Parts.
+         * Rekursiv: ein Part kann selbst Parts haben.
+         *
+         * Spiegelt die Stack-Mathe in `renderUmlComponent`:
+         *   Chrome-Höhe + Top-Gap + Σ Part-Höhen + (n-1)·Part-Gap + Bottom-Pad.
+         */
+        private fun compositeHeight(c: UmlComponent): Float {
+            val chrome = chromeHeight(c)
+            if (c.nestedComponents.isEmpty()) {
+                return maxOf(chrome + NESTED_BOTTOM_PAD, NESTED_PART_MIN_H)
+            }
+            val parts = c.nestedComponents
+            val stack =
+                parts.sumOf { compositeHeight(it).toDouble() }.toFloat() +
+                    (parts.size - 1) * NESTED_PART_GAP
+            return chrome + NESTED_TOP_GAP + stack + NESTED_BOTTOM_PAD
+        }
+
+        /**
+         * Gesamtbreite einer Component-Box inklusive verschachtelter Parts.
+         * Rekursiv: max(eigene Chrome-Breite, breitester Part + 2·Seiten-Inset).
+         */
+        private fun compositeWidth(c: UmlComponent): Float {
+            val cw = chromeWidth(c)
+            if (c.nestedComponents.isEmpty()) return cw
+            val sideInset = NESTED_SIDE_PAD + if (c.ports.isNotEmpty()) NESTED_PORT_CLEARANCE else 0f
+            val innerMax = c.nestedComponents.maxOf { compositeWidth(it) }
+            return maxOf(cw, innerMax + sideInset * 2f)
+        }
+
+        /**
+         * Vertikaler Platz, den die "Chrome" einer Komponente belegt — Stereotyp-
+         * Zeile (falls vorhanden) + «component»-Keyword + Titel + Feature-
+         * Compartments. Das ist die Y-Position, ab der die Innenstruktur (Parts)
+         * beginnen darf. Spiegelt die `cy`-Progression in `renderUmlComponent`
+         * (zeilenbasiert, KEINE Zeichenbreiten — daher leicht spiegelbar).
+         */
+        private fun chromeHeight(c: UmlComponent): Float {
+            val hasStereoHeader =
+                c.appliedStereotypes.isNotEmpty() || c.stereotypes.any { it.isNotBlank() }
+            var cy = NESTED_CHROME_START
+            if (hasStereoHeader) cy += NESTED_STEREO_H
+            cy += NESTED_KEYWORD_H
+            cy += NESTED_NAME_H
+            val hasFeatures = c.attributes.isNotEmpty() || c.operations.isNotEmpty()
+            if (hasFeatures) {
+                cy += NESTED_FEATURE_TOP_GAP + NESTED_FEATURE_DIVIDER_GAP
+                cy += c.attributes.size * FEATURE_LINE_H
+                if (c.attributes.isNotEmpty() && c.operations.isNotEmpty()) {
+                    cy += NESTED_FEATURE_DIVIDER_GAP
+                }
+                cy += c.operations.size * FEATURE_LINE_H
+            }
+            return cy
         }
 
         // ── Formatting helpers (mirrors UmlFormatHelpers.kt, kept local to bridge) ──
@@ -436,6 +508,44 @@ public class UmlContentSizeProvider
 
             /** Extra reserve so port labels can sit inside without overlapping the title. */
             public const val PORT_RESERVE: Float = 12f
+
+            // ── Composite-Structure: verschachtelte Parts (V3.x) ──────────────────
+            //
+            // Diese Konstanten MÜSSEN mit den gleichnamigen Werten in
+            // [dev.kuml.io.svg.uml.renderUmlComponent] (Modul kuml-io-svg)
+            // übereinstimmen. kuml-io-svg hängt bewusst nicht an
+            // kuml-layout-bridge, daher werden Layout-Konstanten gespiegelt
+            // (etablierte Hauskonvention, vgl. C4DescriptionWrap ↔
+            // C4ContentSizeProvider). Bei Änderung: BEIDE Stellen anpassen.
+
+            /** Gap zwischen der Chrome-Unterkante und dem ersten Part. */
+            public const val NESTED_TOP_GAP: Float = 12f
+
+            /** Vertikaler Abstand zwischen zwei gestapelten Parts. */
+            public const val NESTED_PART_GAP: Float = 12f
+
+            /** Horizontaler Innen-Abstand von der Parent-Wand zum Part. */
+            public const val NESTED_SIDE_PAD: Float = 14f
+
+            /** Abstand vom letzten Part zur Parent-Unterkante. */
+            public const val NESTED_BOTTOM_PAD: Float = 14f
+
+            /** Mindesthöhe eines Parts ohne eigenes Innenleben. */
+            public const val NESTED_PART_MIN_H: Float = 48f
+
+            /**
+             * Zusätzlicher Seiten-Inset, wenn der Parent eigene Boundary-Ports
+             * hat — hält einen freien Rand-Streifen für Port-Quadrat + Label frei.
+             */
+            public const val NESTED_PORT_CLEARANCE: Float = 30f
+
+            // chromeHeight-Zeilenmetriken (spiegeln die cy-Progression im Renderer):
+            public const val NESTED_CHROME_START: Float = 20f
+            public const val NESTED_STEREO_H: Float = 18f
+            public const val NESTED_KEYWORD_H: Float = 15f
+            public const val NESTED_NAME_H: Float = 16f
+            public const val NESTED_FEATURE_TOP_GAP: Float = 6f
+            public const val NESTED_FEATURE_DIVIDER_GAP: Float = 12f
 
             // ── Connection-aware sizing (V2.x — siehe CLAUDE.md "Renderer-Sizing-Heuristik") ─
 
