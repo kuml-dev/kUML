@@ -1,5 +1,8 @@
 package dev.kuml.io.latex
 
+import dev.kuml.bpmn.model.BpmnModel
+import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Element
 import dev.kuml.c4.model.C4Model
@@ -7,6 +10,7 @@ import dev.kuml.c4.model.C4Relationship
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
+import dev.kuml.io.latex.bpmn.BpmnLatexRenderer
 import dev.kuml.io.latex.c4.C4LatexRenderer
 import dev.kuml.io.latex.sysml2.Sysml2DefLatexRenderer
 import dev.kuml.io.latex.sysml2.edge.Sysml2EdgeLatexRenderer
@@ -708,6 +712,104 @@ public object KumlLatexRenderer {
         )
         appendLine("$indent  kuml-c4-label/.style={font=\\sffamily},")
         appendLine("$indent  kuml-c4-edge-label/.style={font=\\sffamily\\small},")
+        // V3.1.8 — BPMN TikZ styles (events, gateways, tasks, pools, edges, labels).
+        // Injected via BpmnLatexRenderer.appendBpmnTikzStyles to keep the style block
+        // co-located with the BPMN renderer.
+        appendLine("$indent  % ── BPMN styles ─────────────────────────────────────────────────────────")
+        BpmnLatexRenderer.appendBpmnTikzStyles(this, indent)
         appendLine("$indent}")
     }
+
+    /**
+     * Render a BPMN [ProcessDiagram] as TikZ source (V3.1.8).
+     *
+     * Flow nodes are linearised left-to-right using `right of=<prevId>` with
+     * `node distance=50pt and 80pt`. Sequence flows are rendered as
+     * `kuml-bpmn-flow` draw-paths. BPMN-specific TikZ styles (`kuml-bpmn-*`)
+     * are emitted in a preceding `\tikzset{…}` block so the output is
+     * self-contained and compiles without 'undefined style' errors.
+     *
+     * @param model The BPMN model containing the processes.
+     * @param diagram The process diagram view to render.
+     * @param options Tuning knobs; defaults are usually fine.
+     * @return A `\tikzset{…}` preamble followed by a
+     *   `\begin{tikzpicture}…\end{tikzpicture}` block (snippet mode), or a
+     *   complete `.tex` document (standalone mode).
+     */
+    public fun toLatex(
+        model: BpmnModel,
+        diagram: ProcessDiagram,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String = renderBpmn(options) { BpmnLatexRenderer.render(model, diagram) }
+
+    /**
+     * Render a BPMN [CollaborationDiagram] as TikZ source (V3.1.8).
+     *
+     * Participant pools are stacked vertically. Message flows are rendered as
+     * dashed open-triangle arrows (`kuml-bpmn-msgflow`). BPMN-specific TikZ
+     * styles (`kuml-bpmn-*`) are emitted in a preceding `\tikzset{…}` block so
+     * the output is self-contained and compiles without 'undefined style' errors.
+     *
+     * @param model The BPMN model containing the collaborations.
+     * @param diagram The collaboration diagram view to render.
+     * @param options Tuning knobs; defaults are usually fine.
+     * @return A `\tikzset{…}` preamble followed by a
+     *   `\begin{tikzpicture}…\end{tikzpicture}` block (snippet mode), or a
+     *   complete `.tex` document (standalone mode).
+     */
+    public fun toLatex(
+        model: BpmnModel,
+        diagram: CollaborationDiagram,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String = renderBpmn(options) { BpmnLatexRenderer.render(model, diagram) }
+
+    /**
+     * Render a BPMN model's first diagram as TikZ source (V3.1.8).
+     *
+     * Dispatches to [toLatex(BpmnModel, ProcessDiagram, LatexRenderOptions)] or
+     * [toLatex(BpmnModel, CollaborationDiagram, LatexRenderOptions)] based on
+     * the type of the first diagram in [BpmnModel.diagrams]. Returns an empty
+     * string if the model has no diagrams.
+     *
+     * @param model The BPMN model to render.
+     * @param options Tuning knobs; defaults are usually fine.
+     * @return A `\tikzset{…}` preamble followed by a
+     *   `\begin{tikzpicture}…\end{tikzpicture}` block (snippet mode), or a
+     *   complete `.tex` document (standalone mode), or an empty string if the
+     *   model has no diagrams.
+     */
+    public fun toLatex(
+        model: BpmnModel,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String =
+        when (val first = model.diagrams.firstOrNull()) {
+            is ProcessDiagram -> toLatex(model, first, options)
+            is CollaborationDiagram -> toLatex(model, first, options)
+            null -> ""
+        }
+
+    /**
+     * Shared wrapper for the BPMN render overloads.
+     *
+     * Emits the standalone preamble (if requested), then the `\tikzset{…}`
+     * block with all `kuml-bpmn-*` style definitions, then inlines the
+     * `\begin{tikzpicture}…\end{tikzpicture}` block produced by [inner].
+     * This makes every BPMN output self-contained: callers do not need to
+     * include a separate style block, and the output compiles without
+     * 'undefined style' errors.
+     */
+    private fun renderBpmn(
+        options: LatexRenderOptions,
+        inner: () -> String,
+    ): String =
+        buildString {
+            if (options.standalone) {
+                appendStandalonePreamble()
+            }
+            appendTikzStyles(options.indent)
+            append(inner())
+            if (options.standalone) {
+                appendStandaloneCoda()
+            }
+        }
 }
