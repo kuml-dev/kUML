@@ -142,4 +142,78 @@ class BpmnLayoutBridgeTest :
             graph.nodes[0].id shouldBe NodeId("sp-collapsed")
             graph.nodes[0].groupId shouldBe null
         }
+
+        test("empty elementIds shows the whole process (DSL diagram() without include())") {
+            // Regression: `diagram(name, processId)` without an explicit include()
+            // produces a ProcessDiagram with empty elementIds. The bridge must then
+            // include ALL process elements (convention "empty = all", as in
+            // Sysml2LayoutBridge) — otherwise the rendered diagram is completely empty.
+            val t1 = BpmnTask(id = "t1", name = "First")
+            val t2 = BpmnTask(id = "t2", name = "Second")
+            val flow = SequenceFlow(id = "sf1", name = null, sourceRef = "t1", targetRef = "t2")
+            val process =
+                BpmnProcess(
+                    id = "p",
+                    name = "Process",
+                    flowNodes = listOf(t1, t2),
+                    sequenceFlows = listOf(flow),
+                )
+            val diagram = ProcessDiagram(name = "View", processId = "p", elementIds = emptyList())
+            val model = BpmnModel(name = "M", processes = listOf(process))
+
+            val graph = BpmnLayoutBridge.toLayoutGraph(model, diagram)
+
+            val nodeIds = graph.nodes.map { it.id.value }.toSet()
+            nodeIds shouldBe setOf("t1", "t2")
+            graph.edges.map { it.id.value }.toSet() shouldBe setOf("sf1")
+        }
+
+        test("empty elementIds also expands SubProcess children") {
+            // Regression companion: with empty elementIds, the expanded SubProcess
+            // child nodes and inner flows must also be included (they were filtered
+            // out by `child.id !in diagram.elementIds` before the fix).
+            val inner = BpmnTask(id = "inner", name = "Inner")
+            val innerFlow = SequenceFlow(id = "isf", name = null, sourceRef = "inner", targetRef = "inner")
+            val sp =
+                BpmnSubProcess(
+                    id = "sp",
+                    name = "Expanded",
+                    expanded = true,
+                    flowElements = listOf("inner"),
+                    flowElementNodes = listOf(inner),
+                    innerSequenceFlows = listOf(innerFlow),
+                )
+            val process = BpmnProcess(id = "p", name = "P", flowNodes = listOf(sp))
+            val diagram = ProcessDiagram(name = "V", processId = "p", elementIds = emptyList())
+            val model = BpmnModel(name = "M", processes = listOf(process))
+
+            val graph = BpmnLayoutBridge.toLayoutGraph(model, diagram)
+
+            graph.groups shouldHaveSize 1
+            val innerNode = graph.nodes.find { it.id == NodeId("inner") }
+            innerNode shouldNotBe null
+            innerNode!!.groupId shouldBe GroupId("sp")
+        }
+
+        test("renderableElements flattens expanded SubProcess children") {
+            // Regression: the BPMN process SVG renderer indexes elements by
+            // BpmnProcess.renderableElements(). Expanded SubProcess inner nodes must
+            // be present, or they are laid out but silently dropped at render time.
+            val inner = BpmnTask(id = "inner", name = "Inner")
+            val innerFlow = SequenceFlow(id = "isf", name = null, sourceRef = "inner", targetRef = "inner")
+            val sp =
+                BpmnSubProcess(
+                    id = "sp",
+                    name = "Expanded",
+                    expanded = true,
+                    flowElements = listOf("inner"),
+                    flowElementNodes = listOf(inner),
+                    innerSequenceFlows = listOf(innerFlow),
+                )
+            val outer = BpmnTask(id = "outer", name = "Outer")
+            val process = BpmnProcess(id = "p", name = "P", flowNodes = listOf(outer, sp))
+
+            val ids = process.renderableElements().map { it.id }.toSet()
+            ids shouldBe setOf("outer", "sp", "inner", "isf")
+        }
     })

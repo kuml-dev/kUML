@@ -1,5 +1,6 @@
 package dev.kuml.bpmn.model
 
+import dev.kuml.core.model.KumlElement
 import dev.kuml.core.model.KumlMetaValue
 import kotlinx.serialization.Serializable
 
@@ -45,4 +46,40 @@ data class BpmnProcess(
                     ?: sp.innerDataObjects.firstOrNull { it.id == id }
                     ?: sp.innerDataAssociations.firstOrNull { it.id == id }
             }
+
+    /**
+     * Returns all renderable elements of this process as a flat [KumlElement] list:
+     * flow nodes, sequence flows, and data objects — plus, for expanded
+     * sub-processes, their inner flow nodes, sequence flows, and data objects
+     * (recursively).
+     *
+     * The BPMN process SVG renderer builds its element index from this list and
+     * looks up every laid-out node by id. Without the expanded sub-process
+     * children, those inner nodes would be laid out but silently dropped at
+     * render time.
+     */
+    fun renderableElements(): List<KumlElement> {
+        val acc = mutableListOf<KumlElement>()
+        acc += flowNodes
+        acc += sequenceFlows
+        acc += dataObjects
+        flowNodes
+            .filterIsInstance<BpmnSubProcess>()
+            .filter { it.expanded }
+            .forEach { collectExpandedSubProcess(it, acc) }
+        return acc
+    }
+
+    private fun collectExpandedSubProcess(
+        sp: BpmnSubProcess,
+        acc: MutableList<KumlElement>,
+    ) {
+        acc += sp.flowElementNodes
+        acc += sp.innerSequenceFlows
+        acc += sp.innerDataObjects
+        sp.flowElementNodes
+            .filterIsInstance<BpmnSubProcess>()
+            .filter { it.expanded }
+            .forEach { collectExpandedSubProcess(it, acc) }
+    }
 }

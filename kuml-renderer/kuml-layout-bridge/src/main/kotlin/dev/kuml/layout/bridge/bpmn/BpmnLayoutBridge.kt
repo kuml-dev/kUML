@@ -35,9 +35,11 @@ import dev.kuml.layout.bridge.SizeProvider
  * - DataObject: 40×55
  * - SubProcess (collapsed): 120×60
  *
- * Nur Elemente, die in [ProcessDiagram.elementIds] gelistet sind, werden
- * in den Layout-Graphen aufgenommen. Nicht auflösbare IDs werden schweigend
- * übersprungen.
+ * Ist [ProcessDiagram.elementIds] **leer** (Default beim DSL-Aufruf
+ * `diagram(name, processId)` ohne expliziten `include()`-Block), werden **alle**
+ * Elemente des Prozesses angezeigt — Konvention wie in [dev.kuml.layout.bridge.Sysml2LayoutBridge].
+ * Ist die Liste nicht leer, wirkt sie als Filter: nur die gelisteten Elemente
+ * werden aufgenommen, nicht auflösbare IDs werden schweigend übersprungen.
  *
  * V3.1.3 — BPMN Process SVG-Renderer
  *
@@ -111,19 +113,26 @@ public object BpmnLayoutBridge {
         val allSeqFlowIds: List<String>
         val allDataObjectIds: List<String>
 
+        // Leere elementIds = "alle Elemente anzeigen" (Konvention wie in
+        // Sysml2LayoutBridge). Das DSL `diagram(name, processId)` ohne expliziten
+        // include()-Block erzeugt ein ProcessDiagram mit leerer elementIds-Liste —
+        // ohne diesen Default bliebe das gerenderte Diagramm komplett leer.
+        val filterIds: Set<String>? = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet()
+
         if (process != null) {
             // Wenn ein Prozess zugewiesen ist, zeige nur dessen Elemente
-            val processFlowNodeIds = process.flowNodes.map { it.id }.toSet()
-            val processSeqFlowIds = process.sequenceFlows.map { it.id }.toSet()
-            val processDataObjIds = process.dataObjects.map { it.id }.toSet()
-            allFlowNodeIds = diagram.elementIds.filter { it in processFlowNodeIds }
-            allSeqFlowIds = diagram.elementIds.filter { it in processSeqFlowIds }
-            allDataObjectIds = diagram.elementIds.filter { it in processDataObjIds }
+            val processFlowNodeIds = process.flowNodes.map { it.id }
+            val processSeqFlowIds = process.sequenceFlows.map { it.id }
+            val processDataObjIds = process.dataObjects.map { it.id }
+            allFlowNodeIds = if (filterIds == null) processFlowNodeIds else processFlowNodeIds.filter { it in filterIds }
+            allSeqFlowIds = if (filterIds == null) processSeqFlowIds else processSeqFlowIds.filter { it in filterIds }
+            allDataObjectIds = if (filterIds == null) processDataObjIds else processDataObjIds.filter { it in filterIds }
         } else {
             // Fallback: alle in elementIds referenzierten Elemente suchen
-            allFlowNodeIds = diagram.elementIds.filter { it in flowNodeIndex }
-            allSeqFlowIds = diagram.elementIds.filter { it in seqFlowIndex }
-            allDataObjectIds = diagram.elementIds.filter { it in dataObjectIndex }
+            // (bei leerer Liste der gesamte Modell-Index)
+            allFlowNodeIds = if (filterIds == null) flowNodeIndex.keys.toList() else diagram.elementIds.filter { it in flowNodeIndex }
+            allSeqFlowIds = if (filterIds == null) seqFlowIndex.keys.toList() else diagram.elementIds.filter { it in seqFlowIndex }
+            allDataObjectIds = if (filterIds == null) dataObjectIndex.keys.toList() else diagram.elementIds.filter { it in dataObjectIndex }
         }
 
         // Expanded SubProcesses → LayoutGroups + child nodes with groupId.
@@ -168,9 +177,10 @@ public object BpmnLayoutBridge {
             // LayoutGroup frame for visual rendering and ignores this node.
             nodes.add(LayoutNode(id = NodeId(sp.id), intrinsicSize = Size(0f, 0f), groupId = groupId))
 
-            // Child flow-nodes inside the expanded SubProcess
+            // Child flow-nodes inside the expanded SubProcess.
+            // filterIds == null (leere elementIds) ⇒ alle Kinder anzeigen.
             for (child in sp.flowElementNodes) {
-                if (child.id !in diagram.elementIds) continue
+                if (filterIds != null && child.id !in filterIds) continue
                 childNodeIds.add(child.id)
                 val defaultSize =
                     when (child) {
@@ -185,9 +195,9 @@ public object BpmnLayoutBridge {
                 nodes.add(LayoutNode(id = NodeId(child.id), intrinsicSize = size, groupId = groupId))
             }
 
-            // Inner SequenceFlows
+            // Inner SequenceFlows (filterIds == null ⇒ alle anzeigen).
             for (innerFlow in sp.innerSequenceFlows) {
-                if (innerFlow.id !in diagram.elementIds) continue
+                if (filterIds != null && innerFlow.id !in filterIds) continue
                 innerFlowIds.add(innerFlow.id)
             }
         }
@@ -266,7 +276,7 @@ public object BpmnLayoutBridge {
                     .filterIsInstance<BpmnEvent>()
                     .filter { it.attachedToRef != null }
             for (be in boundaryEvents) {
-                if (be.id !in diagram.elementIds) continue
+                if (filterIds != null && be.id !in filterIds) continue
                 if (be.id in mutableNodeIdSet) continue // bereits hinzugefügt
                 val size =
                     sizeProvider?.sizeOf(be.id, "BpmnEvent") ?: DEFAULT_EVENT_SIZE

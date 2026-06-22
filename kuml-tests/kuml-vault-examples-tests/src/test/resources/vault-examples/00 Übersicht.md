@@ -17,7 +17,7 @@ Sammlung lebender Beispielnotizen, die das [[02 Projekte/kUML V2.0]]-Plugin [[02
 
 ## Vollständige Abdeckung
 
-Die Sammlung deckt **alle 28 Diagrammtypen** der drei in kUML unterstützten Modellierungssprachen ab — UML 2.x (14), C4 (6) und SysML 2 (8). Darüber hinaus enthält sie **profil-spezifische Vertiefungsbeispiele** für die Built-in-Profile.
+Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unterstützten Modellierungssprachen ab — UML 2.x (14), C4 (6) und SysML 2 (8). Hinzu kommen seit V3.1 **BPMN 2.0**-Beispiele (Process + Collaboration) als vierte Modellierungssprache sowie **profil-spezifische Vertiefungsbeispiele** für die Built-in-Profile.
 
 ### UML 2.x (14 Diagrammtypen)
 
@@ -68,6 +68,14 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei in kUML unterstützten Mod
 | 07 | [[07 SysML 2 ACT – Order Processing]] | Verhalten |
 | 06 | [[06 SysML 2 SEQ – Login Flow]] | Verhalten (Interaktion) |
 
+### BPMN 2.0 (seit V3.1)
+
+| # | Notiz | Säule |
+|---|---|---|
+| 30 | [[30 BPMN Process – Order Fulfillment]] | Process — Events, Gateways, Tasks |
+| 31 | [[31 BPMN Process – Sub-Process Loop]] | Process — Sub-Process + Boundary-Event |
+| 32 | [[32 BPMN Collaboration – Customer und Supplier]] | Collaboration — Pools + MessageFlows |
+
 ## Empfohlene Lese-Reihenfolge nach Komplexität
 
 | Stufe | Notiz | Diagrammtyp |
@@ -101,6 +109,9 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei in kUML unterstützten Mod
 | **Fortgeschritten** | [[25 C4 Deployment – AWS Production]] | C4 Deployment |
 | **Fortgeschritten** | [[27 SysML 2 IBD – Hybrid Vehicle Wiring]] | SysML 2 IBD |
 | **Fortgeschritten** | [[28 SysML 2 PAR – Newton]] | SysML 2 PAR |
+| **Mittel** | [[30 BPMN Process – Order Fulfillment]] | BPMN Process |
+| **Fortgeschritten** | [[31 BPMN Process – Sub-Process Loop]] | BPMN Sub-Process |
+| **Fortgeschritten** | [[32 BPMN Collaboration – Customer und Supplier]] | BPMN Collaboration |
 
 ## Zuordnung Vault → kuml.dev-Playground
 
@@ -137,6 +148,9 @@ Der [Playground auf kuml.dev](https://kuml.dev/playground) speist seine Beispiel
 | 27 | [[27 SysML 2 IBD – Hybrid Vehicle Wiring]] | *(noch kein Playground-Eintrag — Lücke)* |
 | 28 | [[28 SysML 2 PAR – Newton]] | `sysml2-newton-second-law-par` |
 | 29 | [[29 UML Profil – AUTOSAR]] | `uml-profile-autosar` **und** `uml-profile-autosar-ecu` (Profil-Definition + Anwendung) |
+| 30 | [[30 BPMN Process – Order Fulfillment]] | *(noch kein Playground-Eintrag — BPMN im Playground noch nicht angeboten)* |
+| 31 | [[31 BPMN Process – Sub-Process Loop]] | *(noch kein Playground-Eintrag — BPMN im Playground noch nicht angeboten)* |
+| 32 | [[32 BPMN Collaboration – Customer und Supplier]] | *(noch kein Playground-Eintrag — BPMN im Playground noch nicht angeboten)* |
 
 ### Playground-Keys ohne Vault-Anker
 

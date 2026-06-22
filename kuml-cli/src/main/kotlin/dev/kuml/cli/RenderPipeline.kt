@@ -573,11 +573,7 @@ internal object RenderPipeline {
                 // collect all flow nodes + sequence flows of the referenced process.
                 val process = model.processes.firstOrNull { it.id == bpmnDiagram.processId }
                 val elements: List<dev.kuml.core.model.KumlElement> =
-                    if (process != null) {
-                        process.flowNodes + process.sequenceFlows + process.dataObjects
-                    } else {
-                        emptyList()
-                    }
+                    process?.renderableElements() ?: emptyList()
                 val kumlDiagram =
                     KumlDiagram(
                         name = bpmnDiagram.name,
