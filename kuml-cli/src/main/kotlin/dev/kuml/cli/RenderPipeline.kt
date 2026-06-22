@@ -520,13 +520,7 @@ internal object RenderPipeline {
                 writeBinary(output, pngBytes)
             }
             "latex" -> {
-                // C4 LaTeX export reuses the UML class-renderer fallback — each
-                // C4 element gets a labelled rectangle. Full C4-style boxes
-                // (Person / SoftwareSystem / Container with role labels) land
-                // in a later V2.x wave; for V2.0.2 the MVP focus is class
-                // diagrams.
-                val placeholderDiagram = KumlDiagram(name = diagram.name)
-                val tex = KumlLatexRenderer.toLatex(placeholderDiagram, layoutResult, LatexRenderOptions.DEFAULT)
+                val tex = KumlLatexRenderer.toLatex(diagram, model, layoutResult, LatexRenderOptions.DEFAULT)
                 writeText(output, tex)
             }
             else -> throw ScriptEvaluationException("Unsupported format: $format")

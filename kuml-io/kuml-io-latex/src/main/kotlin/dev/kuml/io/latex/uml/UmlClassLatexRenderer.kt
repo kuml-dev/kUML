@@ -3,6 +3,7 @@ package dev.kuml.io.latex.uml
 import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.latex.escapeLatex
 import dev.kuml.io.latex.fmtCoord
+import dev.kuml.io.latex.tikzId
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
 import dev.kuml.uml.UmlClass
@@ -318,11 +319,6 @@ internal object UmlClassLatexRenderer {
         // origin here so the rest of the code can do arithmetic in layout coords.
         return layout.bounds.origin.x to layout.bounds.origin.y
     }
-
-    private fun tikzId(id: NodeId): String =
-        // TikZ node IDs must be alphanumeric / `-` / `_`. Layout NodeIds are
-        // already model element ids — usually fine, but we sanitise defensively.
-        "n_" + id.value.replace(Regex("[^A-Za-z0-9_]"), "_")
 
     private const val INNER_PAD: Float = 6f
     private const val HEADER_RATIO: Float = 1.0f

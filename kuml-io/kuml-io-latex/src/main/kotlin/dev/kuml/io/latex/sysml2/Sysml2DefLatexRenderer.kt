@@ -3,6 +3,7 @@ package dev.kuml.io.latex.sysml2
 import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.latex.escapeLatex
 import dev.kuml.io.latex.fmtCoord
+import dev.kuml.io.latex.tikzId
 import dev.kuml.kerml.KermlFeature
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
@@ -199,8 +200,6 @@ internal object Sysml2DefLatexRenderer {
         val defaultSuffix = defaultExpression?.let { " = $it" } ?: ""
         return "$name : $type$multSuffix$defaultSuffix"
     }
-
-    private fun tikzId(id: NodeId): String = "n_" + id.value.replace(Regex("[^A-Za-z0-9_]"), "_")
 
     private const val INNER_PAD: Float = 6f
 }

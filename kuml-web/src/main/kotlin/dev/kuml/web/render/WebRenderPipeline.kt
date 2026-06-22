@@ -177,11 +177,7 @@ internal object WebRenderPipeline {
                 WebRenderResult.Png(bytes, durationMs)
             }
             "latex" -> {
-                // C4 LaTeX export reuses the UML class-renderer fallback — each C4 element
-                // gets a labelled rectangle. Full C4-style boxes land in a later V2.x wave,
-                // matching the CLI behaviour in RenderPipeline.kt.
-                val placeholderDiagram = KumlDiagram(name = diagram.name)
-                val tex = KumlLatexRenderer.toLatex(placeholderDiagram, layoutResult, LatexRenderOptions(standalone = standaloneTex))
+                val tex = KumlLatexRenderer.toLatex(diagram, model, layoutResult, LatexRenderOptions(standalone = standaloneTex))
                 WebRenderResult.Latex(tex, durationMs)
             }
             else -> WebRenderResult.Error("Unsupported format: $format. Use 'svg', 'png', or 'latex'.")

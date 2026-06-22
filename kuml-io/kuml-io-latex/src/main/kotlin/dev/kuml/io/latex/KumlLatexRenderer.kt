@@ -1,8 +1,13 @@
 package dev.kuml.io.latex
 
+import dev.kuml.c4.model.C4Diagram
+import dev.kuml.c4.model.C4Element
+import dev.kuml.c4.model.C4Model
+import dev.kuml.c4.model.C4Relationship
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
+import dev.kuml.io.latex.c4.C4LatexRenderer
 import dev.kuml.io.latex.sysml2.Sysml2DefLatexRenderer
 import dev.kuml.io.latex.sysml2.edge.Sysml2EdgeLatexRenderer
 import dev.kuml.io.latex.uml.UmlClassLatexRenderer
@@ -215,6 +220,8 @@ public object KumlLatexRenderer {
                 )
             is UmlClassifier -> UmlClassLatexRenderer.render(element, nodeId, nodeLayout, options, this)
             is UmlNamedElement -> UmlClassLatexRenderer.renderFallback(nodeId, nodeLayout, options, this, label = element.name)
+            // C4 elements dispatched via the dedicated C4 LaTeX renderer.
+            is C4Element -> C4LatexRenderer.renderNode(element, nodeId, nodeLayout, options, this)
             else -> UmlClassLatexRenderer.renderFallback(nodeId, nodeLayout, options, this, label = element.id)
         }
     }
@@ -515,6 +522,71 @@ public object KumlLatexRenderer {
         return renderSysml2Synthetic(synthetic, layoutResult, options, ParEdgeAdapter(model, diagram))
     }
 
+    /**
+     * Render a C4 diagram as TikZ source.
+     *
+     * All C4 element types supported by the metamodel are rendered with their
+     * dedicated TikZ styles (see [C4LatexRenderer]):
+     * - [dev.kuml.c4.model.C4Person] → `kuml-c4-person`
+     * - [dev.kuml.c4.model.C4SoftwareSystem] → `kuml-c4-system`
+     * - [dev.kuml.c4.model.C4Container] → `kuml-c4-container`
+     * - [dev.kuml.c4.model.C4Component] → `kuml-c4-component`
+     * - [dev.kuml.c4.model.C4DeploymentNode] → `kuml-c4-node`
+     * - [dev.kuml.c4.model.C4CodeElement] → `kuml-c4-code`
+     *
+     * Relationships are rendered as plain solid arrows. The relationship label
+     * is emitted at the mid-point of the route. Technology annotations appear
+     * in the stereotype of Container / Component / Node nodes.
+     *
+     * V2.x polish: grouped system boundaries, Database cylinder shape,
+     * technology sub-label, interaction sequence numbers for DynamicDiagram.
+     *
+     * @param diagram The C4 diagram (view) to render.
+     * @param model The parent C4 model for element lookup.
+     * @param layoutResult Positions and edge routes from the C4 layout bridge.
+     * @param options Tuning knobs; defaults are usually fine.
+     * @return A self-contained `\begin{tikzpicture}…\end{tikzpicture}`
+     *   block (snippet mode) or a complete `.tex` document (standalone mode).
+     */
+    public fun toLatex(
+        diagram: C4Diagram,
+        model: C4Model,
+        layoutResult: LayoutResult,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String =
+        buildString {
+            if (options.standalone) {
+                appendStandalonePreamble()
+            }
+
+            appendPictureOpen(options.scale)
+            appendTikzStyles(options.indent)
+
+            // Build element index for O(1) lookup by id.
+            val elementIndex = model.elements.associateBy { it.id }
+            val relationshipIndex = model.relationships.associateBy { it.id }
+
+            // Nodes — iterate in layout order to match the SVG renderer's
+            // deterministic ordering.
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val element = elementIndex[nodeId.value] ?: continue
+                // renderNode dispatches C4Element to C4LatexRenderer via the
+                // is C4Element branch added in the renderNode when-expression.
+                renderNode(element, nodeId, nodeLayout, options)
+            }
+
+            // Edges — C4 relationships as plain solid arrows with mid-point labels.
+            val visibleRelationships: List<C4Relationship> =
+                diagram.relationships.mapNotNull { relId -> relationshipIndex[relId] }
+            C4LatexRenderer.renderEdges(visibleRelationships, layoutResult, options, this)
+
+            appendPictureClose()
+
+            if (options.standalone) {
+                appendStandaloneCoda()
+            }
+        }
+
     // ─── Edge dispatch ────────────────────────────────────────────────────────
 
     private fun StringBuilder.renderEdge(
@@ -541,8 +613,11 @@ public object KumlLatexRenderer {
     private fun StringBuilder.appendStandalonePreamble() {
         appendLine("\\documentclass[border=10pt]{standalone}")
         appendLine("\\usepackage{tikz}")
+        // `inputenc` enables UTF-8 input so non-ASCII characters (e.g. ×, «, »)
+        // compile correctly with pdflatex in ASCII-only documents.
+        appendLine("\\usepackage[utf8]{inputenc}")
         // `babel` provides `\guillemotleft` / `\guillemotright` reliably in
-        // every modern engine; we don't need fontenc for ASCII output.
+        // every modern engine; fontenc T1 enables proper hyphenation + guillemets.
         appendLine("\\usepackage[T1]{fontenc}")
         appendLine("\\usepackage[english]{babel}")
         appendLine("\\usetikzlibrary{arrows.meta, calc, positioning}")
@@ -591,6 +666,7 @@ public object KumlLatexRenderer {
         appendLine("$indent  kuml-realization/.style={draw=black, line width=0.6pt, dashed, -{Triangle[length=3mm, open]}},")
         appendLine("$indent  kuml-dependency/.style={draw=black, line width=0.5pt, dashed, -{Stealth[length=2mm]}},")
         appendLine("$indent  kuml-edge-plain/.style={draw=black, line width=0.6pt, -{Stealth[length=2.2mm]}},")
+        appendLine("$indent  kuml-edge-bidi/.style={draw=black, line width=0.6pt, {Stealth[length=2.2mm]}-{Stealth[length=2.2mm]}},")
         // V2.0.13 — SysML 2 edge styles for UC / REQ / STM / ACT / PAR
         // dispatched via `Sysml2EdgeLatexRenderer`. Solid + dashed variants
         // cover the four arrow-bearing edge kinds (UC includes / extends,
@@ -605,6 +681,33 @@ public object KumlLatexRenderer {
             "$indent  kuml-sysml2-edge-dashed-noarrow/.style={draw=black, line width=0.6pt, dashed},",
         )
         appendLine("$indent  kuml-sysml2-edge-binding/.style={draw=black, line width=0.6pt},")
+        // C4 node styles — one per C4 element kind.
+        appendLine(
+            "$indent  kuml-c4-person/.style={draw=black, fill=white, line width=0.6pt, " +
+                "rectangle, rounded corners=16pt, inner sep=0pt, font=\\sffamily},",
+        )
+        appendLine(
+            "$indent  kuml-c4-system/.style={draw=black, fill=blue!10, line width=0.6pt, " +
+                "rectangle, inner sep=0pt, font=\\sffamily},",
+        )
+        appendLine(
+            "$indent  kuml-c4-container/.style={draw=black, fill=blue!20, line width=0.6pt, " +
+                "rectangle, inner sep=0pt, font=\\sffamily},",
+        )
+        appendLine(
+            "$indent  kuml-c4-component/.style={draw=black, fill=white, line width=0.6pt, " +
+                "rectangle, inner sep=0pt, font=\\sffamily},",
+        )
+        appendLine(
+            "$indent  kuml-c4-node/.style={draw=black, fill=white, line width=0.6pt, " +
+                "rectangle, dashed, inner sep=0pt, font=\\sffamily},",
+        )
+        appendLine(
+            "$indent  kuml-c4-code/.style={draw=black, fill=white, line width=0.6pt, " +
+                "rectangle, inner sep=0pt, font=\\sffamily},",
+        )
+        appendLine("$indent  kuml-c4-label/.style={font=\\sffamily},")
+        appendLine("$indent  kuml-c4-edge-label/.style={font=\\sffamily\\small},")
         appendLine("$indent}")
     }
 }

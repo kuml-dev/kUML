@@ -30,6 +30,7 @@ internal object UmlEdgeLatexRenderer {
         REALIZATION("kuml-realization"),
         DEPENDENCY("kuml-dependency"),
         PLAIN("kuml-edge-plain"),
+        BIDIRECTIONAL("kuml-edge-bidi"),
     }
 
     fun render(
