@@ -170,7 +170,7 @@ val model =
 // ── Run the transformer ────────────────────────────────────────────────────────
 
 val transformer = C4ToUmlTransformer()
-val result = transformer.transform(model, TransformContext())
+val result = transformer.transform(source = model, ctx = TransformContext())
 
 when (result) {
     is TransformResult.Success -> {

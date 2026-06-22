@@ -34,26 +34,26 @@ import dev.kuml.uml.dsl.port
  *   --output build/k8s-gen/
  * ```
  */
-componentDiagram("Order System — K8s") {
+componentDiagram(name = "Order System — K8s") {
 
-    component("OrderService") {
+    component(name = "OrderService") {
         stereotypes += "service"
-        port("api")
-        port("events")
+        port(name = "api")
+        port(name = "events")
     }
 
-    component("PaymentService") {
+    component(name = "PaymentService") {
         stereotypes += "service"
-        port("api")
+        port(name = "api")
     }
 
-    component("InvoiceService") {
-        port("orderEvents")
+    component(name = "InvoiceService") {
+        port(name = "orderEvents")
     }
 
-    component("MessageBroker") {
-        port("pub")
-        port("sub")
+    component(name = "MessageBroker") {
+        port(name = "pub")
+        port(name = "sub")
     }
 }
 

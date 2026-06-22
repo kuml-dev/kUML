@@ -23,29 +23,29 @@ import dev.kuml.uml.dsl.stereotype
  * Profile: AUTOSAR (kuml-profile-autosar, V1.1 skeleton)
  */
 classDiagram(name = "Engine Control AUTOSAR") {
-    applyProfile(autosarProfile)
+    applyProfile(profile = autosarProfile)
 
     // ── Software Component ────────────────────────────────────────────────────
 
-    component("EngineController") {
-        stereotype("SoftwareComponent") {
+    component(name = "EngineController") {
+        stereotype(name = "SoftwareComponent") {
             "kind" to AutosarSwcKind.Application
             "packageName" to "powertrain"
         }
         // Required port — receives RPM sensor data
-        port("rpmSensor") {
-            stereotype("AutosarPort") { "direction" to AutosarPortDirection.Required }
+        port(name = "rpmSensor") {
+            stereotype(name = "AutosarPort") { "direction" to AutosarPortDirection.Required }
         }
         // Provided port — exposes throttle control interface
-        port("throttle") {
-            stereotype("AutosarPort") { "direction" to AutosarPortDirection.Provided }
+        port(name = "throttle") {
+            stereotype(name = "AutosarPort") { "direction" to AutosarPortDirection.Provided }
         }
     }
 
     // ── Communication Interface ───────────────────────────────────────────────
 
-    interfaceOf("ThrottleControl") {
-        stereotype("ComInterface") {
+    interfaceOf(name = "ThrottleControl") {
+        stereotype(name = "ComInterface") {
             "version" to "2.1"
             "isService" to true
         }

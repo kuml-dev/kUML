@@ -20,72 +20,72 @@ import dev.kuml.uml.dsl.stereotype
  *
  * Profile: OpenAPI (kuml-profile-openapi)
  */
-classDiagram("User API — OpenAPI Operation + Parameter") {
+classDiagram(name = "User API — OpenAPI Operation + Parameter") {
     applyProfile(openApiProfile)
 
     // ── REST Resource ─────────────────────────────────────────────────────────────
 
-    classOf("UserResource") {
-        stereotype("Resource") {
+    classOf(name = "UserResource") {
+        stereotype(name = "Resource") {
             "path" to "/users"
             "version" to "v1"
         }
 
         // ── Feature-Level: «Operation» on operations (V1.1.2) ────────────────────
 
-        operation("getUser") {
-            stereotype("Operation") {
+        operation(name = "getUser") {
+            stereotype(name = "Operation") {
                 "method" to HttpMethod.GET
                 "path" to "/users/{id}"
                 "summary" to "Retrieve a user by ID"
                 "status" to 200
             }
-            parameter("id", "Long") {
-                stereotype("Parameter") {
+            parameter(name = "id", type = "Long") {
+                stereotype(name = "Parameter") {
                     "in" to ParameterIn.Path
                     "required" to true
                 }
             }
-            returns("UserSchema")
+            returns(typeName = "UserSchema")
         }
 
-        operation("createUser") {
-            stereotype("Operation") {
+        operation(name = "createUser") {
+            stereotype(name = "Operation") {
                 "method" to HttpMethod.POST
                 "path" to "/users"
                 "summary" to "Create a new user"
                 "status" to 201
             }
-            parameter("body", "CreateUserRequest") {
-                stereotype("Parameter") {
+            parameter(name = "body", type = "CreateUserRequest") {
+                stereotype(name = "Parameter") {
                     "in" to ParameterIn.Body
                     "required" to true
                 }
             }
-            returns("UserSchema")
+            returns(typeName = "UserSchema")
         }
 
-        operation("listUsers") {
-            stereotype("Operation") {
+        operation(name = "listUsers") {
+            stereotype(name = "Operation") {
                 "method" to HttpMethod.GET
                 "path" to "/users"
                 "summary" to "List all users with optional filter"
                 "status" to 200
             }
-            parameter("filter", "String") {
-                stereotype("Parameter") {
+            parameter(name = "filter", type = "String") {
+                stereotype(name = "Parameter") {
                     "in" to ParameterIn.Query
                     "required" to false
                 }
             }
-            returns("List<UserSchema>")
+            returns(typeName = "List<UserSchema>")
         }
     }
 
     // ── Data Schema ───────────────────────────────────────────────────────────────
 
-    classOf("UserSchema") {
-        stereotype("Schema") {
+    classOf(name = "UserSchema") {
+        stereotype(name = "Schema") {
             "format" to "json"
             "description" to "Public user representation"
         }

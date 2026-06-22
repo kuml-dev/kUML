@@ -43,14 +43,14 @@ val order = UmlClass(
 
 objectDiagram(name = "Order #42 Snapshot") {
     val alice = instanceOf(classifier = customer, name = "alice") {
-        slot(feature = "id",   value = literal("c0ffee-001"))
-        slot(feature = "name", value = literal("Alice Müller"))
+        slot(feature = "id",   value = literal(text = "c0ffee-001"))
+        slot(feature = "name", value = literal(text = "Alice Müller"))
     }
 
     val ord = instanceOf(classifier = order, name = "order42") {
-        slot(feature = "id",       value = literal("o-42"))
-        slot(feature = "amount",   value = literal("19.95 EUR"))
-        slot(feature = "customer", value = ref(alice))
+        slot(feature = "id",       value = literal(text = "o-42"))
+        slot(feature = "amount",   value = literal(text = "19.95 EUR"))
+        slot(feature = "customer", value = ref(instance = alice))
     }
 
     link(from = alice, to = ord, sourceRole = "buyer", targetRole = "purchase")
@@ -65,7 +65,7 @@ objectDiagram(name = "Order #42 Snapshot") {
 | `UmlProperty(id = …, name = …, type = UmlTypeRef("…"))` | Attribute werden als typisierte Properties am Klassifikator vorab deklariert. Die Slot-Auflösung per Feature-Name greift dann auf die `id`. |
 | `objectDiagram(name = …) { … }` | Top-Level: erzeugt ein Objektdiagramm (Snapshot). |
 | `instanceOf(classifier = customer, name = "alice") { … }` | Erzeugt eine `UmlInstanceSpecification` der angegebenen Klasse. |
-| `slot(feature = "name", value = literal("Alice"))` | Belegt ein Attribut mit einem Literal-Wert. Die `definingFeatureId` wird automatisch über den Feature-Namen auf der Klassifikator-Klasse aufgelöst. |
+| `slot(feature = "name", value = literal(text = "Alice"))` | Belegt ein Attribut mit einem Literal-Wert. Die `definingFeatureId` wird automatisch über den Feature-Namen auf der Klassifikator-Klasse aufgelöst. |
 | `slot(feature = "customer", value = ref(alice))` | Belegt ein Attribut mit einer **Instanz-Referenz** statt eines Literals. |
 | `link(from = alice, to = ord, sourceRole = …, targetRole = …)` | Verbindet zwei Instanzen — das Snapshot-Äquivalent einer Assoziation. |
 

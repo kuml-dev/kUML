@@ -18,37 +18,37 @@ import dev.kuml.uml.dsl.stereotype
  *
  * Profiles: JavaEE (kuml-profile-javaee) + Spring (kuml-profile-spring)
  */
-classDiagram("Report Scheduler — Spring Tasks") {
+classDiagram(name = "Report Scheduler — Spring Tasks") {
     applyProfile(javaEeProfile)
     applyProfile(springProfile)
 
     // ── Scheduler Bean ────────────────────────────────────────────────────────────
 
-    classOf("ReportScheduler") {
-        stereotype("Service") { "transactional" to false }
+    classOf(name = "ReportScheduler") {
+        stereotype(name = "Service") { "transactional" to false }
 
         // ── Feature-Level: «Scheduled» on operations (V1.1.2) ────────────────────
 
-        operation("generateDailyReport") {
-            stereotype("Scheduled") {
+        operation(name = "generateDailyReport") {
+            stereotype(name = "Scheduled") {
                 "cron" to "0 0 * * *"
             }
-            returns("void")
+            returns(typeName = "void")
         }
 
-        operation("sendWeeklyDigest") {
-            stereotype("Scheduled") {
+        operation(name = "sendWeeklyDigest") {
+            stereotype(name = "Scheduled") {
                 "cron" to "0 9 * * MON"
             }
-            returns("void")
+            returns(typeName = "void")
         }
 
-        operation("pollExternalQueue") {
-            stereotype("Scheduled") {
+        operation(name = "pollExternalQueue") {
+            stereotype(name = "Scheduled") {
                 "fixedRate" to 5000L
                 "initialDelay" to 1000L
             }
-            returns("void")
+            returns(typeName = "void")
         }
     }
 }

@@ -9,32 +9,32 @@ import dev.kuml.uml.dsl.transition
 /**
  * DAP Verfassung — Amendment-Lebenszyklus (State Machine, V3.0.6 Chain-Showcase).
  */
-stateDiagram("DAP Verfassungs-Amendment – Lebenszyklus") {
+stateDiagram(name = "DAP Verfassungs-Amendment – Lebenszyklus") {
     val start = initialState()
-    val vorgeschlagen = state("VORGESCHLAGEN")
-    val eingereicht = state("EINGEREICHT")
-    val inDiskussion = state("IN_DISKUSSION")
-    val abstimmungOffen = state("ABSTIMMUNG_OFFEN")
-    val angenommen = state("ANGENOMMEN")
-    val angewendet = state("ANGEWENDET")
-    val abgelehnt = state("ABGELEHNT")
-    val angewendetFinal = finalState("ANGEWENDET_FINAL")
+    val vorgeschlagen = state(name = "VORGESCHLAGEN")
+    val eingereicht = state(name = "EINGEREICHT")
+    val inDiskussion = state(name = "IN_DISKUSSION")
+    val abstimmungOffen = state(name = "ABSTIMMUNG_OFFEN")
+    val angenommen = state(name = "ANGENOMMEN")
+    val angewendet = state(name = "ANGEWENDET")
+    val abgelehnt = state(name = "ABGELEHNT")
+    val angewendetFinal = finalState(name = "ANGEWENDET_FINAL")
 
-    transition(start, vorgeschlagen)
-    transition(vorgeschlagen, eingereicht) {
+    transition(source = start, target = vorgeschlagen)
+    transition(source = vorgeschlagen, target = eingereicht) {
         trigger = "einreichen(autor)"
         guard = "[unterstuetzer >= minUnterstuetzer]"
     }
-    transition(eingereicht, inDiskussion) { trigger = "annehmenZurDiskussion()" }
-    transition(inDiskussion, abstimmungOffen) { trigger = "after(diskussionsfrist)" }
-    transition(abstimmungOffen, angenommen) {
+    transition(source = eingereicht, target = inDiskussion) { trigger = "annehmenZurDiskussion()" }
+    transition(source = inDiskussion, target = abstimmungOffen) { trigger = "after(diskussionsfrist)" }
+    transition(source = abstimmungOffen, target = angenommen) {
         trigger = "after(abstimmungsfrist)"
         guard = "[abstimmung.beteiligung() >= quorum and abstimmung.jaAnteil() > mehrheit]"
     }
-    transition(abstimmungOffen, abgelehnt) {
+    transition(source = abstimmungOffen, target = abgelehnt) {
         trigger = "after(abstimmungsfrist)"
         guard = "[abstimmung.beteiligung() < quorum or abstimmung.jaAnteil() <= mehrheit]"
     }
-    transition(angenommen, angewendet) { trigger = "anwenden()" }
-    transition(angewendet, angewendetFinal) { trigger = "after(karenzfrist)" }
+    transition(source = angenommen, target = angewendet) { trigger = "anwenden()" }
+    transition(source = angewendet, target = angewendetFinal) { trigger = "after(karenzfrist)" }
 }

@@ -26,55 +26,55 @@ import dev.kuml.sysml2.dsl.sysml2Model
  * same script can be exercised for both the happy path and the error path
  * simply by changing the events file.
  */
-sysml2Model("ThermostatBoot") {
+sysml2Model(name = "ThermostatBoot") {
 
     // ── Nodes ─────────────────────────────────────────────────────────────────
     val init = initialNode()
 
-    val readSensors = actionDef("ReadSensors", action = "sensors.readAll()")
+    val readSensors = actionDef(name = "ReadSensors", action = "sensors.readAll()")
 
-    val decide = decisionNode("sensors valid?")
+    val decide = decisionNode(name = "sensors valid?")
 
-    val calibrate = actionDef("Calibrate", action = "calibration.run()")
+    val calibrate = actionDef(name = "Calibrate", action = "calibration.run()")
 
-    val fork = forkNode("bootFork")
+    val fork = forkNode(name = "bootFork")
 
-    val updateDisplay = actionDef("UpdateDisplay", action = "display.update()")
-    val logReady = actionDef("LogReady", action = "log.info('Thermostat ready')")
+    val updateDisplay = actionDef(name = "UpdateDisplay", action = "display.update()")
+    val logReady = actionDef(name = "LogReady", action = "log.info('Thermostat ready')")
 
-    val join = joinNode("bootJoin")
+    val join = joinNode(name = "bootJoin")
 
     val fin = finalNode()
 
-    val errorAlert = actionDef("ErrorAlert", action = "alert.send('Sensor failure')")
+    val errorAlert = actionDef(name = "ErrorAlert", action = "alert.send('Sensor failure')")
 
     val flowFin = flowFinalNode()
 
     // ── Control Flows ─────────────────────────────────────────────────────────
-    controlFlow("toRead", init, readSensors)
-    controlFlow("toDecide", readSensors, decide)
-    controlFlow("validPath", decide, calibrate, guard = "sensorsValid")
-    controlFlow("toFork", calibrate, fork)
-    controlFlow("forkToDisplay", fork, updateDisplay)
-    controlFlow("forkToLog", fork, logReady)
-    controlFlow("displayToJoin", updateDisplay, join)
-    controlFlow("logToJoin", logReady, join)
-    controlFlow("joinToFinal", join, fin)
-    controlFlow("errorPath", decide, errorAlert, guard = "not sensorsValid")
-    controlFlow("errorToFlowFinal", errorAlert, flowFin)
+    controlFlow(name = "toRead", source = init, target = readSensors)
+    controlFlow(name = "toDecide", source = readSensors, target = decide)
+    controlFlow(name = "validPath", source = decide, target = calibrate, guard = "sensorsValid")
+    controlFlow(name = "toFork", source = calibrate, target = fork)
+    controlFlow(name = "forkToDisplay", source = fork, target = updateDisplay)
+    controlFlow(name = "forkToLog", source = fork, target = logReady)
+    controlFlow(name = "displayToJoin", source = updateDisplay, target = join)
+    controlFlow(name = "logToJoin", source = logReady, target = join)
+    controlFlow(name = "joinToFinal", source = join, target = fin)
+    controlFlow(name = "errorPath", source = decide, target = errorAlert, guard = "not sensorsValid")
+    controlFlow(name = "errorToFlowFinal", source = errorAlert, target = flowFin)
 
     // ── Activity Diagram ──────────────────────────────────────────────────────
-    actDiagram("Pepela Thermostat — boot calibration") {
-        include(init)
-        include(readSensors)
-        include(decide)
-        include(calibrate)
-        include(fork)
-        include(updateDisplay)
-        include(logReady)
-        include(join)
-        include(fin)
-        include(errorAlert)
-        include(flowFin)
+    actDiagram(name = "Pepela Thermostat — boot calibration") {
+        include(node = init)
+        include(node = readSensors)
+        include(node = decide)
+        include(node = calibrate)
+        include(node = fork)
+        include(node = updateDisplay)
+        include(node = logReady)
+        include(node = join)
+        include(node = fin)
+        include(node = errorAlert)
+        include(node = flowFin)
     }
 }

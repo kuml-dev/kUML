@@ -41,12 +41,12 @@ import dev.kuml.sysml2.dsl.sysml2Model
  *    Behaviour-Runtime-Wave)
  *  - PNG-Export für SysML 2 PAR
  */
-sysml2Model("NewtonModel") {
+sysml2Model(name = "NewtonModel") {
 
     // ── AttributeDefinitions (Wert-Typen) ─────────────────────────────────
-    attributeDef("Mass")
-    attributeDef("Acceleration")
-    attributeDef("Force")
+    attributeDef(name = "Mass")
+    attributeDef(name = "Acceleration")
+    attributeDef(name = "Force")
 
     // ── ConstraintDefinition: F = m·a ─────────────────────────────────────
     val newton =
@@ -55,18 +55,18 @@ sysml2Model("NewtonModel") {
             expression = "F = m * a",
             parameters =
                 listOf(
-                    ConstraintParameter("F", "Force", ConstraintParameterDirection.Out),
-                    ConstraintParameter("m", "Mass", ConstraintParameterDirection.In),
-                    ConstraintParameter("a", "Acceleration", ConstraintParameterDirection.In),
+                    ConstraintParameter(name = "F", typeId = "Force", direction = ConstraintParameterDirection.Out),
+                    ConstraintParameter(name = "m", typeId = "Mass", direction = ConstraintParameterDirection.In),
+                    ConstraintParameter(name = "a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
                 ),
         )
 
     // ── PartDefinition Vehicle mit Attribut-Usages ────────────────────────
     val vehicle =
-        partDef("Vehicle") {
-            attribute("mass", "Mass")
-            attribute("acceleration", "Acceleration")
-            attribute("force", "Force")
+        partDef(name = "Vehicle") {
+            attribute(name = "mass", typeId = "Mass")
+            attribute(name = "acceleration", typeId = "Acceleration")
+            attribute(name = "force", typeId = "Force")
         }
 
     // ── Bindings: Constraint-Pins ↔ Vehicle-Attribute ─────────────────────
@@ -87,8 +87,8 @@ sysml2Model("NewtonModel") {
     )
 
     // ── Parametric Diagram ────────────────────────────────────────────────
-    parDiagram("Newton — F = m·a applied to Vehicle") {
-        include(newton)
-        include(vehicle)
+    parDiagram(name = "Newton — F = m·a applied to Vehicle") {
+        include(definition = newton)
+        include(definition = vehicle)
     }
 }

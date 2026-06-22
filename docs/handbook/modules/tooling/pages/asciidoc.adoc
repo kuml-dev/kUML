@@ -18,11 +18,11 @@ The order subsystem:
 [source,kuml]
 ----
 classDiagram(name = "Order Domain") {
-    val order = classOf("Order") {
-        attribute("id", "UUID")
-        attribute("status", "OrderStatus")
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "status", type = "OrderStatus")
     }
-    val item = classOf("OrderItem")
+    val item = classOf(name = "OrderItem")
     association(source = order, target = item)
 }
 ----

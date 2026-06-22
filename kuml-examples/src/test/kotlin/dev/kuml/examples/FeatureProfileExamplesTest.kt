@@ -81,11 +81,11 @@ class FeatureProfileExamplesTest :
 
         test("JavaEE example: «PersistenceContext» feature stereotype appears in SVG") {
             val diagram =
-                classDiagram("Order Repository — JPA Injection") {
+                classDiagram(name = "Order Repository — JPA Injection") {
                     applyProfile(javaEeProfile)
 
-                    classOf("Order") {
-                        stereotype("Entity") {
+                    classOf(name = "Order") {
+                        stereotype(name = "Entity") {
                             "tableName" to "orders"
                             "schema" to "shop"
                             "cacheable" to false
@@ -94,16 +94,16 @@ class FeatureProfileExamplesTest :
                         attribute(name = "amount", type = "BigDecimal")
                     }
 
-                    classOf("OrderRepository") {
-                        stereotype("Repository") { "dataSource" to "shopDb" }
-                        attribute("em", "EntityManager") {
-                            stereotype("PersistenceContext") {
+                    classOf(name = "OrderRepository") {
+                        stereotype(name = "Repository") { "dataSource" to "shopDb" }
+                        attribute(name = "em", type = "EntityManager") {
+                            stereotype(name = "PersistenceContext") {
                                 "unitName" to "shopPU"
                                 "type" to "TRANSACTION"
                             }
                         }
-                        operation(name = "findById") { returns("Order") }
-                        operation(name = "save") { returns("Order") }
+                        operation(name = "findById") { returns(typeName = "Order") }
+                        operation(name = "save") { returns(typeName = "Order") }
                     }
                 }
 
@@ -117,26 +117,26 @@ class FeatureProfileExamplesTest :
 
         test("Spring example: «Scheduled» feature stereotype appears in SVG") {
             val diagram =
-                classDiagram("Report Scheduler — Spring Tasks") {
+                classDiagram(name = "Report Scheduler — Spring Tasks") {
                     applyProfile(javaEeProfile)
                     applyProfile(springProfile)
 
-                    classOf("ReportScheduler") {
-                        stereotype("Service") { "transactional" to false }
+                    classOf(name = "ReportScheduler") {
+                        stereotype(name = "Service") { "transactional" to false }
 
-                        operation("generateDailyReport") {
-                            stereotype("Scheduled") {
+                        operation(name = "generateDailyReport") {
+                            stereotype(name = "Scheduled") {
                                 "cron" to "0 0 * * *"
                             }
-                            returns("void")
+                            returns(typeName = "void")
                         }
 
-                        operation("pollExternalQueue") {
-                            stereotype("Scheduled") {
+                        operation(name = "pollExternalQueue") {
+                            stereotype(name = "Scheduled") {
                                 "fixedRate" to 5000L
                                 "initialDelay" to 1000L
                             }
-                            returns("void")
+                            returns(typeName = "void")
                         }
                     }
                 }
@@ -151,34 +151,34 @@ class FeatureProfileExamplesTest :
 
         test("OpenAPI example: «Operation» and «Parameter» feature stereotypes appear in SVG") {
             val diagram =
-                classDiagram("User API — OpenAPI Operations") {
+                classDiagram(name = "User API — OpenAPI Operations") {
                     applyProfile(openApiProfile)
 
-                    classOf("UserResource") {
-                        stereotype("Resource") {
+                    classOf(name = "UserResource") {
+                        stereotype(name = "Resource") {
                             "path" to "/users"
                             "version" to "v1"
                         }
 
-                        operation("getUser") {
-                            stereotype("Operation") {
+                        operation(name = "getUser") {
+                            stereotype(name = "Operation") {
                                 "method" to HttpMethod.GET
                                 "path" to "/users/{id}"
                                 "summary" to "Retrieve a user by ID"
                                 "status" to 200
                             }
-                            parameter("id", "Long") {
-                                stereotype("Parameter") {
+                            parameter(name = "id", type = "Long") {
+                                stereotype(name = "Parameter") {
                                     "in" to ParameterIn.Path
                                     "required" to true
                                 }
                             }
-                            returns("UserSchema")
+                            returns(typeName = "UserSchema")
                         }
                     }
 
-                    classOf("UserSchema") {
-                        stereotype("Schema") {
+                    classOf(name = "UserSchema") {
+                        stereotype(name = "Schema") {
                             "format" to "json"
                             "description" to "Public user representation"
                         }
@@ -201,41 +201,41 @@ class FeatureProfileExamplesTest :
 
         test("AUTOSAR example: «Runnable» feature stereotype appears in SVG") {
             val diagram =
-                classDiagram("Brake Controller — AUTOSAR Runnables") {
+                classDiagram(name = "Brake Controller — AUTOSAR Runnables") {
                     applyProfile(autosarProfile)
 
                     // Component-level: SoftwareComponent stereotype on component
-                    component("BrakeControllerSwc") {
-                        stereotype("SoftwareComponent") {
+                    component(name = "BrakeControllerSwc") {
+                        stereotype(name = "SoftwareComponent") {
                             "kind" to AutosarSwcKind.Application
                             "packageName" to "chassis.brake"
                         }
-                        port("rpmSensor") {
-                            stereotype("AutosarPort") { "direction" to AutosarPortDirection.Required }
+                        port(name = "rpmSensor") {
+                            stereotype(name = "AutosarPort") { "direction" to AutosarPortDirection.Required }
                         }
                     }
 
                     // Implementation class with Runnable operations (feature-level stereotypes)
-                    classOf("BrakeControllerImpl") {
-                        operation("onCycle") {
-                            stereotype("Runnable") {
+                    classOf(name = "BrakeControllerImpl") {
+                        operation(name = "onCycle") {
+                            stereotype(name = "Runnable") {
                                 "kind" to AutosarBehaviorKind.Periodic
                                 "periodMs" to 10L
                             }
-                            returns("void")
+                            returns(typeName = "void")
                         }
 
-                        operation("onBrakePedalEvent") {
-                            stereotype("Runnable") {
+                        operation(name = "onBrakePedalEvent") {
+                            stereotype(name = "Runnable") {
                                 "kind" to AutosarBehaviorKind.EventTriggered
                                 "periodMs" to 0L
                             }
-                            returns("void")
+                            returns(typeName = "void")
                         }
                     }
 
-                    interfaceOf("BrakePedalInterface") {
-                        stereotype("ComInterface") {
+                    interfaceOf(name = "BrakePedalInterface") {
+                        stereotype(name = "ComInterface") {
                             "version" to "3.0"
                             "isService" to false
                         }

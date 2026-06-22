@@ -33,22 +33,22 @@ stateDiagram(name = "Order Lifecycle") {
     val cancelled = finalState(name = "Cancelled")
     val done = finalState(name = "Done")
 
-    transition(start, draft)
-    transition(draft, confirmed) {
+    transition(source = start, target = draft)
+    transition(source = draft, target = confirmed) {
         trigger = "confirm()"
         guard = "[valid]"
     }
-    transition(draft, cancelled) {
+    transition(source = draft, target = cancelled) {
         trigger = "cancel()"
     }
-    transition(confirmed, processing) {
+    transition(source = confirmed, target = processing) {
         trigger = "process()"
     }
-    transition(processing, shipped) {
+    transition(source = processing, target = shipped) {
         trigger = "ship()"
         effect = "notifyCustomer()"
     }
-    transition(shipped, done)
+    transition(source = shipped, target = done)
 }
 ```
 
@@ -67,7 +67,7 @@ stateDiagram(name = "Order Lifecycle") {
 
 - **Choice-State**: `val ok = choice("PaymentOK?")` für bedingte Verzweigung
 - **History-State**: in `compositeState` über Pseudo-State `H` (in DSL als History erweiterbar)
-- **Entry/Exit/Do**: `state("Confirmed") { entry = "lockInventory()"; exit = "releaseInventory()" }`
+- **Entry/Exit/Do**: `state(name = "Confirmed") { entry = "lockInventory()"; exit = "releaseInventory()" }`
 
 ## Verwandte Beispiele
 

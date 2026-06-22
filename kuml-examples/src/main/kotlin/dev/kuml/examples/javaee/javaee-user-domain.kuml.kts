@@ -17,13 +17,13 @@ import dev.kuml.uml.dsl.stereotype
  *
  * Profile: JavaEE (kuml-profile-javaee)
  */
-classDiagram("User Domain") {
+classDiagram(name = "User Domain") {
     applyProfile(javaEeProfile)
 
     // ── Persistence Layer ─────────────────────────────────────────────────────────
 
-    classOf("User") {
-        stereotype("Entity") {
+    classOf(name = "User") {
+        stereotype(name = "Entity") {
             "tableName" to "users"
             "schema" to "auth"
             "cacheable" to true
@@ -33,23 +33,23 @@ classDiagram("User Domain") {
         attribute(name = "name", type = "String")
     }
 
-    classOf("UserRepository") {
-        stereotype("Repository") { "dataSource" to "userDb" }
-        operation(name = "findById") { returns("User") }
-        operation(name = "save") { returns("User") }
+    classOf(name = "UserRepository") {
+        stereotype(name = "Repository") { "dataSource" to "userDb" }
+        operation(name = "findById") { returns(typeName = "User") }
+        operation(name = "save") { returns(typeName = "User") }
     }
 
     // ── Service Layer ─────────────────────────────────────────────────────────────
 
-    classOf("UserService") {
-        stereotype("Service") { "transactional" to true }
-        operation(name = "register") { returns("User") }
+    classOf(name = "UserService") {
+        stereotype(name = "Service") { "transactional" to true }
+        operation(name = "register") { returns(typeName = "User") }
     }
 
     // ── Web Layer ─────────────────────────────────────────────────────────────────
 
-    classOf("UserController") {
-        stereotype("Controller") { "requestMapping" to "/api/users" }
-        operation(name = "list") { returns("List<User>") }
+    classOf(name = "UserController") {
+        stereotype(name = "Controller") { "requestMapping" to "/api/users" }
+        operation(name = "list") { returns(typeName = "List<User>") }
     }
 }

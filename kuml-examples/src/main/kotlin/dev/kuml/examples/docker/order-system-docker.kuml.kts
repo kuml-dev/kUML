@@ -33,26 +33,26 @@ import dev.kuml.uml.dsl.port
  *   --output build/docker-gen/
  * ```
  */
-componentDiagram("Order System — Docker") {
+componentDiagram(name = "Order System — Docker") {
 
-    component("OrderService") {
+    component(name = "OrderService") {
         stereotypes += "service"
-        port("api")
-        port("events")
+        port(name = "api")
+        port(name = "events")
     }
 
-    component("PaymentService") {
+    component(name = "PaymentService") {
         stereotypes += "service"
-        port("api")
+        port(name = "api")
     }
 
-    component("InvoiceService") {
-        port("orderEvents")
+    component(name = "InvoiceService") {
+        port(name = "orderEvents")
     }
 
-    component("MessageBroker") {
-        port("pub")
-        port("sub")
+    component(name = "MessageBroker") {
+        port(name = "pub")
+        port(name = "sub")
     }
 }
 

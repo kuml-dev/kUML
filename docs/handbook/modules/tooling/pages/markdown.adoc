@@ -14,8 +14,8 @@ The order domain:
 
 ```kuml
 classDiagram(name = "Order Domain") {
-    classOf("Order") {
-        attribute("id", "UUID")
+    classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
     }
 }
 ```
@@ -128,7 +128,7 @@ GitHub renders inline SVG that's embedded directly in Markdown:
 
 ````markdown
 ```kuml
-classDiagram(name = "Hello") { classOf("World") }
+classDiagram(name = "Hello") { classOf(name = "World") }
 ```
 ````
 

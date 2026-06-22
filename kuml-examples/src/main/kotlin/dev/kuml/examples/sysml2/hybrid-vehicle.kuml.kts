@@ -26,65 +26,65 @@ import dev.kuml.sysml2.units.kmph
  * screen. Layout / rendering / CLI integration lands in V2.0.4+ — for V2.0.3
  * the script is exercised purely by the metamodel + DSL tests.
  */
-sysml2Model("HybridVehicle") {
+sysml2Model(name = "HybridVehicle") {
 
     // ── Attribute (value) types ────────────────────────────────────────────
-    val mass = attributeDef("Mass")
-    val power = attributeDef("Power")
-    val energy = attributeDef("Energy")
-    val voltage = attributeDef("Voltage")
-    val speed = attributeDef("Speed")
-    val angle = attributeDef("Angle")
+    val mass = attributeDef(name = "Mass")
+    val power = attributeDef(name = "Power")
+    val energy = attributeDef(name = "Energy")
+    val voltage = attributeDef(name = "Voltage")
+    val speed = attributeDef(name = "Speed")
+    val angle = attributeDef(name = "Angle")
 
     // ── Port types ─────────────────────────────────────────────────────────
-    val powerPort = portDef("PowerPort")
-    val mechanicalShaft = portDef("MechanicalShaft")
+    val powerPort = portDef(name = "PowerPort")
+    val mechanicalShaft = portDef(name = "MechanicalShaft")
 
     // ── Connection types ───────────────────────────────────────────────────
-    val powerLine = connectionDef("PowerLine")
-    val driveshaft = connectionDef("Driveshaft")
+    val powerLine = connectionDef(name = "PowerLine")
+    val driveshaft = connectionDef(name = "Driveshaft")
 
     // ── Parts ──────────────────────────────────────────────────────────────
     val battery =
-        partDef("Battery") {
-            attribute("capacity", typeId = energy.id, default = 60.kWh)
-            attribute("nominalVoltage", typeId = voltage.id, default = 400.V)
-            port("dcOut", typeId = powerPort.id)
+        partDef(name = "Battery") {
+            attribute(name = "capacity", typeId = energy.id, default = 60.kWh)
+            attribute(name = "nominalVoltage", typeId = voltage.id, default = 400.V)
+            port(name = "dcOut", typeId = powerPort.id)
         }
 
     val electricMotor =
-        partDef("ElectricMotor") {
-            attribute("ratedPower", typeId = power.id, default = 150.kW)
-            port("dcIn", typeId = powerPort.id)
-            port("shaft", typeId = mechanicalShaft.id)
+        partDef(name = "ElectricMotor") {
+            attribute(name = "ratedPower", typeId = power.id, default = 150.kW)
+            port(name = "dcIn", typeId = powerPort.id)
+            port(name = "shaft", typeId = mechanicalShaft.id)
         }
 
     val iceEngine =
-        partDef("InternalCombustionEngine") {
-            attribute("ratedPower", typeId = power.id, default = 90.kW)
-            port("shaft", typeId = mechanicalShaft.id)
+        partDef(name = "InternalCombustionEngine") {
+            attribute(name = "ratedPower", typeId = power.id, default = 90.kW)
+            port(name = "shaft", typeId = mechanicalShaft.id)
         }
 
     val powerSplitter =
-        partDef("PowerSplitter") {
-            attribute("ratio", typeId = angle.id, default = 35.deg)
-            port("iceIn", typeId = mechanicalShaft.id)
-            port("emIn", typeId = mechanicalShaft.id)
-            port("wheelOut", typeId = mechanicalShaft.id)
+        partDef(name = "PowerSplitter") {
+            attribute(name = "ratio", typeId = angle.id, default = 35.deg)
+            port(name = "iceIn", typeId = mechanicalShaft.id)
+            port(name = "emIn", typeId = mechanicalShaft.id)
+            port(name = "wheelOut", typeId = mechanicalShaft.id)
         }
 
     val vehicle =
-        partDef("Vehicle", isAbstract = true) {
-            attribute("curbWeight", typeId = mass.id, default = 1500.kg)
-            attribute("topSpeed", typeId = speed.id, default = 180.kmph)
+        partDef(name = "Vehicle", isAbstract = true) {
+            attribute(name = "curbWeight", typeId = mass.id, default = 1500.kg)
+            attribute(name = "topSpeed", typeId = speed.id, default = 180.kmph)
         }
 
     val hybrid =
-        partDef("HybridVehicle", specializesId = vehicle.id) {
-            part("battery", typeId = battery.id)
-            part("electricMotor", typeId = electricMotor.id)
-            part("ice", typeId = iceEngine.id)
-            part("splitter", typeId = powerSplitter.id)
+        partDef(name = "HybridVehicle", specializesId = vehicle.id) {
+            part(name = "battery", typeId = battery.id)
+            part(name = "electricMotor", typeId = electricMotor.id)
+            part(name = "ice", typeId = iceEngine.id)
+            part(name = "splitter", typeId = powerSplitter.id)
 
             // Two cylinders — multiplicity demo. The real ICE has 4 cylinders;
             // we pin 2 here so the BDD example shows the multiplicity glyph.
@@ -118,18 +118,18 @@ sysml2Model("HybridVehicle") {
         }
 
     // ── Block Definition Diagram ───────────────────────────────────────────
-    bdd("HybridVehicle — structural overview") {
-        include(vehicle)
-        include(hybrid)
-        include(iceEngine)
-        include(electricMotor)
-        include(battery)
-        include(powerSplitter)
+    bdd(name = "HybridVehicle — structural overview") {
+        include(definition = vehicle)
+        include(definition = hybrid)
+        include(definition = iceEngine)
+        include(definition = electricMotor)
+        include(definition = battery)
+        include(definition = powerSplitter)
     }
 
     // ── Internal Block Diagram (V2.0.6) ────────────────────────────────────
     // Inner wiring view of the HybridVehicle — the four part-usages and the
     // power-flow connections between them. Empty include-block = "show all
     // part-usages of the owner"; the bridge expands it.
-    ibd("HybridVehicle — internal block diagram", owner = hybrid)
+    ibd(name = "HybridVehicle — internal block diagram", owner = hybrid)
 }

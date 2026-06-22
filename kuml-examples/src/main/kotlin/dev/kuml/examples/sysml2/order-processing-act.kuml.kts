@@ -57,99 +57,99 @@ import dev.kuml.sysml2.dsl.sysml2Model
  *  - LaTeX-Rendering von Partitions + Pins (SVG-only in V2.0.16)
  *  - Live Token-Flow-Runtime — separate Behaviour-Runtime-Welle
  */
-sysml2Model("OrderProcessing") {
+sysml2Model(name = "OrderProcessing") {
 
     // ── PartDefinitions für `represents`-Targets ────────────────────────
-    partDef("Customer")
-    partDef("OrderSystem")
-    partDef("Warehouse")
+    partDef(name = "Customer")
+    partDef(name = "OrderSystem")
+    partDef(name = "Warehouse")
 
     // ── V2.0.16: Activity Partitions (Swimlanes) ────────────────────────
-    val customerLane = activityPartition("Customer", represents = "Customer")
-    val orderSysLane = activityPartition("OrderSystem", represents = "OrderSystem")
-    val warehouseLane = activityPartition("Warehouse", represents = "Warehouse")
+    val customerLane = activityPartition(name = "Customer", represents = "Customer")
+    val orderSysLane = activityPartition(name = "OrderSystem", represents = "OrderSystem")
+    val warehouseLane = activityPartition(name = "Warehouse", represents = "Warehouse")
 
     // ── Customer Lane ───────────────────────────────────────────────────
     val initial = initialNode(partition = customerLane)
     val placeOrder =
         actionDef(
-            "PlaceOrder",
+            name = "PlaceOrder",
             action = "submit(order)",
             partition = customerLane,
-            pins = listOf(ActionPin("orderDetails", typeId = "Order", direction = PinDirection.Output)),
+            pins = listOf(ActionPin(name = "orderDetails", typeId = "Order", direction = PinDirection.Output)),
         )
 
     // ── OrderSystem Lane ────────────────────────────────────────────────
     val validate =
         actionDef(
-            "ValidateOrder",
+            name = "ValidateOrder",
             action = "validate(order)",
             partition = orderSysLane,
             pins =
                 listOf(
-                    ActionPin("orderDetails", typeId = "Order", direction = PinDirection.Input),
-                    ActionPin("validation", typeId = "Bool", direction = PinDirection.Output),
+                    ActionPin(name = "orderDetails", typeId = "Order", direction = PinDirection.Input),
+                    ActionPin(name = "validation", typeId = "Bool", direction = PinDirection.Output),
                 ),
         )
-    val decide = decisionNode("valid?", partition = orderSysLane)
+    val decide = decisionNode(name = "valid?", partition = orderSysLane)
     val pay =
         actionDef(
-            "ProcessPayment",
+            name = "ProcessPayment",
             action = "charge(order.total)",
             partition = orderSysLane,
-            pins = listOf(ActionPin("validation", typeId = "Bool", direction = PinDirection.Input)),
+            pins = listOf(ActionPin(name = "validation", typeId = "Bool", direction = PinDirection.Input)),
         )
     val cancel =
         actionDef(
-            "CancelOrder",
+            name = "CancelOrder",
             action = "notify(order, 'cancelled')",
             partition = orderSysLane,
-            pins = listOf(ActionPin("validation", typeId = "Bool", direction = PinDirection.Input)),
+            pins = listOf(ActionPin(name = "validation", typeId = "Bool", direction = PinDirection.Input)),
         )
 
     // ── Warehouse Lane ──────────────────────────────────────────────────
     val reserve =
         actionDef(
-            "ReserveInventory",
+            name = "ReserveInventory",
             action = "reserve(order.items)",
             partition = warehouseLane,
-            pins = listOf(ActionPin("orderDetails", typeId = "Order", direction = PinDirection.Input)),
+            pins = listOf(ActionPin(name = "orderDetails", typeId = "Order", direction = PinDirection.Input)),
         )
     val ship =
         actionDef(
-            "ShipOrder",
+            name = "ShipOrder",
             action = "dispatch(order)",
             partition = warehouseLane,
-            pins = listOf(ActionPin("inventory", typeId = "Inventory", direction = PinDirection.Input)),
+            pins = listOf(ActionPin(name = "inventory", typeId = "Inventory", direction = PinDirection.Input)),
         )
     val finalN = finalNode(partition = warehouseLane)
     val flowFinal = flowFinalNode(partition = warehouseLane)
 
     // ── Control Flows (token-passing edges) ─────────────────────────────
-    controlFlow("start", initial, placeOrder)
-    controlFlow("placed", placeOrder, validate)
-    controlFlow("validated", validate, decide)
-    controlFlow("yes", decide, pay, guard = "valid")
-    controlFlow("payToReserve", pay, reserve)
-    controlFlow("reserveToShip", reserve, ship)
-    controlFlow("end", ship, finalN)
-    controlFlow("no", decide, cancel, guard = "!valid")
-    controlFlow("cancelEnd", cancel, flowFinal)
+    controlFlow(name = "start", source = initial, target = placeOrder)
+    controlFlow(name = "placed", source = placeOrder, target = validate)
+    controlFlow(name = "validated", source = validate, target = decide)
+    controlFlow(name = "yes", source = decide, target = pay, guard = "valid")
+    controlFlow(name = "payToReserve", source = pay, target = reserve)
+    controlFlow(name = "reserveToShip", source = reserve, target = ship)
+    controlFlow(name = "end", source = ship, target = finalN)
+    controlFlow(name = "no", source = decide, target = cancel, guard = "!valid")
+    controlFlow(name = "cancelEnd", source = cancel, target = flowFinal)
 
     // ── Object Flow (token carries a typed object) ──────────────────────
-    objectFlow("carryOrder", placeOrder, validate, objectType = "Order")
+    objectFlow(name = "carryOrder", source = placeOrder, target = validate, objectType = "Order")
 
     // ── Activity Diagram ─────────────────────────────────────────────────
-    actDiagram("Order Processing — workflow") {
-        include(initial)
-        include(placeOrder)
-        include(validate)
-        include(decide)
-        include(pay)
-        include(cancel)
-        include(reserve)
-        include(ship)
-        include(finalN)
-        include(flowFinal)
+    actDiagram(name = "Order Processing — workflow") {
+        include(node = initial)
+        include(node = placeOrder)
+        include(node = validate)
+        include(node = decide)
+        include(node = pay)
+        include(node = cancel)
+        include(node = reserve)
+        include(node = ship)
+        include(node = finalN)
+        include(node = flowFinal)
     }
 }

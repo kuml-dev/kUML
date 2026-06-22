@@ -30,51 +30,51 @@ import dev.kuml.sysml2.dsl.sysml2Model
  * Renderable via:
  *   kuml render car2x-scenario-stm.kuml.kts --format svg --output car2x.svg
  */
-sysml2Model("Car2xIntersectionScenario") {
+sysml2Model(name = "Car2xIntersectionScenario") {
 
     // ── States ────────────────────────────────────────────────────────────────
 
     // Initial pseudo-state — auto-fires into Idle on startup (no trigger needed).
-    val initial = stateDef("Initial", isInitial = true)
+    val initial = stateDef(name = "Initial", isInitial = true)
 
-    val idle = stateDef("Idle")
+    val idle = stateDef(name = "Idle")
 
     val approaching =
         stateDef(
-            "Approaching",
+            name = "Approaching",
             entryAction = "activateV2X()",
             exitAction = "updateTTC()",
         )
 
     val negotiating =
         stateDef(
-            "Negotiating",
+            name = "Negotiating",
             entryAction = "broadcastCAM(ego)",
             doAction = "monitorRSU()",
         )
 
     val crossing =
         stateDef(
-            "Crossing",
+            name = "Crossing",
             entryAction = "notify('entering intersection')",
             exitAction = "recordCrossing()",
         )
 
     // Departed is NOT isFinal because it has an outgoing `reset` transition.
     // It semantically marks "past the intersection" but the cycle can repeat.
-    val departed = stateDef("Departed")
+    val departed = stateDef(name = "Departed")
 
     // ── Transitions ───────────────────────────────────────────────────────────
 
     // Auto-fire from initial pseudo-state into Idle on startup.
-    transition("init", initial, idle)
+    transition(name = "init", source = initial, target = idle)
 
     // Vehicle detected ahead — TTC > 10s means we have time to approach normally.
     // Guard uses event payload field `ttc` (time-to-collision in seconds).
     transition(
-        "detect",
-        idle,
-        approaching,
+        name = "detect",
+        source = idle,
+        target = approaching,
         trigger = "vehicleDetected",
         guard = "event.ttc > 10",
         id = "transition:Idle::Approaching:vehicleDetected",
@@ -83,9 +83,9 @@ sysml2Model("Car2xIntersectionScenario") {
     // CAM (Cooperative Awareness Message) received while approaching.
     // TTC <= 10s means we must begin negotiation now.
     transition(
-        "camReceived",
-        approaching,
-        negotiating,
+        name = "camReceived",
+        source = approaching,
+        target = negotiating,
         trigger = "camReceived",
         guard = "event.ttc <= 10",
         id = "transition:Approaching::Negotiating:camReceived",
@@ -93,9 +93,9 @@ sysml2Model("Car2xIntersectionScenario") {
 
     // Right-of-way granted by RSU (Road-Side Unit) or peer vehicle.
     transition(
-        "grantCrossing",
-        negotiating,
-        crossing,
+        name = "grantCrossing",
+        source = negotiating,
+        target = crossing,
         trigger = "rightOfWay",
         effect = "log('crossing granted')",
         id = "transition:Negotiating::Crossing:rightOfWay",
@@ -103,9 +103,9 @@ sysml2Model("Car2xIntersectionScenario") {
 
     // Conflict detected during negotiation — yield and return to Idle for retry.
     transition(
-        "conflict",
-        negotiating,
-        idle,
+        name = "conflict",
+        source = negotiating,
+        target = idle,
         trigger = "conflict",
         effect = "log('conflict detected, yielding')",
         id = "transition:Negotiating::Idle:conflict",
@@ -113,9 +113,9 @@ sysml2Model("Car2xIntersectionScenario") {
 
     // Intersection cleared — ego vehicle has fully passed the stop line.
     transition(
-        "cleared",
-        crossing,
-        departed,
+        name = "cleared",
+        source = crossing,
+        target = departed,
         trigger = "cleared",
         effect = "log('intersection cleared')",
         id = "transition:Crossing::Departed:cleared",
@@ -123,60 +123,60 @@ sysml2Model("Car2xIntersectionScenario") {
 
     // Scenario reset — Departed loops back to Idle for the next cycle.
     transition(
-        "reset",
-        departed,
-        idle,
+        name = "reset",
+        source = departed,
+        target = idle,
         trigger = "reset",
         id = "transition:Departed::Idle:reset",
     )
 
     // ── State Transition Diagram ──────────────────────────────────────────────
-    stmDiagram("Car2x — Intersection Scenario") {
-        include(initial)
-        include(idle)
-        include(approaching)
-        include(negotiating)
-        include(crossing)
-        include(departed)
+    stmDiagram(name = "Car2x — Intersection Scenario") {
+        include(state = initial)
+        include(state = idle)
+        include(state = approaching)
+        include(state = negotiating)
+        include(state = crossing)
+        include(state = departed)
     }
 
     // ── SysML 2 BDD — V2X System Components ──────────────────────────────────
     //
     // Attribute types
-    val speed = attributeDef("Speed")
-    val angle = attributeDef("Angle")
-    val real = attributeDef("Real")
-    val length = attributeDef("Length")
+    val speed = attributeDef(name = "Speed")
+    val angle = attributeDef(name = "Angle")
+    val real = attributeDef(name = "Real")
+    val length = attributeDef(name = "Length")
 
     // Port type
-    val v2xLink = portDef("V2XLink")
+    val v2xLink = portDef(name = "V2XLink")
 
     // Part definitions — the three key V2X actors
     val egoVehicle =
-        partDef("EgoVehicle") {
-            attribute("speed", typeId = speed.id)
-            attribute("heading", typeId = angle.id)
-            attribute("ttc", typeId = real.id)
-            port("v2x", typeId = v2xLink.id)
+        partDef(name = "EgoVehicle") {
+            attribute(name = "speed", typeId = speed.id)
+            attribute(name = "heading", typeId = angle.id)
+            attribute(name = "ttc", typeId = real.id)
+            port(name = "v2x", typeId = v2xLink.id)
         }
 
     val targetVehicle =
-        partDef("TargetVehicle") {
-            attribute("speed", typeId = speed.id)
-            attribute("heading", typeId = angle.id)
-            port("v2x", typeId = v2xLink.id)
+        partDef(name = "TargetVehicle") {
+            attribute(name = "speed", typeId = speed.id)
+            attribute(name = "heading", typeId = angle.id)
+            port(name = "v2x", typeId = v2xLink.id)
         }
 
     val rsu =
-        partDef("RSU") {
-            attribute("range", typeId = length.id)
-            port("v2x", typeId = v2xLink.id)
+        partDef(name = "RSU") {
+            attribute(name = "range", typeId = length.id)
+            port(name = "v2x", typeId = v2xLink.id)
         }
 
     // ── Block Definition Diagram ──────────────────────────────────────────────
-    bdd("Car2x System") {
-        include(egoVehicle)
-        include(targetVehicle)
-        include(rsu)
+    bdd(name = "Car2x System") {
+        include(definition = egoVehicle)
+        include(definition = targetVehicle)
+        include(definition = rsu)
     }
 }

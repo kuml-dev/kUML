@@ -26,40 +26,40 @@ import dev.kuml.sysml2.dsl.sysml2Model
  *  - Enter Cooling:  temperature > targetTemperature + 1  (i.e. ≥ target + 2)
  *  - Leave Cooling:  temperature <= targetTemperature
  */
-sysml2Model("Thermostat") {
+sysml2Model(name = "Thermostat") {
 
     // ── States ────────────────────────────────────────────────────────────────
-    val initial = stateDef("Initial", isInitial = true)
+    val initial = stateDef(name = "Initial", isInitial = true)
 
     val off =
         stateDef(
-            "Off",
+            name = "Off",
             entryAction = "relays.allOff()",
         )
 
     val idle =
         stateDef(
-            "Idle",
+            name = "Idle",
             entryAction = "display.show('idle')",
         )
 
     val heating =
         stateDef(
-            "Heating",
+            name = "Heating",
             entryAction = "relay.heat(true)",
             exitAction = "relay.heat(false)",
         )
 
     val cooling =
         stateDef(
-            "Cooling",
+            name = "Cooling",
             entryAction = "relay.cool(true)",
             exitAction = "relay.cool(false)",
         )
 
     val eco =
         stateDef(
-            "Eco",
+            name = "Eco",
             entryAction = "display.show('eco')",
             doAction = "setTargetTemp(18)",
         )
@@ -67,46 +67,46 @@ sysml2Model("Thermostat") {
     // ── Transitions ───────────────────────────────────────────────────────────
 
     // Initial pseudo-state fires immediately into Off (no trigger needed — initial auto-fire)
-    transition("init", initial, off)
+    transition(name = "init", source = initial, target = off)
 
     // Power on
-    transition("powerOn", off, idle, trigger = "powerOn")
+    transition(name = "powerOn", source = off, target = idle, trigger = "powerOn")
 
     // Power off from any state
     transition(
-        "offFromIdle",
-        idle,
-        off,
+        name = "offFromIdle",
+        source = idle,
+        target = off,
         trigger = "powerOff",
         id = "transition:Idle::Off:powerOff",
     )
     transition(
-        "offFromHeating",
-        heating,
-        off,
+        name = "offFromHeating",
+        source = heating,
+        target = off,
         trigger = "powerOff",
         id = "transition:Heating::Off:powerOff",
     )
     transition(
-        "offFromCooling",
-        cooling,
-        off,
+        name = "offFromCooling",
+        source = cooling,
+        target = off,
         trigger = "powerOff",
         id = "transition:Cooling::Off:powerOff",
     )
     transition(
-        "offFromEco",
-        eco,
-        off,
+        name = "offFromEco",
+        source = eco,
+        target = off,
         trigger = "powerOff",
         id = "transition:Eco::Off:powerOff",
     )
 
     // Idle → Heating when too cold (tick with temperature payload)
     transition(
-        "startHeating",
-        idle,
-        heating,
+        name = "startHeating",
+        source = idle,
+        target = heating,
         trigger = "tick",
         guard = "event.temperature < event.targetTemperature - 1",
         id = "transition:Idle::Heating",
@@ -114,22 +114,22 @@ sysml2Model("Thermostat") {
 
     // Idle → Cooling when too warm (tick with temperature payload)
     transition(
-        "startCooling",
-        idle,
-        cooling,
+        name = "startCooling",
+        source = idle,
+        target = cooling,
         trigger = "tick",
         guard = "event.temperature > event.targetTemperature + 1",
         id = "transition:Idle::Cooling",
     )
 
     // Idle → Eco on explicit trigger
-    transition("enterEco", idle, eco, trigger = "ecoMode")
+    transition(name = "enterEco", source = idle, target = eco, trigger = "ecoMode")
 
     // Heating → Idle once target reached (tick with temperature payload)
     transition(
-        "heatDone",
-        heating,
-        idle,
+        name = "heatDone",
+        source = heating,
+        target = idle,
         trigger = "tick",
         guard = "event.temperature >= event.targetTemperature",
         id = "transition:Heating::Idle",
@@ -137,24 +137,24 @@ sysml2Model("Thermostat") {
 
     // Cooling → Idle once target reached (tick with temperature payload)
     transition(
-        "coolDone",
-        cooling,
-        idle,
+        name = "coolDone",
+        source = cooling,
+        target = idle,
         trigger = "tick",
         guard = "event.temperature <= event.targetTemperature",
         id = "transition:Cooling::Idle",
     )
 
     // Eco → Idle on explicit trigger
-    transition("exitEco", eco, idle, trigger = "normalMode")
+    transition(name = "exitEco", source = eco, target = idle, trigger = "normalMode")
 
     // ── State Transition Diagram ──────────────────────────────────────────────
-    stmDiagram("Pepela Thermostat — temperature control") {
-        include(initial)
-        include(off)
-        include(idle)
-        include(heating)
-        include(cooling)
-        include(eco)
+    stmDiagram(name = "Pepela Thermostat — temperature control") {
+        include(state = initial)
+        include(state = off)
+        include(state = idle)
+        include(state = heating)
+        include(state = cooling)
+        include(state = eco)
     }
 }

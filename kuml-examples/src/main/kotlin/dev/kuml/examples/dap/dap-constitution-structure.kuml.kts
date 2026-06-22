@@ -12,8 +12,8 @@ import dev.kuml.uml.dsl.returns
  * DAP Verfassung — Strukturmodell (V3.0.6 Chain-Showcase).
  * Single Source of Truth für den on-chain registrierten Modell-Hash.
  */
-classDiagram("DAP Verfassung – Strukturmodell") {
-    classOf("VerfassungsArtikel") {
+classDiagram(name = "DAP Verfassung – Strukturmodell") {
+    classOf(name = "VerfassungsArtikel") {
         attribute(name = "id", type = "UUID", visibility = Visibility.PRIVATE)
         attribute(name = "titel", type = "String", visibility = Visibility.PUBLIC)
         attribute(name = "text", type = "String", visibility = Visibility.PUBLIC)
@@ -25,17 +25,17 @@ classDiagram("DAP Verfassung – Strukturmodell") {
         attribute(name = "mehrheit", type = "Percent", visibility = Visibility.PRIVATE)
         attribute(name = "karenzfrist", type = "Duration", visibility = Visibility.PRIVATE)
         attribute(name = "minUnterstuetzer", type = "Int", visibility = Visibility.PRIVATE)
-        constraint("QuorumImSinnvollenBereich", "self.quorum >= 25 and self.quorum <= 100")
-        constraint("MindestensEinfacheMehrheit", "self.mehrheit > 50")
-        constraint("MindestDiskussionsfrist", "self.diskussionsfrist >= 7")
-        constraint("MindestAbstimmungsfrist", "self.abstimmungsfrist >= 3")
+        constraint(name = "QuorumImSinnvollenBereich", body = "self.quorum >= 25 and self.quorum <= 100")
+        constraint(name = "MindestensEinfacheMehrheit", body = "self.mehrheit > 50")
+        constraint(name = "MindestDiskussionsfrist", body = "self.diskussionsfrist >= 7")
+        constraint(name = "MindestAbstimmungsfrist", body = "self.abstimmungsfrist >= 3")
     }
-    classOf("Abstimmung") {
+    classOf(name = "Abstimmung") {
         attribute(name = "ja", type = "Int")
         attribute(name = "nein", type = "Int")
         attribute(name = "enthaltung", type = "Int")
         attribute(name = "stimmberechtigte", type = "Int")
-        operation("beteiligung") { returns("Percent") }
-        operation("jaAnteil") { returns("Percent") }
+        operation(name = "beteiligung") { returns(typeName = "Percent") }
+        operation(name = "jaAnteil") { returns(typeName = "Percent") }
     }
 }

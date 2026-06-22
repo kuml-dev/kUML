@@ -20,8 +20,8 @@ classDiagram(name = "User API") {
 
     // ── REST Resource ─────────────────────────────────────────────────────────
 
-    classOf("UserResource") {
-        stereotype("Resource") {
+    classOf(name = "UserResource") {
+        stereotype(name = "Resource") {
             "path" to "/users"
             "version" to "v2"
         }
@@ -29,8 +29,8 @@ classDiagram(name = "User API") {
 
     // ── Data Schemas ──────────────────────────────────────────────────────────
 
-    classOf("UserSchema") {
-        stereotype("Schema") {
+    classOf(name = "UserSchema") {
+        stereotype(name = "Schema") {
             "format" to "json"
             "description" to "Public user representation"
         }
@@ -38,8 +38,8 @@ classDiagram(name = "User API") {
         attribute(name = "email", type = "String")
     }
 
-    classOf("ErrorSchema") {
-        stereotype("Schema") {
+    classOf(name = "ErrorSchema") {
+        stereotype(name = "Schema") {
             "format" to "json"
             "description" to "Standard RFC-7807 error body"
         }

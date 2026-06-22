@@ -24,12 +24,12 @@ import dev.kuml.sysml2.CombinedFragmentOperator
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.dsl.sysml2Model
 
-sysml2Model("LoginFlow") {
+sysml2Model(name = "LoginFlow") {
 
     // ── Lifelines (participants) ─────────────────────────────────────────
-    val user = lifelineDef("User")
-    val browser = lifelineDef("Browser")
-    val authService = lifelineDef("AuthService")
+    val user = lifelineDef(name = "User")
+    val browser = lifelineDef(name = "Browser")
+    val authService = lifelineDef(name = "AuthService")
 
     // ── Create message (top of the interaction) ─────────────────────────
     message(
@@ -117,10 +117,10 @@ sysml2Model("LoginFlow") {
     )
 
     // ── Sequence Diagram ────────────────────────────────────────────────
-    seqDiagram("Login flow") {
-        include(user)
-        include(browser)
-        include(authService)
+    seqDiagram(name = "Login flow") {
+        include(lifeline = user)
+        include(lifeline = browser)
+        include(lifeline = authService)
     }
 }
 ```

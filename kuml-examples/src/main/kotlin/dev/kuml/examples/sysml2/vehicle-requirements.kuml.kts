@@ -34,50 +34,50 @@ import dev.kuml.sysml2.dsl.sysml2Model
  *  - Constraint-Expression-Layer (formale OCL/Typed-Expression)
  *  - Subject-Edge-Inferenz aus dem `subject`-Feld
  */
-sysml2Model("VehicleRequirements") {
+sysml2Model(name = "VehicleRequirements") {
 
     // ── Requirements ────────────────────────────────────────────────────────
     val topSpeed =
         requirementDef(
-            "TopSpeedRequirement",
+            name = "TopSpeedRequirement",
             reqId = "R-001",
             text = "The vehicle shall reach at least 180 km/h on flat road",
             subject = "Vehicle",
         )
     val curbWeight =
         requirementDef(
-            "CurbWeightRequirement",
+            name = "CurbWeightRequirement",
             reqId = "R-002",
             text = "The vehicle curb weight shall not exceed 1500 kg",
             subject = "Vehicle",
         )
     val fuelEfficiency =
         requirementDef(
-            "FuelEfficiencyRequirement",
+            name = "FuelEfficiencyRequirement",
             reqId = "R-003",
             text = "The vehicle shall consume less than 4 l/100km combined",
             subject = "Vehicle",
         )
     val emissions =
         requirementDef(
-            "EmissionsRequirement",
+            name = "EmissionsRequirement",
             reqId = "R-004",
             text = "The vehicle shall comply with Euro 7 emissions standards",
             subject = "Vehicle",
         )
     val nox =
         requirementDef(
-            "NOxRequirement",
+            name = "NOxRequirement",
             reqId = "R-005",
             text = "NOx emissions shall not exceed 30 mg/km",
             subject = "Vehicle",
         )
 
     // ── Satisfying design element ──────────────────────────────────────────
-    val vehicle = partDef("Vehicle")
+    val vehicle = partDef(name = "Vehicle")
 
     // ── Verifying use case ─────────────────────────────────────────────────
-    val verifyTopSpeed = useCaseDef("VerifyTopSpeed")
+    val verifyTopSpeed = useCaseDef(name = "VerifyTopSpeed")
 
     // ── Requirement Diagram ────────────────────────────────────────────────
     reqDiagram("Vehicle — top-level requirements") {
@@ -91,18 +91,18 @@ sysml2Model("VehicleRequirements") {
         include(verifyTopSpeed)
 
         // Satisfy: Vehicle satisfies R-001 / R-002 / R-003
-        satisfy(vehicle, topSpeed)
-        satisfy(vehicle, curbWeight)
-        satisfy(vehicle, fuelEfficiency)
+        satisfy(source = vehicle, requirement = topSpeed)
+        satisfy(source = vehicle, requirement = curbWeight)
+        satisfy(source = vehicle, requirement = fuelEfficiency)
 
         // Verify: VerifyTopSpeed verifies R-001
-        verify(verifyTopSpeed, topSpeed)
+        verify(source = verifyTopSpeed, requirement = topSpeed)
 
         // Derive: R-001 is derived from R-003 (top speed vs. fuel efficiency
         // is a classic trade-off — picking R-001 follows from the R-003 cap)
-        derive(topSpeed, fuelEfficiency)
+        derive(source = topSpeed, target = fuelEfficiency)
 
         // Contains: R-004 decomposes into R-005
-        contains(emissions, nox)
+        contains(parent = emissions, child = nox)
     }
 }

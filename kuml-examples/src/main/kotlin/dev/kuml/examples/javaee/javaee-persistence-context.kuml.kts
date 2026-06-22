@@ -19,13 +19,13 @@ import dev.kuml.uml.dsl.stereotype
  *
  * Profile: JavaEE (kuml-profile-javaee)
  */
-classDiagram("Order Repository — JPA Injection") {
+classDiagram(name = "Order Repository — JPA Injection") {
     applyProfile(javaEeProfile)
 
     // ── Persistence Layer ─────────────────────────────────────────────────────────
 
-    classOf("Order") {
-        stereotype("Entity") {
+    classOf(name = "Order") {
+        stereotype(name = "Entity") {
             "tableName" to "orders"
             "schema" to "shop"
             "cacheable" to false
@@ -35,19 +35,19 @@ classDiagram("Order Repository — JPA Injection") {
         attribute(name = "status", type = "String")
     }
 
-    classOf("OrderRepository") {
-        stereotype("Repository") { "dataSource" to "shopDb" }
+    classOf(name = "OrderRepository") {
+        stereotype(name = "Repository") { "dataSource" to "shopDb" }
 
         // ── Feature-Level: «PersistenceContext» on property (V1.1.2) ─────────────
-        attribute("em", "EntityManager") {
-            stereotype("PersistenceContext") {
+        attribute(name = "em", type = "EntityManager") {
+            stereotype(name = "PersistenceContext") {
                 "unitName" to "shopPU"
                 "type" to "TRANSACTION"
             }
         }
 
-        operation(name = "findById") { returns("Order") }
-        operation(name = "save") { returns("Order") }
-        operation(name = "findByStatus") { returns("List<Order>") }
+        operation(name = "findById") { returns(typeName = "Order") }
+        operation(name = "save") { returns(typeName = "Order") }
+        operation(name = "findByStatus") { returns(typeName = "List<Order>") }
     }
 }

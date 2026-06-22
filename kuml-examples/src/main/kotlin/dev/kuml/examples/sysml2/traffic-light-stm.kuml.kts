@@ -48,38 +48,38 @@ import dev.kuml.sysml2.dsl.sysml2Model
  *    Welle)
  *  - Typed action AST (heute: rohe Strings)
  */
-sysml2Model("TrafficLight") {
+sysml2Model(name = "TrafficLight") {
 
     // ── States ────────────────────────────────────────────────────────────
-    val initial = stateDef("Initial", isInitial = true)
+    val initial = stateDef(name = "Initial", isInitial = true)
     val red =
         stateDef(
-            "Red",
+            name = "Red",
             entryAction = "switchLights('red')",
             exitAction = "logTransition('red')",
         )
     val green =
         stateDef(
-            "Green",
+            name = "Green",
             entryAction = "switchLights('green')",
             doAction = "tickTimer()",
         )
     val yellow =
         stateDef(
-            "Yellow",
+            name = "Yellow",
             entryAction = "switchLights('yellow')",
         )
-    val off = stateDef("Off", isFinal = true)
+    val off = stateDef(name = "Off", isFinal = true)
 
     // ── Transitions ───────────────────────────────────────────────────────
-    transition("init", initial, red)
-    transition("redToGreen", red, green, trigger = "timer60s")
-    transition("greenToYellow", green, yellow, trigger = "timer45s")
-    transition("yellowToRed", yellow, red, trigger = "timer5s")
+    transition(name = "init", source = initial, target = red)
+    transition(name = "redToGreen", source = red, target = green, trigger = "timer60s")
+    transition(name = "greenToYellow", source = green, target = yellow, trigger = "timer45s")
+    transition(name = "yellowToRed", source = yellow, target = red, trigger = "timer5s")
     transition(
-        "powerOff",
-        red,
-        off,
+        name = "powerOff",
+        source = red,
+        target = off,
         trigger = "powerOff",
         guard = "!emergency",
         effect = "shutdownLights()",

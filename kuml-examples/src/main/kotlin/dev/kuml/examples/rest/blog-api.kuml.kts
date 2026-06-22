@@ -19,33 +19,33 @@ import dev.kuml.uml.dsl.classOf
  *   - 4 JSON Schema components (User, Post, Comment, Tag)
  *   - 20 CRUD paths (5 per class)
  */
-classDiagram("Blog API") {
+classDiagram(name = "Blog API") {
 
     // ── Entities ──────────────────────────────────────────────────────────────
 
-    classOf("User") {
-        attribute("id", type = "UUID")
-        attribute("username", type = "String")
-        attribute("email", type = "String")
-        attribute("createdAt", type = "LocalDate")
+    classOf(name = "User") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "username", type = "String")
+        attribute(name = "email", type = "String")
+        attribute(name = "createdAt", type = "LocalDate")
     }
 
-    classOf("Post") {
-        attribute("id", type = "UUID")
-        attribute("title", type = "String")
-        attribute("content", type = "String")
-        attribute("publishedAt", type = "LocalDate")
+    classOf(name = "Post") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "title", type = "String")
+        attribute(name = "content", type = "String")
+        attribute(name = "publishedAt", type = "LocalDate")
     }
 
-    classOf("Comment") {
-        attribute("id", type = "UUID")
-        attribute("text", type = "String")
-        attribute("createdAt", type = "LocalDate")
+    classOf(name = "Comment") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "text", type = "String")
+        attribute(name = "createdAt", type = "LocalDate")
     }
 
-    classOf("Tag") {
-        attribute("id", type = "UUID")
-        attribute("name", type = "String")
+    classOf(name = "Tag") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "name", type = "String")
     }
 }
 

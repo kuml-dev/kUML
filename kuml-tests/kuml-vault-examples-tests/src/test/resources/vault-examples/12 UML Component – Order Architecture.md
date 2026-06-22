@@ -25,18 +25,18 @@ Wird das Interface per `interfaceOf(...)` als eigener Knoten ins Diagramm gehobe
 ```kuml
 componentDiagram(name = "Order Architecture") {
     val orderApi = interfaceOf(name = "IOrderApi") {
-        operation(name = "placeOrder") { returns("OrderId") }
+        operation(name = "placeOrder") { returns(typeName = "OrderId") }
         operation(name = "cancelOrder")
     }
 
     val orderService = component(name = "OrderService") {
         port(name = "api")
-        provides(orderApi)
+        provides(iface = orderApi)
     }
 
     val invoiceService = component(name = "InvoiceService") {
         port(name = "orderEvents")
-        requires(orderApi)
+        requires(iface = orderApi)
     }
 
     connect(end1 = orderService, port1 = "api",
@@ -56,12 +56,12 @@ Geeignet, wenn die Operationen des Interfaces für das Diagramm nicht relevant s
 componentDiagram(name = "Order Architecture (Lollipop)") {
     val orderService = component(name = "OrderService") {
         port(name = "api")
-        providesById("IOrderApi")
+        providesById(interfaceId = "IOrderApi")
     }
 
     val invoiceService = component(name = "InvoiceService") {
         port(name = "orderEvents")
-        requiresById("IOrderApi")
+        requiresById(interfaceId = "IOrderApi")
     }
 
     connect(end1 = orderService, port1 = "api",
@@ -90,7 +90,7 @@ componentDiagram(name = "Order Architecture (Lollipop)") {
 
 ## Mögliche Erweiterungen
 
-- **Geschachtelte Komponenten**: `component("OrderService") { component("OrderRepository") }`
+- **Geschachtelte Komponenten**: `component(name = "OrderService") { component(name = "OrderRepository") }`
 - **Dependencies ohne Interface**: `dependency(client = …, supplier = …)` für `«use»`-Abhängigkeiten
 - **Stereotype**: `component(name = "OrderService", stereotypes = listOf("subsystem"))`
 

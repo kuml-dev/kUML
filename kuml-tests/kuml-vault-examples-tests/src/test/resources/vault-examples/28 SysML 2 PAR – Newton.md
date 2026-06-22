@@ -23,34 +23,34 @@ import dev.kuml.sysml2.ConstraintParameter
 import dev.kuml.sysml2.ConstraintParameterDirection
 import dev.kuml.sysml2.dsl.sysml2Model
 
-sysml2Model("NewtonModel") {
-    attributeDef("Mass")
-    attributeDef("Acceleration")
-    attributeDef("Force")
+sysml2Model(name = "NewtonModel") {
+    attributeDef(name = "Mass")
+    attributeDef(name = "Acceleration")
+    attributeDef(name = "Force")
 
     val newton = constraintDef(
         name = "NewtonsLaw",
         expression = "F = m * a",
         parameters = listOf(
-            ConstraintParameter("F", "Force",        ConstraintParameterDirection.Out),
-            ConstraintParameter("m", "Mass",         ConstraintParameterDirection.In),
-            ConstraintParameter("a", "Acceleration", ConstraintParameterDirection.In),
+            ConstraintParameter(name = "F", typeId = "Force",        direction = ConstraintParameterDirection.Out),
+            ConstraintParameter(name = "m", typeId = "Mass",         direction = ConstraintParameterDirection.In),
+            ConstraintParameter(name = "a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
         ),
     )
 
-    val vehicle = partDef("Vehicle") {
-        attribute("mass",         "Mass")
-        attribute("acceleration", "Acceleration")
-        attribute("force",        "Force")
+    val vehicle = partDef(name = "Vehicle") {
+        attribute(name = "mass",         typeId = "Mass")
+        attribute(name = "acceleration", typeId = "Acceleration")
+        attribute(name = "force",        typeId = "Force")
     }
 
     bind(name = "F_to_force",         source = "NewtonsLaw::F", target = "Vehicle::force")
     bind(name = "m_to_mass",          source = "NewtonsLaw::m", target = "Vehicle::mass")
     bind(name = "a_to_acceleration",  source = "NewtonsLaw::a", target = "Vehicle::acceleration")
 
-    parDiagram("Newton — F = m·a applied to Vehicle") {
-        include(newton)
-        include(vehicle)
+    parDiagram(name = "Newton — F = m·a applied to Vehicle") {
+        include(definition = newton)
+        include(definition = vehicle)
     }
 }
 ```
@@ -59,10 +59,10 @@ sysml2Model("NewtonModel") {
 
 | Element | Bedeutung |
 |---|---|
-| `attributeDef("Mass")` | Werttyp — wird als `typeId` an Attributen referenziert. |
+| `attributeDef(name = "Mass")` | Werttyp — wird als `typeId` an Attributen referenziert. |
 | `constraintDef(name = …, expression = …, parameters = listOf(…))` | Constraint-Definition mit Ausdruck und typisierten Parameter-Pins. |
 | `ConstraintParameter(name, typeName, direction)` | Pin mit Richtung (`In`, `Out`, `InOut`). |
-| `partDef("Vehicle") { attribute("mass", "Mass") }` | Block mit typisierten Attribut-Usages. |
+| `partDef(name = "Vehicle") { attribute(name = "mass", typeId = "Mass") }` | Block mit typisierten Attribut-Usages. |
 | `bind(name = …, source = "Constraint::Pin", target = "Part::Attr")` | Binding zwischen Constraint-Pin und Part-Attribut. Endpoints per Longest-Prefix-Match. |
 | `parDiagram(name = …) { include(…) }` | Erzeugt das Parametric-Diagramm. |
 

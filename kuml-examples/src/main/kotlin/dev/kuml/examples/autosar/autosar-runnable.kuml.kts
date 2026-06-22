@@ -32,57 +32,57 @@ import dev.kuml.uml.dsl.stereotype
  *
  * Profile: AUTOSAR (kuml-profile-autosar)
  */
-classDiagram("Brake Controller — AUTOSAR Runnables") {
+classDiagram(name = "Brake Controller — AUTOSAR Runnables") {
     applyProfile(autosarProfile)
 
     // ── Software Component (component-level stereotype) ───────────────────────────
 
-    component("BrakeControllerSwc") {
-        stereotype("SoftwareComponent") {
+    component(name = "BrakeControllerSwc") {
+        stereotype(name = "SoftwareComponent") {
             "kind" to AutosarSwcKind.Application
             "packageName" to "chassis.brake"
         }
-        port("rpmSensor") {
-            stereotype("AutosarPort") { "direction" to AutosarPortDirection.Required }
+        port(name = "rpmSensor") {
+            stereotype(name = "AutosarPort") { "direction" to AutosarPortDirection.Required }
         }
-        port("brakeCmd") {
-            stereotype("AutosarPort") { "direction" to AutosarPortDirection.Provided }
+        port(name = "brakeCmd") {
+            stereotype(name = "AutosarPort") { "direction" to AutosarPortDirection.Provided }
         }
     }
 
     // ── Implementation class with Runnable operations (feature-level stereotype) ──
 
-    classOf("BrakeControllerImpl") {
+    classOf(name = "BrakeControllerImpl") {
         // ── Feature-Level: «Runnable» on operations (V1.1.2) ─────────────────────
-        operation("onCycle") {
-            stereotype("Runnable") {
+        operation(name = "onCycle") {
+            stereotype(name = "Runnable") {
                 "kind" to AutosarBehaviorKind.Periodic
                 "periodMs" to 10L // 10 ms cycle time
             }
-            returns("void")
+            returns(typeName = "void")
         }
 
-        operation("onBrakePedalEvent") {
-            stereotype("Runnable") {
+        operation(name = "onBrakePedalEvent") {
+            stereotype(name = "Runnable") {
                 "kind" to AutosarBehaviorKind.EventTriggered
                 "periodMs" to 0L
             }
-            returns("void")
+            returns(typeName = "void")
         }
 
-        operation("onInit") {
-            stereotype("Runnable") {
+        operation(name = "onInit") {
+            stereotype(name = "Runnable") {
                 "kind" to AutosarBehaviorKind.OnInit
                 "periodMs" to 0L
             }
-            returns("void")
+            returns(typeName = "void")
         }
     }
 
     // ── Communication Interface ───────────────────────────────────────────────────
 
-    interfaceOf("BrakePedalInterface") {
-        stereotype("ComInterface") {
+    interfaceOf(name = "BrakePedalInterface") {
+        stereotype(name = "ComInterface") {
             "version" to "3.0"
             "isService" to false
         }

@@ -23,33 +23,33 @@ import dev.kuml.uml.dsl.stereotype
  *
  * Profile: SoaML (kuml-profile-soaml)
  */
-classDiagram("Order Processing SOA") {
+classDiagram(name = "Order Processing SOA") {
     applyProfile(soamlProfile)
 
     // ── Participants ──────────────────────────────────────────────────────────────
 
     val orderService =
-        component("OrderService") {
-            stereotype("Participant")
+        component(name = "OrderService") {
+            stereotype(name = "Participant")
         }
 
     val paymentService =
-        component("PaymentService") {
-            stereotype("Participant")
+        component(name = "PaymentService") {
+            stereotype(name = "Participant")
         }
 
     // ── Message Type ──────────────────────────────────────────────────────────────
 
-    classOf("OrderMessage") {
-        stereotype("MessageType")
+    classOf(name = "OrderMessage") {
+        stereotype(name = "MessageType")
         attribute(name = "orderId", type = "UUID")
         attribute(name = "totalAmount", type = "BigDecimal")
     }
 
     // ── Service Contract ──────────────────────────────────────────────────────────
 
-    collaboration("OrderPaymentContract") {
-        stereotype("ServiceContract")
+    collaboration(name = "OrderPaymentContract") {
+        stereotype(name = "ServiceContract")
         role(name = "provider", type = orderService.name)
         role(name = "consumer", type = paymentService.name)
     }

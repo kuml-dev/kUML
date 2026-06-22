@@ -16,48 +16,48 @@ import dev.kuml.uml.dsl.classOf
  * Produces four Kotlin JPA entity files:
  *   User.kt, Post.kt, Comment.kt, Tag.kt
  */
-classDiagram("Blog Domain") {
+classDiagram(name = "Blog Domain") {
 
     // ── Entities ──────────────────────────────────────────────────────────────
 
     val user =
-        classOf("User") {
-            attribute("id", type = "Long")
-            attribute("username", type = "String")
-            attribute("email", type = "String")
-            attribute("createdAt", type = "String") // simplified — no date type in MVP
+        classOf(name = "User") {
+            attribute(name = "id", type = "Long")
+            attribute(name = "username", type = "String")
+            attribute(name = "email", type = "String")
+            attribute(name = "createdAt", type = "String") // simplified — no date type in MVP
         }
 
     val post =
-        classOf("Post") {
-            attribute("id", type = "Long")
-            attribute("title", type = "String")
-            attribute("content", type = "String")
+        classOf(name = "Post") {
+            attribute(name = "id", type = "Long")
+            attribute(name = "title", type = "String")
+            attribute(name = "content", type = "String")
         }
 
     val comment =
-        classOf("Comment") {
-            attribute("id", type = "Long")
-            attribute("text", type = "String")
+        classOf(name = "Comment") {
+            attribute(name = "id", type = "Long")
+            attribute(name = "text", type = "String")
         }
 
     val tag =
-        classOf("Tag") {
-            attribute("id", type = "Long")
-            attribute("name", type = "String")
+        classOf(name = "Tag") {
+            attribute(name = "id", type = "Long")
+            attribute(name = "name", type = "String")
         }
 
     // ── Associations (source → target, multiplicity on target end) ────────────
 
     association(source = user, target = post) {
-        target { multiplicity("0..*") }
+        target { multiplicity(spec = "0..*") }
     }
 
     association(source = post, target = comment) {
-        target { multiplicity("0..*") }
+        target { multiplicity(spec = "0..*") }
     }
 
     association(source = post, target = tag) {
-        target { multiplicity("0..*") }
+        target { multiplicity(spec = "0..*") }
     }
 }

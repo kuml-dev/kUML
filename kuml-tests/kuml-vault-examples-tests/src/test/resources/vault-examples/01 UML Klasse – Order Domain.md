@@ -28,7 +28,7 @@ classDiagram(name = "Order Domain") {
     }
 
     val payable = interfaceOf(name = "Payable") {
-        operation(name = "pay") { returns("Boolean") }
+        operation(name = "pay") { returns(typeName = "Boolean") }
     }
 
     val customer = classOf(name = "Customer") {
@@ -114,7 +114,7 @@ Beide Schreibweisen erzeugen dieselbe `UmlGeneralization`-Kante. Die top-level V
 
 - **Mehrere Vererbungen**: `generalization(specific = electronicSubscription, general = subscription)` für tiefere Hierarchien
 - **Abstrakte Klassen**: `classOf(name = "Order", isAbstract = true)` — Name wird *kursiv* gerendert
-- **Operation mit Parametern**: `operation(name = "place") { parameter(name = "items", type = "List<OrderItem>"); returns("OrderId") }`
+- **Operation mit Parametern**: `operation(name = "place") { parameter(name = "items", type = "List<OrderItem>"); returns(typeName = "OrderId") }`
 - **Stereotypen**: `classOf(name = "Customer", stereotypes = listOf("Entity"))` (siehe [[15 UML Profil – Java EE Profile]])
 - **`showOperations = false`** auf dem Diagramm, um die Operationsfächer auszublenden — nützlich bei großen Klassen
 

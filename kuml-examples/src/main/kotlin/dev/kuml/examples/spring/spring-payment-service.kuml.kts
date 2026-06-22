@@ -18,25 +18,25 @@ import dev.kuml.uml.dsl.stereotype
  *
  * Profiles: JavaEE (kuml-profile-javaee) + Spring (kuml-profile-spring)
  */
-classDiagram("Payment Service") {
+classDiagram(name = "Payment Service") {
     applyProfile(javaEeProfile)
     applyProfile(springProfile) // both profiles simultaneously
 
     // ── Service + REST Layer ──────────────────────────────────────────────────────
 
-    classOf("PaymentProcessor") {
-        stereotype("Service") // from JavaEE — transactional service
+    classOf(name = "PaymentProcessor") {
+        stereotype(name = "Service") // from JavaEE — transactional service
         // from Spring — REST endpoint
-        stereotype("RestController") {
+        stereotype(name = "RestController") {
             "produces" to "application/json"
         }
-        operation(name = "process") { returns("PaymentResult") }
+        operation(name = "process") { returns(typeName = "PaymentResult") }
     }
 
     // ── Data Layer ────────────────────────────────────────────────────────────────
 
-    classOf("PaymentRepository") {
-        stereotype("SpringData") { "readOnly" to false } // specializes JavaEE Repository
-        operation(name = "findByOrderId") { returns("Payment") }
+    classOf(name = "PaymentRepository") {
+        stereotype(name = "SpringData") { "readOnly" to false } // specializes JavaEE Repository
+        operation(name = "findByOrderId") { returns(typeName = "Payment") }
     }
 }

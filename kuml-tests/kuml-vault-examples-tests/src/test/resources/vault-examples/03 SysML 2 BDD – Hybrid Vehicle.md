@@ -21,21 +21,21 @@ status: aktiv
 ```kuml
 import dev.kuml.sysml2.dsl.sysml2Model
 
-sysml2Model("VehicleSystem") {
-    val massType = attributeDef("Mass")
-    val powerType = attributeDef("Power")
+sysml2Model(name = "VehicleSystem") {
+    val massType = attributeDef(name = "Mass")
+    val powerType = attributeDef(name = "Power")
 
-    val vehicle = partDef("Vehicle") {
-        attribute("mass", typeId = massType.id)
+    val vehicle = partDef(name = "Vehicle") {
+        attribute(name = "mass", typeId = massType.id)
     }
 
-    val engine = partDef("Engine") {
-        attribute("ratedPower", typeId = powerType.id)
+    val engine = partDef(name = "Engine") {
+        attribute(name = "ratedPower", typeId = powerType.id)
     }
 
-    bdd("Vehicle BDD") {
-        include(vehicle)
-        include(engine)
+    bdd(name = "Vehicle BDD") {
+        include(definition = vehicle)
+        include(definition = engine)
     }
 }
 ```
@@ -56,9 +56,9 @@ In diesem Beispiel sehen wir nur die **Definition-Seite** (das System-Vokabular)
 | Zeile | Bedeutung |
 |---|---|
 | `import dev.kuml.sysml2.dsl.sysml2Model` | Expliziter Import — SysML 2 ist ein eigenes Modul. |
-| `sysml2Model("VehicleSystem") { … }` | Top-Level für ein SysML-2-Modell. |
-| `val massType = attributeDef("Mass")` | Attribut-Definition als wiederverwendbarer Typ. |
-| `partDef("Vehicle") { attribute("mass", typeId = massType.id) }` | Part-Definition mit typisiertem Attribut — `typeId` referenziert die `attributeDef`. |
+| `sysml2Model(name = "VehicleSystem") { … }` | Top-Level für ein SysML-2-Modell. |
+| `val massType = attributeDef(name = "Mass")` | Attribut-Definition als wiederverwendbarer Typ. |
+| `partDef(name = "Vehicle") { attribute(name = "mass", typeId = massType.id) }` | Part-Definition mit typisiertem Attribut — `typeId` referenziert die `attributeDef`. |
 | `bdd("Vehicle BDD") { include(vehicle); include(engine) }` | Block Definition Diagram, das die Parts visuell darstellt. |
 
 ## Wann SysML 2 statt UML?
