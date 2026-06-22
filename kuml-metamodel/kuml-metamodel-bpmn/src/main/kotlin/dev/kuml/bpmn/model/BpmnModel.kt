@@ -21,11 +21,14 @@ data class BpmnModel(
     val name: String,
     val processes: List<BpmnProcess> = emptyList(),
     val dataStores: List<BpmnDataStore> = emptyList(),
+    val collaborations: List<BpmnCollaboration> = emptyList(),
     val diagrams: List<BpmnDiagram> = emptyList(),
     val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) {
     /**
-     * Looks up any element by ID across all processes and root-level data stores in this model.
+     * Looks up any element by ID across all processes, root-level data stores,
+     * and collaborations (including their participants, lanes, and message flows)
+     * in this model.
      *
      * @param id The element ID to look up.
      * @return The matching [BpmnElement], or `null` if not found.
@@ -33,6 +36,22 @@ data class BpmnModel(
     fun elementById(id: String): BpmnElement? =
         dataStores.firstOrNull { it.id == id }
             ?: processes.firstNotNullOfOrNull { it.elementById(id) }
+            ?: collaborations.firstOrNull { it.id == id }
+            ?: collaborations.firstNotNullOfOrNull { collab -> collab.elementById(id) }
+
+    /** Looks up an element within a specific collaboration by ID. */
+    private fun BpmnCollaboration.elementById(id: String): BpmnElement? =
+        participants.firstOrNull { it.id == id }
+            ?: messageFlows.firstOrNull { it.id == id }
+            ?: participants.firstNotNullOfOrNull { participant -> participant.laneById(id) }
+
+    private fun BpmnParticipant.laneById(id: String): BpmnElement? =
+        lanes.firstOrNull { it.id == id }
+            ?: lanes.firstNotNullOfOrNull { lane -> lane.laneById(id) }
+
+    private fun BpmnLane.laneById(id: String): BpmnElement? =
+        childLanes.firstOrNull { it.id == id }
+            ?: childLanes.firstNotNullOfOrNull { child -> child.laneById(id) }
 }
 
 /** A named diagram view that references elements from one or more processes. */

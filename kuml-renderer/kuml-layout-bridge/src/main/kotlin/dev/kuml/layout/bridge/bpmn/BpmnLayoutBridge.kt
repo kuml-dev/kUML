@@ -3,9 +3,13 @@ package dev.kuml.layout.bridge.bpmn
 import dev.kuml.bpmn.model.BpmnCallActivity
 import dev.kuml.bpmn.model.BpmnEvent
 import dev.kuml.bpmn.model.BpmnGateway
+import dev.kuml.bpmn.model.BpmnLane
 import dev.kuml.bpmn.model.BpmnModel
+import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.bpmn.model.BpmnTask
+import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.MessageFlow
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.bpmn.model.SequenceFlow
 import dev.kuml.layout.EdgeHints
@@ -300,4 +304,201 @@ public object BpmnLayoutBridge {
         model: BpmnModel,
         processId: String,
     ): List<SequenceFlow> = model.processes.firstOrNull { it.id == processId }?.sequenceFlows ?: emptyList()
+
+    /**
+     * Übersetzt ein [BpmnModel] + [CollaborationDiagram] in einen [LayoutGraph].
+     *
+     * Swimlane-Layout-Strategie:
+     * - Jeder [BpmnParticipant] (Pool) wird als [LayoutGroup] mit großzügigem
+     *   Padding registriert.
+     * - Jede [BpmnLane] innerhalb eines Pools bekommt ebenfalls eine eigene
+     *   [LayoutGroup] als Kind der Pool-Gruppe.
+     * - Flow-Nodes des referenzierten Prozesses werden als [LayoutNode]s mit
+     *   der ID der zugehörigen Lane-Gruppe registriert (wenn Lanes vorhanden
+     *   sind).
+     * - [MessageFlow]s werden als Container-übergreifende [LayoutEdge]s
+     *   zwischen den Quell- und Zielknoten eingetragen.
+     * - SequenceFlows innerhalb jedes Prozesses werden ebenfalls als Edges
+     *   hinzugefügt.
+     *
+     * Standard-Pool-Größe: 600×200 px (wenn kein Prozess referenziert ist /
+     * Black-Box-Pool).
+     *
+     * V3.1.4 — BPMN Collaboration Layout Bridge
+     *
+     * @param model Das BPMN-Modell mit Collaborations und Prozessen.
+     * @param diagram Das [CollaborationDiagram], das festlegt, welche Collaboration
+     *   angezeigt werden soll.
+     * @param sizeProvider Optionaler SizeProvider; überschreibt die Standardgrößen.
+     */
+    public fun toLayoutGraph(
+        model: BpmnModel,
+        diagram: CollaborationDiagram,
+        sizeProvider: SizeProvider? = null,
+    ): LayoutGraph {
+        val collaboration =
+            model.collaborations.firstOrNull { it.id == diagram.collaborationId }
+                ?: return LayoutGraph(nodes = emptyList(), edges = emptyList(), groups = emptyList())
+
+        val nodes = mutableListOf<LayoutNode>()
+        val edges = mutableListOf<LayoutEdge>()
+        val groups = mutableListOf<LayoutGroup>()
+
+        // Track all node IDs actually added so edge endpoints can be verified
+        val addedNodeIds = mutableSetOf<String>()
+
+        // Collect all flow nodes from all referenced processes for edge lookup
+        val allFlowNodeIds: Set<String> =
+            collaboration.participants
+                .mapNotNull { p -> p.processRef?.let { model.processes.firstOrNull { proc -> proc.id == it } } }
+                .flatMap { proc -> proc.flowNodes.map { it.id } }
+                .toSet()
+
+        // Build flat lane → pool mapping and lane → parent-lane mapping
+        val laneToPoolId: MutableMap<String, String> = mutableMapOf()
+
+        fun registerLanes(
+            lanes: List<BpmnLane>,
+            poolId: String,
+            parentGroupId: GroupId?,
+        ) {
+            for (lane in lanes) {
+                laneToPoolId[lane.id] = poolId
+                val laneGroupId = GroupId(lane.id)
+                groups.add(
+                    LayoutGroup(
+                        id = laneGroupId,
+                        parent = parentGroupId,
+                        padding =
+                            Insets(
+                                top = LANE_TITLE_INSET,
+                                right = LANE_CONTENT_PADDING,
+                                bottom = LANE_CONTENT_PADDING,
+                                left = LANE_TITLE_INSET,
+                            ),
+                        layoutAsCompound = true,
+                    ),
+                )
+                // Recurse into child lanes
+                if (lane.childLanes.isNotEmpty()) {
+                    registerLanes(lane.childLanes, poolId, laneGroupId)
+                }
+            }
+        }
+
+        for (participant in collaboration.participants) {
+            val poolGroupId = GroupId(participant.id)
+
+            // Pool as a compound group
+            groups.add(
+                LayoutGroup(
+                    id = poolGroupId,
+                    parent = null,
+                    padding =
+                        Insets(
+                            top = POOL_TITLE_INSET,
+                            right = POOL_CONTENT_PADDING,
+                            bottom = POOL_CONTENT_PADDING,
+                            left = POOL_TITLE_INSET,
+                        ),
+                    layoutAsCompound = true,
+                ),
+            )
+
+            // Phantom node for the pool itself (as anchor for message flows targeting the pool)
+            nodes.add(LayoutNode(id = NodeId(participant.id), intrinsicSize = Size(0f, 0f), groupId = poolGroupId))
+            addedNodeIds.add(participant.id)
+
+            // Register all lanes of this pool
+            registerLanes(participant.lanes, participant.id, poolGroupId)
+
+            // Build lane → flowNodeRefs index for this pool
+            val laneByFlowNode: Map<String, String> =
+                buildMap {
+                    fun collectLaneMappings(lanes: List<BpmnLane>) {
+                        for (lane in lanes) {
+                            for (nodeRef in lane.flowNodeRefs) put(nodeRef, lane.id)
+                            collectLaneMappings(lane.childLanes)
+                        }
+                    }
+                    collectLaneMappings(participant.lanes)
+                }
+
+            // Get the referenced process (null for black-box pools)
+            val process =
+                participant.processRef?.let { ref ->
+                    model.processes.firstOrNull { it.id == ref }
+                }
+
+            if (process != null) {
+                // Add flow nodes — each into its lane group (if lanes exist) or directly into the pool group
+                for (flowNode in process.flowNodes) {
+                    val defaultSize =
+                        when (flowNode) {
+                            is BpmnGateway -> DEFAULT_GATEWAY_SIZE
+                            is BpmnEvent -> DEFAULT_EVENT_SIZE
+                            is BpmnTask -> DEFAULT_TASK_SIZE
+                            is BpmnSubProcess -> DEFAULT_TASK_SIZE
+                            is BpmnCallActivity -> DEFAULT_TASK_SIZE
+                        }
+                    val size = sizeProvider?.sizeOf(flowNode.id, flowNode::class.simpleName ?: "Unknown") ?: defaultSize
+                    val assignedGroupId =
+                        laneByFlowNode[flowNode.id]?.let { GroupId(it) } ?: poolGroupId
+                    nodes.add(LayoutNode(id = NodeId(flowNode.id), intrinsicSize = size, groupId = assignedGroupId))
+                    addedNodeIds.add(flowNode.id)
+                }
+
+                // Add sequence flows within the process
+                for (sf in process.sequenceFlows) {
+                    if (sf.sourceRef in addedNodeIds && sf.targetRef in addedNodeIds) {
+                        edges.add(
+                            LayoutEdge(
+                                id = EdgeId(sf.id),
+                                source = EndpointRef(nodeId = NodeId(sf.sourceRef)),
+                                target = EndpointRef(nodeId = NodeId(sf.targetRef)),
+                                hints = EdgeHints.NONE,
+                            ),
+                        )
+                    }
+                }
+            } else {
+                // Black-Box Pool — just the phantom node, no children
+                // Pool size is controlled by layout engine based on the group padding
+            }
+        }
+
+        // Add message flows (cross-pool edges)
+        for (mf in collaboration.messageFlows) {
+            // Only add if both endpoints exist in the layout graph
+            // Endpoints can be pool IDs, flow-node IDs, or element IDs in the collaboration
+            val srcInGraph = mf.sourceRef in addedNodeIds || mf.sourceRef in allFlowNodeIds
+            val tgtInGraph = mf.targetRef in addedNodeIds || mf.targetRef in allFlowNodeIds
+            if (srcInGraph && tgtInGraph) {
+                edges.add(
+                    LayoutEdge(
+                        id = EdgeId(mf.id),
+                        source = EndpointRef(nodeId = NodeId(mf.sourceRef)),
+                        target = EndpointRef(nodeId = NodeId(mf.targetRef)),
+                        hints = EdgeHints.NONE,
+                    ),
+                )
+            }
+        }
+
+        return LayoutGraph(nodes = nodes, edges = edges, groups = groups)
+    }
+
+    // ── Swimlane sizing constants ─────────────────────────────────────────────
+
+    /** Inset reserved for the pool title band (left/top depending on orientation). */
+    private const val POOL_TITLE_INSET = 34f
+
+    /** General content padding inside a pool. */
+    private const val POOL_CONTENT_PADDING = 20f
+
+    /** Inset reserved for the lane title band (left/top depending on orientation). */
+    private const val LANE_TITLE_INSET = 28f
+
+    /** General content padding inside a lane. */
+    private const val LANE_CONTENT_PADDING = 16f
 }

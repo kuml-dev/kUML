@@ -1,8 +1,10 @@
 package dev.kuml.io.svg
 
+import dev.kuml.bpmn.model.MessageFlow
 import dev.kuml.bpmn.model.SequenceFlow
 import dev.kuml.c4.model.C4Relationship
 import dev.kuml.core.model.KumlElement
+import dev.kuml.io.svg.bpmn.edge.renderBpmnMessageFlow
 import dev.kuml.io.svg.bpmn.edge.renderBpmnSequenceFlow
 import dev.kuml.io.svg.c4.renderC4Relationship
 import dev.kuml.io.svg.uml.renderUmlActivityEdge
@@ -60,6 +62,8 @@ internal object EdgeRendererDispatcher {
             is C4Relationship -> renderC4Relationship(relationship, route, theme, builder)
             // BPMN — V3.1.3
             is SequenceFlow -> renderBpmnSequenceFlow(relationship, route, builder)
+            // BPMN — V3.1.5 Collaboration
+            is MessageFlow -> renderBpmnMessageFlow(relationship, route, builder)
             else -> renderFallbackEdge(route, builder)
         }
     }

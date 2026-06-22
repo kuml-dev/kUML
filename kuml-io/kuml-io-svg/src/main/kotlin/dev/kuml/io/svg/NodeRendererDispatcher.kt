@@ -4,6 +4,8 @@ import dev.kuml.bpmn.model.BpmnCallActivity
 import dev.kuml.bpmn.model.BpmnDataObject
 import dev.kuml.bpmn.model.BpmnEvent
 import dev.kuml.bpmn.model.BpmnGateway
+import dev.kuml.bpmn.model.BpmnLane
+import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.bpmn.model.BpmnTask
 import dev.kuml.c4.model.C4Component
@@ -16,6 +18,8 @@ import dev.kuml.io.svg.bpmn.renderBpmnCallActivity
 import dev.kuml.io.svg.bpmn.renderBpmnDataObject
 import dev.kuml.io.svg.bpmn.renderBpmnEvent
 import dev.kuml.io.svg.bpmn.renderBpmnGateway
+import dev.kuml.io.svg.bpmn.renderBpmnLane
+import dev.kuml.io.svg.bpmn.renderBpmnParticipant
 import dev.kuml.io.svg.bpmn.renderBpmnSubProcess
 import dev.kuml.io.svg.bpmn.renderBpmnTask
 import dev.kuml.io.svg.c4.renderC4Component
@@ -127,6 +131,9 @@ internal object NodeRendererDispatcher {
             is BpmnSubProcess -> renderBpmnSubProcess(element, layout, theme, builder)
             is BpmnCallActivity -> renderBpmnCallActivity(element, layout, theme, builder)
             is BpmnDataObject -> renderBpmnDataObject(element, layout, theme, builder)
+            // BPMN — V3.1.4 Collaboration
+            is BpmnParticipant -> renderBpmnParticipant(element, layout, theme, builder)
+            is BpmnLane -> renderBpmnLane(element, layout, horizontal = true, theme, builder)
             else -> renderFallbackNode(element, layout, builder)
         }
     }

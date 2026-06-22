@@ -29,9 +29,10 @@ class BpmnModelBuilder(
     private val name: String,
 ) {
     private val processBuilders: MutableList<ProcessBuilder> = mutableListOf()
-    private val diagramBuilders: MutableList<ProcessDiagramBuilder> = mutableListOf()
+    private val diagramBuilders: MutableList<Any> = mutableListOf()
     private val dataStoreList: MutableList<BpmnDataStore> = mutableListOf()
     private var dataStoreCounter: Int = 0
+    private val collaborationBuilders: MutableList<CollaborationBuilder> = mutableListOf()
 
     /**
      * Declare a data store at root (model) level.
@@ -87,12 +88,52 @@ class BpmnModelBuilder(
         diagramBuilders += ProcessDiagramBuilder(name = name, processId = processId).apply(block)
     }
 
+    /**
+     * Declares a collaboration (multi-pool container with message flows).
+     *
+     * @param name Optional human-readable collaboration name.
+     * @param id Optional explicit collaboration ID; defaults to `"collab_<n>"`.
+     * @param block Block to configure pools and message flows via [CollaborationBuilder].
+     */
+    fun collaboration(
+        name: String? = null,
+        id: String? = null,
+        block: CollaborationBuilder.() -> Unit,
+    ) {
+        val cid = id ?: "collab_${collaborationBuilders.size + 1}"
+        collaborationBuilders += CollaborationBuilder(cid, name).apply(block)
+    }
+
+    /**
+     * Declares a diagram view scoped to a single collaboration.
+     *
+     * @param name Human-readable diagram name.
+     * @param collaborationId ID of the collaboration this diagram visualises.
+     * @param block Optional block that restricts the visible elements via
+     *   [CollaborationDiagramBuilder.include].
+     */
+    fun collaborationDiagram(
+        name: String,
+        collaborationId: String,
+        block: CollaborationDiagramBuilder.() -> Unit = {},
+    ) {
+        diagramBuilders += CollaborationDiagramBuilder(name = name, collaborationId = collaborationId).apply(block)
+    }
+
     fun build(): BpmnModel =
         BpmnModel(
             name = name,
             processes = processBuilders.map { it.build() },
             dataStores = dataStoreList.toList(),
-            diagrams = diagramBuilders.map { it.build() },
+            collaborations = collaborationBuilders.map { it.build() },
+            diagrams =
+                diagramBuilders.map { builder ->
+                    when (builder) {
+                        is ProcessDiagramBuilder -> builder.build()
+                        is CollaborationDiagramBuilder -> builder.build()
+                        else -> error("Unknown diagram builder type: ${builder::class}")
+                    }
+                },
         )
 }
 

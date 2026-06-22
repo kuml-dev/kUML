@@ -1,6 +1,9 @@
 package dev.kuml.io.svg
 
+import dev.kuml.bpmn.model.BpmnModel
+import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnSubProcess
+import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
 import dev.kuml.c4.model.DynamicDiagram
@@ -2192,6 +2195,196 @@ public object KumlSvgRenderer {
             s.length >= l.length -> s
             else -> l
         }
+    }
+
+    /**
+     * Rendert ein BPMN-Collaboration-Diagramm (Swimlanes) als SVG.
+     *
+     * Render-Reihenfolge:
+     *  1. Pools (Participant-Rahmen mit Titel-Band) — als Hintergrund.
+     *  2. Lanes (Trennlinien + Lane-Titel) — über den Pool-Rahmen, unter den Knoten.
+     *  3. Flow-Nodes der referenzierten Prozesse — über den Lanes.
+     *  4. MessageFlows — als gestrichelte Kanten ganz oben.
+     *
+     * @param model Das BPMN-Modell mit Collaborations und Prozessen.
+     * @param diagram Das [CollaborationDiagram] mit dem Verweis auf eine Collaboration.
+     * @param layoutResult Berechnete Positionen und Routing-Pfade.
+     * @param theme Visuelles Theme; Standard: [PlainTheme].
+     * @param options Renderer-Optionen; Standard: [SvgRenderOptions.DEFAULT].
+     *
+     * V3.1.4/3.1.5 — BPMN Collaboration: Metamodell, DSL und SVG-Renderer
+     */
+    public fun toSvg(
+        model: BpmnModel,
+        diagram: CollaborationDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String {
+        val collaboration =
+            model.collaborations.firstOrNull { it.id == diagram.collaborationId }
+                ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> }
+
+        // Build element index: participants, lanes (flat), message flows, and
+        // flow-nodes from referenced processes.
+        val participantIndex: Map<String, BpmnParticipant> =
+            collaboration.participants.associateBy { it.id }
+
+        val laneIndex: Map<String, dev.kuml.bpmn.model.BpmnLane> =
+            buildMap {
+                fun collectLanes(lanes: List<dev.kuml.bpmn.model.BpmnLane>) {
+                    for (lane in lanes) {
+                        put(lane.id, lane)
+                        collectLanes(lane.childLanes)
+                    }
+                }
+                for (p in collaboration.participants) collectLanes(p.lanes)
+            }
+
+        val messageFlowIndex: Map<String, dev.kuml.bpmn.model.MessageFlow> =
+            collaboration.messageFlows.associateBy { it.id }
+
+        // Flow-nodes from the referenced processes (for rendering inside pools)
+        val flowNodeIndex: Map<String, dev.kuml.core.model.KumlElement> =
+            buildMap {
+                for (participant in collaboration.participants) {
+                    val proc =
+                        participant.processRef?.let { ref ->
+                            model.processes.firstOrNull { it.id == ref }
+                        } ?: continue
+                    for (node in proc.flowNodes) put(node.id, node)
+                    for (sf in proc.sequenceFlows) put(sf.id, sf)
+                }
+            }
+
+        val allElementIndex: Map<String, dev.kuml.core.model.KumlElement> =
+            participantIndex + laneIndex + messageFlowIndex + flowNodeIndex
+
+        // Track lane orientation per parent pool
+        val laneHorizontalByParticipantId: Map<String, Boolean> =
+            collaboration.participants.associate { it.id to it.horizontal }
+
+        // Lane's parent participant id (for orientation lookup)
+        val laneParticipantId: Map<String, String> =
+            buildMap {
+                for (p in collaboration.participants) {
+                    fun track(lanes: List<dev.kuml.bpmn.model.BpmnLane>) {
+                        for (lane in lanes) {
+                            put(lane.id, p.id)
+                            track(lane.childLanes)
+                        }
+                    }
+                    track(p.lanes)
+                }
+            }
+
+        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+            val padding = options.paddingPx
+
+            // Groups (pools and lanes rendered as group backgrounds)
+            for ((groupId, groupLayout) in layoutResult.groups) {
+                val gx = groupLayout.bounds.origin.x + padding
+                val gy = groupLayout.bounds.origin.y + padding
+                val gw = groupLayout.bounds.size.width
+                val gh = groupLayout.bounds.size.height
+
+                val participant = participantIndex[groupId.value]
+                val lane = laneIndex[groupId.value]
+                when {
+                    participant != null -> {
+                        val nl =
+                            dev.kuml.layout.NodeLayout(
+                                bounds =
+                                    dev.kuml.layout.Rect(
+                                        origin = dev.kuml.layout.Point(gx, gy),
+                                        size = dev.kuml.layout.Size(gw, gh),
+                                    ),
+                            )
+                        NodeRendererDispatcher.dispatch(participant, nl, theme, nodesBuilder)
+                    }
+
+                    lane != null -> {
+                        val parentParticipantId = laneParticipantId[groupId.value]
+                        val horizontal =
+                            parentParticipantId?.let {
+                                laneHorizontalByParticipantId[it]
+                            } ?: true
+                        val nl =
+                            dev.kuml.layout.NodeLayout(
+                                bounds =
+                                    dev.kuml.layout.Rect(
+                                        origin = dev.kuml.layout.Point(gx, gy),
+                                        size = dev.kuml.layout.Size(gw, gh),
+                                    ),
+                            )
+                        dev.kuml.io.svg.bpmn
+                            .renderBpmnLane(lane, nl, horizontal, theme, nodesBuilder)
+                    }
+
+                    else -> {
+                        // Generic group fallback
+                        nodesBuilder.tag(
+                            "g",
+                            mapOf(
+                                "id" to xmlEscapeAttr("bpmn-collab-group-${groupId.value}"),
+                                "transform" to "translate(${fmt(gx)},${fmt(gy)})",
+                            ),
+                        ) {
+                            tag(
+                                "rect",
+                                mapOf(
+                                    "width" to fmt(gw),
+                                    "height" to fmt(gh),
+                                    "class" to "kuml-system",
+                                    "rx" to fmt(theme.borders.cornerRadiusPx),
+                                    "ry" to fmt(theme.borders.cornerRadiusPx),
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Nodes (flow nodes inside pools)
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val element = allElementIndex[nodeId.value] ?: continue
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                NodeRendererDispatcher.dispatch(element, shifted, theme, nodesBuilder)
+            }
+
+            // Edges (MessageFlows and SequenceFlows inside processes)
+            for ((edgeId, route) in layoutResult.edges) {
+                val element = allElementIndex[edgeId.value] ?: continue
+                val shiftedRoute = shiftRoute(route, padding)
+                EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
+            }
+        }
+    }
+
+    /** [toSvg]-Variante für BPMN-Collaboration-Diagramme, schreibt direkt auf Platte. */
+    public fun toSvgFile(
+        model: BpmnModel,
+        diagram: CollaborationDiagram,
+        layoutResult: LayoutResult,
+        out: java.nio.file.Path,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): java.io.File {
+        val svg = toSvg(model, diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(svg, Charsets.UTF_8)
+        return file
     }
 
     /**
