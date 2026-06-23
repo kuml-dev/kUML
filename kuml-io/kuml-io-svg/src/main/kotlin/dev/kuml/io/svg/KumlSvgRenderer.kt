@@ -59,6 +59,7 @@ import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlInteraction
 import dev.kuml.uml.UmlNamedElement
+import dev.kuml.uml.UmlNode
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlStateMachine
 import dev.kuml.uml.UmlUseCaseSubject
@@ -238,17 +239,43 @@ public object KumlSvgRenderer {
 
             // Groups FIRST — paint backgrounds before children so node boxes
             // appear on top of the group rectangle.
-            for ((groupId, groupLayout) in effectiveLayoutResult.groups) {
+            //
+            // Deployment-Diagramme können verschachtelte UmlNode-Groups haben
+            // (z.B. EKS Cluster → Pod). Damit der äußere Rahmen hinter dem
+            // inneren liegt, werden Groups nach Fläche absteigend sortiert
+            // (größte = äußerste zuerst). Für alle anderen Diagrammtypen ist
+            // nur eine Verschachtelungsebene möglich — die Sortierung ist
+            // dann eine no-op.
+            val sortedGroups =
+                effectiveLayoutResult.groups.entries.sortedByDescending { (_, gl) ->
+                    gl.bounds.size.width * gl.bounds.size.height
+                }
+            for ((groupId, groupLayout) in sortedGroups) {
                 val gx = groupLayout.bounds.origin.x + padding
                 val gy = groupLayout.bounds.origin.y + padding
                 val gw = groupLayout.bounds.size.width
                 val gh = groupLayout.bounds.size.height
                 val pkg = packagesById[groupId.value]
                 val subject = subjectsById[groupId.value]
+                val deployNode = elementIndex[groupId.value] as? UmlNode
                 if (pkg != null && showFolderTabs) {
                     renderPackageGroup(pkg, gx, gy, gw, gh, theme, nodesBuilder)
                 } else if (subject != null) {
                     renderSubjectGroup(subject, gx, gy, gw, gh, theme, nodesBuilder)
+                } else if (deployNode != null) {
+                    // Deployment-Diagramm: UmlNode-Gruppe als 3D-Cube-Rahmen rendern.
+                    // Gleiche Technik wie renderUmlStateDiagram für den UmlStateMachine-
+                    // Rahmen: NodeLayout aus den Group-Bounds konstruieren und durch den
+                    // NodeRendererDispatcher schicken (→ renderUmlNode).
+                    val nodeLayout =
+                        dev.kuml.layout.NodeLayout(
+                            bounds =
+                                dev.kuml.layout.Rect(
+                                    origin = dev.kuml.layout.Point(gx, gy),
+                                    size = dev.kuml.layout.Size(gw, gh),
+                                ),
+                        )
+                    NodeRendererDispatcher.dispatch(deployNode, nodeLayout, theme, nodesBuilder)
                 } else {
                     nodesBuilder.tag(
                         "g",
@@ -1928,6 +1955,14 @@ public object KumlSvgRenderer {
                 // Komponenten (analog zur Rekursion in
                 // UmlLayoutBridge.collectComponentPorts).
                 element.nestedComponents.forEach { visit(it) }
+            }
+            if (element is UmlNode) {
+                // Deployment: verschachtelte Kind-Nodes und Artefakte in den Index
+                // aufnehmen, damit der Renderer sie in der LayoutResult.nodes-Schleife
+                // findet. Ohne diese Rekursion bleiben children/artifacts unsichtbar,
+                // weil sie nicht direkt in diagram.elements auftauchen.
+                element.children.forEach { visit(it) }
+                element.artifacts.forEach { visit(it) }
             }
         }
         elements.forEach { visit(it) }

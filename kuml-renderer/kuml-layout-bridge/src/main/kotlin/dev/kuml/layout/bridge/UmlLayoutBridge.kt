@@ -20,6 +20,7 @@ import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlInteraction
 import dev.kuml.uml.UmlNamedElement
+import dev.kuml.uml.UmlNode
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlPseudostate
 import dev.kuml.uml.UmlRelationship
@@ -62,6 +63,26 @@ public object UmlLayoutBridge {
      * Seiten und Boden bekommen 20 px, damit Ellipsen nicht an den Rand stoßen.
      */
     internal val USE_CASE_SUBJECT_INSETS: Insets = Insets(top = 28f, right = 20f, bottom = 20f, left = 20f)
+
+    /**
+     * Insets eines Deployment-Node-Groups (3-D-Cube-Rahmen mit Stereotyp + Name oben).
+     *
+     * Der `renderUmlNode`-Renderer zeichnet:
+     *  - Oberes 3-D-Dach: 8 px (depth)
+     *  - Stereotyp-Text bei cy = depth + 16 = 24 px (Baseline)
+     *  - Name-Text bei cy = 38 px (Baseline, wenn Stereotyp vorhanden)
+     *  - Plus ~8 px Atemluft bis zum ersten Kindknoten → Top-Padding = 50 px
+     *
+     * Seiten und Boden: 14 px, damit Kinder nicht direkt an den Rahmen stoßen.
+     */
+    internal val DEPLOYMENT_NODE_GROUP_INSETS: Insets = Insets(top = 50f, right = 14f, bottom = 14f, left = 14f)
+
+    /** Intrinsische Größe eines UML-Artefakts innerhalb eines Deployment-Nodes.
+     *
+     * Passend zu `renderUmlArtifact`: «artifact»-Label bei y=20, Name bei y=36,
+     * dog-eared rectangle füllt die gesamte Box.
+     */
+    internal val DEPLOYMENT_ARTIFACT_SIZE: Size = Size(120f, 52f)
 
     // ── UML 2.x Activity-Diagramm: per-Kind Default-Größen (V2.0.46) ──
     //
@@ -407,6 +428,19 @@ public object UmlLayoutBridge {
                         ),
                     )
                 }
+                is UmlNode -> {
+                    // Deployment diagram node (node / executionEnvironment / device).
+                    // If the node has nested children or artifacts it becomes a LayoutGroup
+                    // (compound node) so ELK places children inside its bounds. Without
+                    // children/artifacts it stays as a plain flat LayoutNode.
+                    addDeploymentNode(
+                        node = element,
+                        parentGroupId = null,
+                        nodes = nodes,
+                        groups = groups,
+                        sizeProvider = sizeProvider,
+                    )
+                }
                 is UmlNamedElement -> {
                     // Any other named element (classifier, use case, actor, …).
                     // Use-Case nodes that belong to a subject get the matching groupId so
@@ -431,6 +465,71 @@ public object UmlLayoutBridge {
         }
 
         return LayoutGraph(nodes = nodes, edges = edges, groups = groups)
+    }
+
+    /**
+     * Registriert einen [UmlNode] (Deployment-Diagramm) als [LayoutNode] oder [LayoutGroup].
+     *
+     * - Kein Kind + kein Artefakt → flacher [LayoutNode] (Blattknoten im Graph).
+     * - Kinder oder Artefakte vorhanden → [LayoutGroup] (Compound-Node); Kinder und
+     *   Artefakte werden rekursiv in der Gruppe registriert.
+     *
+     * @param node       Der zu registrierende Deployment-Knoten.
+     * @param parentGroupId  Übergeordnete Gruppe (null = Top-Level).
+     * @param nodes      Ausgabeliste für [LayoutNode]-Einträge.
+     * @param groups     Ausgabeliste für [LayoutGroup]-Einträge.
+     * @param sizeProvider  Liefert die intrinsische Größe per Element.
+     */
+    private fun addDeploymentNode(
+        node: UmlNode,
+        parentGroupId: GroupId?,
+        nodes: MutableList<LayoutNode>,
+        groups: MutableList<LayoutGroup>,
+        sizeProvider: SizeProvider,
+    ) {
+        if (node.children.isEmpty() && node.artifacts.isEmpty()) {
+            // Leaf node — plain flat LayoutNode; no compound nesting required.
+            nodes.add(
+                LayoutNode(
+                    id = NodeId(node.id),
+                    intrinsicSize = sizeProvider.sizeOf(node.id, "UmlNode"),
+                    hints = HintsReader.read(node.metadata),
+                    groupId = parentGroupId,
+                ),
+            )
+        } else {
+            // Compound node — becomes a LayoutGroup so ELK positions children inside.
+            val groupId = GroupId(node.id)
+            groups.add(
+                LayoutGroup(
+                    id = groupId,
+                    parent = parentGroupId,
+                    padding = DEPLOYMENT_NODE_GROUP_INSETS,
+                    layoutAsCompound = true,
+                ),
+            )
+            // Nested child UmlNodes — handled recursively (supports arbitrary depth).
+            for (child in node.children.filterIsInstance<UmlNode>()) {
+                addDeploymentNode(
+                    node = child,
+                    parentGroupId = groupId,
+                    nodes = nodes,
+                    groups = groups,
+                    sizeProvider = sizeProvider,
+                )
+            }
+            // Artifacts directly inside this node — leaf LayoutNodes in the group.
+            for (artifact in node.artifacts) {
+                nodes.add(
+                    LayoutNode(
+                        id = NodeId(artifact.id),
+                        intrinsicSize = DEPLOYMENT_ARTIFACT_SIZE,
+                        hints = HintsReader.read(artifact.metadata),
+                        groupId = groupId,
+                    ),
+                )
+            }
+        }
     }
 
     private fun toEdge(

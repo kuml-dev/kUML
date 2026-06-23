@@ -4,12 +4,14 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.PortId
+import dev.kuml.uml.UmlArtifact
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationEnd
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlGeneralization
+import dev.kuml.uml.UmlNode
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlPort
 import io.kotest.core.spec.style.FunSpec
@@ -347,6 +349,56 @@ class UmlLayoutBridgeTest :
             graph.nodes shouldHaveSize 1
             graph.nodes[0].id shouldBe NodeId("FlatService")
             graph.edges shouldHaveSize 0
+        }
+
+        // ── Deployment-Diagramm: UmlNode mit Kindern / Artefakten ────────────────
+
+        test("UmlLayoutBridge emits flat LayoutNode for leaf UmlNode (no children/artifacts)") {
+            val server = UmlNode(id = "server", name = "Server", nodeKind = "node")
+            val db = UmlNode(id = "db", name = "DB", nodeKind = "device")
+            val diagram = KumlDiagram(name = "Deploy", elements = listOf(server, db))
+
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+
+            // Leaf nodes → flat LayoutNodes (no groups)
+            graph.nodes.map { it.id } shouldBe listOf(NodeId("server"), NodeId("db"))
+            graph.groups shouldHaveSize 0
+        }
+
+        test("UmlLayoutBridge emits LayoutGroup + child LayoutNodes for compound UmlNode") {
+            val artifact = UmlArtifact(id = "jar", name = "app.jar")
+            val pod =
+                UmlNode(
+                    id = "pod",
+                    name = "Pod",
+                    nodeKind = "node",
+                    artifacts = listOf(artifact),
+                )
+            val cluster =
+                UmlNode(
+                    id = "cluster",
+                    name = "EKS Cluster",
+                    nodeKind = "executionEnvironment",
+                    children = listOf(pod),
+                )
+            val diagram = KumlDiagram(name = "Deploy", elements = listOf(cluster))
+
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+
+            // cluster → LayoutGroup
+            graph.groups.map { it.id } shouldBe listOf(GroupId("cluster"), GroupId("pod"))
+            val clusterGroup = graph.groups.first { it.id == GroupId("cluster") }
+            clusterGroup.parent.shouldBeNull()
+            clusterGroup.layoutAsCompound shouldBe true
+            // pod → nested LayoutGroup (has artifact inside)
+            val podGroup = graph.groups.first { it.id == GroupId("pod") }
+            podGroup.parent shouldBe GroupId("cluster")
+            podGroup.layoutAsCompound shouldBe true
+            // artifact → LayoutNode in pod's group
+            graph.nodes shouldHaveSize 1
+            val artifactNode = graph.nodes.single()
+            artifactNode.id shouldBe NodeId("jar")
+            artifactNode.groupId shouldBe GroupId("pod")
         }
 
         test("UmlLayoutBridge keeps unknown ::-suffixes as raw node IDs (fallback)") {

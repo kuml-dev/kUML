@@ -120,6 +120,35 @@ class RenderPipelineTest :
             outputDir.toFile().delete()
         }
 
+        test("RenderPipeline renders deployment-diagram with nested nodes and artifacts") {
+            // Regression guard for the "children/artifacts not rendered" bug:
+            // UmlNode.children + UmlNode.artifacts must produce LayoutGroups /
+            // LayoutNodes so the SVG renderer can draw them.
+            val fixture = File("src/test/resources/deployment-nested.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-deploy-nested-test")
+            val outputFile = outputDir.resolve("deployment-nested.svg")
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "svg",
+                width = 1024,
+                themeName = "plain",
+            )
+            val content = outputFile.toFile().readText()
+            content shouldStartWith "<?xml"
+            // The outer 3D cube frame (EKS Cluster compound group) must appear.
+            content shouldContain "class=\"kuml-node\""
+            // Artifact boxes (orderservice.jar, config.yaml, orders.db) must appear.
+            content shouldContain "class=\"kuml-artifact\""
+            // All node/artifact labels must be present.
+            content shouldContain "EKS Cluster"
+            content shouldContain "Pod: order-service"
+            content shouldContain "orderservice.jar"
+            content shouldContain "orders.db"
+            outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
         test("RenderPipeline renders V1.1 component-diagram script with port-qualified connectors") {
             // Regression guard for the UmlLayoutBridge connector port-ID split fix:
             // ComponentDsl.connect(port1, port2) writes "<componentId>::<portName>" into
