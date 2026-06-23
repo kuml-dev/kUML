@@ -6,6 +6,25 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.16.1] — 2026-06-23
+
+### Fixed
+
+**Composite-Structure-Diagramm: `provides`/`requires`-Kanten fehlten** (`CompositeStructureDiagramBuilder`)
+
+`compositeStructureDiagram { }` zeigte Interfaces als eigenständige Nodes, ohne
+visuelle Verbindung zu den Komponenten, die sie bereitstellen oder benötigen.
+`ComponentDiagramBuilder` hatte bereits `synthesizeInterfaceRelationships()`,
+`CompositeStructureDiagramBuilder` nicht.
+
+- `synthesizeInterfaceRelationships()` in `CompositeStructureDiagramBuilder.build()`
+  ergänzt: erzeugt `UmlInterfaceRealization` für `provides(iface)` und
+  `UmlDependency(name = "use")` für `requires(iface)`, sofern das Interface als
+  Knoten im Diagramm existiert und die Beziehung nicht bereits explizit deklariert
+  wurde. Nested Parts werden rekursiv besucht.
+- `addRelationship()` akzeptiert jetzt auch `UmlInterfaceRealization` explizit
+  (für manuelle Deklarationen).
+
 ## [0.16.0] — 2026-06-22
 
 ### BPMN 2.0 — Neue Modellierungssprache (V3.1.1–V3.1.8)
