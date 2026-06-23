@@ -345,7 +345,21 @@ public object UmlLayoutBridge {
                 is UmlStateMachine -> {
                     // Create a group for the state machine frame so ELK encloses all vertices
                     val smGroupId = GroupId(element.id)
-                    groups.add(LayoutGroup(id = smGroupId, parent = null, padding = Insets(32f, 16f, 24f, 16f)))
+                    // layoutAsCompound = true so ELK treats the SM frame as a real
+                    // compound node.  Without this flag, all vertex nodes (Draft,
+                    // Confirmed, …) are placed flat at root and ResultMapper computes
+                    // the SM-frame bounds only from those nodes — ignoring nested
+                    // composite-state LayoutGroups (e.g. Processing with Picking +
+                    // Packing side by side), which causes the SM frame to be too
+                    // narrow and the composite state to overflow.
+                    groups.add(
+                        LayoutGroup(
+                            id = smGroupId,
+                            parent = null,
+                            padding = Insets(32f, 16f, 24f, 16f),
+                            layoutAsCompound = true,
+                        ),
+                    )
 
                     // Collect vertices recursively.
                     // Composite states (substates.isNotEmpty()) become a nested LayoutGroup so

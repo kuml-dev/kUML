@@ -427,6 +427,7 @@ class UmlLayoutBridgeTest :
             // One SM group, two vertex nodes, one edge
             graph.groups shouldHaveSize 1
             graph.groups[0].id shouldBe GroupId("sm")
+            graph.groups[0].layoutAsCompound shouldBe true
             graph.nodes shouldHaveSize 2
             graph.nodes.forEach { it.groupId shouldBe GroupId("sm") }
             graph.edges shouldHaveSize 1
@@ -459,6 +460,7 @@ class UmlLayoutBridgeTest :
             graph.groups shouldHaveSize 2
             val smGroup = graph.groups.single { it.id == GroupId("sm") }
             smGroup.parent shouldBe null
+            smGroup.layoutAsCompound shouldBe true
             val compositeGroup = graph.groups.single { it.id == GroupId("processing") }
             compositeGroup.parent shouldBe GroupId("sm")
             compositeGroup.layoutAsCompound shouldBe true
