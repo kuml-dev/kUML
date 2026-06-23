@@ -34,6 +34,8 @@ class AiPanelState(
     private val vault: ApiKeyVault,
     private val conversationStore: ConversationStore = ConversationStore.default(),
     private val pricingTable: PricingTable = PricingTable.loadFromResources(),
+    /** V3.1.18: when true, routes through KumlAgentOrchestrator instead of single-turn. */
+    val useOrchestration: Boolean = false,
 ) {
     var aiSettings by mutableStateOf(settingsStore.load())
         private set
@@ -181,7 +183,11 @@ class AiPanelState(
             isRunning = true
             try {
                 val executor = KumlAiExecutor.fromSettings(aiSettings, vault)
-                val runner = AgentRunner(executor, selectedProviderId, selectedModelId, editingContext, patchEngine)
+                val runner = AgentRunner(
+                    executor, selectedProviderId, selectedModelId,
+                    editingContext, patchEngine,
+                    useOrchestration = useOrchestration,
+                )
                 runner.runConversation(_messages.value).collect { ev -> handleEvent(ev) }
                 persistCurrentSession()
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -215,6 +221,27 @@ class AiPanelState(
                     withContext(Dispatchers.Main) { showPatchDialog = true }
                 }
             }
+            // V3.1.18: orchestration trace events — append a lightweight info message
+            is AgentEvent.OrchestratorRouted -> appendMessage(
+                ConversationMessage.Assistant(
+                    id = uuid(),
+                    timestamp = now(),
+                    text = "[Orchestrator] Routing to ${ev.domain} specialist — ${ev.reason}",
+                    isStreaming = false,
+                    providerId = "orchestrator",
+                    modelId = selectedModelId,
+                ),
+            )
+            is AgentEvent.SpecialistStarted -> appendMessage(
+                ConversationMessage.Assistant(
+                    id = uuid(),
+                    timestamp = now(),
+                    text = "[Orchestrator] ${ev.domain.uppercase()} specialist started.",
+                    isStreaming = false,
+                    providerId = "orchestrator",
+                    modelId = selectedModelId,
+                ),
+            )
         }
     }
 

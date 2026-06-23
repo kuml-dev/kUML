@@ -92,4 +92,48 @@ class AgentRunnerTest : FunSpec({
             finallyRan shouldBe true
         }
     }
+
+    test("useOrchestration=true delegates to KumlAgentOrchestrator — OrchestratorRouted appears") {
+        // Stub returns routing / specialist / synthesis responses across three calls
+        var step = 0
+        val executor = stubExecutor()
+        val runner = AgentRunner(
+            executor = executor,
+            providerId = "ollama",
+            modelId = "llama3.2",
+            useOrchestration = true,
+            executorFn = { _: Prompt, _: LLModel ->
+                when (step++) {
+                    // Step 0: routing — emit route_to_specialist tool call
+                    0 -> listOf(
+                        ai.koog.prompt.message.Message.Tool.Call(
+                            id = "tc-route",
+                            tool = "route_to_specialist",
+                            content = """{"domain":"uml","reason":"UML class diagram request"}""",
+                            metaInfo = ai.koog.prompt.message.ResponseMetaInfo.Companion.Empty,
+                        ),
+                    )
+                    // Step 1: specialist
+                    1 -> listOf(assistantMsg("I will add the class."))
+                    // Step 2: synthesis
+                    else -> listOf(assistantMsg("Class has been added to your diagram."))
+                }
+            },
+        )
+
+        val history = listOf(ConversationMessage.User("u1", 1L, "Add a UML class"))
+        val events = runner.runConversation(history).toList()
+
+        // OrchestratorRouted must appear
+        val routed = events.filterIsInstance<AgentEvent.OrchestratorRouted>()
+        routed.isNotEmpty() shouldBe true
+        routed.first().domain shouldBe "uml"
+
+        // SpecialistStarted must appear
+        val started = events.filterIsInstance<AgentEvent.SpecialistStarted>()
+        started.isNotEmpty() shouldBe true
+
+        // Flow must end with Done
+        events.last().shouldBeInstanceOf<AgentEvent.Done>()
+    }
 })
