@@ -5,185 +5,97 @@ import dev.kuml.codegen.reverse.ReverseRequest
 import dev.kuml.codegen.reverse.ReverseResult
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
-import dev.kuml.core.model.KumlElement
 import dev.kuml.core.model.KumlModel
 import dev.kuml.core.model.ModelLevel
 import dev.kuml.core.model.ModelingLanguage
-import dev.kuml.uml.UmlClass
-import dev.kuml.uml.UmlEnumeration
-import dev.kuml.uml.UmlEnumerationLiteral
-import dev.kuml.uml.UmlInterface
-import dev.kuml.uml.UmlOperation
-import dev.kuml.uml.UmlProperty
-import dev.kuml.uml.UmlTypeRef
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-/**
- * Regex-based TypeScript → UML reverse engine (MVP).
- *
- * Detects top-level `interface`, `class`, and `enum` declarations plus their
- * property and method signatures via simple line-by-line pattern matching.
- *
- * ## Limitations vs. full AST parsing (V3.1 via ts-morph)
- * - No generics, decorators, or conditional types
- * - No cross-file import resolution
- * - Nested / anonymous types are skipped
- * - Multi-line property/method bodies may confuse the parser
- *
- * ## CLI usage
- * ```
- * kuml reverse --lang typescript src/
- * ```
- */
 public class TypeScriptReverseEngine : KumlReverseEngine {
     override val id: String = "typescript"
-    override val description: String =
-        "Regex-based TypeScript reverse engine (MVP). Full AST via ts-morph planned for V3.1."
+    override val description: String = "Handwritten recursive-descent TypeScript → UML reverse engine (V3.1.9)."
 
-    override suspend fun analyze(request: ReverseRequest): ReverseResult {
-        val elements = mutableListOf<KumlElement>()
-        var filesAnalysed = 0
-        val startMs = System.currentTimeMillis()
+    private val typeMapper = TsTypeMapper()
+    private val modelBuilder = TsModelBuilder(typeMapper)
 
-        for (root in request.sourceRoots) {
-            root
-                .toFile()
-                .walkTopDown()
-                .filter { it.isFile && it.extension == "ts" }
-                .forEach { file ->
-                    elements += parseTypeScriptFile(file.readText(), file.nameWithoutExtension)
-                    filesAnalysed++
-                }
-        }
+    override suspend fun analyze(request: ReverseRequest): ReverseResult =
+        withContext(Dispatchers.IO) {
+            val startMs = System.currentTimeMillis()
+            val fileAsts = mutableListOf<TsFileAst>()
+            var filesAnalysed = 0
 
-        val diagram =
-            KumlDiagram(
-                id = request.targetModelName,
-                name = request.targetModelName,
-                type = DiagramType.CLASS,
-                elements = elements,
-            )
-        val model =
-            KumlModel(
-                root = diagram,
-                language = ModelingLanguage.UML,
-                level = ModelLevel.PIM,
-                name = request.targetModelName,
-            )
-        return ReverseResult.Success(
-            model = model,
-            filesAnalysed = filesAnalysed,
-            elapsedMs = System.currentTimeMillis() - startMs,
-        )
-    }
-
-    internal fun parseTypeScriptFile(
-        source: String,
-        fileHint: String,
-    ): List<KumlElement> {
-        val elements = mutableListOf<KumlElement>()
-
-        // export interface IFoo { ... }
-        INTERFACE_RE.findAll(source).forEach { m ->
-            val name = m.groupValues[1]
-            val body = m.groupValues[2]
-            elements +=
-                UmlInterface(
-                    id = "ts::$name",
-                    name = name,
-                    attributes = parseProperties(body, name),
-                    operations = parseMethods(body, name),
-                )
-        }
-
-        // export [abstract] class Foo { ... }
-        CLASS_RE.findAll(source).forEach { m ->
-            val name = m.groupValues[1]
-            val body = m.groupValues[2]
-            val isAbstract = ABSTRACT_RE.containsMatchIn(source.substringBefore("{"))
-            elements +=
-                UmlClass(
-                    id = "ts::$name",
-                    name = name,
-                    isAbstract = isAbstract,
-                    attributes = parseProperties(body, name),
-                    operations = parseMethods(body, name),
-                )
-        }
-
-        // export enum Foo { A, B, C }
-        ENUM_RE.findAll(source).forEach { m ->
-            val name = m.groupValues[1]
-            val literals =
-                m.groupValues[2]
-                    .split(",")
-                    .map { it.trim().substringBefore("=").trim() }
-                    .filter { it.isNotBlank() && it.matches(Regex("[A-Za-z_][A-Za-z0-9_]*")) }
-                    .mapIndexed { i, lit ->
-                        UmlEnumerationLiteral(id = "ts::$name::$lit", name = lit)
+            outer@ for (root in request.sourceRoots) {
+                val tsFiles =
+                    root
+                        .toFile()
+                        .walkTopDown()
+                        .filter { it.isFile && it.extension == "ts" && !it.name.endsWith(".d.ts") }
+                for (file in tsFiles) {
+                    if (filesAnalysed >= MAX_FILES) {
+                        System.err.println(
+                            "[TypeScriptReverseEngine] File cap ($MAX_FILES) reached — " +
+                                "skipping remaining files.",
+                        )
+                        break@outer
                     }
-            elements += UmlEnumeration(id = "ts::$name", name = name, literals = literals)
+                    if (file.length() > MAX_FILE_BYTES) {
+                        System.err.println(
+                            "[TypeScriptReverseEngine] Skipping oversized file " +
+                                "'${file.path}' (${file.length()} bytes > $MAX_FILE_BYTES).",
+                        )
+                        continue
+                    }
+                    try {
+                        fileAsts += parseTypeScriptSource(file.readText())
+                        filesAnalysed++
+                    } catch (e: StackOverflowError) {
+                        // Belt-and-suspenders: TsParser has a typeRefDepth guard that should prevent
+                        // this, but a crafted file could still exhaust the JVM stack through other
+                        // call paths. Log and continue rather than crashing the entire analysis run.
+                        System.err.println(
+                            "[TypeScriptReverseEngine] StackOverflowError while parsing " +
+                                "'${file.path}' — skipping file. The file likely contains " +
+                                "pathologically deep nesting.",
+                        )
+                    }
+                }
+            }
+
+            val elements = modelBuilder.buildElements(fileAsts = fileAsts)
+
+            val diagram =
+                KumlDiagram(
+                    id = request.targetModelName,
+                    name = request.targetModelName,
+                    type = DiagramType.CLASS,
+                    elements = elements,
+                )
+            val model =
+                KumlModel(
+                    root = diagram,
+                    language = ModelingLanguage.UML,
+                    level = ModelLevel.PIM,
+                    name = request.targetModelName,
+                )
+            ReverseResult.Success(
+                model = model,
+                filesAnalysed = filesAnalysed,
+                elapsedMs = System.currentTimeMillis() - startMs,
+            )
         }
 
-        return elements
+    internal fun parseTypeScriptSource(source: String): TsFileAst {
+        val tokens = TsLexer(source).tokenize()
+        return TsParser(tokens).parse()
     }
 
-    private fun parseProperties(
-        body: String,
-        owner: String,
-    ): List<UmlProperty> =
-        PROP_RE
-            .findAll(body)
-            .map { m ->
-                val propName = m.groupValues[1]
-                val tsType = m.groupValues[2]
-                UmlProperty(
-                    id = "ts::$owner::$propName",
-                    name = propName,
-                    type = UmlTypeRef(name = mapTsType(tsType)),
-                )
-            }.toList()
-
-    private fun parseMethods(
-        body: String,
-        owner: String,
-    ): List<UmlOperation> =
-        METHOD_RE
-            .findAll(body)
-            .map { m ->
-                val methodName = m.groupValues[1]
-                val returnTs = m.groupValues[2]
-                UmlOperation(
-                    id = "ts::$owner::$methodName()",
-                    name = methodName,
-                    returnType = UmlTypeRef(name = mapTsType(returnTs)),
-                )
-            }.toList()
-
-    internal fun mapTsType(tsType: String): String =
-        when (tsType.lowercase().trim()) {
-            "string" -> "String"
-            "number" -> "Double"
-            "boolean" -> "Boolean"
-            "void" -> "void"
-            "any" -> "Object"
-            "date" -> "Date"
-            else -> tsType.trim()
-        }
+    internal fun mapTsType(tsType: String): String = typeMapper.map(tsType)
 
     private companion object {
-        val INTERFACE_RE =
-            Regex(
-                """(?:export\s+)?interface\s+(\w+)[^{]*\{([^}]*)}""",
-                RegexOption.DOT_MATCHES_ALL,
-            )
-        val CLASS_RE =
-            Regex(
-                """(?:export\s+)?(?:abstract\s+)?class\s+(\w+)[^{]*\{([^}]*)}""",
-                RegexOption.DOT_MATCHES_ALL,
-            )
-        val ABSTRACT_RE = Regex("""abstract\s+class""")
-        val ENUM_RE = Regex("""(?:export\s+)?enum\s+(\w+)\s*\{([^}]*)}""")
-        val PROP_RE = Regex("""^\s*(\w+)\??:\s*(\w+)""", RegexOption.MULTILINE)
-        val METHOD_RE = Regex("""^\s*(\w+)\s*\([^)]*\)\s*:\s*(\w+)""", RegexOption.MULTILINE)
+        /** Maximum number of bytes read from a single `.ts` file (10 MB). */
+        const val MAX_FILE_BYTES: Long = 10L * 1024 * 1024
+
+        /** Maximum total number of `.ts` files visited per analysis run. */
+        const val MAX_FILES: Int = 2_000
     }
 }
