@@ -4,6 +4,7 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.PortId
+import dev.kuml.uml.PseudostateKind
 import dev.kuml.uml.UmlArtifact
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlAssociationEnd
@@ -14,6 +15,10 @@ import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlNode
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlPort
+import dev.kuml.uml.UmlPseudostate
+import dev.kuml.uml.UmlState
+import dev.kuml.uml.UmlStateMachine
+import dev.kuml.uml.UmlTransition
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
@@ -399,6 +404,82 @@ class UmlLayoutBridgeTest :
             val artifactNode = graph.nodes.single()
             artifactNode.id shouldBe NodeId("jar")
             artifactNode.groupId shouldBe GroupId("pod")
+        }
+
+        // ── UML State Machine ────────────────────────────────────────────────────
+
+        test("UmlLayoutBridge: simple state machine creates SM group + flat vertex nodes") {
+            val start = UmlPseudostate(id = "start", name = "", kind = PseudostateKind.INITIAL)
+            val draft = UmlState(id = "draft", name = "Draft")
+            val sm =
+                UmlStateMachine(
+                    id = "sm",
+                    name = "OrderLifecycle",
+                    vertices = listOf(start, draft),
+                    transitions =
+                        listOf(
+                            UmlTransition(id = "t1", sourceId = "start", targetId = "draft"),
+                        ),
+                )
+            val diagram = KumlDiagram(name = "D", elements = listOf(sm))
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+
+            // One SM group, two vertex nodes, one edge
+            graph.groups shouldHaveSize 1
+            graph.groups[0].id shouldBe GroupId("sm")
+            graph.nodes shouldHaveSize 2
+            graph.nodes.forEach { it.groupId shouldBe GroupId("sm") }
+            graph.edges shouldHaveSize 1
+        }
+
+        test("UmlLayoutBridge: composite state becomes nested LayoutGroup; substates land inside it") {
+            val picking = UmlState(id = "picking", name = "Picking")
+            val packing = UmlState(id = "packing", name = "Packing")
+            val processing =
+                UmlState(
+                    id = "processing",
+                    name = "Processing",
+                    substates = listOf(picking, packing),
+                )
+            val start = UmlPseudostate(id = "start", name = "", kind = PseudostateKind.INITIAL)
+            val sm =
+                UmlStateMachine(
+                    id = "sm",
+                    name = "OrderLifecycle",
+                    vertices = listOf(start, processing),
+                    transitions =
+                        listOf(
+                            UmlTransition(id = "t1", sourceId = "start", targetId = "processing"),
+                        ),
+                )
+            val diagram = KumlDiagram(name = "D", elements = listOf(sm))
+            val graph = UmlLayoutBridge.toLayoutGraph(diagram)
+
+            // Expected groups: SM frame + one composite group for "processing"
+            graph.groups shouldHaveSize 2
+            val smGroup = graph.groups.single { it.id == GroupId("sm") }
+            smGroup.parent shouldBe null
+            val compositeGroup = graph.groups.single { it.id == GroupId("processing") }
+            compositeGroup.parent shouldBe GroupId("sm")
+            compositeGroup.layoutAsCompound shouldBe true
+            compositeGroup.padding shouldBe UmlLayoutBridge.COMPOSITE_STATE_INSETS
+
+            // Composite state itself must NOT appear as a LayoutNode
+            graph.nodes.none { it.id == NodeId("processing") } shouldBe true
+
+            // Substates must be LayoutNodes inside the composite group
+            val pickingNode = graph.nodes.single { it.id == NodeId("picking") }
+            pickingNode.groupId shouldBe GroupId("processing")
+            val packingNode = graph.nodes.single { it.id == NodeId("packing") }
+            packingNode.groupId shouldBe GroupId("processing")
+
+            // start pseudostate must still be in the SM group
+            val startNode = graph.nodes.single { it.id == NodeId("start") }
+            startNode.groupId shouldBe GroupId("sm")
+
+            // Total: start + picking + packing = 3 nodes (processing is a group, not a node)
+            graph.nodes shouldHaveSize 3
+            graph.edges shouldHaveSize 1
         }
 
         test("UmlLayoutBridge keeps unknown ::-suffixes as raw node IDs (fallback)") {

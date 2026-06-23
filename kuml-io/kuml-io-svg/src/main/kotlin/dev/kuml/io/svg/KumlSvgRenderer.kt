@@ -709,14 +709,16 @@ public object KumlSvgRenderer {
         return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
-            // 1. Render state machine frame (group background)
+            // 1. Render state machine frame (group background) and composite state frames.
+            // Composite states surface as LayoutGroups (nested inside the SM group) so
+            // ELK can position their substates correctly. We draw them here, in z-order
+            // BEFORE the individual vertex nodes so that substate boxes appear on top.
             for ((groupId, groupLayout) in layoutResult.groups) {
-                if (groupId.value != sm.id) continue
                 val gx = groupLayout.bounds.origin.x + padding
                 val gy = groupLayout.bounds.origin.y + padding
                 val gw = groupLayout.bounds.size.width
                 val gh = groupLayout.bounds.size.height
-                val smLayout =
+                val groupNodeLayout =
                     dev.kuml.layout.NodeLayout(
                         bounds =
                             dev.kuml.layout.Rect(
@@ -724,7 +726,16 @@ public object KumlSvgRenderer {
                                 size = dev.kuml.layout.Size(gw, gh),
                             ),
                     )
-                NodeRendererDispatcher.dispatch(sm, smLayout, theme, nodesBuilder)
+                if (groupId.value == sm.id) {
+                    // State machine outer frame
+                    NodeRendererDispatcher.dispatch(sm, groupNodeLayout, theme, nodesBuilder)
+                } else {
+                    // Composite state frame — look up the vertex by group ID
+                    val compositeVertex = vertexIndex[groupId.value]
+                    if (compositeVertex != null) {
+                        NodeRendererDispatcher.dispatch(compositeVertex, groupNodeLayout, theme, nodesBuilder)
+                    }
+                }
             }
 
             // 2. Render vertices (states, pseudostates, final states)

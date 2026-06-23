@@ -46,6 +46,15 @@ import dev.kuml.uml.UmlVertex
  */
 public object UmlLayoutBridge {
     /**
+     * Insets eines zusammengesetzten UML-Zustands (Composite State).
+     *
+     * 28 px Top-Padding: 14 px Name-Label-Baseline + 14 px Atemluft bis zum
+     * ersten Substate-Knoten. Seiten und Boden auf 12 px, damit Substates
+     * nicht direkt an die Composite-Wand stoßen.
+     */
+    internal val COMPOSITE_STATE_INSETS: Insets = Insets(top = 28f, right = 12f, bottom = 12f, left = 12f)
+
+    /**
      * Insets eines UML-Pakets (Folder-Tab + Name-Bereich oben).
      *
      * 18 px Tab-Höhe (siehe `KumlSvgRenderer.renderPackageGroup`) plus 10 px
@@ -338,30 +347,46 @@ public object UmlLayoutBridge {
                     val smGroupId = GroupId(element.id)
                     groups.add(LayoutGroup(id = smGroupId, parent = null, padding = Insets(32f, 16f, 24f, 16f)))
 
-                    // Collect all vertices flat (including substates) and add as LayoutNodes
-                    fun collectVertices(vertices: List<UmlVertex>) {
+                    // Collect vertices recursively.
+                    // Composite states (substates.isNotEmpty()) become a nested LayoutGroup so
+                    // ELK positions their substates inside the composite state's bounds.
+                    // Simple states and pseudo-states remain flat LayoutNodes in their parent group.
+                    fun collectVertices(
+                        vertices: List<UmlVertex>,
+                        parentGroupId: GroupId,
+                    ) {
                         for (vertex in vertices) {
-                            val size =
-                                when (vertex) {
-                                    is UmlPseudostate -> Size(24f, 24f)
-                                    is UmlFinalState -> Size(28f, 28f)
-                                    is UmlState -> sizeProvider.sizeOf(vertex.id, "UmlState")
-                                }
-                            nodes.add(
-                                LayoutNode(
-                                    id = NodeId(vertex.id),
-                                    intrinsicSize = size,
-                                    hints = HintsReader.read(vertex.metadata),
-                                    groupId = smGroupId,
-                                ),
-                            )
-                            // Recurse into composite state substates (flat — same group)
                             if (vertex is UmlState && vertex.substates.isNotEmpty()) {
-                                collectVertices(vertex.substates)
+                                // Composite state → dedicated LayoutGroup nested inside parent
+                                val compositeGroupId = GroupId(vertex.id)
+                                groups.add(
+                                    LayoutGroup(
+                                        id = compositeGroupId,
+                                        parent = parentGroupId,
+                                        padding = COMPOSITE_STATE_INSETS,
+                                        layoutAsCompound = true,
+                                    ),
+                                )
+                                collectVertices(vertex.substates, compositeGroupId)
+                            } else {
+                                val size =
+                                    when (vertex) {
+                                        is UmlPseudostate -> Size(24f, 24f)
+                                        is UmlFinalState -> Size(28f, 28f)
+                                        is UmlState -> sizeProvider.sizeOf(vertex.id, "UmlState")
+                                    }
+                                nodes.add(
+                                    LayoutNode(
+                                        id = NodeId(vertex.id),
+                                        intrinsicSize = size,
+                                        hints = HintsReader.read(vertex.metadata),
+                                        groupId = parentGroupId,
+                                    ),
+                                )
                             }
                         }
                     }
-                    collectVertices(element.vertices)
+                    collectVertices(element.vertices, smGroupId)
 
                     // Transitions as edges
                     for (transition in element.transitions) {
