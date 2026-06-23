@@ -191,7 +191,11 @@ internal object HintsMapper {
      * their bend points remain relative to the compound, which only resolves cleanly
      * when the result mapper also translates them to absolute coordinates.
      */
-    fun applyGroupPadding(builder: ElkGraphBuilder) {
+    fun applyGroupPadding(
+        builder: ElkGraphBuilder,
+        hints: LayoutHints,
+        config: ElkEngineConfiguration,
+    ) {
         var anyCompound = false
         for (group in builder.groups()) {
             val elkGroup = builder.groupMap[group.id] ?: continue
@@ -200,7 +204,19 @@ internal object HintsMapper {
                 CoreOptions.PADDING,
                 ElkPadding(p.top.toDouble(), p.right.toDouble(), p.bottom.toDouble(), p.left.toDouble()),
             )
-            if (group.layoutAsCompound) anyCompound = true
+            if (group.layoutAsCompound) {
+                anyCompound = true
+                // ELK does NOT inherit spacing options from the root onto a
+                // compound node's *internal* layered layout. A compound group
+                // (e.g. a UML state-machine frame containing its states, or a
+                // composite state containing its substates) therefore runs its
+                // children with ELK's tight ~20 px defaults regardless of the
+                // spacing the caller requested on the root. Mirror the same
+                // spacing onto every compound node so its children honour the
+                // requested node/edge/layer gaps — otherwise transition arrows
+                // between states collapse onto each other.
+                applyCompoundSpacing(elkGroup, hints, config)
+            }
         }
         if (anyCompound) {
             // Walk up to the ELK root and enable inter-hierarchy edge routing.
@@ -208,6 +224,29 @@ internal object HintsMapper {
             while (root?.parent != null) root = root.parent
             root?.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.INCLUDE_CHILDREN)
         }
+    }
+
+    /**
+     * Copies the spacing-relevant layout options from [hints] / [config] onto a
+     * single compound ELK node. Kept in sync with the corresponding `setProperty`
+     * calls in [applyGlobalHints] (node-node, edge-edge, layer spacing, and the
+     * between-layer edge-node corridor).
+     */
+    private fun applyCompoundSpacing(
+        elkGroup: ElkNode,
+        hints: LayoutHints,
+        config: ElkEngineConfiguration,
+    ) {
+        elkGroup.setProperty(CoreOptions.SPACING_NODE_NODE, hints.spacing.nodeToNode.toDouble())
+        elkGroup.setProperty(CoreOptions.SPACING_EDGE_EDGE, hints.spacing.edgeToEdge.toDouble())
+        elkGroup.setProperty(CoreOptions.SPACING_EDGE_NODE, config.edgeNodeSpacing.toDouble())
+        val layerSpacing =
+            hints.spacing.layerToLayer.takeUnless { it.isNaN() } ?: config.layerSpacing
+        elkGroup.setProperty(LayeredOptions.SPACING_NODE_NODE_BETWEEN_LAYERS, layerSpacing.toDouble())
+        elkGroup.setProperty(
+            LayeredOptions.SPACING_EDGE_NODE_BETWEEN_LAYERS,
+            maxOf(config.edgeNodeSpacing, 25f).toDouble(),
+        )
     }
 
     // ---------------------------------------------------------------------------

@@ -458,14 +458,17 @@ internal fun galleryThumbnails(entry: PluginRegistryEntry): List<String> = entry
  * Returns `true` if the URL is safe, `false` otherwise.
  * DNS resolution is performed to catch hostname-based SSRF attempts.
  */
-internal fun validateScreenshotUrl(url: String): Boolean {
+internal fun validateScreenshotUrl(
+    url: String,
+    resolveHost: (String) -> InetAddress? = ::defaultResolveHost,
+): Boolean {
     val uri =
         runCatching { URI(url) }.getOrNull() ?: return false
     val scheme = uri.scheme?.lowercase() ?: return false
     if (scheme != "http" && scheme != "https") return false
     val host = uri.host ?: return false
     val addr =
-        runCatching { InetAddress.getByName(host) }.getOrNull() ?: return false
+        resolveHost(host) ?: return false
     if (addr.isLoopbackAddress) return false
     if (addr.isSiteLocalAddress) return false
     if (addr.isLinkLocalAddress) return false
@@ -488,18 +491,31 @@ internal fun validateScreenshotUrl(url: String): Boolean {
     return true
 }
 
+/**
+ * Default host resolver: performs a real DNS lookup via [InetAddress.getByName].
+ *
+ * Factored out so [validateScreenshotUrl] / [screenshotAbsoluteUrl] can be tested
+ * deterministically with an injected resolver, without depending on live DNS
+ * (which is unavailable in sandboxed CI environments).
+ */
+private fun defaultResolveHost(host: String): InetAddress? =
+    runCatching { InetAddress.getByName(host) }.getOrNull()
+
 /** Resolves a possibly-relative screenshot path against [SCREENSHOT_BASE_URL].
  *
  * Returns `null` if the resolved URL fails SSRF validation (see [validateScreenshotUrl]).
  */
-internal fun screenshotAbsoluteUrl(raw: String): String? {
+internal fun screenshotAbsoluteUrl(
+    raw: String,
+    resolveHost: (String) -> InetAddress? = ::defaultResolveHost,
+): String? {
     val resolved =
         if (raw.startsWith("http://") || raw.startsWith("https://")) {
             raw
         } else {
             "$SCREENSHOT_BASE_URL/${raw.removePrefix("/")}"
         }
-    return if (validateScreenshotUrl(resolved)) resolved else null
+    return if (validateScreenshotUrl(resolved, resolveHost)) resolved else null
 }
 
 @Composable

@@ -236,12 +236,25 @@ internal object RenderPipeline {
             (diagram.metadata[LayoutMetadataKeys.MERGE_EDGES] as? KumlMetaValue.Flag)?.value
         // UML STATE diagrams pack many transition labels around shared states
         // (guard conditions, action labels, composite state entry/exit transitions).
-        // Default 40 px node-to-node and 12 px edge-to-edge causes crowding and makes
-        // transition arrows hard to follow. Increase both — same rationale and values
-        // as SysML-2 STM, which has an identical layout topology.
+        // The default spacing crowds the states so the transition arrows and their
+        // labels (`confirm() [valid]`, `ship() / notifyCustomer()`, …) overlap and
+        // become hard to follow. Open everything up generously:
+        //  - `nodeToNode = 110f` — horizontal breathing room between sibling states
+        //    (e.g. Picking / Packing inside a composite, or a state and its
+        //    self-transition loop).
+        //  - `edgeToEdge = 36f` — keeps parallel/adjacent transition labels apart.
+        //  - `layerToLayer = 130f` — the dominant knob for top-to-bottom state
+        //    machines: it widens the vertical gap between successive states so the
+        //    inter-state transition labels sit in clear space, not on a box edge.
+        //  - `groupPadding = 28f` — extra inset around composite-state frames.
         val baseSpacing =
             if (diagram.type == DiagramType.STATE) {
-                Spacing(nodeToNode = 80f, edgeToEdge = 28f, groupPadding = 24f)
+                Spacing(
+                    nodeToNode = 110f,
+                    edgeToEdge = 36f,
+                    groupPadding = 28f,
+                    layerToLayer = 130f,
+                )
             } else {
                 LayoutHints.DEFAULT.spacing
             }

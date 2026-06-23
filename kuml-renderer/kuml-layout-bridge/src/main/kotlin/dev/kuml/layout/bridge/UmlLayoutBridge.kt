@@ -86,6 +86,20 @@ public object UmlLayoutBridge {
      */
     internal val DEPLOYMENT_NODE_GROUP_INSETS: Insets = Insets(top = 50f, right = 14f, bottom = 14f, left = 14f)
 
+    /**
+     * Insets eines UML-State-Machine-Frames.
+     *
+     * `renderUmlStateMachine` zeichnet:
+     *  - Label `stateMachine` oben links (Baseline y = 16)
+     *  - State-Machine-Name zentriert (Baseline y = 46, ~18 px Texthöhe → Boden ≈ 50)
+     *
+     * Top-Padding = 60 px, damit der erste Vertex (typischerweise der Initial-
+     * Pseudostate, den ELK horizontal mittig platziert) klar **unter** dem
+     * zentrierten Titel beginnt und nicht mit ihm kollidiert. Seiten/Boden
+     * 16/24 px wie zuvor.
+     */
+    internal val STATE_MACHINE_GROUP_INSETS: Insets = Insets(top = 60f, right = 16f, bottom = 24f, left = 16f)
+
     /** Intrinsische Größe eines UML-Artefakts innerhalb eines Deployment-Nodes.
      *
      * Passend zu `renderUmlArtifact`: «artifact»-Label bei y=20, Name bei y=36,
@@ -356,7 +370,7 @@ public object UmlLayoutBridge {
                         LayoutGroup(
                             id = smGroupId,
                             parent = null,
-                            padding = Insets(32f, 16f, 24f, 16f),
+                            padding = STATE_MACHINE_GROUP_INSETS,
                             layoutAsCompound = true,
                         ),
                     )

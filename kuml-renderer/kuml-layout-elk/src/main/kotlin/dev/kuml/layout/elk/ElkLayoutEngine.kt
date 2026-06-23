@@ -107,7 +107,7 @@ public class ElkLayoutEngine(
         // 2. Apply hints and configuration
         warnings += HintsMapper.applyGlobalHints(root, hints, configuration)
         warnings += HintsMapper.collectNodeHintWarnings(graph)
-        HintsMapper.applyGroupPadding(builder)
+        HintsMapper.applyGroupPadding(builder, hints, configuration)
 
         // 3. Time-budget tracking
         val startMs = System.currentTimeMillis()

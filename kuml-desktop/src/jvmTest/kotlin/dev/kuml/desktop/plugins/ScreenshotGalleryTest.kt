@@ -8,6 +8,7 @@ import io.kotest.matchers.nulls.shouldBeNull
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import java.net.InetAddress
 
 /**
  * V3.1.13 — Headless unit tests for the screenshot gallery pure logic.
@@ -19,6 +20,13 @@ import io.kotest.matchers.string.shouldContain
  */
 class ScreenshotGalleryTest :
     FunSpec({
+
+        // Deterministic stand-in for DNS: resolves any host to a fixed public,
+        // routable address (documented example IP 93.184.216.34). Lets the
+        // "public host is allowed" assertions run without live DNS, which is
+        // unavailable in sandboxed CI environments.
+        val publicHostResolver: (String) -> InetAddress =
+            { InetAddress.getByAddress(byteArrayOf(93.toByte(), 184.toByte(), 216.toByte(), 34.toByte())) }
 
         // ── galleryThumbnails() ────────────────────────────────────────────────
 
@@ -78,7 +86,7 @@ class ScreenshotGalleryTest :
 
         test("screenshotAbsoluteUrl: absolute https URL to public host is returned") {
             val url = "https://cdn.example.com/screenshot.png"
-            screenshotAbsoluteUrl(url).shouldNotBeNull()
+            screenshotAbsoluteUrl(url, publicHostResolver).shouldNotBeNull()
         }
 
         test("screenshotAbsoluteUrl: absolute http URL pointing to localhost is blocked (returns null)") {
@@ -86,7 +94,7 @@ class ScreenshotGalleryTest :
         }
 
         test("screenshotAbsoluteUrl: valid external https URL is returned unchanged") {
-            screenshotAbsoluteUrl("https://cdn.example.com/screenshot.png").shouldNotBeNull()
+            screenshotAbsoluteUrl("https://cdn.example.com/screenshot.png", publicHostResolver).shouldNotBeNull()
         }
 
         test("SCREENSHOT_BASE_URL is https://plugins.kuml.dev") {
@@ -96,7 +104,7 @@ class ScreenshotGalleryTest :
         // ── validateScreenshotUrl() ────────────────────────────────────────────
 
         test("validateScreenshotUrl: valid external https URL is allowed") {
-            validateScreenshotUrl("https://cdn.example.com/screenshot.png") shouldBe true
+            validateScreenshotUrl("https://cdn.example.com/screenshot.png", publicHostResolver) shouldBe true
         }
 
         test("validateScreenshotUrl: localhost is blocked") {
