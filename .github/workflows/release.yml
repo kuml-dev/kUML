@@ -516,3 +516,100 @@ jobs:
               echo "End-user effect: \`sdk install kuml\` (without a version) will install $VERSION."
             fi
           } >> $GITHUB_STEP_SUMMARY
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 6: publish the Windows runtime to the Chocolatey community repository.
+  #
+  # Chocolatey is the Windows counterpart to Homebrew/SDKMAN!. This job reuses
+  # the already-built `windows-x86_64` runtime zip (uploaded to the GitHub
+  # Release by `package-runtime`) and its pre-computed SHA-256 (stashed in the
+  # `runtime-sha-windows-x86_64` artefact). The static package skeleton lives
+  # in kuml-packaging/chocolatey/ — this job only injects the version + checksum,
+  # packs the .nupkg and pushes it to https://push.chocolatey.org.
+  #
+  # Independent of the Homebrew/SDKMAN! jobs on purpose — a Chocolatey moderation
+  # hiccup must not cascade into the other channels.
+  #
+  # Skips silently when `CHOCOLATEY_API_KEY` is not set. Runs on windows-latest
+  # because choco.exe is Windows-only (pre-installed on GitHub's runner image).
+  # ─────────────────────────────────────────────────────────────────────────
+  publish-chocolatey:
+    name: Chocolatey publish
+    needs: [build, package-runtime]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: windows-latest
+    steps:
+      - name: Detect token presence
+        id: gate
+        shell: bash
+        env:
+          HAS_KEY: ${{ secrets.CHOCOLATEY_API_KEY != '' }}
+        run: |
+          echo "has_token=$HAS_KEY" >> $GITHUB_OUTPUT
+          if [ "$HAS_KEY" != "true" ]; then
+            echo "::notice::CHOCOLATEY_API_KEY not set — skipping Chocolatey publish."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.has_token == 'true'
+
+      - name: Download windows-x86_64 sha payload
+        if: steps.gate.outputs.has_token == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: runtime-sha-windows-x86_64
+          path: sha-payload
+
+      - name: Inject version + checksum into package
+        if: steps.gate.outputs.has_token == 'true'
+        id: tpl
+        shell: bash
+        run: |
+          ENV_FILE="sha-payload/windows-x86_64.env"
+          if [ ! -f "$ENV_FILE" ]; then
+            echo "::error::windows-x86_64 runtime artefact missing — package-runtime leg likely failed. Skipping Chocolatey publish."
+            echo "available=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # shellcheck source=/dev/null
+          source "$ENV_FILE"   # provides: target, url, sha256
+          VER='${{ needs.build.outputs.version }}'
+          sed -i "s|__VERSION__|$VER|g" kuml-packaging/chocolatey/kuml.nuspec
+          sed -i "s|__SHA256__|$sha256|g" kuml-packaging/chocolatey/tools/chocolateyInstall.ps1
+          echo "available=true" >> $GITHUB_OUTPUT
+
+      - name: Pack & push
+        if: steps.gate.outputs.has_token == 'true' && steps.tpl.outputs.available == 'true'
+        shell: pwsh
+        working-directory: kuml-packaging/chocolatey
+        env:
+          CHOCO_KEY: ${{ secrets.CHOCOLATEY_API_KEY }}
+        run: |
+          choco pack kuml.nuspec
+          choco push "kuml.${{ needs.build.outputs.version }}.nupkg" `
+            --source "https://push.chocolatey.org/" `
+            --api-key $env:CHOCO_KEY
+
+      - name: Summary
+        if: ${{ always() }}
+        shell: bash
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          HAS_TOKEN: ${{ steps.gate.outputs.has_token }}
+          AVAILABLE: ${{ steps.tpl.outputs.available }}
+        run: |
+          {
+            echo "### Chocolatey publish"
+            echo ""
+            if [ "$HAS_TOKEN" != "true" ]; then
+              echo "⏭  Skipped — \`CHOCOLATEY_API_KEY\` is not set."
+              echo ""
+              echo "Set it once with \`gh secret set CHOCOLATEY_API_KEY -R kuml-dev/kuml\` (paste the key from chocolatey.org → Account → API Keys), then re-run this workflow."
+            elif [ "$AVAILABLE" != "true" ]; then
+              echo "⚠ Skipped — the \`windows-x86_64\` runtime artefact is missing. Check the \`package-runtime\` matrix leg."
+            else
+              echo "✅ Pushed kuml \`$VERSION\` to the Chocolatey community repository."
+              echo ""
+              echo "New packages enter moderation (typically 1–3 days). Once approved: \`choco install kuml\`."
+            fi
+          } >> $GITHUB_STEP_SUMMARY

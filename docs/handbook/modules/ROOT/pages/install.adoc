@@ -24,6 +24,35 @@ brew install kuml-dev/kuml/kuml
 kuml --version
 ----
 
+=== Chocolatey (Windows)
+
+https://chocolatey.org[Chocolatey] is the established package manager for Windows
+developers and DevOps — the Windows counterpart to Homebrew. The kUML package ships
+a self-contained Java 21 runtime (jlink), so **no separate JDK installation is required**.
+
+[source,powershell]
+----
+choco install kuml
+kuml --version
+----
+
+Upgrade or remove it the usual way:
+
+[source,powershell]
+----
+choco upgrade kuml
+choco uninstall kuml
+----
+
+[NOTE]
+====
+The Chocolatey package is built and pushed automatically by the release pipeline on
+every version tag. The first release of a new package enters Chocolatey community
+moderation (typically 1–3 days); until it is approved, `choco install kuml` may not yet
+resolve. Use xref:#_direct_download[a direct download] in the meantime. Subsequent version
+updates are approved automatically.
+====
+
 === SDKMAN! (coming soon)
 
 SDKMAN! is the JVM-ecosystem package manager (`kotlin`, `gradle`, `maven`, `springboot`, …).

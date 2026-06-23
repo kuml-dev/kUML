@@ -1,0 +1,30 @@
+VERIFICATION
+
+Verification is intended to assist the Chocolatey moderators and community in
+verifying that this package's contents are trustworthy.
+
+This package downloads the official kUML runtime archive published by the
+kUML project on GitHub Releases:
+
+  https://github.com/kuml-dev/kuml/releases
+
+The downloaded file is:
+
+  kuml-runtime-<version>-windows-x86_64.zip
+
+The SHA-256 checksum embedded in tools\chocolateyInstall.ps1 is computed at
+release time from the exact artifact attached to the GitHub Release of the
+matching tag (v<version>), by the publish-chocolatey job in:
+
+  https://github.com/kuml-dev/kuml/blob/master/.github/workflows/release.yml
+
+To verify manually:
+
+  1. Download the zip from the GitHub Release for the version you installed.
+  2. Compute its SHA-256:
+        PowerShell:  Get-FileHash kuml-runtime-<version>-windows-x86_64.zip -Algorithm SHA256
+  3. Compare it to the `checksum64` value in tools\chocolateyInstall.ps1.
+
+The software is published by Irakli Betchvaia / kuml-dev under the Apache
+License 2.0. The bundled Java runtime is an OpenJDK build produced via jlink
+and is covered by the GPLv2+CE license of its upstream JDK distribution.
