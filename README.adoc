@@ -99,13 +99,13 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 | `sdk install kuml` — *not available yet*; SDKMAN! vendor onboarding (API keys) is still pending. Planned platforms: Linux x86_64, Linux ARM64, macOS, Windows x86_64. Use Homebrew or the native installers in the meantime.
 
 | *Docker*
-| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.16.0` — minimal CLI image.
+| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.17.0` — minimal CLI image.
 
 | *Native installers*
-| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.16.0). Download from the GitHub Releases page.
+| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.17.0). Download from the GitHub Releases page.
 
 | *Maven Central* (library modules)
-| `implementation("dev.kuml:kuml-core-dsl:0.16.0")` — library modules published to Maven Central.
+| `implementation("dev.kuml:kuml-core-dsl:0.17.0")` — library modules published to Maven Central.
 |===
 
 == Features
@@ -150,6 +150,12 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 | *AI Assistant*
 | `kuml-ai` module embeds a Koog-based multi-LLM agent (OpenAI, Anthropic, Google, DeepSeek, OpenRouter, Ollama) with an AI panel in the Desktop app and patch-preview workflow. (V3.0.22–23)
 
+| *AI Assistant SPI*
+| `KumlLlmProviderSpi` — plug in custom LLM providers without touching the core. `KumlToolSetFactory` — register custom agent tool sets via ServiceLoader. `kuml ai bench` runs the accuracy benchmark against any registered provider. `kuml ai pricing` displays per-token cost tables for all configured providers. Multi-agent orchestration (planner / implementer / reviewer / security-auditor pipeline). Compliance audit log (GDPR / HIPAA / SOC-2 annotation on every LLM call). Master-password vault for API keys (AES-256-GCM, unlocked once per session). (V3.1.x)
+
+| *Plugin Ecosystem*
+| `kuml plugin init` scaffolding command — generates a starter project for all five plugin categories (Theme / Renderer / Layout / Codegen / Reverse) with build config, SPI registration, and example code. `kuml plugin update` / `kuml plugin upgrade` — update a plugin to its latest published version or upgrade the plugin API contract. Plugin Registry with ratings, reviews, and screenshots — discoverable via `kuml plugin search` and the Desktop Plugin Manager UI. (V3.1.x)
+
 | *BPMN 2.0 first-class*
 | Process, Collaboration, Events (Event-Matrix: 13 definitions × 3 positions × 2 behaviours), Gateways (5 types), Tasks (7 types), Sub-Processes, Call Activities, Pools, Lanes, Message Flows. DSL (@BpmnDsl), SVG renderer with all OMG symbols, BPMN 2.0 XML import/export (XXE-safe), LaTeX/TikZ renderer. Constraint checker with 7 rules.
 
@@ -158,6 +164,9 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 
 | *C4 + BPMN LaTeX/TikZ Renderer*
 | `kuml-io-latex` now covers all four modelling languages: UML, SysML 2, C4 (all 5 diagram types, 6 element types, 10 TikZ styles), and BPMN (all flow-node types, 15 TikZ styles). Self-contained `--latex-standalone` output included.
+
+| *Diagram Fixes (v0.17.0)*
+| State Machine: composite states render correctly with nested sub-states and entry/exit pseudo-state connectors. Deployment Diagram: nested nodes (artefact-in-node-in-node) are now laid out with proper containment borders. IBD (SysML 2 Internal Block Diagram): boundary ports on the outer block frame are positioned on the correct edge and no longer overlap internal connectors.
 |===
 
 == UML 2.x Support
@@ -403,6 +412,21 @@ Structurizr DSL round-trip is supported via `kuml import --format structurizr` a
 | `kuml update check` / `kuml update notes`
 | Poll GitHub Releases for the latest version (`check`) or display release notes for a specific version (`notes`). Added in V2.0.1.
 
+| `kuml plugin init [--category theme\|renderer\|layout\|codegen\|reverse]`
+| Scaffold a new plugin project for the given category. Generates `build.gradle.kts`, the SPI registration file, and example source. (V3.1.x)
+
+| `kuml plugin update <id>` / `kuml plugin upgrade <id>`
+| Update a locally installed plugin to its latest published version (`update`) or upgrade to a newer plugin API major version (`upgrade`). (V3.1.x)
+
+| `kuml plugin search [query]`
+| Search the Plugin Registry for published plugins; shows ratings, review count, and screenshot previews in the terminal. (V3.1.x)
+
+| `kuml ai bench [--provider <id>] [--tasks <n>]`
+| Run the LLM accuracy benchmark against a registered provider (or all providers if `--provider` is omitted). Reports per-task pass/fail and an aggregate score. (V3.1.x)
+
+| `kuml ai pricing [--provider <id>]`
+| Display per-token input/output cost tables for all configured LLM providers (or a specific one). Reads live pricing from the provider SPI. (V3.1.x)
+
 | `kuml version`
 | Print the installed kUML version and build metadata.
 |===
@@ -481,8 +505,14 @@ AUTOSAR ARXML import/export (`kuml-io-arxml`) ✅ +
 Chain-backed models — `kuml-runtime-chain-api` + EVM adapter + Move adapter ✅ +
 AI Assistant — Koog multi-LLM agent, AI panel, patch-preview ✅ +
 *BPMN 2.0* — Process/Collaboration metamodel, DSL, SVG renderer, XML I/O, LaTeX renderer ✅ +
-C4 LaTeX/TikZ renderer ✅
-| ✅ Done (v0.12.0–v0.16.0)
+C4 LaTeX/TikZ renderer ✅ +
+*v0.17.0*: AI Assistant SPI (`KumlLlmProviderSpi`, `KumlToolSetFactory`) ✅ +
+`kuml ai bench` / `kuml ai pricing` ✅ +
+Multi-agent orchestration + compliance audit log + master-password vault ✅ +
+`kuml plugin init` scaffolding + `update`/`upgrade` commands + Plugin Registry (ratings/reviews/screenshots) ✅ +
+Windows Chocolatey package (`choco install kuml`) ✅ +
+Diagram fixes: State Machine composite states, Deployment nested nodes, IBD boundary ports ✅
+| ✅ Done (v0.12.0–v0.17.0)
 |===
 
 == Modules
@@ -569,7 +599,18 @@ kuml-desktop/          ✅  Compose Desktop app (V3.0.10–14)
 kuml-ai/
   kuml-ai-core         ✅  Koog-based AI agent: Multi-LLM executor (OpenAI, Anthropic,
                            Google, DeepSeek, OpenRouter, Ollama), API key vault (V3.0.22)
+                           Master-password vault (AES-256-GCM), compliance audit log,
+                           multi-agent orchestration pipeline (V3.1.x)
   kuml-ai-tools        ✅  @Tool DSL builder suite + MCP bridge + AgentEditingContext (V3.0.23)
+  kuml-ai-spi          ✅  KumlLlmProviderSpi (custom LLM providers via ServiceLoader) +
+                           KumlToolSetFactory (custom agent tool sets) +
+                           `kuml ai bench` accuracy benchmark + `kuml ai pricing` cost tables (V3.1.x)
+
+kuml-plugin/
+  kuml-plugin-api      ✅  Plugin marketplace SPI: KumlPlugin, KumlPluginDescriptor,
+                           ServiceLoader-based discovery (V3.1.x)
+  kuml-plugin-registry ✅  Plugin Registry client: search, ratings, reviews, screenshots,
+                           `kuml plugin search` CLI + Desktop Plugin Manager UI (V3.1.x)
 
 kuml-cli/              ✅  Command-line interface (all commands above)
 

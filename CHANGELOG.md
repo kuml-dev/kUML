@@ -6,6 +6,119 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-06-23
+
+### Added
+
+**Plugin Ecosystem — V3.1.9–V3.1.14**
+
+- **AST-based TypeScript reverse engineering** (`V3.1.9`): replaced the regex-based
+  TypeScript parser in `kuml-plugin-api` with a full AST parser. Correctly handles
+  nested generics, union/intersection types, decorators, and type aliases that tripped
+  up the old approach.
+- **`kuml plugin init` scaffolding command** (`V3.1.10`): new CLI sub-command that
+  generates a ready-to-publish plugin project from one of five category templates
+  (Theme / Renderer / Layout / Codegen / Reverse). Produces `build.gradle.kts`,
+  `plugin.json`, stub source file, and README from the `kuml-dev/plugin-template` repo.
+- **Update-check and upgrade commands + Desktop badge** (`V3.1.11`): `kuml plugin update`
+  polls the registry for newer versions of installed plugins; `kuml plugin upgrade <id>`
+  downloads and hot-swaps the new JAR. The Desktop Plugin Manager shows an orange badge
+  on the toolbar when updates are available.
+- **Ratings, reviews, and download statistics** (`V3.1.12`): the registry schema now
+  carries per-plugin aggregate ratings (0–5 stars), review snippets, and a download
+  counter. The Desktop Plugin Manager and `kuml plugin search` output display this data.
+- **Screenshot gallery in plugin marketplace** (`V3.1.13`): plugins can declare up to
+  five screenshot URLs in `plugin.json`; the Desktop Plugin Manager renders them in a
+  scrollable carousel in the detail pane.
+- **Signature-key rotation with multi-key registry** (`V3.1.14`): the plugin signing
+  infrastructure now supports a registry of active public keys identified by `kid`.
+  Old signatures remain verifiable during a configurable rotation window; the CLI
+  and Desktop warn if a plugin was signed with a key outside the active window.
+
+**AI Assistant — V3.1.15–V3.1.20**
+
+- **`KumlLlmProviderSpi` with ServiceLoader discovery and runtime tree-shaking** (`V3.1.15`):
+  custom LLM provider backends are now registered via `ServiceLoader`. Providers not
+  referenced in `kuml.config.kts` are excluded from the GraalVM Native Image, keeping
+  binary size minimal.
+- **`KumlToolSetFactory` SPI with ServiceLoader discovery** (`V3.1.16`): external modules
+  can contribute named `@Tool` sets to the AI agent without modifying `kuml-ai-core`.
+  The CLI and MCP bridge discover and load tool sets at startup via `ServiceLoader`.
+- **`kuml ai bench` sub-command and live provider pricing** (`V3.1.17`): runs the
+  existing 10-task LLM benchmark against any registered provider, streams per-task
+  pass/fail and token counts to stdout, and displays live cost estimates using
+  provider-reported pricing. `--budget <USD>` aborts the run if the estimate exceeds
+  the cap.
+- **Multi-agent orchestration with UML/C4/SysML 2 specialist routing** (`V3.1.18`):
+  the AI agent now spins up specialist sub-agents for each modelling language (UML,
+  C4, SysML 2, BPMN) and routes diagram generation requests to the appropriate
+  specialist. An orchestrator agent merges partial results and resolves cross-language
+  references.
+- **Compliance audit log** (`V3.1.19`): every AI-generated model edit is appended to
+  a structured JSONL audit log (`~/.kuml/audit.jsonl`) containing timestamp, provider,
+  model ID, prompt hash, patch diff, and the agent's reasoning summary. The log is
+  append-only; `kuml ai audit tail` streams recent entries.
+- **Master-password vault, CodeGenAiTools, and Koog 1.40.0 upgrade** (`V3.1.20`):
+  the API-key store is now encrypted with AES-256-GCM behind a user-supplied master
+  password (PBKDF2/SHA-256, 310 000 iterations). New `CodeGenAiTools` `@Tool` set
+  lets the AI agent invoke `kuml generate` and `kuml reverse` inline during a session.
+  Koog dependency bumped from 0.7.3 to 1.40.0 (streaming improvements, tool-call
+  parallelism, native-image compatibility).
+
+**Distribution**
+
+- **Chocolatey packaging for Windows** (`choco install kuml`): self-contained NuGet
+  package bundles a Java 21 runtime; no JDK required on the target machine. Published
+  automatically by the release CI workflow. First-time submissions enter Chocolatey
+  community moderation (typically 1–3 days).
+
+### Fixed
+
+**State Machine Renderer**
+
+- **Composite states render substates inside parent box**: sub-states were previously
+  laid out outside or overlapping the composite-state boundary; `layoutAsCompound` now
+  correctly nests the inner ELK graph inside the parent node with proper padding.
+- **Composite-state overflow eliminated via compound-frame propagation**: title-band
+  height and compound-frame dimensions are now propagated through the layout pipeline
+  so deeply nested state machines no longer overflow their enclosing box.
+- **Node/edge spacing increased for legibility**: default ELK node-node and edge-edge
+  spacing in state machine diagrams raised to prevent transition labels from colliding
+  on graphs with dense outgoing edges.
+
+**Deployment Diagram**
+
+- **Nested `UmlNode` children and artifacts rendered**: nested nodes (e.g., an
+  `ExecutionEnvironment` inside a `Device`) and deployed `UmlArtifact` elements were
+  silently dropped by the renderer; they are now drawn recursively with correct
+  indentation and dashed-border styling.
+
+**Internal Block Diagram (IBD)**
+
+- **Boundary-port squares on IBD Part-Usage boxes**: flow ports on the boundary of
+  Part-Usage boxes in SysML 2 IBDs were rendered without their characteristic solid
+  square indicator; the square is now drawn at the correct anchor point.
+
+**BPMN Renderer**
+
+- **Event symbols clipped by circle boundary**: event-type symbols (message envelope,
+  timer clock, error lightning bolt, etc.) were rendered with coordinates relative to
+  the SVG origin rather than the event circle centre, causing them to appear outside
+  or half-clipped. Symbol coordinates are now offset by the circle's `cx`/`cy`.
+
+**Composite-Structure Diagram**
+
+- **`provides`/`requires` interface edges synthesized** (supersedes v0.16.1 hotfix):
+  `CompositeStructureDiagramBuilder` now calls `synthesizeInterfaceRelationships()` at
+  build time, matching the behaviour already present in `ComponentDiagramBuilder`.
+  `UmlInterfaceRealization` and `UmlDependency(name = "use")` are emitted for each
+  `provides`/`requires` declaration whose interface appears as a node in the diagram.
+- **Orthogonal routing for internal connectors** (supersedes v0.16.2 hotfix):
+  `UmlComponentSvg.drawInternalConnectors()` now emits `<polyline>` elements with
+  gap-routing (vertical bridge through the inter-component gap) for opposite-side
+  port pairs and U-form routing for same-side port pairs, replacing the diagonal
+  `<line>` that cut through component boxes.
+
 ## [0.16.2] — 2026-06-23
 
 ### Fixed
