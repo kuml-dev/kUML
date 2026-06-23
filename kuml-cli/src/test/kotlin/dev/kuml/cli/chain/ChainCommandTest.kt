@@ -210,7 +210,7 @@ class ChainCommandTest :
                 ChainCommand(testAdapterFactory()).test(
                     "verify --rpc http://unused:9999 --contract $TEST_CONTRACT /no/such/file.kuml.kts",
                 )
-            result.statusCode shouldBe 3
+            result.statusCode shouldBe 4
             result.stderr shouldContain "I/O error reading"
         }
 

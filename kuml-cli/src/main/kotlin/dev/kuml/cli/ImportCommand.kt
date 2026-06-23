@@ -25,7 +25,7 @@ import java.io.IOException
  * Exit codes:
  * - 0: success
  * - 1: unknown format (via Clikt choice validation)
- * - 3: I/O error reading or writing files (see [ExitCodes.IO_ERROR])
+ * - 4: I/O error reading or writing files (see [ExitCodes.IO_ERROR])
  * - 24: format requires Fat-JAR distribution (see [ExitCodes.FORMAT_NOT_AVAILABLE])
  */
 internal class ImportCommand : CliktCommand(name = "import") {

@@ -31,8 +31,8 @@ import kotlin.script.experimental.api.ScriptDiagnostic
  *
  * Exit codes:
  *   0  success
- *   2  script error or incompatible model ([ExitCodes.SCRIPT_ERROR])
- *   3  I/O error reading or writing files ([ExitCodes.IO_ERROR])
+ *   3  script error or incompatible model ([ExitCodes.SCRIPT_ERROR])
+ *   4  I/O error reading or writing files ([ExitCodes.IO_ERROR])
  *   24 format requires Fat-JAR distribution ([ExitCodes.FORMAT_NOT_AVAILABLE])
  */
 internal class ExportCommand : CliktCommand(name = "export") {

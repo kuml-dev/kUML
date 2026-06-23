@@ -33,8 +33,8 @@ import kotlin.script.experimental.api.ScriptDiagnostic
  *
  * Exit codes:
  * - 0: all guards parsed successfully (or no guards found)
- * - 4: one or more guards could not be parsed (or `--strict` + any warning)
- * - 2: script evaluation error
+ * - 5: one or more guards could not be parsed (or `--strict` + any warning)
+ * - 3: script evaluation error
  */
 internal class ValidateExpressionsCommand : CliktCommand(name = "validate-expressions") {
     private val script by argument(help = "Path to *.kuml.kts script")

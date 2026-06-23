@@ -55,7 +55,7 @@ class TraceReplayCommandTest :
             }
         }
 
-        test("exit TRACE_REPLAY_MISMATCH (7) when trace diverges from model") {
+        test("exit TRACE_REPLAY_MISMATCH (8) when trace diverges from model") {
             // Create a trace with extra/wrong entries
             val divergentTrace = Files.createTempFile("kuml-divergent-", ".json").toFile()
             try {
@@ -130,7 +130,7 @@ class TraceReplayCommandTest :
             }
         }
 
-        test("exit TRACE_REPLAY_MISMATCH (7) when activity trace has fewer entries than replay produces") {
+        test("exit TRACE_REPLAY_MISMATCH (8) when activity trace has fewer entries than replay produces") {
             // A trace with only one TokenPlaced entry and no modelId — the real replay would produce many more
             val fakeActTrace =
                 TraceFile(
@@ -153,7 +153,7 @@ class TraceReplayCommandTest :
             }
         }
 
-        test("exit TRACE_UNSUPPORTED_FLAVOUR (8) for empty trace") {
+        test("exit TRACE_UNSUPPORTED_FLAVOUR (9) for empty trace") {
             val emptyTrace = Files.createTempFile("kuml-empty-", ".json").toFile()
             try {
                 val emptyTraceFile = TraceFile(modelId = null, entries = emptyList())
@@ -169,7 +169,7 @@ class TraceReplayCommandTest :
             }
         }
 
-        test("exit TRACE_UNSUPPORTED_FLAVOUR (8) for MIXED trace") {
+        test("exit TRACE_UNSUPPORTED_FLAVOUR (9) for MIXED trace") {
             val mixedTrace = Files.createTempFile("kuml-mixed-", ".json").toFile()
             try {
                 val mixedTraceFile =

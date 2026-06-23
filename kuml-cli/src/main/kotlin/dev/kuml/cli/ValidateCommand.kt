@@ -41,8 +41,8 @@ import kotlin.script.experimental.api.ScriptDiagnostic
  *
  * Exit codes:
  * - 0: no violations
- * - 2: script error
- * - 4: violations found (see [ExitCodes.VALIDATION_VIOLATIONS])
+ * - 3: script error
+ * - 5: violations found (see [ExitCodes.VALIDATION_VIOLATIONS])
  */
 internal class ValidateCommand : CliktCommand(name = "validate") {
     private val input by argument(help = "Path to *.kuml.kts script")

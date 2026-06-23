@@ -1,6 +1,7 @@
 package dev.kuml.cli
 
 import com.github.ajalt.clikt.testing.test
+import dev.kuml.cli.ExitCodes
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -31,7 +32,7 @@ class ValidateExpressionsCommandTest :
             val fixture =
                 File("src/test/resources/validate-expressions/broken-guard.kuml.kts")
             val result = KumlCli().test("validate-expressions ${fixture.absolutePath}")
-            result.statusCode shouldBe 4
+            result.statusCode shouldBe ExitCodes.VALIDATION_VIOLATIONS
             result.output shouldContain "FAIL"
         }
 

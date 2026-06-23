@@ -1,6 +1,7 @@
 package dev.kuml.cli
 
 import com.github.ajalt.clikt.testing.test
+import dev.kuml.cli.ExitCodes
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import java.nio.file.Files
@@ -18,13 +19,13 @@ class FmtCommandTest :
             tmpFile.delete()
         }
 
-        test("FmtCommand --check exits with code 5 when file needs formatting") {
+        test("FmtCommand --check exits with code 6 when file needs formatting") {
             val tmpFile = Files.createTempFile("kuml-fmt-check", ".kuml.kts").toFile()
             val originalContent = "classOf(\"A\")   \n"
             tmpFile.writeText(originalContent)
 
             val result = KumlCli().test("fmt --check ${tmpFile.absolutePath}")
-            result.statusCode shouldBe 5
+            result.statusCode shouldBe ExitCodes.FMT_CHECK_FAILED
 
             // File must NOT be modified in check mode
             tmpFile.readText() shouldBe originalContent

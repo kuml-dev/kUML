@@ -36,6 +36,7 @@ import java.util.zip.ZipFile
  * - `info`        — show plugin details
  * - `permissions` — show plugin permissions
  * - `reload`      — reload all plugins from disk
+ * - `init`        — scaffold a new plugin project
  */
 internal class PluginCommand : CliktCommand(name = "plugin") {
     init {
@@ -47,6 +48,7 @@ internal class PluginCommand : CliktCommand(name = "plugin") {
             PluginInfoCommand(),
             PluginPermissionsCommand(),
             PluginReloadCommand(),
+            PluginInitCommand(),
         )
     }
 

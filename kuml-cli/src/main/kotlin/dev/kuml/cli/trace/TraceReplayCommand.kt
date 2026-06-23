@@ -40,10 +40,10 @@ import kotlin.script.experimental.api.ScriptDiagnostic
  *
  * Exit codes:
  * - 0  — trace matches the replay exactly
- * - 7  — mismatch (TRACE_REPLAY_MISMATCH)
- * - 8  — EMPTY or MIXED trace (TRACE_UNSUPPORTED_FLAVOUR)
- * - 2  — script compilation error (SCRIPT_ERROR)
- * - 3  — I/O error (IO_ERROR)
+ * - 8  — mismatch (TRACE_REPLAY_MISMATCH)
+ * - 9  — EMPTY or MIXED trace (TRACE_UNSUPPORTED_FLAVOUR)
+ * - 3  — script compilation error (SCRIPT_ERROR)
+ * - 4  — I/O error (IO_ERROR)
  */
 internal class TraceReplayCommand : CliktCommand(name = "replay") {
     private val traceFile by argument(help = "Path to the recorded trace JSON file")

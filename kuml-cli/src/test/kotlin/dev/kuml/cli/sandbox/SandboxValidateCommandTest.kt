@@ -27,7 +27,7 @@ class SandboxValidateCommandTest :
             result.output shouldContain "violation"
         }
 
-        test("exit 2 for script with compilation errors") {
+        test("exit 3 for script with compilation errors") {
             val result = KumlCli().test("sandbox validate ${invalidScript.absolutePath}")
             result.statusCode shouldBe ExitCodes.SCRIPT_ERROR
         }

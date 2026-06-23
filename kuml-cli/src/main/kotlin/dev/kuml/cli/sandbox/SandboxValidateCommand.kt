@@ -29,7 +29,7 @@ import kotlin.script.experimental.api.ScriptDiagnostic
  *
  * Exit codes:
  * - 0: no violations
- * - 2: script/extraction error
+ * - 3: script/extraction error
  * - 12: one or more policy violations found
  *
  * V2.0.40 — Sandbox-Garantien.

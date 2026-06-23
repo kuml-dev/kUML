@@ -72,12 +72,12 @@ class ChainCommandSignTest :
             }
         }
 
-        "sign: nonexistent model file → IO_ERROR (exit 3)" {
+        "sign: nonexistent model file → IO_ERROR (exit 4)" {
             val result =
                 ChainCommand().test(
                     "sign /no/such/file.kuml.kts --private-key $PRIV_KEY_0",
                 )
-            result.statusCode shouldBe 3
+            result.statusCode shouldBe 4
             result.stderr shouldContain "I/O error reading"
         }
 
@@ -148,14 +148,14 @@ class ChainCommandSignTest :
             }
         }
 
-        "verify-sig: missing .sig file → IO_ERROR (exit 3)" {
+        "verify-sig: missing .sig file → IO_ERROR (exit 4)" {
             val modelFile = Files.createTempFile("kuml-verify-nosig", ".kuml.kts").toFile()
             try {
                 modelFile.writeText(MODEL_CONTENT)
                 // Do NOT create the .sig file
                 val result =
                     ChainCommand().test("verify-sig ${modelFile.absolutePath}")
-                result.statusCode shouldBe 3
+                result.statusCode shouldBe 4
                 result.stderr shouldContain "I/O error reading"
             } finally {
                 modelFile.delete()

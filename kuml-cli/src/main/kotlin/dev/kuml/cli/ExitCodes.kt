@@ -2,20 +2,23 @@ package dev.kuml.cli
 
 /** Symbolic exit codes for the kUML CLI. */
 internal object ExitCodes {
+    /** Missing or invalid CLI arguments (mirrors the POSIX / Clikt convention). */
+    internal const val USAGE: Int = 2
+
     /** Script compilation or model evaluation failed. */
-    internal const val SCRIPT_ERROR: Int = 2
+    internal const val SCRIPT_ERROR: Int = 3
 
     /** An I/O error occurred while reading the input or writing the output. */
-    internal const val IO_ERROR: Int = 3
+    internal const val IO_ERROR: Int = 4
 
     /** One or more OCL constraint violations were found. */
-    internal const val VALIDATION_VIOLATIONS: Int = 4
+    internal const val VALIDATION_VIOLATIONS: Int = 5
 
     /** `--check` mode found files that need formatting. */
-    internal const val FMT_CHECK_FAILED: Int = 5
+    internal const val FMT_CHECK_FAILED: Int = 6
 
     /** `kuml simulate --expected` produced a trace that differs from the goldfile. */
-    internal const val TRACE_DIFF: Int = 6
+    internal const val TRACE_DIFF: Int = 7
 
     // ── `kuml update` (V2.0.1) ────────────────────────────────────────────────
     //
@@ -42,10 +45,10 @@ internal object ExitCodes {
     // ── `kuml trace` (V2.0.39) ──────────────────────────────────────────────────
 
     /** `kuml trace replay` produced a replayed trace that differs from the original. */
-    internal const val TRACE_REPLAY_MISMATCH: Int = 7
+    internal const val TRACE_REPLAY_MISMATCH: Int = 8
 
     /** `kuml trace replay` was given an Activity-flavoured trace (not supported). */
-    internal const val TRACE_UNSUPPORTED_FLAVOUR: Int = 8
+    internal const val TRACE_UNSUPPORTED_FLAVOUR: Int = 9
 
     // ── `kuml run` (Welle D) ─────────────────────────────────────────────────
 

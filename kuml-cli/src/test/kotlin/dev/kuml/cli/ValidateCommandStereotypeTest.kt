@@ -1,6 +1,7 @@
 package dev.kuml.cli
 
 import com.github.ajalt.clikt.testing.test
+import dev.kuml.cli.ExitCodes
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -26,13 +27,13 @@ class ValidateCommandStereotypeTest :
             result.output shouldContain "valid"
         }
 
-        // ── Test 2: Missing required tag → exit 4, violation names in output ────
+        // ── Test 2: Missing required tag → exit 5, violation names in output ────
 
-        test("validate with --check-stereotypes reports missing required tag with exit 4") {
+        test("validate with --check-stereotypes reports missing required tag with exit 5") {
             val fixture = File("src/test/resources/stereotype-missing-required.kuml.kts")
 
             val result = KumlCli().test("validate ${fixture.absolutePath} --check-stereotypes")
-            result.statusCode shouldBe 4
+            result.statusCode shouldBe ExitCodes.VALIDATION_VIOLATIONS
             // Must mention the stereotype name and property name
             result.output shouldContain "Entity"
             result.output shouldContain "tableName"
