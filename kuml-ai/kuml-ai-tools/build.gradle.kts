@@ -50,6 +50,11 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlin.reflect)
 
+    // ── Code Generation — CodeGenAiTools (V3.1.20) ───────────────────────
+    implementation(project(":kuml-codegen:kuml-codegen-api"))
+    runtimeOnly(project(":kuml-codegen:kuml-gen-kotlin"))
+    runtimeOnly(project(":kuml-codegen:kuml-gen-sql"))
+
     // ── SQLite (PersistentPatchStore — V3.1.19) ───────────────────────────
     implementation(libs.sqlite.jdbc)
 

@@ -1,7 +1,9 @@
 [versions]
 kotlin                 = "2.4.0"
 shadow                 = "9.4.2"
-koog                   = "0.7.3"
+koog                   = "1.0.0"
+koog-mcp               = "1.0.0-beta-preview7"
+koog-google            = "1.0.0-beta-preview7"
 jna                    = "5.14.0"
 batik                  = "1.19"
 compose-multiplatform  = "1.9.0"
@@ -62,10 +64,10 @@ kotlinx-coroutines-test         = { module = "org.jetbrains.kotlinx:kotlinx-coro
 # ── Koog (AI Agent Framework) ────────────────────────────────────────────────
 # Note: provider clients are under group "ai.koog", not "ai.koog.prompt" (plan had wrong group)
 koog-agents-jvm                         = { module = "ai.koog:koog-agents-jvm",                          version.ref = "koog" }
-koog-agents-mcp                         = { module = "ai.koog:agents-mcp-jvm",                            version.ref = "koog" }
+koog-agents-mcp                         = { module = "ai.koog:agents-mcp-jvm",                            version.ref = "koog-mcp" }
 koog-prompt-executor-openai-client      = { module = "ai.koog:prompt-executor-openai-client",            version.ref = "koog" }
 koog-prompt-executor-anthropic-client   = { module = "ai.koog:prompt-executor-anthropic-client",         version.ref = "koog" }
-koog-prompt-executor-google-client      = { module = "ai.koog:prompt-executor-google-client",            version.ref = "koog" }
+koog-prompt-executor-google-client      = { module = "ai.koog:prompt-executor-google-client",            version.ref = "koog-google" }
 koog-prompt-executor-ollama-client      = { module = "ai.koog:prompt-executor-ollama-client",            version.ref = "koog" }
 
 # ── JNA (Platform Keystore Backends) ────────────────────────────────────────

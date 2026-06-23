@@ -1,9 +1,10 @@
 package dev.kuml.desktop.ai
 
-import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.Prompt
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.MessagePart
 import dev.kuml.ai.KumlAiExecutor
 import dev.kuml.ai.provider.ProviderRegistry
 import dev.kuml.ai.tools.context.AgentEditingContext
@@ -80,6 +81,9 @@ enum class AgentDomain(val id: String, val allowedToolNames: Set<String>) {
  * allow-list — it does NOT fan out to multiple specialists in parallel. Sequential
  * multi-domain fan-out is deferred to a future wave.
  *
+ * V3.1.20: Updated for Koog 1.0.0 — execute() returns Message.Assistant directly.
+ * Tool calls moved to MessagePart.Tool.Call inside Message.Assistant.parts.
+ *
  * @param executorFn Injectable execution function for testing — bypasses [executor] when set.
  *   Invocations are counted per-step (routing / specialist / synthesis), so the stub
  *   must return different responses per call.
@@ -90,7 +94,7 @@ class KumlAgentOrchestrator(
     private val modelId: String,
     private val editingContext: AgentEditingContext? = null,
     private val patchEngine: PatchApplyEngine? = null,
-    internal val executorFn: (suspend (Prompt, LLModel) -> List<Message.Response>)? = null,
+    internal val executorFn: (suspend (Prompt, LLModel) -> Message.Assistant)? = null,
 ) {
     // PatchDecoder is internal — kept as a field so tests can reach it via the orchestrator,
     // but not exposed in the public constructor signature.
@@ -110,9 +114,9 @@ class KumlAgentOrchestrator(
 
             // ── Step 1: Routing ────────────────────────────────────────────────
             val routingPrompt = buildRoutingPrompt(history)
-            val routingResponses = executeStep(routingPrompt, model)
+            val routingResponse = executeStep(routingPrompt, model)
 
-            val (domain, routingReason) = extractDomain(routingResponses)
+            val (domain, routingReason) = extractDomain(routingResponse)
             emit(AgentEvent.OrchestratorRouted(domain.id, routingReason))
 
             // ── Step 2: Specialist ─────────────────────────────────────────────
@@ -138,11 +142,10 @@ class KumlAgentOrchestrator(
                 specialistText = specialistResult.assistantText,
                 patchKinds = specialistResult.bufferedPatchKinds,
             )
-            val synthesisResponses = executeStep(synthesisPrompt, model)
+            val synthesisResponse = executeStep(synthesisPrompt, model)
 
-            val synthText = synthesisResponses
-                .filterIsInstance<Message.Assistant>()
-                .joinToString("") { it.content }
+            // Koog 1.0.0: textContent() aggregates all text parts.
+            val synthText = synthesisResponse.textContent()
             if (synthText.isNotBlank()) {
                 emit(AgentEvent.AssistantDelta(synthText, providerId, modelId))
             }
@@ -157,7 +160,7 @@ class KumlAgentOrchestrator(
 
     // ── Private helpers ────────────────────────────────────────────────────────
 
-    private suspend fun executeStep(koogPrompt: Prompt, model: LLModel): List<Message.Response> =
+    private suspend fun executeStep(koogPrompt: Prompt, model: LLModel): Message.Assistant =
         if (executorFn != null) {
             executorFn.invoke(koogPrompt, model)
         } else {
@@ -188,30 +191,29 @@ class KumlAgentOrchestrator(
         }
 
     /**
-     * Extracts the routing decision from the LLM responses.
+     * Extracts the routing decision from the LLM response.
      *
      * Priority:
-     * 1. First `route_to_specialist` tool call — read `domain` and `reason` from args.
+     * 1. First `route_to_specialist` tool call in response.parts — read `domain` and `reason` from args.
      * 2. If no tool call, scan assistant text for a domain keyword.
      * 3. Final fallback: MIXED.
+     *
+     * Koog 1.0.0: tool calls are MessagePart.Tool.Call inside Message.Assistant.parts.
      */
-    private fun extractDomain(responses: List<Message.Response>): Pair<AgentDomain, String> {
-        // Try tool call first
-        val routeCall = responses
-            .filterIsInstance<Message.Tool.Call>()
+    private fun extractDomain(response: Message.Assistant): Pair<AgentDomain, String> {
+        // Try tool call first — Koog 1.0.0: tool calls are in response.parts
+        val routeCall = response.parts
+            .filterIsInstance<MessagePart.Tool.Call>()
             .firstOrNull { it.tool == "route_to_specialist" }
         if (routeCall != null) {
-            val args = routeCall.contentJson
+            val args = routeCall.argsJson
             val domainStr = runCatching { args["domain"]?.toString()?.trim('"') }.getOrNull() ?: ""
             val reason = runCatching { args["reason"]?.toString()?.trim('"') }.getOrNull() ?: ""
             return AgentDomain.fromId(domainStr) to reason
         }
 
         // Fallback: scan assistant text for a domain keyword
-        val text = responses
-            .filterIsInstance<Message.Assistant>()
-            .joinToString(" ") { it.content }
-            .lowercase()
+        val text = response.textContent().lowercase()
         val domainFromText = when {
             "sysml" in text || "sysml2" in text -> AgentDomain.SYSML2
             " c4 " in text || "c4model" in text -> AgentDomain.C4

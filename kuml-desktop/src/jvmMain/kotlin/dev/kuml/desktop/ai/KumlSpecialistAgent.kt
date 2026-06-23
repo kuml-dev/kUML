@@ -1,9 +1,10 @@
 package dev.kuml.desktop.ai
 
-import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.Prompt
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.MessagePart
 import dev.kuml.ai.KumlAiExecutor
 import dev.kuml.ai.tools.context.AgentEditingContext
 import dev.kuml.ai.tools.patch.PatchApplyEngine
@@ -22,6 +23,10 @@ import java.util.UUID
  * patches are silently dropped (no PatchBuffered). This prevents, for example, a
  * UML `add_class` call from being applied when the orchestrator routed to `c4`.
  *
+ * V3.1.20: Updated for Koog 1.0.0 — execute() returns Message.Assistant directly.
+ * Tool calls are now MessagePart.Tool.Call inside Message.Assistant.parts;
+ * argsJson replaces contentJson; textContent() replaces .content extension.
+ *
  * @param executorFn Injectable execution function for testing — bypasses [executor] when set.
  */
 internal class KumlSpecialistAgent(
@@ -33,7 +38,7 @@ internal class KumlSpecialistAgent(
     private val editingContext: AgentEditingContext?,
     private val patchEngine: PatchApplyEngine?,
     private val decoder: PatchDecoder,
-    private val executorFn: (suspend (Prompt, LLModel) -> List<Message.Response>)? = null,
+    private val executorFn: (suspend (Prompt, LLModel) -> Message.Assistant)? = null,
 ) {
     /**
      * Runs a single specialist turn.
@@ -50,26 +55,26 @@ internal class KumlSpecialistAgent(
         val systemPrompt = domainSystemPrompt(domain, executor.currentSettings().systemPrompt)
         val koogPrompt = buildPrompt(history, systemPrompt)
 
-        val responses = if (executorFn != null) {
+        // Koog 1.0.0: execute() returns Message.Assistant directly.
+        val response = if (executorFn != null) {
             executorFn.invoke(koogPrompt, model)
         } else {
             executor.execute(koogPrompt, model)
         }
 
-        // Collect assistant text
-        val assistantText = responses
-            .filterIsInstance<Message.Assistant>()
-            .joinToString("") { it.content }
+        // textContent() aggregates all text MessageParts.
+        val assistantText = response.textContent()
 
-        // Process tool calls, filtered by domain allow-list
+        // Process tool calls, filtered by domain allow-list.
+        // Koog 1.0.0: tool calls are MessagePart.Tool.Call inside response.parts.
         val bufferedPatchKinds = mutableListOf<String>()
-        val toolCalls = responses.filterIsInstance<Message.Tool.Call>()
+        val toolCalls = response.parts.filterIsInstance<MessagePart.Tool.Call>()
         for (tc in toolCalls) {
             val callId = UUID.randomUUID().toString()
-            emit(AgentEvent.ToolCallStart(callId, tc.tool, tc.contentJson.toString()))
+            emit(AgentEvent.ToolCallStart(callId, tc.tool, tc.argsJson.toString()))
 
             if (patchEngine != null && tc.tool in domain.allowedToolNames) {
-                val patch = runCatching { decoder.decode(tc.tool, tc.contentJson.toString()) }.getOrNull()
+                val patch = runCatching { decoder.decode(tc.tool, tc.argsJson.toString()) }.getOrNull()
                 if (patch != null) {
                     val engine = patchEngine   // local val enables smart cast inside runCatching lambda
                     runCatching { engine.buffer(patch) }

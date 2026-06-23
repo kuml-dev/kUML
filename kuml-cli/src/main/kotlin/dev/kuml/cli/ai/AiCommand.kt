@@ -35,10 +35,18 @@ import kotlinx.serialization.json.Json
  *   kuml ai audit      — read the compliance audit log (V3.1.19)
  *
  * Execution commands (e.g. kuml ai ask, kuml ai edit) are planned for V3.2+.
+ * V3.1.20: adds `kuml ai vault` for master-password encryption management.
  */
 internal class AiCommand : CliktCommand(name = "ai") {
     init {
-        subcommands(AiProviderCommand(), AiToolsCommand(), AiBenchCommand(), AiPricingCommand(), AiAuditCommand())
+        subcommands(
+            AiProviderCommand(),
+            AiToolsCommand(),
+            AiBenchCommand(),
+            AiPricingCommand(),
+            AiAuditCommand(),
+            AiVaultCommand(),
+        )
     }
 
     override fun help(context: Context): String =
@@ -249,6 +257,12 @@ internal class AiToolsListCommand : CliktCommand(name = "list") {
                 ),
                 ToolSetEntry("inspection", "Model Inspection Tools", "built-in", emptyList()),
                 ToolSetEntry("mcp", "MCP Bridge", "built-in", emptyList()),
+                ToolSetEntry(
+                    "codegen",
+                    "Code Generation Tools",
+                    "built-in",
+                    listOf(ToolSetCapability.FILE_SYSTEM.name),
+                ),
             )
 
         val external =

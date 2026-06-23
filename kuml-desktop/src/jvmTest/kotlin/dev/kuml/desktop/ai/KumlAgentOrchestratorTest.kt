@@ -1,10 +1,10 @@
 package dev.kuml.desktop.ai
 
-import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.Prompt
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.AssistantMessageBuilder
 import ai.koog.prompt.message.Message
-import ai.koog.prompt.message.ResponseMetaInfo
+import ai.koog.prompt.message.MessagePart
 import dev.kuml.ai.KumlAiExecutor
 import dev.kuml.ai.settings.KumlAiSettings
 import dev.kuml.ai.tools.context.AgentEditingContext
@@ -26,32 +26,33 @@ private fun stubExecutor(): KumlAiExecutor {
     return KumlAiExecutor.fromSettings(KumlAiSettings(privacyMode = false), vault)
 }
 
+// Koog 1.0.0: AssistantMessageBuilder uses addText() (not .content())
 private fun assistantMsg(text: String): Message.Assistant =
-    AssistantMessageBuilder().content(text).build()
+    AssistantMessageBuilder().addText(text).build()
 
-private fun toolCall(tool: String, argsJson: String): Message.Tool.Call =
-    Message.Tool.Call(
-        id = "tc-${tool.hashCode().toUInt()}",
-        tool = tool,
-        content = argsJson,
-        metaInfo = ResponseMetaInfo.Companion.Empty,
-    )
+// Koog 1.0.0: tool calls are MessagePart.Tool.Call inside Message.Assistant.parts
+private fun assistantWithToolCall(tool: String, argsJson: String): Message.Assistant =
+    AssistantMessageBuilder()
+        .addToolCall(MessagePart.Tool.Call(id = "tc-${tool.hashCode().toUInt()}", tool = tool, args = argsJson))
+        .build()
 
 /**
  * Build a three-step stub executorFn: routing / specialist / synthesis responses.
  * Each call increments a step counter. Extra calls beyond step 3 repeat synthesis.
+ *
+ * Koog 1.0.0: executorFn returns Message.Assistant (not List<Message.Response>).
  */
 private fun threeStepExecutor(
-    routingResponses: List<Message.Response>,
-    specialistResponses: List<Message.Response>,
-    synthesisResponses: List<Message.Response>,
-): suspend (Prompt, LLModel) -> List<Message.Response> {
+    routingResponse: Message.Assistant,
+    specialistResponse: Message.Assistant,
+    synthesisResponse: Message.Assistant,
+): suspend (Prompt, LLModel) -> Message.Assistant {
     var step = 0
     return { _: Prompt, _: LLModel ->
         when (step++) {
-            0 -> routingResponses
-            1 -> specialistResponses
-            else -> synthesisResponses
+            0 -> routingResponse
+            1 -> specialistResponse
+            else -> synthesisResponse
         }
     }
 }
@@ -64,11 +65,12 @@ class KumlAgentOrchestratorTest : FunSpec({
         val history = listOf(ConversationMessage.User("u1", 1L, "Add a container to my C4 diagram"))
 
         val executorFn = threeStepExecutor(
-            routingResponses = listOf(
-                toolCall("route_to_specialist", """{"domain":"c4","reason":"C4 container request"}"""),
+            routingResponse = assistantWithToolCall(
+                "route_to_specialist",
+                """{"domain":"c4","reason":"C4 container request"}""",
             ),
-            specialistResponses = listOf(assistantMsg("Added container.")),
-            synthesisResponses = listOf(assistantMsg("Done! A container was added to your C4 diagram.")),
+            specialistResponse = assistantMsg("Added container."),
+            synthesisResponse = assistantMsg("Done! A container was added to your C4 diagram."),
         )
 
         val events = KumlAgentOrchestrator(
@@ -99,14 +101,15 @@ class KumlAgentOrchestratorTest : FunSpec({
         val history = listOf(ConversationMessage.User("u1", 1L, "Add class Order to the UML diagram"))
 
         val executorFn = threeStepExecutor(
-            routingResponses = listOf(
-                toolCall("route_to_specialist", """{"domain":"uml","reason":"UML class request"}"""),
+            routingResponse = assistantWithToolCall(
+                "route_to_specialist",
+                """{"domain":"uml","reason":"UML class request"}""",
             ),
-            specialistResponses = listOf(
-                toolCall("add_class", """{"name":"Order"}"""),
-                assistantMsg("I added class Order."),
-            ),
-            synthesisResponses = listOf(assistantMsg("Class Order has been added to your diagram.")),
+            specialistResponse = AssistantMessageBuilder()
+                .addToolCall(MessagePart.Tool.Call(id = "tc-add", tool = "add_class", args = """{"name":"Order"}"""))
+                .addText("I added class Order.")
+                .build(),
+            synthesisResponse = assistantMsg("Class Order has been added to your diagram."),
         )
 
         val events = KumlAgentOrchestrator(
@@ -132,12 +135,13 @@ class KumlAgentOrchestratorTest : FunSpec({
         val history = listOf(ConversationMessage.User("u1", 1L, "Add something"))
 
         val executorFn = threeStepExecutor(
-            routingResponses = listOf(
-                toolCall("route_to_specialist", """{"domain":"c4","reason":"architecture"}"""),
+            routingResponse = assistantWithToolCall(
+                "route_to_specialist",
+                """{"domain":"c4","reason":"architecture"}""",
             ),
             // specialist returns a UML tool call — should be filtered out
-            specialistResponses = listOf(toolCall("add_class", """{"name":"ShouldBeFiltered"}""")),
-            synthesisResponses = listOf(assistantMsg("Done.")),
+            specialistResponse = assistantWithToolCall("add_class", """{"name":"ShouldBeFiltered"}"""),
+            synthesisResponse = assistantMsg("Done."),
         )
 
         val events = KumlAgentOrchestrator(
@@ -161,11 +165,12 @@ class KumlAgentOrchestratorTest : FunSpec({
         val history = listOf(ConversationMessage.User("u1", 1L, "Summarise my diagram"))
 
         val executorFn = threeStepExecutor(
-            routingResponses = listOf(
-                toolCall("route_to_specialist", """{"domain":"uml","reason":"uml question"}"""),
+            routingResponse = assistantWithToolCall(
+                "route_to_specialist",
+                """{"domain":"uml","reason":"uml question"}""",
             ),
-            specialistResponses = listOf(assistantMsg("The diagram has 3 classes.")),
-            synthesisResponses = listOf(assistantMsg("Your UML diagram contains 3 classes.")),
+            specialistResponse = assistantMsg("The diagram has 3 classes."),
+            synthesisResponse = assistantMsg("Your UML diagram contains 3 classes."),
         )
 
         val events = KumlAgentOrchestrator(
@@ -187,9 +192,9 @@ class KumlAgentOrchestratorTest : FunSpec({
 
         val executorFn = threeStepExecutor(
             // No tool call, ambiguous text
-            routingResponses = listOf(assistantMsg("I will help you.")),
-            specialistResponses = listOf(assistantMsg("Sure, let me assist.")),
-            synthesisResponses = listOf(assistantMsg("I can help with your diagram!")),
+            routingResponse = assistantMsg("I will help you."),
+            specialistResponse = assistantMsg("Sure, let me assist."),
+            synthesisResponse = assistantMsg("I can help with your diagram!"),
         )
 
         val events = KumlAgentOrchestrator(
@@ -210,9 +215,9 @@ class KumlAgentOrchestratorTest : FunSpec({
         val history = listOf(ConversationMessage.User("u1", 1L, "Add something"))
 
         var step = 0
-        val executorFn: suspend (Prompt, LLModel) -> List<Message.Response> = { _, _ ->
+        val executorFn: suspend (Prompt, LLModel) -> Message.Assistant = { _, _ ->
             if (step++ == 0) throw RuntimeException("Simulated routing failure")
-            emptyList()
+            assistantMsg("ok")
         }
 
         val events = KumlAgentOrchestrator(
@@ -230,7 +235,7 @@ class KumlAgentOrchestratorTest : FunSpec({
     test("cancellation rethrows CancellationException cleanly") {
         val history = listOf(ConversationMessage.User("u1", 1L, "Add something"))
 
-        val executorFn: suspend (Prompt, LLModel) -> List<Message.Response> = { _, _ ->
+        val executorFn: suspend (Prompt, LLModel) -> Message.Assistant = { _, _ ->
             throw kotlinx.coroutines.CancellationException("test cancel")
         }
 

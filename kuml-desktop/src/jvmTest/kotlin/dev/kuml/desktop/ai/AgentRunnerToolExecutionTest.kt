@@ -1,9 +1,10 @@
 package dev.kuml.desktop.ai
 
-import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.Prompt
 import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.message.AssistantMessageBuilder
 import ai.koog.prompt.message.Message
-import ai.koog.prompt.message.ResponseMetaInfo
+import ai.koog.prompt.message.MessagePart
 import dev.kuml.ai.KumlAiExecutor
 import dev.kuml.ai.settings.KumlAiSettings
 import dev.kuml.ai.tools.context.AgentEditingContext
@@ -27,14 +28,14 @@ private fun stubExecutor(): KumlAiExecutor {
     return KumlAiExecutor.fromSettings(KumlAiSettings(privacyMode = false), vault)
 }
 
-/** Build a Message.Tool.Call using the (id, tool, content String, metaInfo) overload. */
-private fun toolCall(tool: String, argsJson: String): Message.Tool.Call =
-    Message.Tool.Call(
-        id = "tc-${tool.hashCode().toUInt()}",
-        tool = tool,
-        content = argsJson,
-        metaInfo = ResponseMetaInfo.Companion.Empty,
-    )
+/**
+ * Build a Message.Assistant containing a single MessagePart.Tool.Call.
+ * Koog 1.0.0: tool calls are MessagePart.Tool.Call inside Message.Assistant.parts.
+ */
+private fun assistantWithToolCall(tool: String, argsJson: String): Message.Assistant =
+    AssistantMessageBuilder()
+        .addToolCall(MessagePart.Tool.Call(id = "tc-${tool.hashCode().toUInt()}", tool = tool, args = argsJson))
+        .build()
 
 /** Collect a list of buffered (not yet applied/rejected) patch IDs from the engine. */
 private suspend fun PatchApplyEngine.drainPatchIds(): List<String> = pendingPatchIds()
@@ -46,7 +47,7 @@ class AgentRunnerToolExecutionTest : FunSpec({
     fun makeRunner(
         editingContext: AgentEditingContext,
         engine: PatchApplyEngine,
-        vararg responses: Message.Response,
+        response: Message.Assistant,
     ): AgentRunner {
         return AgentRunner(
             executor = stubExecutor(),
@@ -54,7 +55,7 @@ class AgentRunnerToolExecutionTest : FunSpec({
             modelId = "llama3.2",
             editingContext = editingContext,
             patchEngine = engine,
-            executorFn = { _: Prompt, _: LLModel -> responses.toList() },
+            executorFn = { _: Prompt, _: LLModel -> response },
         )
     }
 
@@ -63,7 +64,7 @@ class AgentRunnerToolExecutionTest : FunSpec({
         val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
         val runner = makeRunner(
             ctx, engine,
-            toolCall("add_class", """{"name":"Order"}"""),
+            assistantWithToolCall("add_class", """{"name":"Order"}"""),
         )
         val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
 
@@ -80,7 +81,7 @@ class AgentRunnerToolExecutionTest : FunSpec({
         val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
         val runner = makeRunner(
             ctx, engine,
-            toolCall("add_attribute", """{"classifierIdOrName":"Order","name":"id","type":"Long"}"""),
+            assistantWithToolCall("add_attribute", """{"classifierIdOrName":"Order","name":"id","type":"Long"}"""),
         )
         val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
 
@@ -97,7 +98,7 @@ class AgentRunnerToolExecutionTest : FunSpec({
         val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
         val runner = makeRunner(
             ctx, engine,
-            toolCall("list_elements", """{}"""),
+            assistantWithToolCall("list_elements", """{}"""),
         )
         val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
 
@@ -109,8 +110,7 @@ class AgentRunnerToolExecutionTest : FunSpec({
     }
 
     test("decodePatch with broken JSON does not crash — returns null gracefully") {
-        // Note: Message.Tool.Call itself parses JSON in its constructor, so we can't
-        // pass invalid JSON via toolCall(). Instead test decodePatch directly.
+        // decodePatch is tested directly (does not go through Message.Assistant creation)
         val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
         val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
         val runner = AgentRunner(
@@ -128,11 +128,19 @@ class AgentRunnerToolExecutionTest : FunSpec({
     test("multiple tool calls in one response emit one PatchBuffered per decodable call") {
         val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
         val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
-        val runner = makeRunner(
-            ctx, engine,
-            toolCall("add_class", """{"name":"Order"}"""),
-            toolCall("add_class", """{"name":"Item"}"""),
-            toolCall("list_elements", """{}"""),   // unknown → no PatchBuffered
+        // Build a single Message.Assistant with three tool calls
+        val multiToolResponse = AssistantMessageBuilder()
+            .addToolCall(MessagePart.Tool.Call(id = "tc1", tool = "add_class", args = """{"name":"Order"}"""))
+            .addToolCall(MessagePart.Tool.Call(id = "tc2", tool = "add_class", args = """{"name":"Item"}"""))
+            .addToolCall(MessagePart.Tool.Call(id = "tc3", tool = "list_elements", args = """{}"""))
+            .build()
+        val runner = AgentRunner(
+            executor = stubExecutor(),
+            providerId = "ollama",
+            modelId = "llama3.2",
+            editingContext = ctx,
+            patchEngine = engine,
+            executorFn = { _: Prompt, _: LLModel -> multiToolResponse },
         )
         val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
 
@@ -151,7 +159,7 @@ class AgentRunnerToolExecutionTest : FunSpec({
             editingContext = null,
             patchEngine = null,
             executorFn = { _: Prompt, _: LLModel ->
-                listOf(toolCall("add_class", """{"name":"Order"}"""))
+                assistantWithToolCall("add_class", """{"name":"Order"}""")
             },
         )
         val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()

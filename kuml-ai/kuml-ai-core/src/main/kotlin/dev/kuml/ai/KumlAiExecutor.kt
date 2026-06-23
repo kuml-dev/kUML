@@ -1,6 +1,6 @@
 package dev.kuml.ai
 
-import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.Prompt
 import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
@@ -37,24 +37,27 @@ public class KumlAiExecutor private constructor(
      * Resolves the default provider + model from [settings].
      * Throws [KumlAiException.PrivacyModeViolation] when privacy mode blocks the provider.
      * Throws [KumlAiException.BudgetExceeded] when the session cost cap is reached.
+     *
+     * Koog 1.0.0: returns [Message.Assistant] directly (was List<Message.Response> in 0.7.3).
      */
-    public suspend fun execute(prompt: Prompt): List<Message.Response> {
+    public suspend fun execute(prompt: Prompt): Message.Assistant {
         val model = resolveDefaultModel()
         budgetGuard?.checkBeforeCall()
         privacy.guard(model.provider)
-        val responses = delegate.execute(prompt, model)
-        return responses
+        return delegate.execute(prompt, model)
     }
 
     /**
      * Execute a prompt with an explicit model override.
      * Throws [KumlAiException.PrivacyModeViolation] when privacy mode blocks the provider.
      * Throws [KumlAiException.BudgetExceeded] when the session cost cap is reached.
+     *
+     * Koog 1.0.0: returns [Message.Assistant] directly (was List<Message.Response> in 0.7.3).
      */
     public suspend fun execute(
         prompt: Prompt,
         model: LLModel,
-    ): List<Message.Response> {
+    ): Message.Assistant {
         budgetGuard?.checkBeforeCall()
         privacy.guard(model.provider)
         return delegate.execute(prompt, model)

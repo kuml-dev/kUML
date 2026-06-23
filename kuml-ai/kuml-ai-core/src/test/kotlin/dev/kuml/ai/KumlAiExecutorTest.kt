@@ -23,29 +23,31 @@ import kotlinx.coroutines.flow.flowOf
 import java.nio.file.Files
 
 /** Create a simple Message.Assistant with text content via builder. */
-private fun assistantMessage(text: String): Message.Assistant = AssistantMessageBuilder().content(text).build()
+private fun assistantMessage(text: String): Message.Assistant = AssistantMessageBuilder().addText(text).build()
 
 /**
  * Fake PromptExecutor for unit tests — does not call any real LLM.
+ *
+ * Koog 1.0.0: execute() returns Message.Assistant (not List<Message.Response>).
  */
 private class FakePromptExecutor(
-    private val responsesByModel: Map<LLModel, List<Message.Response>> = emptyMap(),
+    private val responsesByModel: Map<LLModel, Message.Assistant> = emptyMap(),
     private val streamsByModel: Map<LLModel, Flow<StreamFrame>> = emptyMap(),
 ) : PromptExecutor() {
     override suspend fun execute(
-        prompt: ai.koog.prompt.dsl.Prompt,
+        prompt: ai.koog.prompt.Prompt,
         model: LLModel,
         tools: List<ToolDescriptor>,
-    ): List<Message.Response> = responsesByModel[model] ?: listOf(assistantMessage("fake response"))
+    ): Message.Assistant = responsesByModel[model] ?: assistantMessage("fake response")
 
     override fun executeStreaming(
-        prompt: ai.koog.prompt.dsl.Prompt,
+        prompt: ai.koog.prompt.Prompt,
         model: LLModel,
         tools: List<ToolDescriptor>,
     ): Flow<StreamFrame> = streamsByModel[model] ?: flowOf(StreamFrame.End("stop"))
 
     override suspend fun moderate(
-        prompt: ai.koog.prompt.dsl.Prompt,
+        prompt: ai.koog.prompt.Prompt,
         model: LLModel,
     ): ModerationResult = ModerationResult(isHarmful = false, categories = emptyMap())
 
@@ -65,7 +67,7 @@ class KumlAiExecutorTest :
                 FakePromptExecutor(
                     responsesByModel =
                         mapOf(
-                            ollamaModel to listOf(assistantMessage("hello from ollama")),
+                            ollamaModel to assistantMessage("hello from ollama"),
                         ),
                 )
             val executor =
@@ -77,7 +79,7 @@ class KumlAiExecutorTest :
                 )
             val testPrompt = prompt("test") { user("hello") }
             val result = executor.execute(testPrompt, ollamaModel)
-            result.size shouldBe 1
+            result.textContent() shouldBe "hello from ollama"
         }
 
         test("execute throws PrivacyModeViolation when privacy mode is on and provider is Anthropic") {

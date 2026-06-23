@@ -1,8 +1,9 @@
 package dev.kuml.desktop.ai
 
-import ai.koog.prompt.dsl.Prompt
+import ai.koog.prompt.Prompt
 import ai.koog.prompt.dsl.prompt
 import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.MessagePart
 import dev.kuml.ai.KumlAiExecutor
 import dev.kuml.ai.provider.ProviderRegistry
 import ai.koog.prompt.llm.LLModel
@@ -29,6 +30,10 @@ import java.util.UUID
  * which routes to domain-specialist agents before running synthesis. Default is false
  * — zero behaviour change for existing tests/users.
  *
+ * V3.1.20: Updated for Koog 1.0.0 — execute() now returns Message.Assistant directly.
+ * Tool calls moved from top-level Message.Tool.Call to MessagePart.Tool.Call inside
+ * Message.Assistant.parts. executorFn type updated accordingly.
+ *
  * @param executorFn Injectable execution function for testing — defaults to using [executor].
  */
 class AgentRunner(
@@ -40,7 +45,7 @@ class AgentRunner(
     /** V3.1.18: when true, routes through [KumlAgentOrchestrator] instead of single-turn. */
     private val useOrchestration: Boolean = false,
     /** Test-only: override the execution function. Default uses [executor]. */
-    internal val executorFn: (suspend (Prompt, LLModel) -> List<Message.Response>)? = null,
+    internal val executorFn: (suspend (Prompt, LLModel) -> Message.Assistant)? = null,
 ) {
     private val registry = ProviderRegistry.builtIns()
 
@@ -69,33 +74,30 @@ class AgentRunner(
 
             val koogPrompt = buildPrompt(history, executor.currentSettings().systemPrompt)
 
-            val responses = if (executorFn != null) {
+            // Koog 1.0.0: execute() returns Message.Assistant directly.
+            val response = if (executorFn != null) {
                 executorFn.invoke(koogPrompt, model)
             } else {
                 executor.execute(koogPrompt, model)
             }
 
-            val textParts = responses.filterIsInstance<Message.Assistant>()
-            if (textParts.isNotEmpty()) {
-                // Message.Assistant.content is a Koog extension property that collapses
-                // all ContentPart.Text parts into a single String.
-                val fullText = textParts.joinToString("") { it.content }
-                if (fullText.isNotBlank()) {
-                    emit(AgentEvent.AssistantDelta(fullText, providerId, modelId))
-                }
+            // textContent() collapses all text MessageParts into a single String.
+            val fullText = response.textContent()
+            if (fullText.isNotBlank()) {
+                emit(AgentEvent.AssistantDelta(fullText, providerId, modelId))
             }
 
             // V3.0.25: Decode tool calls into ModelPatch and buffer.
-            // Tool execution loop (full round-trip) deferred to V3.0.26+.
-            val toolCalls = responses.filterIsInstance<Message.Tool.Call>()
+            // Koog 1.0.0: tool calls are MessagePart.Tool.Call inside response.parts.
+            val toolCalls = response.parts.filterIsInstance<MessagePart.Tool.Call>()
             for (tc in toolCalls) {
                 val callId = UUID.randomUUID().toString()
-                // tc.tool = tool name, tc.contentJson = args as JsonObject
-                emit(AgentEvent.ToolCallStart(callId, tc.tool, tc.contentJson.toString()))
+                // tc.tool = tool name, tc.argsJson = args as JsonObject
+                emit(AgentEvent.ToolCallStart(callId, tc.tool, tc.argsJson.toString()))
 
                 // V3.0.25: Attempt to decode and buffer the patch
                 if (patchEngine != null) {
-                    val patch = runCatching { decodePatch(tc.tool, tc.contentJson.toString()) }.getOrNull()
+                    val patch = runCatching { decodePatch(tc.tool, tc.argsJson.toString()) }.getOrNull()
                     if (patch != null) {
                         runCatching { patchEngine.buffer(patch) }
                         emit(AgentEvent.PatchBuffered(patch.patchId, patch::class.simpleName ?: "unknown"))

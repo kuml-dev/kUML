@@ -1,8 +1,8 @@
 package dev.kuml.ai.bench
 
 import ai.koog.agents.core.tools.ToolDescriptor
+import ai.koog.prompt.Prompt
 import ai.koog.prompt.dsl.ModerationResult
-import ai.koog.prompt.dsl.Prompt
 import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
@@ -25,13 +25,16 @@ import io.kotest.matchers.string.shouldContain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
-private fun assistantMessage(text: String): Message.Assistant = AssistantMessageBuilder().content(text).build()
+// Koog 1.0.0: AssistantMessageBuilder.addText() replaces .content()
+private fun assistantMessage(text: String): Message.Assistant = AssistantMessageBuilder().addText(text).build()
 
 /**
  * Fake executor that returns canned responses based on prompt id.
  * [responseMap] maps prompt.id to the text to return.
  * If the prompt id is not found, returns the [defaultResponse].
  * If [throwOnFirst] is true, throws an IOException on the first call (simulates connection error).
+ *
+ * Koog 1.0.0: execute() returns Message.Assistant (not List<Message.Response>).
  */
 private class FakePromptExecutor(
     private val responseMap: Map<String, String> = emptyMap(),
@@ -44,13 +47,13 @@ private class FakePromptExecutor(
         prompt: Prompt,
         model: LLModel,
         tools: List<ToolDescriptor>,
-    ): List<Message.Response> {
+    ): Message.Assistant {
         callCount++
         if (throwOnFirst && callCount == 1) {
             throw java.io.IOException("Connection refused")
         }
         val text = responseMap[prompt.id] ?: defaultResponse
-        return listOf(assistantMessage(text))
+        return assistantMessage(text)
     }
 
     override fun executeStreaming(
@@ -188,10 +191,10 @@ class AiBenchTest :
                         prompt: Prompt,
                         model: LLModel,
                         tools: List<ToolDescriptor>,
-                    ): List<Message.Response> {
+                    ): Message.Assistant {
                         call++
                         if (call == 2) throw java.net.ConnectException("Connection refused")
-                        return listOf(assistantMessage("ok response"))
+                        return assistantMessage("ok response")
                     }
 
                     override fun executeStreaming(

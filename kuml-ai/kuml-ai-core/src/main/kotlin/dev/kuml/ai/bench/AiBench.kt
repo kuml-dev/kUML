@@ -49,14 +49,12 @@ public object AiBench {
                         user(task.userPrompt)
                     }
 
-                val responses = executor.execute(koogPrompt, model)
+                val response = executor.execute(koogPrompt, model)
                 val latencyMs = System.currentTimeMillis() - startMs
 
-                // Collapse all assistant text parts into one string
-                val actual =
-                    responses
-                        .filterIsInstance<ai.koog.prompt.message.Message.Assistant>()
-                        .joinToString("") { it.content }
+                // Koog 1.0.0: execute() returns Message.Assistant directly.
+                // textContent() collapses all text parts into a single String.
+                val actual = response.textContent()
 
                 val pass =
                     task.expectedSubstrings.all { expected ->

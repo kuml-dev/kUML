@@ -24,25 +24,25 @@ class KumlToolRegistryTest :
             val ctx = AgentEditingContext.emptyC4()
             val registry = KumlToolRegistry.forC4(ctx)
             val toolNames = registry.tools.map { it.name }
-            // Tool names are Kotlin method names: addPerson, addSoftwareSystem, etc.
-            toolNames.any { it.contains("Person") || it.contains("System") || it.contains("Relationship") } shouldBe true
+            // Koog 1.0.0: tool names use customName (snake_case): add_person, add_software_system, etc.
+            toolNames.any { it.contains("person") || it.contains("system") || it.contains("relationship") } shouldBe true
         }
 
         test("forSysml2 contains SysML2 tools") {
             val ctx = AgentEditingContext.emptySysml2()
             val registry = KumlToolRegistry.forSysml2(ctx)
             val toolNames = registry.tools.map { it.name }
-            // Tool names are Kotlin method names: addPartDef, addState, addConstraint, etc.
-            toolNames.any { it.contains("PartDef") || it.contains("State") || it.contains("Constraint") } shouldBe true
+            // Koog 1.0.0: tool names use customName (snake_case): add_part_def, add_state, add_constraint, etc.
+            toolNames.any { it.contains("part") || it.contains("state") || it.contains("constraint") } shouldBe true
         }
 
         test("inspectionOnly contains only read-only tools") {
             val ctx = AgentEditingContext.emptyUml()
             val registry = KumlToolRegistry.inspectionOnly(ctx)
             val toolNames = registry.tools.map { it.name }
-            // No editing tools (camelCase Kotlin method names)
-            toolNames.none { it.startsWith("addClass") || it.startsWith("addInterface") || it.startsWith("removeElement") } shouldBe true
-            // Has inspection tools
-            toolNames.any { it.contains("listElements") || it.contains("getElement") || it.contains("findUnused") } shouldBe true
+            // No editing tools — Koog 1.0.0: tool names use customName (snake_case)
+            toolNames.none { it.startsWith("add_class") || it.startsWith("add_interface") || it.startsWith("remove_element") } shouldBe true
+            // Has inspection tools (snake_case: list_elements, get_element_details, find_unused_elements)
+            toolNames.any { it.contains("list_elements") || it.contains("get_element") || it.contains("find_unused") } shouldBe true
         }
     })

@@ -5,6 +5,7 @@ import ai.koog.agents.core.tools.ToolRegistryBuilder
 import ai.koog.agents.core.tools.reflect.ToolSet
 import dev.kuml.ai.spi.KumlToolSetFactory
 import dev.kuml.ai.tools.c4.C4EditingTools
+import dev.kuml.ai.tools.codegen.CodeGenAiTools
 import dev.kuml.ai.tools.context.AgentEditingContext
 import dev.kuml.ai.tools.inspection.ModelInspectionTools
 import dev.kuml.ai.tools.mcp.McpBridgeToolSet
@@ -30,11 +31,11 @@ public object KumlToolRegistry {
 
     /** Ids reserved by built-in tool sets — external factories may not reuse these. */
     private val BUILT_IN_IDS: Set<String> =
-        setOf("uml", "c4", "sysml2", "render", "inspection", "mcp")
+        setOf("uml", "c4", "sysml2", "render", "inspection", "mcp", "codegen")
 
     @Volatile private var cachedExternal: List<KumlToolSetFactory>? = null
 
-    /** Full surface — UML + C4 + SysML 2 + Rendering + Inspection + MCP bridge. */
+    /** Full surface — UML + C4 + SysML 2 + Rendering + Inspection + MCP bridge + CodeGen. */
     public fun full(ctx: AgentEditingContext): ToolRegistry {
         val base =
             buildRegistry {
@@ -43,6 +44,7 @@ public object KumlToolRegistry {
                 tools(Sysml2EditingTools(ctx))
                 tools(RenderingTools(ctx))
                 tools(ModelInspectionTools(ctx))
+                tools(CodeGenAiTools(ctx))
             }
         return try {
             withMcpBridge(base)
@@ -57,6 +59,14 @@ public object KumlToolRegistry {
         buildRegistry {
             tools(UmlEditingTools(ctx))
             tools(RenderingTools(ctx))
+            tools(ModelInspectionTools(ctx))
+        }
+
+    /** UML + Code generation — for agents that both model and generate source code. */
+    public fun forCodeGen(ctx: AgentEditingContext): ToolRegistry =
+        buildRegistry {
+            tools(UmlEditingTools(ctx))
+            tools(CodeGenAiTools(ctx))
             tools(ModelInspectionTools(ctx))
         }
 

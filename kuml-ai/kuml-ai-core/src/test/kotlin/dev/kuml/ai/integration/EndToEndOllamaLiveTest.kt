@@ -8,7 +8,7 @@ import dev.kuml.ai.settings.KumlAiSettings
 import dev.kuml.ai.vault.ApiKeyVault
 import io.kotest.core.annotation.Tags
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.collections.shouldNotBeEmpty
+import io.kotest.matchers.string.shouldNotBeBlank
 
 /**
  * Live end-to-end test against a local Ollama instance.
@@ -46,6 +46,6 @@ class EndToEndOllamaLiveTest :
 
             val ollamaModel = LLModel(LLMProvider.Ollama, "llama3.2")
             val response = executor.execute(testPrompt, ollamaModel)
-            response.shouldNotBeEmpty()
+            response.textContent().shouldNotBeBlank()
         }
     })

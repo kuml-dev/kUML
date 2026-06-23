@@ -7,24 +7,77 @@ import org.slf4j.LoggerFactory
 /**
  * Facade over the platform-detected backend.
  * Construct via [ApiKeyVault.detect] for production use.
+ *
+ * V3.1.20: supports optional AES-256-GCM master-password encryption via
+ * [enableMasterPassword] / [lock]. The raw backend is wrapped in a
+ * [MasterPasswordVaultBackend] decorator; the swap is atomic and thread-safe.
  */
 public class ApiKeyVault internal constructor(
-    public val backend: KeyVaultBackend,
+    backend: KeyVaultBackend,
 ) {
+    /** Active backend — may be swapped on [enableMasterPassword]. */
+    @Volatile
+    private var _backend: KeyVaultBackend = backend
+
+    /** Visible for tests / diagnostics. */
+    public val backend: KeyVaultBackend get() = _backend
+
     /** Read an API key for a provider. */
-    public fun get(provider: LLMProvider): String? = backend.get(KeyVaultBackend.keyFor(provider))
+    public fun get(provider: LLMProvider): String? = _backend.get(KeyVaultBackend.keyFor(provider))
 
     /** Store an API key. */
     public fun put(
         provider: LLMProvider,
         key: String,
-    ): Unit = backend.put(KeyVaultBackend.keyFor(provider), key)
+    ): Unit = _backend.put(KeyVaultBackend.keyFor(provider), key)
 
     /** Delete an API key. */
-    public fun delete(provider: LLMProvider): Unit = backend.delete(KeyVaultBackend.keyFor(provider))
+    public fun delete(provider: LLMProvider): Unit = _backend.delete(KeyVaultBackend.keyFor(provider))
 
     /** True if running on a fallback (plain-text) backend — UI should warn the user. */
-    public val isFallback: Boolean get() = backend is PlainJsonFallbackBackend
+    public val isFallback: Boolean
+        get() {
+            val b = _backend
+            return b is PlainJsonFallbackBackend ||
+                (b is MasterPasswordVaultBackend && b.inner is PlainJsonFallbackBackend)
+        }
+
+    /** True when master-password encryption is active on this vault instance. */
+    public val isMasterPasswordEnabled: Boolean get() = _backend is MasterPasswordVaultBackend
+
+    /**
+     * Wrap the current backend in a [MasterPasswordVaultBackend] using AES-256-GCM encryption.
+     *
+     * The raw [masterPassword] CharArray is zero-filled immediately after key derivation —
+     * the caller MUST NOT use it after this call. If master-password mode is already active,
+     * this replaces the existing encryption context (re-key).
+     *
+     * After this call all [put]/[get] operations encrypt/decrypt transparently.
+     * Call [lock] to zero-fill the derived key in memory.
+     */
+    public fun enableMasterPassword(masterPassword: CharArray) {
+        val innerBackend =
+            when (val b = _backend) {
+                is MasterPasswordVaultBackend -> b.inner // unwrap first if re-keying
+                else -> b
+            }
+        _backend = MasterPasswordVaultBackend.create(masterPassword, innerBackend)
+    }
+
+    /**
+     * Zero-fill the in-memory encryption key and revert to the unencrypted inner backend.
+     *
+     * After this call [isMasterPasswordEnabled] is false and subsequent [get]/[put] calls
+     * access the inner backend directly (still encrypted on disk, but key is gone from RAM).
+     * No-op if master-password mode is not active.
+     */
+    public fun lock() {
+        val b = _backend
+        if (b is MasterPasswordVaultBackend) {
+            b.lock()
+            _backend = b.inner
+        }
+    }
 
     public companion object {
         private val log = LoggerFactory.getLogger(ApiKeyVault::class.java)
