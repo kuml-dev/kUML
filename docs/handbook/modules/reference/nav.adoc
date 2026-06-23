@@ -12,3 +12,4 @@
 * xref:runtime-mcp.adoc[Behaviour-Runtime MCP]
 * xref:export.adoc[Structurizr export]
 * xref:layout.adoc[Layout engines]
+* xref:plugin-signing-key-rotation.adoc[Plugin signing key rotation]

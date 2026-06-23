@@ -1,6 +1,7 @@
 package dev.kuml.plugin.loader.registry
 
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -237,5 +238,52 @@ class PluginRegistryIndexTest :
             val index = json.decodeFromString<PluginRegistryIndex>(jsonWithStats)
             index.search("theme") shouldHaveSize 1
             index.find("dev.kuml.plugin.elk-layout") shouldNotBe null
+        }
+
+        // ── V3.1.14: backward compat — legacy signaturePublicKey in index ────
+
+        "V3.1.14: legacy signaturePublicKey field is migrated to signingKeys" {
+            val index = json.decodeFromString<PluginRegistryIndex>(sampleJson)
+            val pdv = index.find("dev.kuml.plugin.pdv-theme")
+            pdv?.signingKeys?.shouldHaveSize(1)
+            pdv?.signingKeys?.get(0)?.keyId shouldBe "legacy"
+        }
+
+        "V3.1.14: legacy null signaturePublicKey results in empty signingKeys" {
+            val index = json.decodeFromString<PluginRegistryIndex>(sampleJson)
+            val elk = index.find("dev.kuml.plugin.elk-layout")
+            elk?.signingKeys?.shouldBeEmpty()
+        }
+
+        "V3.1.14: find and search still work when entries carry signingKeys" {
+            val jsonWithSigningKeys =
+                """
+                {
+                  "schemaVersion": 1,
+                  "baseUrl": "https://plugins.kuml.dev",
+                  "plugins": [
+                    {
+                      "id": "dev.kuml.plugin.pdv-theme",
+                      "category": "theme",
+                      "name": "PdV Branding Theme",
+                      "version": "2.0.0",
+                      "manifest": "m",
+                      "downloads": "d",
+                      "signingKeys": [
+                        {
+                          "publicKey": "MCowBQYDK2VwAyEAkey==",
+                          "keyId": "2026-primary",
+                          "validFrom": "2026-01-01",
+                          "status": "ACTIVE"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """.trimIndent()
+            val index = json.decodeFromString<PluginRegistryIndex>(jsonWithSigningKeys)
+            index.find("dev.kuml.plugin.pdv-theme") shouldNotBe null
+            index.search("theme") shouldHaveSize 1
+            index.find("dev.kuml.plugin.pdv-theme")?.signingKeys?.shouldHaveSize(1)
         }
     })

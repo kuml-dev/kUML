@@ -24,7 +24,16 @@ application {
     applicationDefaultJvmArgs = listOf("-XX:TieredStopAtLevel=1")
 }
 
+// V3.1.15 — `kuml ai` command group requires kuml-ai-core.
+// Guard: when built with -Pkuml.noAi=true the module is not included, so the
+// project reference would be unresolvable. Check the property here and mirror it.
+val aiEnabled = (project.findProperty("kuml.noAi") ?: "false").toString() != "true"
+
 dependencies {
+    if (aiEnabled) {
+        implementation(project(":kuml-ai:kuml-ai-core")) // V3.1.15 — kuml ai provider commands
+        // kuml-ai-spi comes transitively via kuml-ai-core's api() dependency
+    }
     implementation(libs.clikt)
     implementation(project(":kuml-plugin-loader")) // V3.0.29 — kuml plugin subcommand group
     implementation(project(":kuml-web")) // V2.0.34 — kuml serve subcommand

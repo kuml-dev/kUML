@@ -1,0 +1,132 @@
+= Plugin Signing Key Rotation
+:description: How to rotate Ed25519 signing keys for kUML registry plugins.
+
+Since V3.1.14, the kUML plugin registry supports **key rotation**: each registry entry
+may carry a list of `signingKeys` instead of a single `signaturePublicKey`.
+Verification succeeds if *any* currently active key validates the signature, allowing
+publishers to introduce a new key before revoking the old one.
+
+== Key concepts
+
+PluginSigningKey fields::
+`publicKey`:::  Base64 DER / X.509 `SubjectPublicKeyInfo` — same format as the legacy field.
+`keyId`::: Human-readable identifier, e.g. `"2026-primary"`.
+`validFrom`::: ISO-8601 date — inclusive start of the validity window.
+`validUntil`::: ISO-8601 date — inclusive end of the validity window. Omit for no expiry.
+`status`::: `ACTIVE` | `REVOKED` | `EXPIRED`.
+
+A key is _usable_ when `status == ACTIVE` **and** today falls within `[validFrom, validUntil]`.
+An `ACTIVE` key whose `validUntil` is in the past is treated as implicitly expired.
+
+== Generating an Ed25519 keypair
+
+[source,bash]
+----
+openssl genpkey -algorithm ed25519 -out private.pem
+openssl pkey -in private.pem -pubout -outform DER | base64 > public.b64
+----
+
+Keep `private.pem` secret. Publish only the contents of `public.b64`.
+
+== Signing a plugin JAR
+
+[source,bash]
+----
+sha256=$(sha256sum plugin.jar | awk '{print $1}')
+openssl pkeyutl -sign -inkey private.pem \
+  -in <(echo -n "$sha256" | xxd -r -p) \
+  | base64 > plugin.jar.sig
+----
+
+== Submitting a new key to the registry
+
+. Fork https://github.com/kuml-dev/kuml-plugin-registry and open your plugin's entry in
+  `plugins/index.json`.
+. Add a new object to the `signingKeys` array with a fresh `keyId` and `validFrom`:
++
+[source,json]
+----
+{
+  "id": "dev.kuml.plugin.my-plugin",
+  "signingKeys": [
+    {
+      "publicKey": "<old-base64-key>",
+      "keyId": "2025-primary",
+      "validFrom": "2025-01-01",
+      "validUntil": "2026-09-30",
+      "status": "ACTIVE"
+    },
+    {
+      "publicKey": "<new-base64-key>",
+      "keyId": "2026-primary",
+      "validFrom": "2026-07-01",
+      "status": "ACTIVE"
+    }
+  ]
+}
+----
+. Submit the pull request. The registry maintainers will merge and publish.
+
+== 90-day transition period
+
+During the 90 days after introducing the new key:
+
+* Both keys are `ACTIVE`. Users who already verified against the old key remain protected.
+* Sign new releases with the *new* private key.
+* After 90 days, set the old key's `status` to `REVOKED`:
++
+[source,json]
+----
+{
+  "publicKey": "<old-base64-key>",
+  "keyId": "2025-primary",
+  "validFrom": "2025-01-01",
+  "validUntil": "2026-09-30",
+  "status": "REVOKED"
+}
+----
+
+== Worked example — two ACTIVE keys plus one REVOKED
+
+[source,json]
+----
+{
+  "id": "dev.kuml.plugin.elk-layout",
+  "category": "layout",
+  "name": "ELK Layout Engine",
+  "version": "3.0.0",
+  "manifest": "plugins/dev.kuml.plugin.elk-layout/kuml-plugin.json",
+  "downloads": "plugins/dev.kuml.plugin.elk-layout/releases/",
+  "signingKeys": [
+    {
+      "publicKey": "MCowBQYDK2VwAyEAoldKeyABC123...",
+      "keyId": "2024-primary",
+      "validFrom": "2024-01-01",
+      "validUntil": "2025-03-31",
+      "status": "REVOKED"
+    },
+    {
+      "publicKey": "MCowBQYDK2VwAyEAkey2025XYZ...",
+      "keyId": "2025-primary",
+      "validFrom": "2025-01-01",
+      "validUntil": "2026-09-30",
+      "status": "ACTIVE"
+    },
+    {
+      "publicKey": "MCowBQYDK2VwAyEAkey2026NEW...",
+      "keyId": "2026-primary",
+      "validFrom": "2026-07-01",
+      "status": "ACTIVE"
+    }
+  ]
+}
+----
+
+The CLI reports: `Signing keys: 2 active, 1 revoked`. Verification succeeds as long as
+the downloaded JAR's `.sig` file was produced by either of the two active keys.
+
+== Backward compatibility
+
+Registry entries that still carry the legacy `signaturePublicKey` field are automatically
+migrated on read: the single key is wrapped as `PluginSigningKey(keyId="legacy",
+validFrom="1970-01-01", status=ACTIVE)`. No changes to old registry JSON are required.

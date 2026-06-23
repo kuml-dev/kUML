@@ -24,30 +24,42 @@ internal class KumlCli : CliktCommand(name = "kuml") {
         // convention used by kubectl, gh, brew etc. — see `KumlVersion.formatPlain`.
         versionOption(version = KumlVersion.version, message = { KumlVersion.formatPlain() })
 
-        subcommands(
-            RenderCommand(),
-            ServeCommand(),
-            WatchCommand(),
-            ValidateCommand(),
-            ValidateExpressionsCommand(),
-            FmtCommand(),
-            GenerateCommand(),
-            TransformCommand(),
-            ImportCommand(),
-            ExportCommand(),
-            MarkdownCommand(),
-            ProfileCommand(),
-            SimulateCommand(),
-            TraceCommand(),
-            SandboxCommand(),
-            RunCommand(),
-            ReverseCommand(),
-            ChainCommand(),
-            PluginCommand(),
-            VersionCommand(),
-            UpdateCommand(),
-            CompletionCommand(name = "completion"),
-        )
+        // V3.1.15 — `kuml ai` command group. Guarded: when kuml-ai-core is not on the
+        // classpath (built with -Pkuml.noAi=true), the AiCommand class does not exist
+        // and we skip registration gracefully.
+        val aiCommand =
+            runCatching {
+                val cls = Class.forName("dev.kuml.cli.ai.AiCommand")
+                cls.getDeclaredConstructor().newInstance() as CliktCommand
+            }.getOrNull()
+
+        val commands =
+            buildList {
+                add(RenderCommand())
+                add(ServeCommand())
+                add(WatchCommand())
+                add(ValidateCommand())
+                add(ValidateExpressionsCommand())
+                add(FmtCommand())
+                add(GenerateCommand())
+                add(TransformCommand())
+                add(ImportCommand())
+                add(ExportCommand())
+                add(MarkdownCommand())
+                add(ProfileCommand())
+                add(SimulateCommand())
+                add(TraceCommand())
+                add(SandboxCommand())
+                add(RunCommand())
+                add(ReverseCommand())
+                add(ChainCommand())
+                add(PluginCommand())
+                if (aiCommand != null) add(aiCommand) // V3.1.15
+                add(VersionCommand())
+                add(UpdateCommand())
+                add(CompletionCommand(name = "completion"))
+            }
+        subcommands(commands)
     }
 
     override fun help(context: Context): String = "Compiles kUML scripts to UML/C4 diagrams."

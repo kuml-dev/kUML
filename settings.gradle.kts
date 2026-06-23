@@ -156,6 +156,7 @@ include("kuml-desktop")              // V3.0.10 — Compose Desktop main window 
 val noAi = (settings.startParameter.projectProperties["kuml.noAi"] ?: "false").toBoolean()
 if (!noAi) {
     include(
+        "kuml-ai:kuml-ai-spi",        // V3.1.15 — Published provider SPI (zero Koog dep)
         "kuml-ai:kuml-ai-core",       // V3.0.22 — Koog integration + MultiLLM executor + secure API key vault
         "kuml-ai:kuml-ai-tools",      // V3.0.23 — @Tool-based DSL builder suite + MCP bridge + AgentEditingContext
     )

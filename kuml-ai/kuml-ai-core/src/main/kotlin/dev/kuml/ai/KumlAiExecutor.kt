@@ -94,21 +94,34 @@ public class KumlAiExecutor private constructor(
                 registry.get(settings.defaultProvider)
                     ?: throw KumlAiException.UnknownProvider(settings.defaultProvider)
 
+            // Custom SPI providers (koogProvider == null) cannot be used as the active executor
+            // provider in V3.1.15 — they are available for listing and inspection only.
+            // V3.2+ will add execution support when Koog supports open provider extension.
+            if (defaultProvider.koogProvider == null) {
+                throw KumlAiException.UnknownProvider(
+                    "${settings.defaultProvider} (custom SPI providers are not yet executable — " +
+                        "choose a built-in provider: openai, anthropic, google, ollama)",
+                )
+            }
+
             // Eagerly check privacy mode against the default provider
             privacy.guard(defaultProvider.koogProvider)
 
-            // Build (provider, client) pairs for all enabled providers
+            // Build (provider, client) pairs for all enabled providers.
+            // Custom providers (koogProvider == null) are skipped silently — they cannot
+            // be wired into MultiLLMPromptExecutor without a sealed LLMProvider instance.
             val providerClientPairs =
                 settings.enabledProviders.mapNotNull { providerId ->
                     val kumlProvider = registry.get(providerId) ?: return@mapNotNull null
+                    val koog = kumlProvider.koogProvider ?: return@mapNotNull null // skip custom
                     val apiKey =
                         if (!kumlProvider.isLocal) {
-                            vault.get(kumlProvider.koogProvider)
-                                ?: throw KumlAiException.MissingApiKey(kumlProvider.koogProvider)
+                            vault.get(koog)
+                                ?: throw KumlAiException.MissingApiKey(koog)
                         } else {
                             null
                         }
-                    kumlProvider.koogProvider to kumlProvider.clientFactory(apiKey)
+                    koog to kumlProvider.clientFactory(apiKey)
                 }
 
             val delegate = MultiLLMPromptExecutor(*providerClientPairs.toTypedArray())

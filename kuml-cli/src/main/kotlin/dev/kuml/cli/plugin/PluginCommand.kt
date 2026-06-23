@@ -409,10 +409,11 @@ internal class PluginInfoCommand(
             }
         echo("  Signature:    $sigStatus")
 
-        // ── Best-effort registry stats (V3.1.12) ─────────────────────────────
+        // ── Best-effort registry stats (V3.1.12 / V3.1.14) ──────────────────
         val entry = runCatching { client.fetchIndex().find(id) }.getOrNull()
         if (entry != null) {
             echo("")
+            echo("  Signing keys: ${entry.keyStatusSummary()}")
             echo("  Rating:       ${PluginStatsFormat.ratingLine(entry.rating, entry.ratingCount)}")
             echo("  Downloads:    ${PluginStatsFormat.fullDownloads(entry.downloadCount)}")
             val recent = entry.recentReviews(3)

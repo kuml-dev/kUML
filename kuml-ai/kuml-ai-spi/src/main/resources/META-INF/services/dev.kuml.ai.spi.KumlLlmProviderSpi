@@ -1,0 +1,3 @@
+# Register custom KumlLlmProviderSpi implementations here, one FQCN per line.
+# Example:
+# com.example.myprovider.MyLlmProviderSpi

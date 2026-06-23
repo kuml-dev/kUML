@@ -16,8 +16,10 @@ import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
 import coil3.compose.AsyncImage
 import dev.kuml.codegen.m2m.TransformerRegistry
+import dev.kuml.plugin.loader.registry.KeyStatus
 import dev.kuml.plugin.loader.registry.PluginRegistryClient
 import dev.kuml.plugin.loader.registry.PluginRegistryEntry
+import dev.kuml.plugin.loader.registry.PluginSigningKey
 import dev.kuml.plugin.loader.registry.PluginStatsFormat
 import dev.kuml.plugin.loader.registry.UpdateCheckResult
 import dev.kuml.plugin.loader.registry.UpdateCheckService
@@ -220,6 +222,11 @@ private fun RegistryEntryCard(entry: PluginRegistryEntry) {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
                     },
             )
+            // ── Signing keys (V3.1.14) ───────────────────────────────────────
+            if (entry.signingKeys.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                SigningKeysRow(entry = entry)
+            }
             // ── Screenshot gallery (V3.1.13) ──────────────────────────────────
             ScreenshotGallery(entry = entry, onThumbnailClick = { fullScreenUrl = it })
             // ── Reviews ───────────────────────────────────────────────────────
@@ -376,6 +383,58 @@ internal fun registryCardSubtitle(entry: PluginRegistryEntry): String {
     val stars = PluginStatsFormat.stars(entry.rating)
     val ratingText = PluginStatsFormat.ratingLine(entry.rating, entry.ratingCount)
     return "$stars  $ratingText"
+}
+
+// ── Signing Keys helpers (V3.1.14, internal for testability) ─────────────────────
+
+/**
+ * Returns an (emoji, keyId) pair describing the effective display status of [key].
+ *
+ * Effective status is derived from [PluginSigningKey.isUsable] rather than the raw
+ * [KeyStatus] value — an `ACTIVE` key whose `validUntil` is in the past is displayed
+ * as expired, consistent with verification behaviour.
+ *
+ * @param today injectable for deterministic testing; defaults to `LocalDate.now()`.
+ */
+internal fun signingKeyBadge(
+    key: PluginSigningKey,
+    today: java.time.LocalDate = java.time.LocalDate.now(),
+): Pair<String, String> {
+    val emoji =
+        when {
+            key.status == KeyStatus.REVOKED -> "🔴"
+            key.status == KeyStatus.EXPIRED -> "⌛"
+            key.isUsable(today) -> "✅"
+            else -> "⌛" // ACTIVE but date-expired
+        }
+    return emoji to key.keyId
+}
+
+/**
+ * A composable row showing one badge chip per signing key in [entry].
+ * Rendered inside [RegistryEntryCard] after the stats subtitle.
+ */
+@Composable
+private fun SigningKeysRow(entry: PluginRegistryEntry) {
+    val today = remember { java.time.LocalDate.now() }
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        items(entry.signingKeys) { key ->
+            val (emoji, keyId) = signingKeyBadge(key, today)
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Text(
+                    text = "$emoji $keyId",
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                )
+            }
+        }
+    }
 }
 
 // ── Screenshot Gallery helpers (V3.1.13, internal for testability) ─────────────

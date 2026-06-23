@@ -20,6 +20,7 @@ import dev.kuml.plugin.loader.registry.DownloadedPlugin
 import dev.kuml.plugin.loader.registry.PluginDownloader
 import dev.kuml.plugin.loader.registry.PluginRegistry
 import dev.kuml.plugin.loader.registry.PluginRegistryException
+import dev.kuml.plugin.loader.registry.PluginSigningKey
 import dev.kuml.plugin.loader.registry.PluginUpdateInfo
 import dev.kuml.plugin.loader.registry.UpdateCheckResult
 import dev.kuml.plugin.loader.registry.UpdateCheckService
@@ -186,7 +187,7 @@ internal class PluginUpgradeCommand(
                     err = true,
                 )
             } else {
-                verifySignature(downloaded, newManifest, entry.signaturePublicKey)
+                verifySignature(downloaded, newManifest, entry.signingKeys)
             }
 
             // 5. New-permission consent gate
@@ -254,27 +255,28 @@ internal class PluginUpgradeCommand(
     private fun verifySignature(
         downloaded: DownloadedPlugin,
         manifest: PluginManifest,
-        registryPublicKey: String?,
+        signingKeys: List<PluginSigningKey>,
     ) {
-        // For registry-download upgrades the trust anchor MUST be the registry's signaturePublicKey.
+        // For registry-download upgrades the trust anchor MUST be the registry's signingKeys list.
         // Falling back to manifest.signature (the self-declared key embedded in the downloaded JAR)
         // would allow a malicious actor to supply their own key and a matching self-signed .sig,
         // making signature verification meaningless.
-        val effectivePubKey =
-            registryPublicKey?.takeIf { it.isNotBlank() }
-                ?: throw PluginUpgradeException(
-                    "Registry entry for '${manifest.id}' has no signaturePublicKey — " +
-                        "cannot verify authenticity. Use --skip-signature-check to bypass " +
-                        "(not recommended).",
-                )
+        val activeKeys = signingKeys.filter { it.isUsable() }
+        if (activeKeys.isEmpty()) {
+            throw PluginUpgradeException(
+                "Registry entry for '${manifest.id}' has no active signing keys — " +
+                    "cannot verify authenticity. Use --skip-signature-check to bypass " +
+                    "(not recommended).",
+            )
+        }
         val sigContent = downloaded.sig
 
         if (sigContent != null) {
             val result =
-                PluginSignatureVerifier.verify(
+                PluginSignatureVerifier.verifyWithKeys(
                     jarBytes = downloaded.jar.toFile().readBytes(),
                     signatureBase64 = sigContent,
-                    publicKeyBase64 = effectivePubKey,
+                    signingKeys = signingKeys,
                 )
             when (result) {
                 is SignatureVerificationResult.Invalid ->
@@ -283,7 +285,7 @@ internal class PluginUpgradeCommand(
                             "Use --skip-signature-check to install anyway (not recommended).",
                     )
                 is SignatureVerificationResult.Valid ->
-                    echo("  Signature verified (key: ${result.publicKeyFingerprint})")
+                    echo("  Signature verified (key: ${result.keyId ?: result.publicKeyFingerprint})")
                 SignatureVerificationResult.Unsigned ->
                     echo("  Warning: No signature present — install with caution.")
             }

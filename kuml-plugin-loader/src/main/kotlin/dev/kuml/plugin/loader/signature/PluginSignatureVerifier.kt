@@ -1,5 +1,6 @@
 package dev.kuml.plugin.loader.signature
 
+import dev.kuml.plugin.loader.registry.PluginSigningKey
 import java.security.KeyFactory
 import java.security.MessageDigest
 import java.security.Signature
@@ -12,7 +13,7 @@ import java.util.Base64
  * ## Signature scheme
  * `signature = base64(Ed25519.sign(sha256(jarBytes)))`
  *
- * The public key is stored in the registry index (`signaturePublicKey` field)
+ * The public key is stored in the registry index (`signingKeys` list, V3.1.14)
  * as a Base64-encoded DER/X.509 public key (`SubjectPublicKeyInfo` format).
  *
  * ## Key generation (for plugin authors)
@@ -30,7 +31,10 @@ import java.util.Base64
  */
 public object PluginSignatureVerifier {
     /**
-     * Verify [jarBytes] against [signatureBase64] using [publicKeyBase64].
+     * Verify [jarBytes] against [signatureBase64] using a single [publicKeyBase64].
+     *
+     * This is the original single-key overload, still used by `PluginInstallCommand`
+     * against `manifest.signature` and by all single-key tests. Do **not** remove.
      *
      * @param jarBytes         Raw bytes of the plugin JAR
      * @param signatureBase64  Base64-encoded Ed25519 signature (from manifest or `.sig` file)
@@ -82,6 +86,47 @@ public object PluginSignatureVerifier {
         } catch (e: Exception) {
             SignatureVerificationResult.Invalid("Unexpected error: ${e.message}")
         }
+    }
+
+    /**
+     * Verify [jarBytes] against [signatureBase64] using a **list** of [PluginSigningKey]s.
+     *
+     * Introduced in V3.1.14 for key-rotation support. Verification succeeds if any
+     * **usable** key validates the signature. Usability is determined by
+     * [PluginSigningKey.isUsable] — keys that are revoked, expired, or outside their
+     * date window are skipped.
+     *
+     * On success, [SignatureVerificationResult.Valid.keyId] carries the `keyId` of the
+     * matching key so the caller can report which key verified the signature.
+     *
+     * @param jarBytes         Raw bytes of the plugin JAR
+     * @param signatureBase64  Base64-encoded Ed25519 signature (from `.sig` file)
+     * @param signingKeys      Registry key list (from [PluginRegistryEntry.signingKeys])
+     * @param today            Injectable date for deterministic tests (default: today)
+     */
+    public fun verifyWithKeys(
+        jarBytes: ByteArray,
+        signatureBase64: String?,
+        signingKeys: List<PluginSigningKey>,
+        today: java.time.LocalDate = java.time.LocalDate.now(),
+    ): SignatureVerificationResult {
+        if (signatureBase64.isNullOrBlank()) return SignatureVerificationResult.Unsigned
+
+        val usable = signingKeys.filter { it.isUsable(today) }
+        if (usable.isEmpty()) {
+            return SignatureVerificationResult.Invalid("No active signing key available")
+        }
+
+        var lastInvalid: SignatureVerificationResult.Invalid? = null
+        for (key in usable) {
+            when (val result = verify(jarBytes, signatureBase64, key.publicKey)) {
+                is SignatureVerificationResult.Valid ->
+                    return SignatureVerificationResult.Valid(result.publicKeyFingerprint, key.keyId)
+                is SignatureVerificationResult.Invalid -> lastInvalid = result
+                SignatureVerificationResult.Unsigned -> { /* unreachable: sig non-blank */ }
+            }
+        }
+        return lastInvalid ?: SignatureVerificationResult.Invalid("Signature did not match any active key")
     }
 
     /**

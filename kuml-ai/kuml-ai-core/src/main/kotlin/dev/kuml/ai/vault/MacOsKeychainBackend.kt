@@ -37,6 +37,10 @@ public class MacOsKeychainBackend(
         secret: String,
     ) {
         // -U: update if already exists; -a $USER: account attribute; -s: service; -l: label; -w: password (via stdin)
+        // The secret is intentionally NOT appended as a command-line argument — that would expose
+        // it in the process table (visible via `ps aux`). Instead, `-w` without a trailing value
+        // causes `security add-generic-password` to read the password from stdin, which we supply
+        // via ShellOut's `stdin` parameter.
         val user = System.getProperty("user.name") ?: "kuml"
         val result =
             ShellOut.run(
@@ -52,8 +56,8 @@ public class MacOsKeychainBackend(
                         "-l",
                         key,
                         "-w",
-                        secret,
                     ),
+                stdin = secret,
             )
         if (result.exitCode != 0) {
             throw KumlAiException.VaultUnavailable(

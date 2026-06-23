@@ -5,6 +5,7 @@ import ai.koog.prompt.executor.clients.google.GoogleModels
 import ai.koog.prompt.executor.clients.openai.OpenAIModels
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
+import dev.kuml.ai.spi.ModelDescriptor
 
 /**
  * Explicit declarative table mapping (providerId, modelId) string pairs to
@@ -52,6 +53,65 @@ public object ModelCatalog {
         )
 
     /**
+     * Context window sizes (in tokens) for known models.
+     * Used to populate [ModelDescriptor.contextWindowTokens] in built-in provider listings.
+     * Entries reflect publicly documented values; null means the context window is
+     * unknown or dynamic.
+     */
+    private val contextWindows: Map<Pair<String, String>, Int> =
+        mapOf(
+            // ── OpenAI ───────────────────────────────────────────────────────
+            ("openai" to "gpt-4o") to 128_000,
+            ("openai" to "gpt-4o-mini") to 128_000,
+            ("openai" to "gpt-4.1") to 1_047_576,
+            ("openai" to "gpt-4.1-mini") to 1_047_576,
+            ("openai" to "o1") to 200_000,
+            ("openai" to "o3") to 200_000,
+            ("openai" to "o3-mini") to 200_000,
+            // ── Anthropic ────────────────────────────────────────────────────
+            ("anthropic" to "claude-haiku-3") to 200_000,
+            ("anthropic" to "claude-haiku-4-5") to 200_000,
+            ("anthropic" to "claude-sonnet-4") to 200_000,
+            ("anthropic" to "claude-sonnet-4-5") to 200_000,
+            ("anthropic" to "claude-opus-4") to 200_000,
+            ("anthropic" to "claude-opus-4-5") to 200_000,
+            ("anthropic" to "claude-opus-4-6") to 200_000,
+            // ── Google ───────────────────────────────────────────────────────
+            ("google" to "gemini-2.0-flash") to 1_048_576,
+            ("google" to "gemini-2.0-flash-lite") to 1_048_576,
+            ("google" to "gemini-2.5-pro") to 1_048_576,
+            ("google" to "gemini-2.5-flash") to 1_048_576,
+        )
+
+    /**
+     * Human-readable display names for known models.
+     */
+    private val displayNames: Map<Pair<String, String>, String> =
+        mapOf(
+            // ── OpenAI ───────────────────────────────────────────────────────
+            ("openai" to "gpt-4o") to "GPT-4o",
+            ("openai" to "gpt-4o-mini") to "GPT-4o Mini",
+            ("openai" to "gpt-4.1") to "GPT-4.1",
+            ("openai" to "gpt-4.1-mini") to "GPT-4.1 Mini",
+            ("openai" to "o1") to "o1",
+            ("openai" to "o3") to "o3",
+            ("openai" to "o3-mini") to "o3-mini",
+            // ── Anthropic ────────────────────────────────────────────────────
+            ("anthropic" to "claude-haiku-3") to "Claude Haiku 3",
+            ("anthropic" to "claude-haiku-4-5") to "Claude Haiku 4.5",
+            ("anthropic" to "claude-sonnet-4") to "Claude Sonnet 4",
+            ("anthropic" to "claude-sonnet-4-5") to "Claude Sonnet 4.5",
+            ("anthropic" to "claude-opus-4") to "Claude Opus 4",
+            ("anthropic" to "claude-opus-4-5") to "Claude Opus 4.5",
+            ("anthropic" to "claude-opus-4-6") to "Claude Opus 4.6",
+            // ── Google ───────────────────────────────────────────────────────
+            ("google" to "gemini-2.0-flash") to "Gemini 2.0 Flash",
+            ("google" to "gemini-2.0-flash-lite") to "Gemini 2.0 Flash Lite",
+            ("google" to "gemini-2.5-pro") to "Gemini 2.5 Pro",
+            ("google" to "gemini-2.5-flash") to "Gemini 2.5 Flash",
+        )
+
+    /**
      * Resolves (providerId, modelId) to a Koog LLModel.
      *
      * Returns null if not in the table — callers should fall back to LLModel constructor
@@ -70,4 +130,23 @@ public object ModelCatalog {
 
     /** Returns all known model ids for a given provider. */
     public fun modelsFor(providerId: String): List<String> = table.keys.filter { it.first == providerId }.map { it.second }
+
+    /**
+     * Returns [ModelDescriptor] entries for all known models of a given provider.
+     * Excludes legacy alias entries (the same model id may be listed only once).
+     * Ollama returns an empty list — it accepts dynamic model ids.
+     */
+    public fun descriptorsFor(providerId: String): List<ModelDescriptor> {
+        if (providerId == "ollama") return emptyList()
+        // Deduplicate: some entries are legacy aliases pointing to the same LLModel.
+        // Keep only primary entries (those whose modelId appears in displayNames).
+        val primaryKeys = displayNames.keys.filter { it.first == providerId }
+        return primaryKeys.map { key ->
+            ModelDescriptor(
+                modelId = key.second,
+                displayName = displayNames[key] ?: key.second,
+                contextWindowTokens = contextWindows[key],
+            )
+        }
+    }
 }
