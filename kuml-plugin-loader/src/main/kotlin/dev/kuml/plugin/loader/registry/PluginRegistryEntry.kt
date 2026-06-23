@@ -10,6 +10,8 @@ import kotlinx.serialization.Serializable
  * V3.1.12 adds optional rating/review/download-count fields. All new fields default
  * so that existing registry JSON without those fields parses without error.
  *
+ * V3.1.13 adds optional [screenshotUrls] (defaulted → backward compatible).
+ *
  * **Important**: [downloads] is a URL string used by `PluginUpgradeCommand` to fetch
  * the plugin JAR. The numeric download statistic is a separate field: [downloadCount].
  */
@@ -34,6 +36,11 @@ public data class PluginRegistryEntry(
     val ratingCount: Int = 0,
     /** All reviews submitted for this plugin. */
     val reviews: List<PluginReview> = emptyList(),
+    /**
+     * Relative or absolute screenshot URLs for this plugin (V3.1.13).
+     * Served from `plugins.kuml.dev/screenshots/<id>/<n>.png`. May be empty.
+     */
+    val screenshotUrls: List<String> = emptyList(),
 ) {
     /**
      * Returns up to [limit] reviews sorted by [PluginReview.date] descending

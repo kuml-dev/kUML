@@ -182,6 +182,7 @@ private fun makeRegistryEntry(
     rating: Double?,
     ratingCount: Int,
     downloadCount: Long = 0,
+    screenshotUrls: List<String> = emptyList(),
 ) = PluginRegistryEntry(
     id = id,
     category = "theme",
@@ -192,4 +193,5 @@ private fun makeRegistryEntry(
     downloadCount = downloadCount,
     rating = rating,
     ratingCount = ratingCount,
+    screenshotUrls = screenshotUrls,
 )

@@ -49,6 +49,11 @@ kotlin {
                 implementation(project(":kuml-plugin-loader"))
                 // Koog agents runtime (für AIAgent / PromptExecutor)
                 implementation(libs.koog.agents.jvm)
+                // V3.1.13 — Plugin marketplace screenshots (Coil 3 async image + disk cache)
+                implementation(libs.coil.compose)
+                implementation(libs.coil.network.ktor)
+                implementation(libs.ktor.client.core)
+                implementation(libs.ktor.client.java)
             }
         }
         val jvmTest by getting {

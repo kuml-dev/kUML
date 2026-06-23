@@ -1,15 +1,20 @@
 package dev.kuml.desktop.plugins
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
+import coil3.compose.AsyncImage
 import dev.kuml.codegen.m2m.TransformerRegistry
 import dev.kuml.plugin.loader.registry.PluginRegistryClient
 import dev.kuml.plugin.loader.registry.PluginRegistryEntry
@@ -19,6 +24,8 @@ import dev.kuml.plugin.loader.registry.UpdateCheckService
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.net.InetAddress
+import java.net.URI
 import java.util.Locale
 
 /**
@@ -166,6 +173,7 @@ private fun RegistryBrowseSection(
 @Composable
 private fun RegistryEntryCard(entry: PluginRegistryEntry) {
     var expanded by remember { mutableStateOf(false) }
+    var fullScreenUrl by remember { mutableStateOf<String?>(null) }
     val allReviews = entry.reviews.sortedByDescending { it.date }
     val previewReviews = allReviews.take(3)
 
@@ -212,6 +220,8 @@ private fun RegistryEntryCard(entry: PluginRegistryEntry) {
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
                     },
             )
+            // ── Screenshot gallery (V3.1.13) ──────────────────────────────────
+            ScreenshotGallery(entry = entry, onThumbnailClick = { fullScreenUrl = it })
             // ── Reviews ───────────────────────────────────────────────────────
             val displayReviews = if (expanded) allReviews else previewReviews
             if (displayReviews.isNotEmpty()) {
@@ -235,6 +245,33 @@ private fun RegistryEntryCard(entry: PluginRegistryEntry) {
                                 "Alle Reviews anzeigen (${allReviews.size})"
                             },
                         )
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Full-size screenshot overlay (V3.1.13) ─────────────────────────────────
+    val url = fullScreenUrl
+    if (url != null) {
+        DialogWindow(
+            onCloseRequest = { fullScreenUrl = null },
+            title = "Screenshot",
+            state = rememberDialogState(width = 900.dp, height = 650.dp),
+        ) {
+            MaterialTheme {
+                Surface(Modifier.fillMaxSize().clickable { fullScreenUrl = null }) {
+                    Box(Modifier.fillMaxSize().padding(8.dp), contentAlignment = Alignment.Center) {
+                        AsyncImage(
+                            model = url,
+                            contentDescription = "Plugin screenshot",
+                            imageLoader = screenshotImageLoader(),
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        Box(Modifier.align(Alignment.TopEnd).padding(8.dp)) {
+                            Button(onClick = { fullScreenUrl = null }) { Text("Schließen") }
+                        }
                     }
                 }
             }
@@ -339,6 +376,108 @@ internal fun registryCardSubtitle(entry: PluginRegistryEntry): String {
     val stars = PluginStatsFormat.stars(entry.rating)
     val ratingText = PluginStatsFormat.ratingLine(entry.rating, entry.ratingCount)
     return "$stars  $ratingText"
+}
+
+// ── Screenshot Gallery helpers (V3.1.13, internal for testability) ─────────────
+
+internal const val SCREENSHOT_BASE_URL = "https://plugins.kuml.dev"
+internal const val MAX_GALLERY_THUMBS = 3
+
+/** Returns up to [MAX_GALLERY_THUMBS] screenshot URLs for the gallery row. Empty list → no gallery. */
+internal fun galleryThumbnails(entry: PluginRegistryEntry): List<String> = entry.screenshotUrls.take(MAX_GALLERY_THUMBS)
+
+/**
+ * Validates that [url] is safe to fetch as a screenshot image.
+ *
+ * Blocks:
+ * - Non-http/https schemes (ftp, file, data, etc.)
+ * - RFC 1918 private ranges: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+ * - Loopback: 127.0.0.0/8 (IPv4), ::1 (IPv6)
+ * - Link-local: 169.254.0.0/16 (IPv4), fe80::/10 (IPv6)
+ * - Any other special-purpose address reported by the JVM
+ *
+ * Returns `true` if the URL is safe, `false` otherwise.
+ * DNS resolution is performed to catch hostname-based SSRF attempts.
+ */
+internal fun validateScreenshotUrl(url: String): Boolean {
+    val uri =
+        runCatching { URI(url) }.getOrNull() ?: return false
+    val scheme = uri.scheme?.lowercase() ?: return false
+    if (scheme != "http" && scheme != "https") return false
+    val host = uri.host ?: return false
+    val addr =
+        runCatching { InetAddress.getByName(host) }.getOrNull() ?: return false
+    if (addr.isLoopbackAddress) return false
+    if (addr.isSiteLocalAddress) return false
+    if (addr.isLinkLocalAddress) return false
+    if (addr.isAnyLocalAddress) return false
+    if (addr.isMulticastAddress) return false
+    // Additional explicit range checks for completeness
+    val raw = addr.address
+    if (raw != null && raw.size == 4) {
+        val b0 = raw[0].toInt() and 0xFF
+        val b1 = raw[1].toInt() and 0xFF
+        // 10.0.0.0/8
+        if (b0 == 10) return false
+        // 172.16.0.0/12
+        if (b0 == 172 && b1 in 16..31) return false
+        // 192.168.0.0/16
+        if (b0 == 192 && b1 == 168) return false
+        // 169.254.0.0/16 (link-local — belt-and-suspenders)
+        if (b0 == 169 && b1 == 254) return false
+    }
+    return true
+}
+
+/** Resolves a possibly-relative screenshot path against [SCREENSHOT_BASE_URL].
+ *
+ * Returns `null` if the resolved URL fails SSRF validation (see [validateScreenshotUrl]).
+ */
+internal fun screenshotAbsoluteUrl(raw: String): String? {
+    val resolved =
+        if (raw.startsWith("http://") || raw.startsWith("https://")) {
+            raw
+        } else {
+            "$SCREENSHOT_BASE_URL/${raw.removePrefix("/")}"
+        }
+    return if (validateScreenshotUrl(resolved)) resolved else null
+}
+
+@Composable
+private fun ScreenshotGallery(
+    entry: PluginRegistryEntry,
+    onThumbnailClick: (String) -> Unit,
+) {
+    val thumbs = galleryThumbnails(entry)
+    if (thumbs.isEmpty()) return
+
+    Spacer(Modifier.height(6.dp))
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        items(thumbs) { raw ->
+            val url = screenshotAbsoluteUrl(raw) ?: return@items
+            Box(
+                modifier =
+                    Modifier
+                        .size(width = 200.dp, height = 150.dp)
+                        .clip(MaterialTheme.shapes.small),
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxSize(),
+                ) {}
+                AsyncImage(
+                    model = url,
+                    contentDescription = "Plugin screenshot",
+                    imageLoader = screenshotImageLoader(),
+                    contentScale = ContentScale.Crop,
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clickable { onThumbnailClick(url) },
+                )
+            }
+        }
+    }
 }
 
 // ── Update-Badge (V3.1.11) ────────────────────────────────────────────────────

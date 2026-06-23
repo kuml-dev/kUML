@@ -55,6 +55,19 @@ class PluginRegistryEntryTest :
             }
             """.trimIndent()
 
+        val screenshotFormatJson =
+            """
+            {
+              "id": "dev.kuml.plugin.elk-layout",
+              "category": "layout",
+              "name": "ELK Layout Engine",
+              "version": "2.0.0",
+              "manifest": "plugins/dev.kuml.plugin.elk-layout/kuml-plugin.json",
+              "downloads": "plugins/dev.kuml.plugin.elk-layout/releases/",
+              "screenshotUrls": ["screenshots/elk/1.png", "screenshots/elk/2.png"]
+            }
+            """.trimIndent()
+
         // ── backward compatibility ─────────────────────────────────────────────
 
         "old JSON without new fields: downloadCount defaults to 0" {
@@ -171,5 +184,30 @@ class PluginRegistryEntryTest :
             decoded.rating shouldBe original.rating
             decoded.ratingCount shouldBe original.ratingCount
             decoded.reviews shouldHaveSize original.reviews.size
+        }
+
+        // ── V3.1.13: screenshotUrls ────────────────────────────────────────────
+
+        "old JSON without screenshotUrls: defaults to empty list" {
+            val entry = json.decodeFromString<PluginRegistryEntry>(oldFormatJson)
+            entry.screenshotUrls.shouldBeEmpty()
+        }
+
+        "screenshotUrls parses with correct size" {
+            val entry = json.decodeFromString<PluginRegistryEntry>(screenshotFormatJson)
+            entry.screenshotUrls shouldHaveSize 2
+        }
+
+        "screenshotUrls first element is correct" {
+            val entry = json.decodeFromString<PluginRegistryEntry>(screenshotFormatJson)
+            entry.screenshotUrls[0] shouldBe "screenshots/elk/1.png"
+        }
+
+        "serialization roundtrip preserves screenshotUrls" {
+            val original = json.decodeFromString<PluginRegistryEntry>(screenshotFormatJson)
+            val encoded = Json.encodeToString(PluginRegistryEntry.serializer(), original)
+            val decoded = json.decodeFromString<PluginRegistryEntry>(encoded)
+            decoded.screenshotUrls shouldHaveSize original.screenshotUrls.size
+            decoded.screenshotUrls[0] shouldBe original.screenshotUrls[0]
         }
     })
