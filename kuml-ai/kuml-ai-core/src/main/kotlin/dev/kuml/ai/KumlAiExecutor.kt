@@ -6,6 +6,8 @@ import ai.koog.prompt.executor.model.PromptExecutor
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.StreamFrame
+import dev.kuml.ai.budget.BudgetGuard
+import dev.kuml.ai.pricing.ProviderPricingService
 import dev.kuml.ai.privacy.PrivacyEnforcer
 import dev.kuml.ai.provider.ProviderRegistry
 import dev.kuml.ai.settings.KumlAiSettings
@@ -28,26 +30,32 @@ public class KumlAiExecutor private constructor(
     private val settings: KumlAiSettings,
     private val privacy: PrivacyEnforcer,
     private val registry: ProviderRegistry,
+    private val budgetGuard: BudgetGuard? = null,
 ) {
     /**
      * Execute a prompt with the configured default model.
      * Resolves the default provider + model from [settings].
      * Throws [KumlAiException.PrivacyModeViolation] when privacy mode blocks the provider.
+     * Throws [KumlAiException.BudgetExceeded] when the session cost cap is reached.
      */
     public suspend fun execute(prompt: Prompt): List<Message.Response> {
         val model = resolveDefaultModel()
+        budgetGuard?.checkBeforeCall()
         privacy.guard(model.provider)
-        return delegate.execute(prompt, model)
+        val responses = delegate.execute(prompt, model)
+        return responses
     }
 
     /**
      * Execute a prompt with an explicit model override.
      * Throws [KumlAiException.PrivacyModeViolation] when privacy mode blocks the provider.
+     * Throws [KumlAiException.BudgetExceeded] when the session cost cap is reached.
      */
     public suspend fun execute(
         prompt: Prompt,
         model: LLModel,
     ): List<Message.Response> {
+        budgetGuard?.checkBeforeCall()
         privacy.guard(model.provider)
         return delegate.execute(prompt, model)
     }
@@ -58,15 +66,24 @@ public class KumlAiExecutor private constructor(
      * The privacy guard is applied **eagerly** before the Flow is built,
      * so callers see [KumlAiException.PrivacyModeViolation] immediately
      * and not on the first collect. Wire-level integration target: V3.0.24.
+     * Budget guard is also applied eagerly (pre-check only; token accounting
+     * is done by the desktop's AgentRunner via [budgetGuard]).
      */
     public fun executeStreaming(
         prompt: Prompt,
         model: LLModel,
     ): Flow<StreamFrame> {
         // Eager guard — throw before building the Flow
+        budgetGuard?.checkBeforeCall()
         privacy.guard(model.provider)
         return delegate.executeStreaming(prompt, model)
     }
+
+    /**
+     * Exposes the [BudgetGuard] for external token accounting (e.g. desktop's AgentRunner
+     * which reads token counts from Koog streaming events). Returns `null` when no budget is set.
+     */
+    public fun budgetGuard(): BudgetGuard? = budgetGuard
 
     /** Active settings snapshot — read-only copy. */
     public fun currentSettings(): KumlAiSettings = settings
@@ -126,11 +143,18 @@ public class KumlAiExecutor private constructor(
 
             val delegate = MultiLLMPromptExecutor(*providerClientPairs.toTypedArray())
 
+            // Build BudgetGuard from bundled pricing (no network call at construction time).
+            val guard =
+                settings.costBudgetUsd?.let { budget ->
+                    BudgetGuard(budget, ProviderPricingService.bundledEstimator())
+                }
+
             return KumlAiExecutor(
                 delegate = delegate,
                 settings = settings,
                 privacy = privacy,
                 registry = registry,
+                budgetGuard = guard,
             )
         }
 
@@ -142,7 +166,8 @@ public class KumlAiExecutor private constructor(
             settings: KumlAiSettings,
             privacy: PrivacyEnforcer,
             registry: ProviderRegistry,
-        ): KumlAiExecutor = KumlAiExecutor(delegate, settings, privacy, registry)
+            budgetGuard: BudgetGuard? = null,
+        ): KumlAiExecutor = KumlAiExecutor(delegate, settings, privacy, registry, budgetGuard)
     }
 
     private fun resolveDefaultModel(): LLModel {

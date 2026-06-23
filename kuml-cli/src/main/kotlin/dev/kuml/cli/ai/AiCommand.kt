@@ -30,15 +30,18 @@ import kotlinx.serialization.json.Json
  * Sub-groups:
  *   kuml ai provider   — inspect registered LLM providers
  *   kuml ai tools      — inspect built-in and external agent tool sets (V3.1.16)
+ *   kuml ai bench      — run benchmark task suite against a provider (V3.1.17)
+ *   kuml ai pricing    — show LLM provider pricing per million tokens (V3.1.17)
  *
  * Execution commands (e.g. kuml ai ask, kuml ai edit) are planned for V3.2+.
  */
 internal class AiCommand : CliktCommand(name = "ai") {
     init {
-        subcommands(AiProviderCommand(), AiToolsCommand())
+        subcommands(AiProviderCommand(), AiToolsCommand(), AiBenchCommand(), AiPricingCommand())
     }
 
-    override fun help(context: Context): String = "Inspect and manage kUML AI provider configuration and agent tool sets."
+    override fun help(context: Context): String =
+        "Inspect and manage kUML AI provider configuration, agent tool sets, benchmarks, and pricing."
 
     override fun run() = Unit
 }

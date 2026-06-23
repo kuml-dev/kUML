@@ -120,6 +120,17 @@ internal object ExitCodes {
      */
     internal const val PLUGIN_UPGRADE_FAILED: Int = 45
 
+    // ── `kuml ai bench` (V3.1.17) ────────────────────────────────────────────
+
+    /** `kuml ai bench` completed but at least one task failed the expected-substring validation. */
+    internal const val BENCH_FAILED: Int = 60
+
+    /**
+     * `kuml ai bench` could not reach the requested provider.
+     * Triggered when the first benchmark task fails with a connection-refused or network error.
+     */
+    internal const val PROVIDER_UNREACHABLE: Int = 61
+
     // ── `kuml chain` (V3.0.4 / V3.0.5) ──────────────────────────────────────
 
     /** `kuml chain verify` — on-chain modelHash differs from the local model's hash. */

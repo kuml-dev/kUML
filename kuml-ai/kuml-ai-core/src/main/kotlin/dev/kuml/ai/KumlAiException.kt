@@ -41,4 +41,19 @@ public sealed class KumlAiException(
     ) : KumlAiException(
             "KUML-AI-E-005: Provider '$providerId' is enabled in settings but not registered.",
         )
+
+    /**
+     * Session cost budget exceeded. Code: KUML-AI-E-006.
+     *
+     * Thrown by [dev.kuml.ai.budget.BudgetGuard] when the cumulative estimated spend
+     * in the current session reaches or exceeds [budgetUsd].
+     */
+    public class BudgetExceeded(
+        public val spentUsd: Double,
+        public val budgetUsd: Double,
+    ) : KumlAiException(
+            "KUML-AI-E-006: Cost budget exceeded — spent " +
+                "\$${"%.4f".format(spentUsd)} of \$${"%.2f".format(budgetUsd)} limit. " +
+                "Raise costBudgetUsd in AI settings or start a new session.",
+        )
 }

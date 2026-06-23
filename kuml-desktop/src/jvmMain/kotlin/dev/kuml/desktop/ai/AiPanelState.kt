@@ -3,6 +3,7 @@ package dev.kuml.desktop.ai
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import dev.kuml.ai.KumlAiException
 import dev.kuml.ai.KumlAiExecutor
 import dev.kuml.ai.settings.KumlAiSettings
 import dev.kuml.ai.settings.KumlAiSettingsStore
@@ -265,16 +266,22 @@ class AiPanelState(
         scope.launch { _toasts.emit(msg) }
     }
 
-    internal fun mapError(t: Throwable): Pair<String, String?> = when {
-        t.javaClass.simpleName == "PrivacyModeViolation" ->
+    internal fun mapError(t: Throwable): Pair<String, String?> = when (t) {
+        is KumlAiException.PrivacyModeViolation ->
             "Privacy-Modus: Cloud-Anbieter blockiert" to "PrivacyModeViolation"
-        t.javaClass.simpleName == "MissingApiKey" ->
+        is KumlAiException.MissingApiKey ->
             "API-Key fehlt für $selectedProviderId" to "MissingApiKey"
-        t.message?.contains("timeout", ignoreCase = true) == true ->
-            "Zeitüberschreitung beim KI-Provider" to "Timeout"
-        t.message?.contains("rate", ignoreCase = true) == true ->
-            "Rate-Limit erreicht — bitte kurz warten" to "RateLimit"
-        else -> (t.message ?: "Unbekannter Fehler") to t.javaClass.simpleName
+        is KumlAiException.BudgetExceeded -> {
+            val msg = "Kostenbudget erreicht — spent ${"%.4f".format(t.spentUsd)} of ${"%.2f".format(t.budgetUsd)} limit"
+            msg to "BudgetExceeded"
+        }
+        else -> when {
+            t.message?.contains("timeout", ignoreCase = true) == true ->
+                "Zeitüberschreitung beim KI-Provider" to "Timeout"
+            t.message?.contains("rate", ignoreCase = true) == true ->
+                "Rate-Limit erreicht — bitte kurz warten" to "RateLimit"
+            else -> (t.message ?: "Unbekannter Fehler") to t.javaClass.simpleName
+        }
     }
 
     private suspend fun refreshPendingPatches() {

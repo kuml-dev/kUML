@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "source": "bundled-fallback",
+  "generatedAt": "2026-06-23T00:00:00Z",
+  "entries": [
+    { "providerId": "openai",    "modelId": "gpt-4o",            "inputPricePerMToken": 5.00,  "outputPricePerMToken": 15.00, "updatedAt": "2026-06-23" },
+    { "providerId": "openai",    "modelId": "gpt-4o-mini",       "inputPricePerMToken": 0.15,  "outputPricePerMToken": 0.60,  "updatedAt": "2026-06-23" },
+    { "providerId": "openai",    "modelId": "gpt-4.1",           "inputPricePerMToken": 2.00,  "outputPricePerMToken": 8.00,  "updatedAt": "2026-06-23" },
+    { "providerId": "openai",    "modelId": "o3-mini",           "inputPricePerMToken": 1.10,  "outputPricePerMToken": 4.40,  "updatedAt": "2026-06-23" },
+    { "providerId": "anthropic", "modelId": "claude-sonnet-4-5", "inputPricePerMToken": 3.00,  "outputPricePerMToken": 15.00, "updatedAt": "2026-06-23" },
+    { "providerId": "anthropic", "modelId": "claude-opus-4-5",   "inputPricePerMToken": 15.00, "outputPricePerMToken": 75.00, "updatedAt": "2026-06-23" },
+    { "providerId": "anthropic", "modelId": "claude-haiku-4-5",  "inputPricePerMToken": 1.00,  "outputPricePerMToken": 5.00,  "updatedAt": "2026-06-23" },
+    { "providerId": "google",    "modelId": "gemini-1.5-pro",    "inputPricePerMToken": 1.25,  "outputPricePerMToken": 5.00,  "updatedAt": "2026-06-23" },
+    { "providerId": "google",    "modelId": "gemini-2.0-flash",  "inputPricePerMToken": 0.10,  "outputPricePerMToken": 0.40,  "updatedAt": "2026-06-23" },
+    { "providerId": "ollama",    "modelId": "llama3.2",          "inputPricePerMToken": 0.00,  "outputPricePerMToken": 0.00,  "updatedAt": "2026-06-23" },
+    { "providerId": "ollama",    "modelId": "qwen2.5",           "inputPricePerMToken": 0.00,  "outputPricePerMToken": 0.00,  "updatedAt": "2026-06-23" },
+    { "providerId": "ollama",    "modelId": "mistral",           "inputPricePerMToken": 0.00,  "outputPricePerMToken": 0.00,  "updatedAt": "2026-06-23" }
+  ]
+}
