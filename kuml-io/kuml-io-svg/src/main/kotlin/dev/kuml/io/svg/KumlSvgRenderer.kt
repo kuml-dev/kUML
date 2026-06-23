@@ -23,6 +23,7 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
+import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActDiagram
@@ -968,7 +969,8 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = visible,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, IbdEdgeAdapter(model, diagram))
+        val enrichedLayout = Sysml2LayoutBridge.enrichIbdPortPositions(model, diagram, layoutResult)
+        return renderSysml2Synthetic(synthetic, enrichedLayout, theme, options, IbdEdgeAdapter(model, diagram))
     }
 
     /** [toSvg]-Variante für SysML 2 IBDs, schreibt direkt auf Platte. */

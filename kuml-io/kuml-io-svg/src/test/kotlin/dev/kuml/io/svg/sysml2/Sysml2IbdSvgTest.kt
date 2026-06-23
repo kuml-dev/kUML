@@ -148,6 +148,65 @@ class Sysml2IbdSvgTest :
             one shouldBe two
         }
 
+        "IBD with ports renders port squares at edge attachment points" {
+            val model =
+                sysml2Model("HybridSystem") {
+                    val powerLine = connectionDef("PowerLine")
+                    val dcPort = portDef("DcPort")
+                    val battery =
+                        partDef("Battery") {
+                            port("dcOut", typeId = dcPort.id)
+                        }
+                    val motor =
+                        partDef("ElectricMotor") {
+                            port("dcIn", typeId = dcPort.id)
+                        }
+                    val hybrid =
+                        partDef("HybridVehicle") {
+                            part("battery", typeId = battery.id)
+                            part("electricMotor", typeId = motor.id)
+                            connect(
+                                name = "batteryToMotor",
+                                typeId = powerLine.id,
+                                sourceEndId = "HybridVehicle::battery::dcOut",
+                                targetEndId = "HybridVehicle::electricMotor::dcIn",
+                            )
+                        }
+                    ibd("HybridVehicle IBD", owner = hybrid)
+                }
+            val ibd = model.diagrams.filterIsInstance<IbdDiagram>().single()
+            val layout =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(500f, 200f),
+                    nodes =
+                        mapOf(
+                            NodeId("HybridVehicle::battery") to
+                                NodeLayout(bounds = Rect(Point(20f, 20f), Size(200f, 80f))),
+                            NodeId("HybridVehicle::electricMotor") to
+                                NodeLayout(bounds = Rect(Point(280f, 20f), Size(200f, 80f))),
+                        ),
+                    edges =
+                        mapOf(
+                            EdgeId("conn:HybridVehicle::batteryToMotor") to
+                                EdgeRoute.Direct(
+                                    source = Point(220f, 60f), // right edge of battery box
+                                    target = Point(280f, 60f), // left edge of motor box
+                                ),
+                        ),
+                    groups = emptyMap(),
+                )
+
+            val svg = KumlSvgRenderer.toSvg(model, ibd, layout, PlainTheme())
+
+            svg shouldContain "kuml-port"
+            svg shouldContain "dcOut"
+            svg shouldContain "dcIn"
+
+            SampleOutput.write("sysml2-ibd/hybrid-with-ports.svg", svg)
+        }
+
         "IBD with connection emits an edge in the layout output" {
             val (model, ibd) = vehicleModel()
             // Layout adds an edge between the two boxes; the SVG renderer just

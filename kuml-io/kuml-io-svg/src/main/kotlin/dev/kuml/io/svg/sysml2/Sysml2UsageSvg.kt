@@ -4,6 +4,8 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.Point
+import dev.kuml.layout.PortId
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ActionUsage
 import dev.kuml.sysml2.ActivityPartitionUsage
@@ -60,7 +62,7 @@ internal fun renderSysml2Usage(
     builder: SvgBuilder,
 ) {
     when (element) {
-        is PartUsage -> renderUsageBox(element, layout, builder, stereotype = "part")
+        is PartUsage -> renderUsageBox(element, layout, builder, stereotype = "part", ibdPorts = layout.ports)
         is PortUsage -> renderUsageBox(element, layout, builder, stereotype = "port")
         is AttributeUsage -> renderUsageBox(element, layout, builder, stereotype = "attribute")
         is ConnectionUsage -> renderUsageBox(element, layout, builder, stereotype = "connection")
@@ -133,12 +135,18 @@ internal fun renderSysml2Usage(
 /**
  * Gemeinsamer Renderer für alle Usage-Kinds. Zweizeiliges Layout: Stereotyp +
  * Inhaltszeile mit `name : Type [multiplicity]`.
+ *
+ * [ibdPorts] enthält Port-Positionen in lokalen Koordinaten (relativ zum Box-Ursprung),
+ * die für IBD-PartUsage-Knoten durch
+ * [dev.kuml.layout.bridge.Sysml2LayoutBridge.enrichIbdPortPositions] befüllt werden.
+ * Alle anderen Usage-Kinds übergeben `emptyMap()` (Default).
  */
 private fun renderUsageBox(
     usage: Sysml2Usage,
     layout: NodeLayout,
     builder: SvgBuilder,
     stereotype: String,
+    ibdPorts: Map<PortId, Point> = emptyMap(),
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
@@ -173,8 +181,83 @@ private fun renderUsageBox(
                 "text-anchor" to "middle",
             ),
         ) { text(xmlEscapeText(usage.formatIbd())) }
+
+        // IBD boundary ports — small squares on the box edge, one per connected port.
+        if (ibdPorts.isNotEmpty()) {
+            renderIbdBoundaryPorts(ibdPorts, w, h)
+        }
     }
 }
+
+/**
+ * Renders boundary-port markers for an IBD Part-Usage box.
+ *
+ * Each port is a [IBD_PORT_SIZE]×[IBD_PORT_SIZE] square (`kuml-port` CSS class)
+ * centered on the point where the connection exits/enters the box. The port name
+ * is displayed in small type (`kuml-port-label`) on the outside of the boundary.
+ *
+ * Coordinate space: **local** — same as the enclosing `<g transform="translate(x,y)">`.
+ * Port points are already in local coordinates (converted from absolute canvas
+ * coordinates by [dev.kuml.layout.bridge.Sysml2LayoutBridge.enrichIbdPortPositions]).
+ */
+private fun SvgBuilder.renderIbdBoundaryPorts(
+    ports: Map<PortId, Point>,
+    w: Float,
+    h: Float,
+) {
+    val ps = IBD_PORT_SIZE
+    val half = ps / 2f
+    val gap = IBD_PORT_LABEL_GAP
+
+    for ((portId, local) in ports) {
+        val px = local.x
+        val py = local.y
+
+        // Port square — centered on the boundary attachment point.
+        tag(
+            "rect",
+            mapOf(
+                "x" to fmt(px - half),
+                "y" to fmt(py - half),
+                "width" to fmt(ps),
+                "height" to fmt(ps),
+                "class" to "kuml-port",
+            ),
+        )
+
+        // Determine which side of the box this port sits on, then place the label
+        // on the outside.
+        val onLeft = px <= half + 1f
+        val onRight = px >= w - half - 1f
+        val onTop = py <= half + 1f
+
+        val (labelX, anchor) =
+            when {
+                onLeft -> Pair(px - half - gap, "end")
+                onRight -> Pair(px + half + gap, "start")
+                else -> Pair(px, "middle")
+            }
+        val labelY =
+            when {
+                onTop -> py - half - gap
+                onLeft || onRight -> py + 4f // vertically centred on port square
+                else -> py + half + gap + 9f // below (bottom side), +9 for font ascent
+            }
+
+        tag(
+            "text",
+            mapOf(
+                "class" to "kuml-port-label",
+                "x" to fmt(labelX),
+                "y" to fmt(labelY),
+                "text-anchor" to anchor,
+            ),
+        ) { text(portId.value) }
+    }
+}
+
+private const val IBD_PORT_SIZE = 10f
+private const val IBD_PORT_LABEL_GAP = 4f
 
 /**
  * `name : Type [multiplicity]` — die IBD-kompakte Form für eine Usage-Zeile.

@@ -10,7 +10,10 @@ import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutGroup
 import dev.kuml.layout.LayoutNode
+import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
+import dev.kuml.layout.Point
+import dev.kuml.layout.PortId
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActivityNodeKind
@@ -1530,6 +1533,91 @@ public object Sysml2LayoutBridge {
                 else -> dev.kuml.layout.Size(PAR_CONSTRAINT_WIDTH, PAR_CONSTRAINT_HEIGHT)
             }
         }
+    }
+
+    /**
+     * Enriches a raw [LayoutResult] with port positions derived from the
+     * edge-route endpoints of IBD connections.
+     *
+     * For each [ConnectionUsage] whose id starts with `diagram.ownerId::`,
+     * the function:
+     *  1. Looks up the edge route `"conn:<connectionId>"` in [layoutResult].
+     *  2. Extracts the source/target attachment points.
+     *  3. Derives the port name from the endpoint id suffix after the node id
+     *     (e.g. `"HybridVehicle::battery::dcOut"` on node `"HybridVehicle::battery"`
+     *     → port `"dcOut"` at the source attachment point).
+     *  4. Converts the absolute canvas point to **node-local coordinates**
+     *     (relative to the node's `bounds.origin` in the raw layout).
+     *  5. Stores the result in the corresponding `NodeLayout.ports` entry.
+     *
+     * Port positions are stored as local coordinates so that [dev.kuml.io.svg.sysml2.renderSysml2Usage]
+     * can use them directly inside the `<g transform="translate(x,y)">` context
+     * without an extra coordinate conversion.
+     *
+     * Returns the original [layoutResult] unchanged when there are no connections
+     * or no recognisable port endpoints.
+     */
+    public fun enrichIbdPortPositions(
+        model: Sysml2Model,
+        diagram: IbdDiagram,
+        layoutResult: LayoutResult,
+    ): LayoutResult {
+        val ownerPrefix = "${diagram.ownerId}::"
+        val connections =
+            model.usages
+                .filterIsInstance<ConnectionUsage>()
+                .filter { it.id.startsWith(ownerPrefix) }
+        if (connections.isEmpty()) return layoutResult
+
+        val visibleNodeIds =
+            layoutResult.nodes.keys
+                .map { it.value }
+                .toSet()
+        // portPositions[nodeId][portId] = local Point (relative to node origin)
+        val portPositions = mutableMapOf<NodeId, MutableMap<PortId, Point>>()
+
+        for (conn in connections) {
+            val route = layoutResult.edges[EdgeId("conn:${conn.id}")] ?: continue
+
+            // Source port
+            val srcNodeId = longestPrefixNodeId(conn.sourceEndId, visibleNodeIds)
+            if (srcNodeId != null) {
+                val portName = conn.sourceEndId.removePrefix("$srcNodeId::")
+                if (portName.isNotEmpty() && portName != conn.sourceEndId) {
+                    val origin = layoutResult.nodes[NodeId(srcNodeId)]?.bounds?.origin
+                    if (origin != null) {
+                        val local = Point(route.source.x - origin.x, route.source.y - origin.y)
+                        portPositions
+                            .getOrPut(NodeId(srcNodeId)) { mutableMapOf() }
+                            .putIfAbsent(PortId(portName), local)
+                    }
+                }
+            }
+
+            // Target port
+            val tgtNodeId = longestPrefixNodeId(conn.targetEndId, visibleNodeIds)
+            if (tgtNodeId != null) {
+                val portName = conn.targetEndId.removePrefix("$tgtNodeId::")
+                if (portName.isNotEmpty() && portName != conn.targetEndId) {
+                    val origin = layoutResult.nodes[NodeId(tgtNodeId)]?.bounds?.origin
+                    if (origin != null) {
+                        val local = Point(route.target.x - origin.x, route.target.y - origin.y)
+                        portPositions
+                            .getOrPut(NodeId(tgtNodeId)) { mutableMapOf() }
+                            .putIfAbsent(PortId(portName), local)
+                    }
+                }
+            }
+        }
+
+        if (portPositions.isEmpty()) return layoutResult
+
+        val enrichedNodes =
+            layoutResult.nodes.mapValues { (nodeId, nodeLayout) ->
+                val ports = portPositions[nodeId] ?: return@mapValues nodeLayout
+                nodeLayout.copy(ports = ports)
+            }
+        return layoutResult.copy(nodes = enrichedNodes)
     }
 
     /**

@@ -9,6 +9,7 @@ kotlin {
 
 dependencies {
     api(project(":kuml-renderer:kuml-layout-api"))
+    api(project(":kuml-renderer:kuml-layout-bridge")) // IBD port enrichment (V3.1.x)
     api(project(":kuml-renderer:kuml-themes-core"))
     api(project(":kuml-metamodel:kuml-metamodel-uml"))
     api(project(":kuml-metamodel:kuml-metamodel-c4"))
