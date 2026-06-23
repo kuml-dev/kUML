@@ -6,8 +6,10 @@ import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import dev.kuml.cli.ExitCodes
 import dev.kuml.cli.KumlVersion
@@ -19,7 +21,9 @@ import dev.kuml.plugin.loader.loader.PluginLoader
 import dev.kuml.plugin.loader.manifest.PluginManifestParser
 import dev.kuml.plugin.loader.registry.PluginRegistry
 import dev.kuml.plugin.loader.registry.PluginRegistryClient
+import dev.kuml.plugin.loader.registry.PluginRegistryEntry
 import dev.kuml.plugin.loader.registry.PluginRegistryException
+import dev.kuml.plugin.loader.registry.PluginStatsFormat
 import dev.kuml.plugin.loader.scan.PluginScanPath
 import java.io.File
 import java.io.IOException
@@ -29,14 +33,16 @@ import java.util.zip.ZipFile
  * The `kuml plugin` subcommand group.
  *
  * Sub-subcommands:
- * - `list`        — list installed plugins
- * - `search`      — search the remote registry (plugins.kuml.dev)
- * - `install`     — install a plugin from a JAR path
- * - `remove`      — remove an installed plugin
- * - `info`        — show plugin details
- * - `permissions` — show plugin permissions
- * - `reload`      — reload all plugins from disk
- * - `init`        — scaffold a new plugin project
+ * - `list`          — list installed plugins
+ * - `search`        — search the remote registry (plugins.kuml.dev)
+ * - `install`       — install a plugin from a JAR path
+ * - `remove`        — remove an installed plugin
+ * - `info`          — show plugin details
+ * - `permissions`   — show plugin permissions
+ * - `reload`        — reload all plugins from disk
+ * - `init`          — scaffold a new plugin project
+ * - `check-updates` — compare installed versions against registry (V3.1.11)
+ * - `upgrade`       — upgrade one or all plugins to the latest registry version (V3.1.11)
  */
 internal class PluginCommand : CliktCommand(name = "plugin") {
     init {
@@ -49,6 +55,8 @@ internal class PluginCommand : CliktCommand(name = "plugin") {
             PluginPermissionsCommand(),
             PluginReloadCommand(),
             PluginInitCommand(),
+            PluginCheckUpdatesCommand(),
+            PluginUpgradeCommand(),
         )
     }
 
@@ -92,6 +100,7 @@ internal class PluginListCommand : CliktCommand(name = "list") {
  *
  * Without a [query] argument all available plugins are listed.
  * An optional [category] filter narrows results to one of the five plugin categories.
+ * The [sort] option controls result ordering (default: `name`).
  *
  * @param client Injected for testing; defaults to [PluginRegistryClient] with the production URL.
  */
@@ -106,6 +115,11 @@ internal class PluginSearchCommand(
         "--category",
         help = "Filter by category: theme, renderer, layout, codegen, reverse",
     )
+
+    private val sort by option(
+        "--sort",
+        help = "Sort order: rating (highest first), downloads (most first), name (alphabetical, default)",
+    ).choice("rating", "downloads", "name").default("name")
 
     override fun help(context: Context): String =
         "Search the kUML plugin registry (plugins.kuml.dev). Omit the query to list all available plugins."
@@ -126,6 +140,8 @@ internal class PluginSearchCommand(
             results = results.filter { it.category.equals(cat, ignoreCase = true) }
         }
 
+        results = sortResults(results, sort)
+
         if (results.isEmpty()) {
             echo("No plugins found.")
             if (!query.isNullOrBlank() || category != null) {
@@ -136,8 +152,10 @@ internal class PluginSearchCommand(
 
         val label = if (query.isNullOrBlank() && category == null) "Available" else "Matching"
         echo("$label plugins (${results.size}):\n")
-        for (e in results.sortedBy { it.id }) {
-            echo("  ${e.id}  v${e.version}")
+        for (e in results) {
+            val starStr = PluginStatsFormat.stars(e.rating)
+            val dlStr = PluginStatsFormat.compactDownloads(e.downloadCount)
+            echo("  ${e.id}  v${e.version}   $starStr  ▼ $dlStr")
             echo("    Name:      ${e.name}")
             echo("    Category:  ${e.category}")
             if (e.kumlVersionRange.isNotBlank()) echo("    kUML:      ${e.kumlVersionRange}")
@@ -147,6 +165,31 @@ internal class PluginSearchCommand(
         }
         echo("Install a plugin: kuml plugin install <path-to-plugin.jar>")
     }
+
+    private fun sortResults(
+        entries: List<PluginRegistryEntry>,
+        sortBy: String,
+    ): List<PluginRegistryEntry> =
+        when (sortBy) {
+            "rating" ->
+                entries.sortedWith(
+                    compareByDescending<PluginRegistryEntry> { it.rating ?: -1.0 }
+                        .thenBy { it.name.lowercase() }
+                        .thenBy { it.id },
+                )
+            "downloads" ->
+                entries.sortedWith(
+                    compareByDescending<PluginRegistryEntry> { it.downloadCount }
+                        .thenBy { it.name.lowercase() }
+                        .thenBy { it.id },
+                )
+            else ->
+                // default: name, tiebreak by id for stability
+                entries.sortedWith(
+                    compareBy<PluginRegistryEntry> { it.name.lowercase() }
+                        .thenBy { it.id },
+                )
+        }
 }
 
 // ── `kuml plugin install` ─────────────────────────────────────────────────────
@@ -311,7 +354,18 @@ internal class PluginRemoveCommand : CliktCommand(name = "remove") {
 
 // ── `kuml plugin info` ────────────────────────────────────────────────────────
 
-internal class PluginInfoCommand : CliktCommand(name = "info") {
+/**
+ * Shows local manifest details for an installed plugin, and — on a best-effort
+ * basis — overlays rating/download/review data fetched from the remote registry.
+ *
+ * Registry lookup failures are silently swallowed so that `info` continues to
+ * work without network access.
+ *
+ * @param client Injected for testing; defaults to [PluginRegistryClient] with the production URL.
+ */
+internal class PluginInfoCommand(
+    private val client: PluginRegistryClient = PluginRegistryClient(),
+) : CliktCommand(name = "info") {
     private val id by argument(help = "Plugin ID")
 
     override fun help(context: Context): String = "Show details of an installed plugin."
@@ -354,6 +408,25 @@ internal class PluginInfoCommand : CliktCommand(name = "info") {
                 else -> "unsigned"
             }
         echo("  Signature:    $sigStatus")
+
+        // ── Best-effort registry stats (V3.1.12) ─────────────────────────────
+        val entry = runCatching { client.fetchIndex().find(id) }.getOrNull()
+        if (entry != null) {
+            echo("")
+            echo("  Rating:       ${PluginStatsFormat.ratingLine(entry.rating, entry.ratingCount)}")
+            echo("  Downloads:    ${PluginStatsFormat.fullDownloads(entry.downloadCount)}")
+            val recent = entry.recentReviews(3)
+            if (recent.isNotEmpty()) {
+                echo("  Reviews:")
+                for (review in recent) {
+                    val starStr = PluginStatsFormat.stars(review.rating.toDouble())
+                    val comment = PluginStatsFormat.truncate(review.comment)
+                    echo("    $starStr ${review.author} (${review.date}): $comment")
+                }
+                val extra = entry.reviews.size - recent.size
+                if (extra > 0) echo("    ... $extra more")
+            }
+        }
     }
 }
 
@@ -424,9 +497,9 @@ internal class PluginReloadCommand : CliktCommand(name = "reload") {
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
-private const val MANIFEST_ENTRY = "kuml-plugin.json"
+internal const val MANIFEST_ENTRY = "kuml-plugin.json"
 
-private fun readManifestFromJar(jar: File): String? =
+internal fun readManifestFromJar(jar: File): String? =
     runCatching {
         ZipFile(jar).use { zip ->
             zip.getEntry(MANIFEST_ENTRY)?.let { entry ->
@@ -435,12 +508,12 @@ private fun readManifestFromJar(jar: File): String? =
         }
     }.getOrNull()
 
-private fun ensureLoaded() {
+internal fun ensureLoaded() {
     if (PluginRegistry.all().isEmpty()) {
         PluginLoader.load(parseRuntimeVersion())
     }
 }
 
-private fun parseRuntimeVersion(): PluginVersion =
+internal fun parseRuntimeVersion(): PluginVersion =
     runCatching { PluginVersion.parse(KumlVersion.version) }
         .getOrDefault(PluginVersion(0, 12, 0))

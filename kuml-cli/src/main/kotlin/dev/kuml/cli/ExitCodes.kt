@@ -100,6 +100,26 @@ internal object ExitCodes {
     /** Plugin JAR signature verification failed (V3.0.30). */
     internal const val PLUGIN_SIGNATURE_INVALID: Int = 43
 
+    /**
+     * `kuml plugin check-updates` found at least one installed plugin with a newer version
+     * in the registry (V3.1.11).
+     *
+     * Note: The original task spec requested exit code 2 for this condition, but 2 is already
+     * [USAGE] (Clikt's own usage-error default). Re-using 2 would make CI unable to distinguish
+     * "updates available" from "you typed the command wrong". Exit 44 is used instead.
+     */
+    internal const val PLUGIN_UPDATES_AVAILABLE: Int = 44
+
+    /**
+     * `kuml plugin upgrade --all` completed but at least one plugin failed to upgrade
+     * (download error, manifest parse error, load error, etc.).
+     *
+     * Distinct from [PLUGIN_NOT_FOUND] (40), which means the requested plugin ID was not
+     * found in the installed plugin set or the registry. CI scripts can use exit 45 to
+     * detect a partial upgrade failure without misinterpreting it as "plugin not found".
+     */
+    internal const val PLUGIN_UPGRADE_FAILED: Int = 45
+
     // ── `kuml chain` (V3.0.4 / V3.0.5) ──────────────────────────────────────
 
     /** `kuml chain verify` — on-chain modelHash differs from the local model's hash. */

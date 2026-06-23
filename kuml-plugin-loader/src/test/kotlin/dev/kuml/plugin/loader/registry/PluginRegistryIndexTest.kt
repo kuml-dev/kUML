@@ -129,4 +129,113 @@ class PluginRegistryIndexTest :
             val elk = index.find("dev.kuml.plugin.elk-layout")
             elk?.kumlVersionRange shouldBe ""
         }
+
+        // ── V3.1.12: new fields in index entries ─────────────────────────────
+
+        "V3.1.12: index with new fields in one entry parses without error" {
+            val jsonWithStats =
+                """
+                {
+                  "schemaVersion": 1,
+                  "baseUrl": "https://plugins.kuml.dev",
+                  "plugins": [
+                    {
+                      "id": "dev.kuml.plugin.pdv-theme",
+                      "category": "theme",
+                      "name": "PdV Branding Theme",
+                      "version": "1.0.0",
+                      "manifest": "plugins/dev.kuml.plugin.pdv-theme/kuml-plugin.json",
+                      "downloads": "plugins/dev.kuml.plugin.pdv-theme/releases/",
+                      "downloadCount": 500,
+                      "rating": 4.7,
+                      "ratingCount": 8,
+                      "reviews": [
+                        { "author": "anna", "rating": 5, "comment": "Great!", "date": "2026-06-01" }
+                      ]
+                    },
+                    {
+                      "id": "dev.kuml.plugin.elk-layout",
+                      "category": "layout",
+                      "name": "ELK Layout Engine",
+                      "version": "2.0.0",
+                      "manifest": "plugins/dev.kuml.plugin.elk-layout/kuml-plugin.json",
+                      "downloads": "plugins/dev.kuml.plugin.elk-layout/releases/"
+                    }
+                  ]
+                }
+                """.trimIndent()
+            val index = json.decodeFromString<PluginRegistryIndex>(jsonWithStats)
+            index.plugins shouldHaveSize 2
+        }
+
+        "V3.1.12: entry with new fields has correct downloadCount" {
+            val jsonWithStats =
+                """
+                {
+                  "schemaVersion": 1,
+                  "plugins": [
+                    {
+                      "id": "dev.kuml.plugin.pdv-theme",
+                      "category": "theme",
+                      "name": "PdV Branding Theme",
+                      "version": "1.0.0",
+                      "manifest": "m",
+                      "downloads": "d",
+                      "downloadCount": 500,
+                      "rating": 4.7,
+                      "ratingCount": 8,
+                      "reviews": [
+                        { "author": "anna", "rating": 5, "comment": "Great!", "date": "2026-06-01" }
+                      ]
+                    }
+                  ]
+                }
+                """.trimIndent()
+            val index = json.decodeFromString<PluginRegistryIndex>(jsonWithStats)
+            val pdv = index.find("dev.kuml.plugin.pdv-theme")
+            pdv?.downloadCount shouldBe 500L
+        }
+
+        "V3.1.12: entry without new fields defaults to zero / null / empty" {
+            val index = json.decodeFromString<PluginRegistryIndex>(sampleJson)
+            val elk = index.find("dev.kuml.plugin.elk-layout")
+            elk?.downloadCount shouldBe 0L
+            elk?.rating shouldBe null
+            elk?.ratingCount shouldBe 0
+            elk?.reviews shouldBe emptyList()
+        }
+
+        "V3.1.12: search and find still work when entries carry new fields" {
+            val jsonWithStats =
+                """
+                {
+                  "schemaVersion": 1,
+                  "plugins": [
+                    {
+                      "id": "dev.kuml.plugin.pdv-theme",
+                      "category": "theme",
+                      "name": "PdV Branding Theme",
+                      "version": "1.0.0",
+                      "manifest": "m",
+                      "downloads": "d",
+                      "downloadCount": 500,
+                      "rating": 4.7,
+                      "ratingCount": 8,
+                      "reviews": []
+                    },
+                    {
+                      "id": "dev.kuml.plugin.elk-layout",
+                      "category": "layout",
+                      "name": "ELK Layout Engine",
+                      "version": "2.0.0",
+                      "manifest": "m2",
+                      "downloads": "d2"
+                    }
+                  ]
+                }
+                """.trimIndent()
+            val index = json.decodeFromString<PluginRegistryIndex>(jsonWithStats)
+            index.search("theme") shouldHaveSize 1
+            index.find("dev.kuml.plugin.elk-layout") shouldNotBe null
+        }
     })

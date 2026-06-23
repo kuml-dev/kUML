@@ -45,6 +45,8 @@ kotlin {
                 implementation(project(":kuml-cli"))
                 // V3.0.13 — Plugin Manager: explizite Dependency für TransformerRegistry
                 implementation(project(":kuml-codegen:kuml-codegen-m2m"))
+                // V3.1.11 — Plugin update-badge: UpdateCheckService + UpdateCheckResult
+                implementation(project(":kuml-plugin-loader"))
                 // Koog agents runtime (für AIAgent / PromptExecutor)
                 implementation(libs.koog.agents.jvm)
             }

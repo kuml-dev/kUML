@@ -1,12 +1,15 @@
 package dev.kuml.desktop.plugins
 
 import dev.kuml.codegen.m2m.TransformerRegistry
+import dev.kuml.plugin.loader.registry.PluginRegistryEntry
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import io.kotest.core.spec.style.FunSpec
-import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldContain
+import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotBeBlank
 
 /**
@@ -130,4 +133,63 @@ class PluginManagerPaneTest : FunSpec({
             ThemeRegistry.clear()
         }
     }
+
+    // ── V3.1.12: registryTabLabels() ──────────────────────────────────────────
+
+    test("registryTabLabels() contains 'Registry' as the 4th tab") {
+        val tabs = registryTabLabels()
+        tabs shouldContain "Registry"
+    }
+
+    test("registryTabLabels() has exactly 4 tabs") {
+        registryTabLabels().size shouldBe 4
+    }
+
+    test("registryTabLabels() preserves order: Themes, Transformers, Reverse-Engines, Registry") {
+        registryTabLabels() shouldBe listOf("Themes", "Transformers", "Reverse-Engines", "Registry")
+    }
+
+    // ── V3.1.12: registryCardSubtitle() ──────────────────────────────────────
+
+    test("registryCardSubtitle: rated entry shows stars and rating line") {
+        val entry = makeRegistryEntry(rating = 4.3, ratingCount = 12)
+        val subtitle = registryCardSubtitle(entry)
+        subtitle shouldContain "★"
+        subtitle shouldContain "4.3/5.0"
+        subtitle shouldContain "12 ratings"
+    }
+
+    test("registryCardSubtitle: unrated entry shows empty stars and 'no ratings yet'") {
+        val entry = makeRegistryEntry(rating = null, ratingCount = 0)
+        val subtitle = registryCardSubtitle(entry)
+        subtitle shouldContain "☆☆☆☆☆"
+        subtitle shouldContain "no ratings yet"
+    }
+
+    test("registryCardSubtitle: 5.0 rating with 1 rating uses singular form") {
+        val entry = makeRegistryEntry(rating = 5.0, ratingCount = 1)
+        val subtitle = registryCardSubtitle(entry)
+        subtitle shouldContain "5.0/5.0"
+        subtitle shouldContain "1 rating"
+    }
 })
+
+// ── Test helpers ──────────────────────────────────────────────────────────────
+
+private fun makeRegistryEntry(
+    id: String = "dev.kuml.plugin.test",
+    name: String = "Test Plugin",
+    rating: Double?,
+    ratingCount: Int,
+    downloadCount: Long = 0,
+) = PluginRegistryEntry(
+    id = id,
+    category = "theme",
+    name = name,
+    version = "1.0.0",
+    manifest = "plugins/$id/kuml-plugin.json",
+    downloads = "plugins/$id/releases/",
+    downloadCount = downloadCount,
+    rating = rating,
+    ratingCount = ratingCount,
+)

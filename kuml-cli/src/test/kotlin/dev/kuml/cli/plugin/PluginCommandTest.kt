@@ -284,6 +284,139 @@ class PluginCommandTest :
             result.statusCode shouldBe 1
         }
 
+        // ── kuml plugin info: registry stats (V3.1.12) ───────────────────────
+
+        "info: shows rating, download count and reviews from registry" {
+            val indexWithStats =
+                """
+                {
+                  "schemaVersion": 1,
+                  "plugins": [
+                    {
+                      "id": "dev.kuml.plugin.info-stats",
+                      "category": "theme",
+                      "name": "Info Stats Plugin",
+                      "version": "1.0.0",
+                      "manifest": "plugins/info-stats/kuml-plugin.json",
+                      "downloads": "plugins/info-stats/releases/",
+                      "downloadCount": 1847,
+                      "rating": 4.3,
+                      "ratingCount": 12,
+                      "reviews": [
+                        { "author": "alice", "rating": 4, "comment": "Works great.", "date": "2026-06-20" },
+                        { "author": "bob",   "rating": 5, "comment": "Fast.",        "date": "2026-06-18" },
+                        { "author": "carol", "rating": 4, "comment": "Nice one.",    "date": "2026-06-15" },
+                        { "author": "dave",  "rating": 4, "comment": "Solid.",       "date": "2026-06-10" }
+                      ]
+                    }
+                  ]
+                }
+                """.trimIndent()
+            val (server, port) = startMockRegistry(indexWithStats)
+            try {
+                registerFake(id = "dev.kuml.plugin.info-stats", name = "Info Stats Plugin", version = "1.0.0")
+                val cmd = PluginInfoCommand(PluginRegistryClient("http://localhost:$port"))
+                val result = cmd.test("dev.kuml.plugin.info-stats")
+                result.statusCode shouldBe 0
+                result.output shouldContain "4.3/5.0"
+                result.output shouldContain "1,847"
+                result.output shouldContain "alice"
+                result.output shouldContain "... 1 more"
+            } finally {
+                server.stop(0)
+            }
+        }
+
+        "info: registry unreachable still prints local info (graceful degradation)" {
+            // No mock server — client will fail immediately
+            registerFake(id = "dev.kuml.plugin.offline-test", name = "Offline Test", version = "2.0.0")
+            val cmd = PluginInfoCommand(PluginRegistryClient("http://127.0.0.1:1", timeoutSeconds = 2))
+            val result = cmd.test("dev.kuml.plugin.offline-test")
+            result.statusCode shouldBe 0
+            result.output shouldContain "Offline Test"
+            result.output shouldContain "2.0.0"
+            result.output shouldContain "dev.kuml.plugin.offline-test"
+        }
+
+        "info: plugin not in registry shows local info without stats block" {
+            // Registry returns an empty index — plugin is not listed
+            val emptyIndex =
+                """{"schemaVersion":1,"plugins":[]}"""
+            val (server, port) = startMockRegistry(emptyIndex)
+            try {
+                registerFake(id = "dev.kuml.plugin.not-listed", name = "Not Listed", version = "1.0.0")
+                val cmd = PluginInfoCommand(PluginRegistryClient("http://localhost:$port"))
+                val result = cmd.test("dev.kuml.plugin.not-listed")
+                result.statusCode shouldBe 0
+                result.output shouldContain "Not Listed"
+                result.output shouldNotContain "Rating:"
+                result.output shouldNotContain "Downloads:"
+            } finally {
+                server.stop(0)
+            }
+        }
+
+        // ── kuml plugin search: --sort + stats (V3.1.12) ─────────────────────
+
+        "search --sort=downloads orders by download count descending" {
+            val (server, port) = startMockRegistry(MOCK_INDEX_WITH_STATS_JSON)
+            try {
+                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val result = cmd.test("--sort downloads")
+                result.statusCode shouldBe 0
+                // elk-layout has 5000 downloads vs pdv-theme 1847 → elk appears first
+                val elkPos = result.output.indexOf("elk-layout")
+                val pdvPos = result.output.indexOf("pdv-theme")
+                (elkPos < pdvPos) shouldBe true
+            } finally {
+                server.stop(0)
+            }
+        }
+
+        "search --sort=rating orders highest rating first" {
+            val (server, port) = startMockRegistry(MOCK_INDEX_WITH_STATS_JSON)
+            try {
+                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val result = cmd.test("--sort rating")
+                result.statusCode shouldBe 0
+                // pdv-theme rating=4.8 > elk-layout rating=4.2 → pdv appears first
+                val pdvPos = result.output.indexOf("pdv-theme")
+                val elkPos = result.output.indexOf("elk-layout")
+                (pdvPos < elkPos) shouldBe true
+            } finally {
+                server.stop(0)
+            }
+        }
+
+        "search --sort=name (default) orders alphabetically by name" {
+            val (server, port) = startMockRegistry(MOCK_INDEX_WITH_STATS_JSON)
+            try {
+                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val result = cmd.test("--sort name")
+                result.statusCode shouldBe 0
+                // "ELK Layout Engine" < "PdV Branding Theme" alphabetically → elk first
+                val elkPos = result.output.indexOf("elk-layout")
+                val pdvPos = result.output.indexOf("pdv-theme")
+                (elkPos < pdvPos) shouldBe true
+            } finally {
+                server.stop(0)
+            }
+        }
+
+        "search shows stars and download count in output" {
+            val (server, port) = startMockRegistry(MOCK_INDEX_WITH_STATS_JSON)
+            try {
+                val cmd = PluginSearchCommand(PluginRegistryClient("http://localhost:$port"))
+                val result = cmd.test("")
+                result.statusCode shouldBe 0
+                // Should show star glyphs and the download arrow
+                result.output shouldContain "▼"
+                result.output shouldContain "★"
+            } finally {
+                server.stop(0)
+            }
+        }
+
         // ── kuml plugin reload ────────────────────────────────────────────────────
 
         "reload: runs without exception even with no plugins on disk" {
@@ -328,6 +461,47 @@ private val MOCK_INDEX_JSON =
           "version": "2.0.0",
           "manifest": "plugins/dev.kuml.plugin.elk-layout/kuml-plugin.json",
           "downloads": "plugins/dev.kuml.plugin.elk-layout/releases/"
+        }
+      ]
+    }
+    """.trimIndent()
+
+/**
+ * Extended mock registry JSON with V3.1.12 stats fields for testing ratings/downloads/sort.
+ * pdv-theme: rating=4.8 (higher), downloadCount=1847 (lower)
+ * elk-layout: rating=4.2 (lower), downloadCount=5000 (higher)
+ */
+private val MOCK_INDEX_WITH_STATS_JSON =
+    """
+    {
+      "schemaVersion": 1,
+      "baseUrl": "http://localhost",
+      "plugins": [
+        {
+          "id": "dev.kuml.plugin.pdv-theme",
+          "category": "theme",
+          "name": "PdV Branding Theme",
+          "version": "1.0.0",
+          "kumlVersionRange": ">=0.13.0",
+          "manifest": "plugins/dev.kuml.plugin.pdv-theme/kuml-plugin.json",
+          "downloads": "plugins/dev.kuml.plugin.pdv-theme/releases/",
+          "downloadCount": 1847,
+          "rating": 4.8,
+          "ratingCount": 20,
+          "reviews": [],
+          "maintainer": "Partei der Vernunft"
+        },
+        {
+          "id": "dev.kuml.plugin.elk-layout",
+          "category": "layout",
+          "name": "ELK Layout Engine",
+          "version": "2.0.0",
+          "manifest": "plugins/dev.kuml.plugin.elk-layout/kuml-plugin.json",
+          "downloads": "plugins/dev.kuml.plugin.elk-layout/releases/",
+          "downloadCount": 5000,
+          "rating": 4.2,
+          "ratingCount": 10,
+          "reviews": []
         }
       ]
     }
