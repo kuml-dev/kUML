@@ -195,14 +195,14 @@ class UmlComponentSvgFeatureTest :
                 )
             val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
 
-            // The internal connector is drawn as a line, NOT routed by ELK
-            // (singleNodeLayout has edges = emptyMap()), proving it bypasses ELK.
+            // The internal connector is drawn as a polyline (orthogonal routing), NOT
+            // routed by ELK (singleNodeLayout has edges = emptyMap()).
             svg shouldContain "kuml-connector"
-            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
+            Regex("""<polyline[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
             // Boundary port "api" is the only outer port → left side → its center x = 0 in the
-            // OrderService local <g>; the line must start at x1=0 (the box left wall).
-            val line = Regex("""<line ([^>]*)>""").find(svg)!!.groupValues[1]
-            line shouldContain "x1=\"0\""
+            // OrderService local <g>; the polyline must start with a point at x=0.
+            val polyline = Regex("""<polyline ([^>]*)>""").find(svg)!!.groupValues[1]
+            polyline shouldContain "points=\"0,"
         }
 
         // V3.x — Port-zu-Part-Connectors: Assembly-Connector (part port → part port)
@@ -239,7 +239,7 @@ class UmlComponentSvgFeatureTest :
                 )
             val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
 
-            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
+            Regex("""<polyline[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
             // Both nested parts still render.
             svg shouldContain "Validator"
             svg shouldContain "Persistence"
@@ -278,8 +278,8 @@ class UmlComponentSvgFeatureTest :
                 )
             val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
 
-            // The connector line itself is still present.
-            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
+            // The connector polyline itself is still present.
+            Regex("""<polyline[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
             // And the name label is emitted.
             svg shouldContain "kuml-connector-label"
             svg shouldContain "delegate"
@@ -319,9 +319,9 @@ class UmlComponentSvgFeatureTest :
                 )
             val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
 
-            // resolvePortCenter() returns null for the missing port → the connector is
-            // skipped entirely (continue), so exactly zero kuml-connector lines appear.
-            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 0
+            // resolvePortAnchor() returns null for the missing port → the connector is
+            // skipped entirely (continue), so exactly zero kuml-connector polylines appear.
+            Regex("""<polyline[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 0
             // The component box itself still renders normally.
             svg shouldContain "OrderService"
         }
@@ -371,8 +371,8 @@ class UmlComponentSvgFeatureTest :
             // The flat component box still renders.
             svg shouldContain "FlatService"
             Regex("«component»").findAll(svg).count() shouldBe 1
-            // The boundary-to-boundary connector is silently dropped — zero connector lines.
-            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 0
+            // The boundary-to-boundary connector is silently dropped — zero connector polylines.
+            Regex("""<polyline[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 0
         }
 
         // V3.x — Port-zu-Part-Connectors: no double-drawing when ELK has no edge for them
@@ -403,9 +403,9 @@ class UmlComponentSvgFeatureTest :
                     elements = listOf(service, delegation),
                 )
             // singleNodeLayout intentionally has edges = emptyMap(): the ELK edge loop
-            // contributes nothing, so the only line comes from the in-box renderer.
+            // contributes nothing, so the only polyline comes from the in-box renderer.
             val svg = KumlSvgRenderer.toSvg(diagram, singleNodeLayout("OrderService"), PlainTheme())
-            Regex("""<line[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
+            Regex("""<polyline[^>]*class="kuml-connector"""").findAll(svg).count() shouldBe 1
         }
     })
 

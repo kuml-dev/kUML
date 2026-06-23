@@ -6,6 +6,27 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.16.2] — 2026-06-23
+
+### Fixed
+
+**Composite-Structure: Assembly-Connector lief diagonal durch Komponenten-Boxen** (`UmlComponentSvg`)
+
+Interne Connectors in Composite-Structure-Diagrammen wurden als einfache
+`<line>`-Elemente gerendert — ohne orthogonales Routing. Ein Assembly-Connector
+von einem RIGHT-seitigen Port (z.B. `Validator::out`) zu einem LEFT-seitigen Port
+(z.B. `Persistence::in`) bei vertikal gestapelten Komponenten erzeugte eine
+Diagonale, die durch beide Komponenten-Rechtecke verlief.
+
+- `drawInternalConnectors()` zeichnet jetzt `<polyline fill="none">` statt `<line>`.
+- `resolvePortCenter()` ersetzt durch `resolvePortAnchor()` — liefert zusätzlich
+  `isLeft` und `compId` für das Routing.
+- Neue `buildInternalRoute()`: erkennt die Port-Seiten und wählt:
+  - **Gleiche Seite** → U-Form: gemeinsamer Korridor außerhalb beider Boxen.
+  - **Gegenüberliegende Seiten** → Gap-Routing: die vertikale Brücke verläuft
+    durch den Spalt zwischen den Komponenten-Boxen (kein Schnitt durch Rechtecke).
+    Bei horizontaler Überlappung (keine Lücke): einfacher Mittelpunkt als Fallback.
+
 ## [0.16.1] — 2026-06-23
 
 ### Fixed

@@ -449,20 +449,41 @@ private fun SvgBuilder.renderPorts(
 
 // ── Internal Connector Rendering (Composite-Structure) ────────────────────────
 //
-// Internal connectors are drawn as `<line class="kuml-connector">` inside the
+// Internal connectors are drawn as `<polyline class="kuml-connector">` inside the
 // parent component's `<g transform="translate(x,y)">` — all coordinates are
 // local to the parent box origin (0,0). No ELK routing is used; anchor points
-// are computed with the SAME alternating-side rule as [renderPorts], so line
-// endpoints touch the port-square centers exactly.
+// are computed with the SAME alternating-side rule as [renderPorts].
+//
+// Routing strategy (V0.16.2):
+//   - Same side (LEFT↔LEFT or RIGHT↔RIGHT) → U-shape: shared corridor
+//     to the outside of both components.
+//   - Opposite sides (RIGHT↔LEFT or LEFT↔RIGHT) → Gap routing: the
+//     connector leaves each port as a short horizontal stub, then routes
+//     the vertical segment through the GAP between the two component boxes.
+//     This avoids the diagonal line cutting through the component rectangles
+//     that occurred with the previous `<line>` approach.
+
+/** Stub length (px) added at each port to leave the component edge orthogonally. */
+private const val INTERNAL_STUB_PX = 16f
+
+/** Full port information needed for orthogonal routing of internal connectors. */
+private data class PortAnchor(
+    val cx: Float,
+    val cy: Float,
+    val isLeft: Boolean,
+    val compId: String,
+)
 
 /**
- * Draws all [connectors] as SVG lines within the current parent-local coordinate
- * frame.  [partRects] maps component-id → bounding [Rect] in parent-local coords.
+ * Draws all [connectors] as SVG polylines within the current parent-local
+ * coordinate frame, using gap-aware orthogonal routing.
+ *
+ * [partRects] maps component-id → bounding [Rect] in parent-local coords.
  * [componentById] maps component-id → [UmlComponent] for port-list lookup.
  *
  * Called from [drawComponentBox] after the nested-part sub-boxes are rendered,
- * so lines appear on top of part box fills while port squares (drawn recursively
- * by each part's own `renderPorts`) remain visible at the line endpoints.
+ * so polylines appear on top of part box fills while port squares (drawn
+ * recursively by each part's own `renderPorts`) remain visible at the endpoints.
  */
 private fun drawInternalConnectors(
     connectors: List<UmlConnector>,
@@ -482,25 +503,25 @@ private fun drawInternalConnectors(
         }
     val sep = "::"
     for (connector in cappedConnectors) {
-        val (c1x, c1y) = resolvePortCenter(connector.end1Id, sep, partRects, componentById) ?: continue
-        val (c2x, c2y) = resolvePortCenter(connector.end2Id, sep, partRects, componentById) ?: continue
+        val pa1 = resolvePortAnchor(connector.end1Id, sep, partRects, componentById) ?: continue
+        val pa2 = resolvePortAnchor(connector.end2Id, sep, partRects, componentById) ?: continue
 
+        val points = buildInternalRoute(pa1, pa2, partRects)
+        val pointsAttr = points.joinToString(" ") { (x, y) -> "${fmt(x)},${fmt(y)}" }
         builder.tag(
-            "line",
+            "polyline",
             mapOf(
-                "x1" to fmt(c1x),
-                "y1" to fmt(c1y),
-                "x2" to fmt(c2x),
-                "y2" to fmt(c2y),
+                "points" to pointsAttr,
                 "class" to "kuml-connector",
+                "fill" to "none",
             ),
         )
 
-        // Optional name label at midpoint.
+        // Optional name label at midpoint of the full route.
         val connectorName = connector.name
         if (connectorName != null) {
-            val mx = (c1x + c2x) / 2f
-            val my = (c1y + c2y) / 2f - 3f
+            val mx = (pa1.cx + pa2.cx) / 2f
+            val my = (pa1.cy + pa2.cy) / 2f - 3f
             builder.tag(
                 "text",
                 mapOf(
@@ -515,8 +536,70 @@ private fun drawInternalConnectors(
 }
 
 /**
+ * Builds an orthogonal waypoint list between two [PortAnchor]s.
+ *
+ * **Same side** (both LEFT or both RIGHT): U-shape — stubs leave ports
+ * perpendicularly, then share a single vertical corridor outside both boxes.
+ *
+ * **Opposite sides**: Gap routing — each stub leaves its port perpendicularly,
+ * then the connector's vertical segment runs through the gap between the two
+ * component boxes (i.e., above or below both parts). This prevents the route
+ * from cutting diagonally through either component rectangle.
+ */
+private fun buildInternalRoute(
+    p1: PortAnchor,
+    p2: PortAnchor,
+    partRects: Map<String, Rect>,
+): List<Pair<Float, Float>> {
+    val s1x = if (p1.isLeft) p1.cx - INTERNAL_STUB_PX else p1.cx + INTERNAL_STUB_PX
+    val s2x = if (p2.isLeft) p2.cx - INTERNAL_STUB_PX else p2.cx + INTERNAL_STUB_PX
+
+    return if (p1.isLeft == p2.isLeft) {
+        // U-shape: corridor on the outside of the shared side.
+        val cornerX =
+            if (p1.isLeft) minOf(s1x, s2x) else maxOf(s1x, s2x)
+        listOf(
+            p1.cx to p1.cy,
+            s1x to p1.cy,
+            cornerX to p1.cy,
+            cornerX to p2.cy,
+            s2x to p2.cy,
+            p2.cx to p2.cy,
+        )
+    } else {
+        // Opposite sides: route the bridge through the gap between the
+        // two component boxes, not across their horizontal midpoint.
+        val rect1 = partRects[p1.compId]
+        val rect2 = partRects[p2.compId]
+        val gapY =
+            if (rect1 != null && rect2 != null) {
+                val top1 = rect1.origin.y
+                val bottom1 = rect1.origin.y + rect1.size.height
+                val top2 = rect2.origin.y
+                val bottom2 = rect2.origin.y + rect2.size.height
+                when {
+                    top2 > bottom1 -> (bottom1 + top2) / 2f // rect2 is below rect1
+                    top1 > bottom2 -> (bottom2 + top1) / 2f // rect1 is below rect2
+                    else -> (p1.cy + p2.cy) / 2f // overlapping — midY fallback
+                }
+            } else {
+                (p1.cy + p2.cy) / 2f
+            }
+        listOf(
+            p1.cx to p1.cy,
+            s1x to p1.cy,
+            s1x to gapY,
+            s2x to gapY,
+            s2x to p2.cy,
+            p2.cx to p2.cy,
+        )
+    }
+}
+
+/**
  * Resolves an endpoint id of the form `"<componentId>::<portName>"` to its
- * port-center (cx, cy) in parent-local coordinates.
+ * [PortAnchor] — port-center (cx, cy), which side it sits on, and the
+ * owning component id — all in parent-local coordinates.
  *
  * Uses the SAME alternating-side rule as [renderPorts]:
  *   - Even port index (0,2,4,…) → left side, center x = box.origin.x
@@ -526,12 +609,12 @@ private fun drawInternalConnectors(
  * Returns `null` if the endpoint id cannot be split, the component is unknown,
  * or the port is not found.
  */
-private fun resolvePortCenter(
+private fun resolvePortAnchor(
     endId: String,
     sep: String,
     partRects: Map<String, Rect>,
     componentById: Map<String, UmlComponent>,
-): Pair<Float, Float>? {
+): PortAnchor? {
     val sepIdx = endId.lastIndexOf(sep)
     if (sepIdx <= 0) return null
     val componentId = endId.substring(0, sepIdx)
@@ -554,14 +637,14 @@ private fun resolvePortCenter(
     val bw = box.size.width
     val bh = box.size.height
 
-    // y center within the box: same formula as renderPorts
+    // y center: same formula as renderPorts
     // (py = bh*(iOnSide+1)/(sideList.size+1) - portSize/2 → center = py + portSize/2)
     val cyLocal = bh * (iOnSide + 1) / (sideList.size + 1)
-    // x center: left-side port square sits at x=-portSize/2 → center x=bx;
-    //           right-side port square sits at x=bw-portSize/2 → center x=bx+bw.
+    // x center: left-side port sits at x=-portSize/2 → center x=bx;
+    //           right-side port sits at x=bw-portSize/2 → center x=bx+bw.
     val cxLocal = if (isLeft) bx else bx + bw
 
-    return Pair(cxLocal, by + cyLocal)
+    return PortAnchor(cx = cxLocal, cy = by + cyLocal, isLeft = isLeft, compId = componentId)
 }
 
 private fun fmt(v: Float): String {
