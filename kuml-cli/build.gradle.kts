@@ -33,6 +33,7 @@ dependencies {
     if (aiEnabled) {
         implementation(project(":kuml-ai:kuml-ai-core")) // V3.1.15 — kuml ai provider commands
         // kuml-ai-spi comes transitively via kuml-ai-core's api() dependency
+        implementation(project(":kuml-ai:kuml-ai-tools")) // V3.1.16 — kuml ai tools commands
     }
     implementation(libs.clikt)
     implementation(project(":kuml-plugin-loader")) // V3.0.29 — kuml plugin subcommand group

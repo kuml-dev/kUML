@@ -1,0 +1,3 @@
+# Register custom KumlToolSetFactory implementations here, one FQCN per line.
+# Example:
+# com.example.jira.JiraToolSetFactory

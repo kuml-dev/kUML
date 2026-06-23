@@ -9,6 +9,8 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
 import dev.kuml.ai.provider.ProviderRegistry
+import dev.kuml.ai.spi.ToolSetCapability
+import dev.kuml.ai.tools.registry.KumlToolRegistry
 import dev.kuml.cli.ExitCodes
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -25,15 +27,18 @@ import kotlinx.serialization.json.Json
 /**
  * Top-level `kuml ai` subcommand.
  *
- * Currently exposes a `provider` sub-group for inspecting registered LLM providers.
+ * Sub-groups:
+ *   kuml ai provider   — inspect registered LLM providers
+ *   kuml ai tools      — inspect built-in and external agent tool sets (V3.1.16)
+ *
  * Execution commands (e.g. kuml ai ask, kuml ai edit) are planned for V3.2+.
  */
 internal class AiCommand : CliktCommand(name = "ai") {
     init {
-        subcommands(AiProviderCommand())
+        subcommands(AiProviderCommand(), AiToolsCommand())
     }
 
-    override fun help(context: Context): String = "Inspect and manage kUML AI provider configuration."
+    override fun help(context: Context): String = "Inspect and manage kUML AI provider configuration and agent tool sets."
 
     override fun run() = Unit
 }
@@ -183,4 +188,110 @@ internal class AiProviderInfoCommand : CliktCommand(name = "info") {
             n >= 1_000 -> "${n / 1_000}K tokens"
             else -> "$n tokens"
         }
+}
+
+// ── `kuml ai tools` ──────────────────────────────────────────────────────────
+
+/**
+ * `kuml ai tools` subcommand group.
+ *
+ * Sub-subcommands:
+ *   kuml ai tools list   — table of built-in and external tool sets with capabilities
+ */
+internal class AiToolsCommand : CliktCommand(name = "tools") {
+    init {
+        subcommands(AiToolsListCommand())
+    }
+
+    override fun help(context: Context): String = "List built-in and external agent tool sets."
+
+    override fun run() = Unit
+}
+
+// ── `kuml ai tools list` ─────────────────────────────────────────────────────
+
+/** JSON shape for `--output json`. */
+@Serializable
+private data class ToolSetListJson(
+    val toolSets: List<ToolSetEntry>,
+)
+
+@Serializable
+private data class ToolSetEntry(
+    val id: String,
+    val displayName: String,
+    val origin: String,
+    val capabilities: List<String>,
+)
+
+internal class AiToolsListCommand : CliktCommand(name = "list") {
+    private val outputFormat by option("-o", "--output", help = "Output format (text or json)")
+        .choice("text", "json")
+        .default("text")
+
+    override fun help(context: Context): String = "List all agent tool sets (built-in + external SPI) with required capabilities."
+
+    override fun run() {
+        val builtIns =
+            listOf(
+                ToolSetEntry("uml", "UML Editing Tools", "built-in", emptyList()),
+                ToolSetEntry("c4", "C4 Editing Tools", "built-in", emptyList()),
+                ToolSetEntry("sysml2", "SysML 2 Editing Tools", "built-in", emptyList()),
+                ToolSetEntry(
+                    "render",
+                    "Rendering Tools",
+                    "built-in",
+                    listOf(ToolSetCapability.FILE_SYSTEM.name),
+                ),
+                ToolSetEntry("inspection", "Model Inspection Tools", "built-in", emptyList()),
+                ToolSetEntry("mcp", "MCP Bridge", "built-in", emptyList()),
+            )
+
+        val external =
+            KumlToolRegistry.discoverExternal().map { f ->
+                ToolSetEntry(
+                    id = f.id,
+                    displayName = f.displayName,
+                    origin = "external",
+                    capabilities = f.requiredCapabilities.map { it.name }.sorted(),
+                )
+            }
+
+        // Built-ins first (sorted by id), then external (sorted by id).
+        val all =
+            (builtIns + external).sortedWith(
+                compareBy({ it.origin != "built-in" }, { it.id }),
+            )
+
+        when (outputFormat) {
+            "json" -> echo(Json { prettyPrint = true }.encodeToString(ToolSetListJson(all)))
+            else -> renderTable(all)
+        }
+    }
+
+    private fun renderTable(entries: List<ToolSetEntry>) {
+        if (entries.isEmpty()) {
+            echo("No tool sets registered.")
+            return
+        }
+        echo("Agent tool sets (${entries.size}):\n")
+
+        val idWidth = entries.maxOf { it.id.length }.coerceAtLeast(12)
+        val nameWidth = entries.maxOf { it.displayName.length }.coerceAtLeast(12)
+        val originWidth = entries.maxOf { it.origin.length }.coerceAtLeast(8)
+
+        val header =
+            "%-${idWidth}s  %-${nameWidth}s  %-${originWidth}s  CAPABILITIES"
+                .format("ID", "NAME", "ORIGIN")
+        echo(header)
+        echo("-".repeat(header.length))
+
+        for (e in entries) {
+            val caps = e.capabilities.joinToString(", ").ifEmpty { "-" }
+            echo(
+                "%-${idWidth}s  %-${nameWidth}s  %-${originWidth}s  %s"
+                    .format(e.id, e.displayName, e.origin, caps),
+            )
+        }
+    }
 }
