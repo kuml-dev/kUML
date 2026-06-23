@@ -71,7 +71,9 @@ internal fun renderBpmnEvent(
         val throwing = event.behaviour == EventBehaviour.THROWING
         val symbol = BpmnEventSymbols.forDefinition(event.definition, throwing)
         if (symbol != null) {
-            val scale = (r * 1.2f) / 12f
+            // Symbol soll innerhalb des Kreises bleiben: Faktor < 1.0, damit auch
+            // die Ecken der 24×24-Normbox (Diagonale) den Ring nicht überragen.
+            val scale = (r * 0.85f) / 12f
             val tx = cx - 12f * scale
             val ty = cy - 12f * scale
             rawXml(
