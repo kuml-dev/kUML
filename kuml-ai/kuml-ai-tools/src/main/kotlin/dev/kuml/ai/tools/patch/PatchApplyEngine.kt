@@ -9,6 +9,9 @@ import dev.kuml.ai.tools.patch.aitrace.AiTraceSink
 import dev.kuml.ai.tools.patch.aitrace.NoopAiTraceSink
 import dev.kuml.ai.tools.patch.apply.ModelMutationRouter
 import dev.kuml.ai.tools.patch.apply.ModelSnippet
+import dev.kuml.ai.tools.patch.store.InsertResult
+import dev.kuml.ai.tools.patch.store.PatchStatus
+import dev.kuml.ai.tools.patch.store.PersistentPatchStore
 import dev.kuml.ai.tools.patch.validation.PatchValidationResult
 import dev.kuml.runtime.AiTraceEntry
 import kotlinx.coroutines.sync.Mutex
@@ -48,11 +51,33 @@ public class PatchApplyEngine(
     private val validator: PatchValidator = PatchValidator(),
     private val traceSink: AiTraceSink = NoopAiTraceSink,
     private val clock: Clock = Clock.systemUTC(),
-) {
+    /**
+     * Owner identifier for this engine instance.
+     *
+     * Used for multi-user ownership validation: a patch buffered with a different
+     * owner id will be rejected at apply time. Defaults to the OS username so
+     * single-user callers need not pass this explicitly.
+     */
+    ownerId: String? = null,
+    /**
+     * Optional persistent patch store. When non-null, every applied/rejected patch is
+     * recorded. Conflict detection runs against the store's 5-second window.
+     * Defaults to null (in-memory only) for backward compatibility.
+     */
+    private val store: PersistentPatchStore? = null,
+    /**
+     * Optional in-process pub/sub broker for cross-session notifications.
+     * Defaults to null (standalone engine).
+     */
+    private val broker: SharedPatchBroker? = null,
+) : AutoCloseable {
     private val engineMutex = Mutex()
 
     /** Stable session id for this engine instance — set once in init. */
     public val sessionId: PatchSessionId = PatchSessionId.newSession()
+
+    /** Effective owner id for this session (OS username by default). */
+    public val ownerId: String = ownerId ?: System.getProperty("user.name") ?: "unknown"
 
     /** Pre-session snapshot; captured synchronously in the init block. */
     private lateinit var preSessionSnapshot: Snapshot
@@ -61,6 +86,12 @@ public class PatchApplyEngine(
     private val pendingBuffer: MutableList<ModelPatch> = mutableListOf()
     private val rejectedPatchIds: MutableSet<String> = mutableSetOf()
     private val appliedPatchIds: MutableSet<String> = mutableSetOf()
+
+    /**
+     * Maps patchId → ownerId for multi-user ownership validation.
+     * Populated by [buffer(patch, ownerId)]; cleared alongside the buffer on rejectAll.
+     */
+    private val patchOwners: MutableMap<String, String> = mutableMapOf()
 
     private var seqCounter = 0L
 
@@ -92,12 +123,28 @@ public class PatchApplyEngine(
     // ── Public API ────────────────────────────────────────────────────────────
 
     /**
-     * Adds [patch] to the pending buffer. Does NOT apply it to the context yet.
-     * Call [applyOne] to validate + apply, or [rejectOne] to discard.
+     * Adds [patch] to the pending buffer attributed to this engine's [ownerId].
+     * Does NOT apply it to the context yet. Call [applyOne] to validate + apply,
+     * or [rejectOne] to discard.
+     *
+     * Backward-compatible single-argument form; the patch is owned by [ownerId].
      */
-    public suspend fun buffer(patch: ModelPatch): Unit =
+    public suspend fun buffer(patch: ModelPatch): Unit = buffer(patch, ownerId)
+
+    /**
+     * Adds [patch] to the pending buffer attributed to [patchOwnerId].
+     *
+     * Use this overload in multi-user scenarios where a patch originates from a
+     * different user than the engine owner. Ownership validation happens at
+     * [applyOne] time: if [patchOwnerId] != [ownerId], the apply is rejected.
+     */
+    public suspend fun buffer(
+        patch: ModelPatch,
+        patchOwnerId: String,
+    ): Unit =
         engineMutex.withLock {
             pendingBuffer.add(patch)
+            patchOwners[patch.patchId] = patchOwnerId
         }
 
     /**
@@ -126,6 +173,29 @@ public class PatchApplyEngine(
                         patchId = patchId,
                         reason = "Patch $patchId not found in engine buffer.",
                     )
+
+            // Multi-user ownership gate: reject if patch was buffered by a different owner.
+            val patchOwner = patchOwners[patchId]
+            if (patchOwner != null && patchOwner != ownerId) {
+                val ownershipReason =
+                    "${PatchReasonPrefix.OWNERSHIP_MISMATCH}: Patch $patchId owned by '$patchOwner'," +
+                        " cannot be applied by '$ownerId'."
+                traceSink.emit(
+                    AiTraceEntry.Rejected(
+                        seqNo = nextSeq(),
+                        timestamp = nowIso(),
+                        sessionId = sessionId.value,
+                        patchId = patchId,
+                        reason = ownershipReason,
+                    ),
+                )
+                rejectedPatchIds += patchId
+                patchOwners.remove(patchId)
+                return@withLock PatchApplyOutcome.ApplyFailed(
+                    patchId = patchId,
+                    reason = ownershipReason,
+                )
+            }
 
             val baseModel = context.resolveModel()
             val mutate = ModelMutationRouter.mutateFor(patch)
@@ -163,10 +233,51 @@ public class PatchApplyEngine(
             val validOutcome = validationResult as PatchValidationResult.Valid
 
             // Apply to the real working model
+            // Persistence conflict check (when store is wired).
+            if (store != null) {
+                val storeResult = store.insert(patch, ownerId, PatchStatus.PENDING)
+                if (storeResult is InsertResult.ConflictDetected) {
+                    val conflictReason =
+                        "${PatchReasonPrefix.CONFLICT}: element touched within ${storeResult.windowMs}ms" +
+                            " by patch ${storeResult.conflictingPatchId}"
+                    rejectedPatchIds += patchId
+                    patchOwners.remove(patchId)
+                    traceSink.emit(
+                        AiTraceEntry.Rejected(
+                            seqNo = nextSeq(),
+                            timestamp = nowIso(),
+                            sessionId = sessionId.value,
+                            patchId = patchId,
+                            reason = conflictReason,
+                        ),
+                    )
+                    val conflictElementId =
+                        when (patch) {
+                            is ModelPatch.AddElement -> patch.elementId
+                            is ModelPatch.RemoveElement -> patch.elementId
+                            is ModelPatch.UpdateAttribute -> patch.ownerId
+                            is ModelPatch.RenameElement -> patch.elementId
+                            is ModelPatch.AddRelationship -> patch.relationshipId
+                        }
+                    broker?.publish(
+                        PatchBrokerEvent.ConflictDetected(
+                            sessionId = sessionId.value,
+                            elementId = conflictElementId,
+                            conflictingPatchId = storeResult.conflictingPatchId,
+                        ),
+                    )
+                    return@withLock PatchApplyOutcome.ApplyFailed(
+                        patchId = patchId,
+                        reason = conflictReason,
+                    )
+                }
+            }
+
             val applyResult = context.applyPatch(patch, mutate)
             return@withLock when (applyResult) {
                 is PatchApplyResult.Success -> {
                     appliedPatchIds += patchId
+                    patchOwners.remove(patchId)
                     traceSink.emit(
                         AiTraceEntry.Applied(
                             seqNo = nextSeq(),
@@ -177,6 +288,15 @@ public class PatchApplyEngine(
                             elementId = applyResult.elementId,
                         ),
                     )
+                    store?.updateStatus(patchId, PatchStatus.APPLIED)
+                    broker?.publish(
+                        PatchBrokerEvent.PatchAppliedBySession(
+                            sessionId = sessionId.value,
+                            ownerId = ownerId,
+                            patchId = patchId,
+                            elementId = applyResult.elementId,
+                        ),
+                    )
                     PatchApplyOutcome.Applied(
                         patchId = patchId,
                         validation = validOutcome,
@@ -184,6 +304,8 @@ public class PatchApplyEngine(
                     )
                 }
                 is PatchApplyResult.Failure -> {
+                    store?.updateStatus(patchId, PatchStatus.REJECTED)
+                    patchOwners.remove(patchId)
                     PatchApplyOutcome.ApplyFailed(patchId = patchId, reason = applyResult.reason)
                 }
             }
@@ -201,6 +323,7 @@ public class PatchApplyEngine(
         engineMutex.withLock {
             if (patchId in appliedPatchIds || patchId in rejectedPatchIds) return@withLock
             rejectedPatchIds += patchId
+            patchOwners.remove(patchId)
             traceSink.emit(
                 AiTraceEntry.Rejected(
                     seqNo = nextSeq(),
@@ -210,6 +333,7 @@ public class PatchApplyEngine(
                     reason = reason,
                 ),
             )
+            store?.updateStatus(patchId, PatchStatus.REJECTED)
         }
 
     /**
@@ -225,6 +349,7 @@ public class PatchApplyEngine(
             val pending = pendingBuffer.map { it.patchId }.filter { it !in rejectedPatchIds && it !in appliedPatchIds }
             val allRejected = rejectedPatchIds.toMutableSet().also { it.addAll(pending) }
             rejectedPatchIds.addAll(allRejected)
+            patchOwners.clear()
 
             traceSink.emit(
                 AiTraceEntry.SessionAborted(
@@ -295,6 +420,17 @@ public class PatchApplyEngine(
 
     /** Read-only access: patch ids that have been explicitly rejected. */
     public fun rejectedIds(): Set<String> = rejectedPatchIds.toSet()
+
+    /**
+     * Closes the underlying [PersistentPatchStore] (if any), releasing the JDBC connection
+     * and SQLite WAL/SHM file handles.
+     *
+     * Callers must wrap engine instances in `use {}` or call `close()` explicitly when the
+     * session ends to avoid leaking file descriptors in long-running or multi-session processes.
+     */
+    override fun close() {
+        store?.close()
+    }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 

@@ -27,6 +27,7 @@ eclipse-emf-ecore-xmi  = "2.36.0"
 eclipse-uml2           = "5.0.1.v20140910-1354"
 eclipse-uml2-types     = "2.0.0.v20140910-1354"
 eclipse-uml2-common    = "2.0.1.v20140910-1354"
+sqlite-jdbc            = "3.50.1.0"
 
 [libraries]
 # ── Compose / Kuiver ─────────────────────────────────────────────────────────
@@ -112,6 +113,9 @@ eclipse-uml2-common    = { module = "org.eclipse.uml2:org.eclipse.uml2.common", 
 # ── JavaParser (Reverse Engineering — V3.0.7) ────────────────────────────────
 javaparser-core                 = { module = "com.github.javaparser:javaparser-core",                version.ref = "javaparser" }
 javaparser-symbol-solver-core   = { module = "com.github.javaparser:javaparser-symbol-solver-core",  version.ref = "javaparser" }
+
+# ── SQLite (PersistentPatchStore — V3.1.19) ───────────────────────────────────
+sqlite-jdbc                     = { module = "org.xerial:sqlite-jdbc",                                  version.ref = "sqlite-jdbc" }
 
 # ── Kotlin Compiler Embeddable (Reverse Engineering — V3.0.8) ─────────────────
 kotlin-compiler-embeddable      = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable",       version.ref = "kotlin" }

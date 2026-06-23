@@ -32,12 +32,13 @@ import kotlinx.serialization.json.Json
  *   kuml ai tools      — inspect built-in and external agent tool sets (V3.1.16)
  *   kuml ai bench      — run benchmark task suite against a provider (V3.1.17)
  *   kuml ai pricing    — show LLM provider pricing per million tokens (V3.1.17)
+ *   kuml ai audit      — read the compliance audit log (V3.1.19)
  *
  * Execution commands (e.g. kuml ai ask, kuml ai edit) are planned for V3.2+.
  */
 internal class AiCommand : CliktCommand(name = "ai") {
     init {
-        subcommands(AiProviderCommand(), AiToolsCommand(), AiBenchCommand(), AiPricingCommand())
+        subcommands(AiProviderCommand(), AiToolsCommand(), AiBenchCommand(), AiPricingCommand(), AiAuditCommand())
     }
 
     override fun help(context: Context): String =

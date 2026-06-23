@@ -50,6 +50,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlin.reflect)
 
+    // ── SQLite (PersistentPatchStore — V3.1.19) ───────────────────────────
+    implementation(libs.sqlite.jdbc)
+
     // ── Tests ────────────────────────────────────────────────────────────────
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
