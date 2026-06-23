@@ -234,9 +234,21 @@ internal object RenderPipeline {
         // Tree-Trunk-Routing bei großen Fan-Ins).
         val diagramMergeEdges =
             (diagram.metadata[LayoutMetadataKeys.MERGE_EDGES] as? KumlMetaValue.Flag)?.value
+        // UML STATE diagrams pack many transition labels around shared states
+        // (guard conditions, action labels, composite state entry/exit transitions).
+        // Default 40 px node-to-node and 12 px edge-to-edge causes crowding and makes
+        // transition arrows hard to follow. Increase both — same rationale and values
+        // as SysML-2 STM, which has an identical layout topology.
+        val baseSpacing =
+            if (diagram.type == DiagramType.STATE) {
+                Spacing(nodeToNode = 80f, edgeToEdge = 28f, groupPadding = 24f)
+            } else {
+                LayoutHints.DEFAULT.spacing
+            }
         val hints =
             LayoutHints.DEFAULT.copy(
                 mergeEdges = diagramMergeEdges ?: LayoutHints.DEFAULT.mergeEdges,
+                spacing = baseSpacing,
             )
         val layoutGraph =
             UmlLayoutBridge.toLayoutGraph(diagram, UmlContentSizeProvider(diagram, hints.direction))
