@@ -5,7 +5,9 @@ import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldNotContain
 import kotlinx.serialization.json.Json
+import java.time.LocalDate
 
 /**
  * V3.1.12 — Tests for [PluginRegistryEntry] model additions:
@@ -209,5 +211,185 @@ class PluginRegistryEntryTest :
             val decoded = json.decodeFromString<PluginRegistryEntry>(encoded)
             decoded.screenshotUrls shouldHaveSize original.screenshotUrls.size
             decoded.screenshotUrls[0] shouldBe original.screenshotUrls[0]
+        }
+
+        // ── V3.1.14: signingKeys list ──────────────────────────────────────────
+
+        val signingKeysJson =
+            """
+            {
+              "id": "dev.kuml.plugin.elk-layout",
+              "category": "layout",
+              "name": "ELK Layout Engine",
+              "version": "3.0.0",
+              "manifest": "plugins/dev.kuml.plugin.elk-layout/kuml-plugin.json",
+              "downloads": "plugins/dev.kuml.plugin.elk-layout/releases/",
+              "signingKeys": [
+                {
+                  "publicKey": "MCowBQYDK2VwAyEArevokedKey==",
+                  "keyId": "2024-primary",
+                  "validFrom": "2024-01-01",
+                  "validUntil": "2025-03-31",
+                  "status": "REVOKED"
+                },
+                {
+                  "publicKey": "MCowBQYDK2VwAyEAactive1Key==",
+                  "keyId": "2025-primary",
+                  "validFrom": "2025-01-01",
+                  "validUntil": "2026-09-30",
+                  "status": "ACTIVE"
+                },
+                {
+                  "publicKey": "MCowBQYDK2VwAyEAactive2Key==",
+                  "keyId": "2026-primary",
+                  "validFrom": "2026-07-01",
+                  "status": "ACTIVE"
+                }
+              ]
+            }
+            """.trimIndent()
+
+        val today = LocalDate.of(2026, 6, 23)
+
+        "V3.1.14: signingKeys array with 3 entries parses to correct size" {
+            val entry = json.decodeFromString<PluginRegistryEntry>(signingKeysJson)
+            entry.signingKeys shouldHaveSize 3
+        }
+
+        "V3.1.14: keyStatusSummary returns '1 active, 1 revoked, 1 expired'" {
+            val entry = json.decodeFromString<PluginRegistryEntry>(signingKeysJson)
+            // 2025-primary: validUntil 2026-09-30 — still active on 2026-06-23 → active
+            // 2026-primary: validFrom 2026-07-01 — not yet active on 2026-06-23 → expired (future)
+            // 2024-primary: REVOKED → revoked
+            // Expected: "1 active, 1 revoked, 1 expired"
+            val summary = entry.keyStatusSummary(today)
+            summary shouldBe "1 active, 1 revoked, 1 expired"
+        }
+
+        "V3.1.14: keyStatusSummary shows all three groups simultaneously" {
+            // Explicit fixture with one key of each effective status to exercise all branches
+            val threeGroupJson =
+                """
+                {
+                  "id": "dev.kuml.plugin.test",
+                  "category": "theme",
+                  "name": "Test",
+                  "version": "1.0.0",
+                  "manifest": "m",
+                  "downloads": "d",
+                  "signingKeys": [
+                    {
+                      "publicKey": "MCowBQYDK2VwAyEAactiveKey==",
+                      "keyId": "active-key",
+                      "validFrom": "2025-01-01",
+                      "validUntil": "2027-12-31",
+                      "status": "ACTIVE"
+                    },
+                    {
+                      "publicKey": "MCowBQYDK2VwAyEArevokedKey==",
+                      "keyId": "revoked-key",
+                      "validFrom": "2024-01-01",
+                      "validUntil": "2025-03-31",
+                      "status": "REVOKED"
+                    },
+                    {
+                      "publicKey": "MCowBQYDK2VwAyEAexpiredKey==",
+                      "keyId": "expired-key",
+                      "validFrom": "2024-01-01",
+                      "validUntil": "2024-12-31",
+                      "status": "ACTIVE"
+                    }
+                  ]
+                }
+                """.trimIndent()
+            val entry = json.decodeFromString<PluginRegistryEntry>(threeGroupJson)
+            // On 2026-06-23: active-key usable, revoked-key REVOKED, expired-key past validUntil
+            val summary = entry.keyStatusSummary(today)
+            summary shouldBe "1 active, 1 revoked, 1 expired"
+        }
+
+        "V3.1.14: activeKeys returns only usable keys" {
+            val entry = json.decodeFromString<PluginRegistryEntry>(signingKeysJson)
+            // On 2026-06-23: 2025-primary is active (validFrom<=today<=validUntil)
+            // 2026-primary: validFrom 2026-07-01 > today → not yet active
+            // 2024-primary: REVOKED → not active
+            val active = entry.activeKeys(today)
+            active shouldHaveSize 1
+            active[0].keyId shouldBe "2025-primary"
+        }
+
+        "V3.1.14: legacy JSON with signaturePublicKey wraps as single legacy key" {
+            val legacyJson =
+                """
+                {
+                  "id": "dev.kuml.plugin.pdv-theme",
+                  "category": "theme",
+                  "name": "PdV Branding Theme",
+                  "version": "1.0.0",
+                  "manifest": "m",
+                  "downloads": "d",
+                  "signaturePublicKey": "MCowBQYDK2VwAyEA..."
+                }
+                """.trimIndent()
+            val entry = json.decodeFromString<PluginRegistryEntry>(legacyJson)
+            entry.signingKeys shouldHaveSize 1
+            entry.signingKeys[0].keyId shouldBe "legacy"
+            entry.signingKeys[0].status shouldBe KeyStatus.ACTIVE
+            entry.signingKeys[0].validUntil shouldBe null
+        }
+
+        "V3.1.14: legacy JSON with null signaturePublicKey results in empty signingKeys" {
+            val legacyNullJson =
+                """
+                {
+                  "id": "dev.kuml.plugin.elk-layout",
+                  "category": "layout",
+                  "name": "ELK Layout Engine",
+                  "version": "2.0.0",
+                  "manifest": "m",
+                  "downloads": "d",
+                  "signaturePublicKey": null
+                }
+                """.trimIndent()
+            val entry = json.decodeFromString<PluginRegistryEntry>(legacyNullJson)
+            entry.signingKeys.shouldBeEmpty()
+        }
+
+        "V3.1.14: no signing key fields at all results in empty signingKeys" {
+            val entry = json.decodeFromString<PluginRegistryEntry>(oldFormatJson)
+            entry.signingKeys.shouldBeEmpty()
+        }
+
+        "V3.1.14: keyStatusSummary returns 'no keys' when signingKeys is empty" {
+            val entry = json.decodeFromString<PluginRegistryEntry>(oldFormatJson)
+            entry.keyStatusSummary(today) shouldBe "no keys"
+        }
+
+        "V3.1.14: serialization roundtrip preserves signingKeys" {
+            val original = json.decodeFromString<PluginRegistryEntry>(signingKeysJson)
+            val encoded = Json.encodeToString(PluginRegistryEntry.serializer(), original)
+            val decoded = json.decodeFromString<PluginRegistryEntry>(encoded)
+            decoded.signingKeys shouldHaveSize 3
+            decoded.signingKeys[0].keyId shouldBe "2024-primary"
+            decoded.signingKeys[1].keyId shouldBe "2025-primary"
+            decoded.signingKeys[2].keyId shouldBe "2026-primary"
+        }
+
+        "V3.1.14: encoded JSON does not contain legacy signaturePublicKey field" {
+            val original = json.decodeFromString<PluginRegistryEntry>(signingKeysJson)
+            val encoded = Json.encodeToString(PluginRegistryEntry.serializer(), original)
+            encoded shouldNotContain "signaturePublicKey"
+        }
+
+        "V3.1.14: roundtrip preserves all pre-existing fields alongside signingKeys" {
+            val original = json.decodeFromString<PluginRegistryEntry>(fullFormatJson)
+            val encoded = Json.encodeToString(PluginRegistryEntry.serializer(), original)
+            val decoded = json.decodeFromString<PluginRegistryEntry>(encoded)
+            decoded.id shouldBe original.id
+            decoded.downloadCount shouldBe original.downloadCount
+            decoded.rating shouldBe original.rating
+            decoded.ratingCount shouldBe original.ratingCount
+            decoded.reviews shouldHaveSize original.reviews.size
+            decoded.screenshotUrls shouldBe original.screenshotUrls
         }
     })

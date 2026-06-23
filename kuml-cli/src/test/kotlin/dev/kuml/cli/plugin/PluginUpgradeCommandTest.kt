@@ -6,16 +6,22 @@ import dev.kuml.plugin.loader.loader.LoadedPlugin
 import dev.kuml.plugin.loader.manifest.ExtensionEntry
 import dev.kuml.plugin.loader.manifest.PluginManifest
 import dev.kuml.plugin.loader.registry.DownloadedPlugin
+import dev.kuml.plugin.loader.registry.KeyStatus
 import dev.kuml.plugin.loader.registry.PluginDownloader
 import dev.kuml.plugin.loader.registry.PluginRegistry
 import dev.kuml.plugin.loader.registry.PluginRegistryEntry
 import dev.kuml.plugin.loader.registry.PluginRegistryException
 import dev.kuml.plugin.loader.registry.PluginRegistryIndex
+import dev.kuml.plugin.loader.registry.PluginSigningKey
 import dev.kuml.plugin.loader.registry.UpdateCheckService
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
+import java.security.KeyPairGenerator
+import java.security.MessageDigest
+import java.security.Signature
+import java.util.Base64
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -346,5 +352,120 @@ class PluginUpgradeCommandTest :
             // stderr output should mention the warning; errOutput or combined output
             val combined = result.output + result.stderr
             combined shouldContain "WARNING"
+        }
+
+        // ── V3.1.14: signing key verification paths ───────────────────────────
+
+        /**
+         * Generate a real Ed25519 key pair, sign [jarBytes] using the same scheme
+         * as PluginSignatureVerifier (Ed25519 over SHA-256 of the JAR), and return
+         * (publicKeyBase64, signatureBase64) suitable for injection into tests.
+         */
+        fun generateKeyAndSign(jarBytes: ByteArray): Pair<String, String> {
+            val kpg = KeyPairGenerator.getInstance("Ed25519")
+            val kp = kpg.generateKeyPair()
+            val pubKeyBase64 = Base64.getEncoder().encodeToString(kp.public.encoded)
+
+            val digest = MessageDigest.getInstance("SHA-256").digest(jarBytes)
+            val sig = Signature.getInstance("Ed25519")
+            sig.initSign(kp.private)
+            sig.update(digest)
+            val sigBase64 = Base64.getEncoder().encodeToString(sig.sign())
+
+            return pubKeyBase64 to sigBase64
+        }
+
+        fun fakeEntryWithKey(
+            id: String,
+            version: String,
+            signingKey: PluginSigningKey,
+        ) = PluginRegistryEntry(
+            id = id,
+            category = "theme",
+            name = "Plugin $id",
+            version = version,
+            manifest = "plugins/$id/kuml-plugin.json",
+            downloads = "https://plugins.kuml.dev/plugins/$id/releases/latest/$id.jar",
+            signingKeys = listOf(signingKey),
+        )
+
+        fun fakeDownloaderWithSig(
+            jar: java.io.File,
+            sig: String,
+        ): PluginDownloader {
+            val jarPath = jar.toPath()
+            return object : PluginDownloader() {
+                override fun download(downloadsUrl: String): DownloadedPlugin = DownloadedPlugin(jar = jarPath, sig = sig)
+            }
+        }
+
+        "active signing key: signature verification succeeds and output contains keyId" {
+            // Generate a real Ed25519 key pair, sign the JAR bytes, wire both into the command.
+            registerFake("p.signed", "1.0.0")
+            val newJar = buildFakeJar("p.signed", "2.0.0")
+            val jarBytes = newJar.readBytes()
+            val (pubKeyBase64, sigBase64) = generateKeyAndSign(jarBytes)
+
+            val activeKey =
+                PluginSigningKey(
+                    publicKey = pubKeyBase64,
+                    keyId = "2025-primary",
+                    validFrom = "2025-01-01",
+                    validUntil = "2027-12-31",
+                    status = KeyStatus.ACTIVE,
+                )
+            val entry = fakeEntryWithKey("p.signed", "2.0.0", activeKey)
+            val cmd =
+                command(
+                    serviceWith(fakeIndex(entry)),
+                    fakeDownloaderWithSig(newJar, sigBase64),
+                )
+            val result = cmd.test("p.signed")
+            // Verification must succeed and the keyId must be reported.
+            // The command may still fail at PluginLoader.loadJar (test.Stub absent),
+            // but it must NOT fail because of signature verification.
+            val combined = result.output + result.stderr
+            combined shouldContain "2025-primary"
+            result.statusCode shouldNotBe ExitCodes.USAGE
+            result.statusCode shouldNotBe ExitCodes.ONLINE_ERROR
+        }
+
+        "only revoked/expired signing keys: command exits with error containing 'no active signing keys'" {
+            // Build an entry whose only keys are REVOKED — verifySignature must throw.
+            registerFake("p.noactive", "1.0.0")
+            val newJar = buildFakeJar("p.noactive", "2.0.0")
+            val jarBytes = newJar.readBytes()
+            val (pubKeyBase64, sigBase64) = generateKeyAndSign(jarBytes)
+
+            val revokedKey =
+                PluginSigningKey(
+                    publicKey = pubKeyBase64,
+                    keyId = "2024-revoked",
+                    validFrom = "2024-01-01",
+                    validUntil = "2024-12-31",
+                    status = KeyStatus.REVOKED,
+                )
+            val entry = fakeEntryWithKey("p.noactive", "2.0.0", revokedKey)
+            val cmd =
+                command(
+                    serviceWith(fakeIndex(entry)),
+                    fakeDownloaderWithSig(newJar, sigBase64),
+                )
+            // Redirect System.err to capture the PluginUpgradeException message
+            // (the command reports per-plugin errors via System.err.println).
+            val capturedErr = java.io.ByteArrayOutputStream()
+            val origErr = System.err
+            val result =
+                try {
+                    System.setErr(java.io.PrintStream(capturedErr))
+                    cmd.test("p.noactive")
+                } finally {
+                    System.setErr(origErr)
+                }
+            // Must fail — no usable key to verify with.
+            val errText = capturedErr.toString(Charsets.UTF_8)
+            errText shouldContain "no active signing keys"
+            // Single-plugin failure exits PLUGIN_UPGRADE_FAILED (45).
+            result.statusCode shouldBe ExitCodes.PLUGIN_UPGRADE_FAILED
         }
     })
