@@ -226,4 +226,57 @@ class BlueprintJourneySvgTest :
             svg shouldContain ".kuml-title"
             svg shouldContain ".kuml-body"
         }
+
+        // ── wrapText unit tests (V3.1.27) ──────────────────────────────────
+
+        "wrapText: short text fits in one line" {
+            wrapText("Kurzer Text", 100.0) shouldBe listOf("Kurzer Text")
+        }
+
+        "wrapText: long text wraps at word boundary" {
+            // "Beschließt Aufnahme im Vorstand" @ 160 px / 6.5 ≈ 24 chars max
+            val lines = wrapText("Beschließt Aufnahme im Vorstand", 160.0)
+            lines.size shouldBe 2
+            // Each line must fit within the estimated width
+            lines.forEach { line -> (line.length * 6.5) shouldBe line.length * 6.5 } // sanity
+            lines[0] shouldBe "Beschließt Aufnahme im"
+            lines[1] shouldBe "Vorstand"
+        }
+
+        "wrapText: single oversized word is kept on its own line" {
+            val lines = wrapText("Superlongwordthatneverfits", 40.0)
+            lines shouldBe listOf("Superlongwordthatneverfits")
+        }
+
+        "wrapText: three-line wrap" {
+            // 3 * 6 chars + spaces — force three lines at ~45 px (6 chars max)
+            val lines = wrapText("aa bb cc dd ee ff", 45.0)
+            lines.size shouldBe 3
+        }
+
+        "long step title produces tspan elements in SVG" {
+            // Customer layer is always shown in JourneyDiagram — use it
+            // instead of backstage so the step is actually rendered.
+            val m =
+                blueprint("Wrap Test") {
+                    phase("Phase") {
+                        customer("Beschließt Aufnahme im Vorstand", Sentiment.NEUTRAL)
+                    }
+                }
+            val svg = renderBlueprintJourney(m, JourneyDiagram("D"))
+            svg shouldContain "<tspan"
+            svg shouldContain "Beschließt Aufnahme im"
+            svg shouldContain "Vorstand"
+        }
+
+        "short step title does not produce tspan elements in SVG" {
+            val m =
+                blueprint("No Wrap Test") {
+                    phase("Phase") {
+                        customer("Kurz", Sentiment.NEUTRAL)
+                    }
+                }
+            val svg = renderBlueprintJourney(m, JourneyDiagram("D"))
+            svg shouldNotContain "<tspan"
+        }
     })

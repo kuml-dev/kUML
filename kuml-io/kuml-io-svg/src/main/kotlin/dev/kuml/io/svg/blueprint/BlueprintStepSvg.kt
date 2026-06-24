@@ -5,13 +5,50 @@ import dev.kuml.blueprint.model.JourneyStep
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeContent
 
+/** Approximate average character width for font-size 12 sans-serif (px). */
+private const val AVG_CHAR_WIDTH_PX = 6.5
+
+/** Line height for wrapped step-card titles (px). */
+private const val TITLE_LINE_HEIGHT = 14.0
+
+/**
+ * Wraps [text] into lines that fit within [maxWidthPx], splitting only at
+ * word boundaries. A single word wider than the column is kept on its own
+ * line (never truncated).
+ */
+internal fun wrapText(
+    text: String,
+    maxWidthPx: Double,
+): List<String> {
+    val maxChars = (maxWidthPx / AVG_CHAR_WIDTH_PX).toInt().coerceAtLeast(1)
+    val words = text.split(" ")
+    val lines = mutableListOf<String>()
+    val current = StringBuilder()
+    for (word in words) {
+        val candidate = if (current.isEmpty()) word else "$current $word"
+        if (candidate.length <= maxChars) {
+            current.clear()
+            current.append(candidate)
+        } else {
+            if (current.isNotEmpty()) lines += current.toString()
+            current.clear()
+            current.append(word)
+        }
+    }
+    if (current.isNotEmpty()) lines += current.toString()
+    return lines
+}
+
 /**
  * Draws a single step card (rounded rect, title, optional pain/opportunity
  * marker, optional actor-role icon) inside its (phase × layer) cell.
  *
  * V3.1.23 — base card. V3.1.24 adds the [actor]-role icon in the top-right
  * corner (so backstage/support steps show *who* performs them) and a per-layer
- * accent stroke passed in as [accent].
+ * accent stroke passed in as [accent]. V3.1.25 shifts text anchor left when
+ * an icon is present. V3.1.27 adds automatic title text wrapping via
+ * [wrapText] + `<tspan>` so long titles like "Beschließt Aufnahme im
+ * Vorstand" no longer overflow the card.
  */
 internal fun SvgBuilder.renderStepCard(
     step: JourneyStep,
@@ -37,16 +74,40 @@ internal fun SvgBuilder.renderStepCard(
         // 4px gap = 24px reserve).
         val iconSize = 16.0
         val iconRightReserve = if (actor != null) iconSize + 8 else 0.0
-        tag(
-            "text",
-            mapOf(
-                "x" to f(x + (w - iconRightReserve) / 2),
-                "y" to f(y + 20),
-                "text-anchor" to "middle",
-                "class" to "kuml-body",
-                "font-size" to "12",
-            ),
-        ) { text(step.name ?: step.id) }
+        val textWidth = w - iconRightReserve
+        val textCenterX = x + textWidth / 2.0
+
+        // Wrap title text to avoid horizontal overflow (V3.1.27).
+        val lines = wrapText(step.name ?: step.id, textWidth)
+        val textBlockH = (lines.size - 1) * TITLE_LINE_HEIGHT
+        // First-line baseline: y+20 for single line; shift up by half the
+        // extra block height so multi-line titles stay in the upper third.
+        val firstLineY = y + 20.0 - textBlockH / 2.0
+
+        if (lines.size == 1) {
+            tag(
+                "text",
+                mapOf(
+                    "x" to f(textCenterX),
+                    "y" to f(firstLineY),
+                    "text-anchor" to "middle",
+                    "class" to "kuml-body",
+                    "font-size" to "12",
+                ),
+            ) { text(lines[0]) }
+        } else {
+            rawXml(
+                buildString {
+                    append("""<text x="${f(textCenterX)}" y="${f(firstLineY)}" """)
+                    append("""text-anchor="middle" class="kuml-body" font-size="12">""")
+                    lines.forEachIndexed { idx, line ->
+                        val dy = if (idx == 0) "0" else f(TITLE_LINE_HEIGHT)
+                        append("""<tspan x="${f(textCenterX)}" dy="$dy">${xmlEscapeContent(line)}</tspan>""")
+                    }
+                    append("</text>")
+                },
+            )
+        }
         // Actor-role icon (top-right corner), V3.1.24.
         if (actor != null) {
             val ix = x + w - iconSize - 4
