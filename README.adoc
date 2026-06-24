@@ -167,6 +167,15 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 
 | *Diagram Fixes (v0.17.0)*
 | State Machine: composite states render correctly with nested sub-states and entry/exit pseudo-state connectors. Deployment Diagram: nested nodes (artefact-in-node-in-node) are now laid out with proper containment borders. IBD (SysML 2 Internal Block Diagram): boundary ports on the outer block frame are positioned on the correct edge and no longer overlap internal connectors.
+
+| *CosmWasm Chain Adapter (`kuml-runtime-chain-cosmos`)*
+| Connect behaviour-runtime state machines to live Cosmos SDK / CosmWasm smart contracts. `onChain { execute(msg, args) }` inside any transition broadcasts a `CosmWasm ExecuteMsg` via RPC. Supports dry-run mode (logs JSON without broadcasting), configurable retry / back-off, `awaitTx` / `awaitEvent` semantics, and SSRF-safe URL validation. Config via `kuml-chain-cosmos.properties` or environment variables. (v0.18.0)
+
+| *WASM / ink! Chain Adapter (`kuml-runtime-chain-wasm`)*
+| Connect behaviour-runtime state machines to Substrate-based WASM smart contracts (ink!, Polkadot, Astar, Moonbeam). `onChain { call(selector, args) }` SCALE-encodes and submits the call. Same dry-run, retry, and SSRF-safe guards as the CosmWasm adapter. Config via `kuml-chain-wasm.properties` or environment variables. (v0.18.0)
+
+| *User Journey Maps (`blueprint {}` DSL)*
+| Model end-to-end customer experiences as a four-layer Service Blueprint: Customer Actions / Frontstage / Backstage / Support Processes, separated by the three standard dividing lines. Each step carries an optional `Sentiment` annotation (POSITIVE / NEUTRAL / NEGATIVE / PAINPOINT) that drives colour coding in the SVG swimlane output. Renderable with `kuml render`, validatable with `kuml validate`. (v0.18.0)
 |===
 
 == UML 2.x Support

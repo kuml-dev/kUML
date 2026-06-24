@@ -1,0 +1,252 @@
+= Blockchain Chain Adapters
+:description: CosmWasm and WASM/ink! adapters for smart-contract interaction in kUML behaviour runtime.
+
+kUML ships two optional runtime modules that connect the behaviour runtime to
+on-chain smart contracts.  Both follow the same adapter contract defined in
+`kuml-runtime-core`: they implement `ChainAdapter` and are discovered at
+start-up via `ServiceLoader`.
+
+== Overview
+
+[cols="1,2,2"]
+|===
+| Module | Artifact | Target chain
+
+| `kuml-runtime-chain-cosmos`
+| `dev.kuml:kuml-runtime-chain-cosmos:<version>`
+| Cosmos SDK / CosmWasm (Juno, Osmosis, Neutron, …)
+
+| `kuml-runtime-chain-wasm`
+| `dev.kuml:kuml-runtime-chain-wasm:<version>`
+| Substrate / WASM contracts (Polkadot parachain, ink!, Astar, Moonbeam, …)
+|===
+
+Neither module is included in the CLI distribution by default.  Add the JAR to
+the class-path or declare it as a Gradle dependency in a project that embeds the
+runtime.
+
+== CosmWasm adapter (`kuml-runtime-chain-cosmos`)
+
+=== Dependency
+
+[source,kotlin,subs="attributes+"]
+----
+// build.gradle.kts
+dependencies {
+    implementation("dev.kuml:kuml-runtime-chain-cosmos:{kuml-version}")
+}
+----
+
+=== Configuration
+
+Place a `kuml-chain-cosmos.properties` file on the class-path (or next to the
+`kuml.config.kts` file when using the CLI):
+
+[source,properties]
+----
+# CosmWasm adapter configuration
+cosmos.rpc.url       = https://rpc.juno.strange.love:443
+cosmos.chain.id      = juno-1
+cosmos.gas.price     = 0.025ujuno
+cosmos.mnemonic      = <24-word BIP-39 mnemonic>   # or use KUML_COSMOS_MNEMONIC env var
+cosmos.contract.addr = juno1…                       # default contract; overridable per transition
+----
+
+All sensitive values may be supplied as environment variables instead of the
+properties file.  The adapter reads `KUML_COSMOS_RPC_URL`, `KUML_COSMOS_CHAIN_ID`,
+`KUML_COSMOS_GAS_PRICE`, and `KUML_COSMOS_MNEMONIC`.
+
+=== Usage in a state-machine script
+
+[source,kotlin]
+----
+stateMachineDiagram(name = "Token Vesting") {
+    chain("cosmos") {                          // selects the CosmWasm adapter
+        contract = "juno1abc…def"              // override per state machine
+        gasLimit  = 200_000
+    }
+
+    val locked   = state("Locked")
+    val unlocked = state("Unlocked")
+    val claimed  = state("Claimed")
+
+    initialTransition(target = locked)
+
+    transition(source = locked, target = unlocked) {
+        trigger = "VestingPeriodElapsed"
+        onChain {
+            execute("unlock", mapOf("recipient" to "\${recipient}"))
+        }
+    }
+
+    transition(source = unlocked, target = claimed) {
+        trigger = "Claim"
+        onChain {
+            execute("claim", mapOf("amount" to "\${amount}"))
+        }
+    }
+}
+----
+
+The `onChain { execute(msg, args) }` block is compiled to a `CosmWasm
+ExecuteMsg` JSON envelope and broadcast via the configured RPC endpoint.
+`execute()` is fire-and-forget by default; pass `awaitTx = true` to block until
+the transaction is included in a block.
+
+=== CLI usage
+
+[source,bash]
+----
+# simulate with on-chain calls enabled
+kuml simulate vesting.kuml.kts \
+    --adapter cosmos \
+    --chain-config kuml-chain-cosmos.properties \
+    --events events.json
+
+# dry-run: log the ExecuteMsg JSON without broadcasting
+kuml simulate vesting.kuml.kts --adapter cosmos --dry-run
+----
+
+=== Full example — PdV membership token
+
+[source,kotlin]
+----
+stateMachineDiagram(name = "PdV Membership Token") {
+    chain("cosmos") { contract = "juno1pdv…" }
+
+    val pending  = state("Pending")
+    val active   = state("Active")
+    val expired  = state("Expired")
+    val revoked  = state("Revoked")
+
+    initialTransition(target = pending)
+
+    transition(source = pending, target = active) {
+        trigger = "ApplicationApproved"
+        onChain { execute("mint_membership", mapOf("member" to "\${member_address}")) }
+    }
+
+    transition(source = active, target = expired) {
+        trigger = "AnnualFeeNotPaid"
+        onChain { execute("expire_membership", mapOf("member" to "\${member_address}")) }
+    }
+
+    transition(source = active, target = revoked) {
+        trigger = "MemberExpelled"
+        onChain { execute("revoke_membership",
+            mapOf("member" to "\${member_address}", "reason" to "\${reason}")) }
+    }
+
+    transition(source = expired, target = active) {
+        trigger = "FeeSettled"
+        onChain { execute("renew_membership", mapOf("member" to "\${member_address}")) }
+    }
+}
+----
+
+== WASM / ink! adapter (`kuml-runtime-chain-wasm`)
+
+=== Dependency
+
+[source,kotlin,subs="attributes+"]
+----
+// build.gradle.kts
+dependencies {
+    implementation("dev.kuml:kuml-runtime-chain-wasm:{kuml-version}")
+}
+----
+
+=== Configuration
+
+[source,properties]
+----
+# WASM / ink! adapter configuration
+wasm.rpc.url          = wss://rpc.astar.network
+wasm.chain.id         = 592                        # EVM chain-id (Astar) or SS58 prefix
+wasm.contract.address = 5E…                        # ink! contract account (SS58)
+wasm.keypair.uri      = //Alice                    # development URI; or use KUML_WASM_SEED_PHRASE
+wasm.gas.limit        = 50000000000
+wasm.storage.deposit  = 0
+----
+
+Environment variable overrides: `KUML_WASM_RPC_URL`, `KUML_WASM_CONTRACT_ADDRESS`,
+`KUML_WASM_SEED_PHRASE`.
+
+=== Usage in a state-machine script
+
+The WASM adapter exposes the same `onChain { call(selector, args) }` surface as
+the CosmWasm adapter, but targets ink! message selectors:
+
+[source,kotlin]
+----
+stateMachineDiagram(name = "Escrow") {
+    chain("wasm") {
+        contract    = "5E…"
+        gasLimit    = 50_000_000_000L
+    }
+
+    val open     = state("Open")
+    val disputed = state("Disputed")
+    val resolved = state("Resolved")
+    val released = state("Released")
+
+    initialTransition(target = open)
+
+    transition(source = open, target = released) {
+        trigger = "SellerDelivered"
+        guard   = "buyerConfirmed == true"
+        onChain { call("release_funds", mapOf("to" to "\${buyer}")) }
+    }
+
+    transition(source = open, target = disputed) {
+        trigger = "BuyerRaisedDispute"
+        onChain { call("open_dispute", mapOf("reason" to "\${reason}")) }
+    }
+
+    transition(source = disputed, target = resolved) {
+        trigger = "ArbitratorDecided"
+        onChain { call("resolve", mapOf("winner" to "\${winner}", "amount" to "\${amount}")) }
+    }
+}
+----
+
+=== CLI usage
+
+[source,bash]
+----
+kuml simulate escrow.kuml.kts \
+    --adapter wasm \
+    --chain-config kuml-chain-wasm.properties \
+    --events escrow-events.json
+
+# dry-run outputs the SCALE-encoded call bytes without submitting
+kuml simulate escrow.kuml.kts --adapter wasm --dry-run
+----
+
+== Shared adapter features
+
+Both adapters support:
+
+* *Dry-run mode* (`--dry-run`) — logs the full transaction payload without
+  broadcasting.  Useful in CI to verify message structure without spending gas.
+* *Retry policy* — configurable exponential back-off (`chain.retry.maxAttempts`,
+  `chain.retry.initialDelayMs`).
+* *Event filtering* — `awaitEvent(name)` blocks execution until an on-chain event
+  matching the given name is emitted by the contract.
+* *Custom serializers* — implement `ChainMessageSerializer` and register via
+  `ServiceLoader` to override the default JSON / SCALE encoding.
+
+== Security considerations
+
+* Never commit private keys or seed phrases to source control.  Use environment
+  variables or a secret manager.
+* The CosmWasm adapter enforces an HTTPS/WSS-only policy for RPC URLs;
+  plain `http://` endpoints are rejected at start-up.
+* Private-range IP addresses (RFC 1918, loopback, APIPA) are blocked in both
+  adapters to prevent SSRF attacks from misconfigured contract addresses.
+* Gas limits are required fields — there is no "unlimited gas" escape hatch.
+
+== See also
+
+* xref:reference:simulate.adoc[Simulate — behaviour runtime reference]
+* xref:concepts.adoc#behaviour-runtime[Behaviour runtime concepts]

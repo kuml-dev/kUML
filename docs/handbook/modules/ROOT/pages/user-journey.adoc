@@ -1,0 +1,248 @@
+= User Journey Maps
+:description: Model end-to-end customer experiences as executable blueprints with kUML's blueprint{} DSL.
+
+A *User Journey Map* describes the end-to-end experience of a customer or user
+interacting with a service.  kUML's `blueprint {}` DSL captures this as a
+type-safe model — versionable in Git, renderable as an SVG swimlane diagram,
+and executable in CI.
+
+== The four-layer model
+
+kUML follows the classic Service Blueprint structure with four horizontal layers
+separated by three dividing lines:
+
+[cols="1,4"]
+|===
+| Layer | What it contains
+
+| *Customer Actions*
+| Every touchpoint where the customer interacts with the service: search, click,
+  fill in a form, receive an email, pick up a parcel.
+
+| *Frontstage*
+| All visible interactions between staff/system and the customer.
+  This is what the customer can see: the web form, the chat bot reply,
+  the confirmation screen.
+
+| *Backstage*
+| Behind-the-scenes work that the customer cannot see: fulfilment, manual
+  review, account verification, fraud check.
+
+| *Support Processes*
+| Shared infrastructure and third-party services that underpin frontstage and
+  backstage: payment gateway, CRM, email service provider, warehouse system.
+|===
+
+The three dividing lines are rendered as dashed horizontal rules in the SVG:
+
+. *Line of Interaction* — between Customer Actions and Frontstage.
+. *Line of Visibility* — between Frontstage and Backstage.
+. *Line of Internal Interaction* — between Backstage and Support Processes.
+
+== Sentiment
+
+Each step carries an optional `sentiment` annotation that drives the colour of
+that step's node in the rendered diagram:
+
+[cols="1,1,3"]
+|===
+| Value | Colour (default theme) | Meaning
+
+| `Sentiment.POSITIVE`
+| Green
+| Customer is delighted or relieved.
+
+| `Sentiment.NEUTRAL`
+| Grey
+| No strong emotional signal.
+
+| `Sentiment.NEGATIVE`
+| Red
+| Customer is frustrated, confused, or blocked.
+
+| `Sentiment.PAINPOINT`
+| Amber
+| Known friction: acknowledged but not yet eliminated.
+|===
+
+== DSL reference
+
+[source,kotlin]
+----
+blueprint(name = "…") {
+    phase("…") {                        // swimlane column / phase heading
+        customerAction("…") {           // Layer: Customer Actions
+            sentiment = Sentiment.POSITIVE
+        }
+        frontStage("…") {               // Layer: Frontstage
+            sentiment = Sentiment.NEUTRAL
+            // optional: touchpoint channel
+            channel  = Channel.WEB
+        }
+        backStage("…") {                // Layer: Backstage
+            sentiment = Sentiment.NEUTRAL
+        }
+        support("…") {                  // Layer: Support Processes
+            system = "Stripe"           // third-party system label
+        }
+    }
+
+    // phases are connected left-to-right in declaration order
+    phase("…") { … }
+}
+----
+
+`Channel` enum values: `WEB`, `MOBILE`, `EMAIL`, `PHONE`, `IN_PERSON`, `CHAT`, `SOCIAL`.
+
+== CLI usage
+
+[source,bash]
+----
+# render to SVG (default)
+kuml render membership-journey.kuml.kts
+
+# render to PNG
+kuml render membership-journey.kuml.kts --format png
+
+# validate DSL structure only (no render)
+kuml validate membership-journey.kuml.kts
+----
+
+Output: an SVG swimlane diagram with the four layers as horizontal bands,
+phases as vertical columns, Sentiment colour coding, and dashed dividing lines.
+
+== Example — PdV membership journey
+
+The following example models the end-to-end experience of a citizen joining the
+*Partei der Vernunft (PdV)*.
+
+[source,kotlin]
+----
+// pdv-membership-journey.kuml.kts
+blueprint(name = "PdV Mitgliedschaft — Citizen Journey") {
+
+    phase("Entdeckung") {
+        customerAction("Hört von PdV über Social Media") {
+            sentiment = Sentiment.NEUTRAL
+            channel   = Channel.SOCIAL
+        }
+        frontStage("Kurzclip mit Kernbotschaft wird ausgespielt") {
+            sentiment = Sentiment.POSITIVE
+            channel   = Channel.SOCIAL
+        }
+        backStage("Targeting-Algorithmus selektiert Interessenten")
+        support("Meta Ads / LinkedIn Campaign Manager") {
+            system = "Meta Ads"
+        }
+    }
+
+    phase("Orientierung") {
+        customerAction("Besucht kurzbefehl.pdv oder pdv.de") {
+            sentiment = Sentiment.POSITIVE
+            channel   = Channel.WEB
+        }
+        frontStage("Landingpage mit Programm-Übersicht und FAQ") {
+            sentiment = Sentiment.NEUTRAL
+            channel   = Channel.WEB
+        }
+        backStage("Analytics-Event: Landingpage-View")
+        support("Plausible Analytics") {
+            system = "Plausible"
+        }
+    }
+
+    phase("Beitritt") {
+        customerAction("Füllt Beitrittsformular aus") {
+            sentiment = Sentiment.NEUTRAL
+            channel   = Channel.WEB
+        }
+        frontStage("Formular mit Validierung, DSGVO-Checkbox") {
+            sentiment = Sentiment.PAINPOINT        // friction: too many fields
+            channel   = Channel.WEB
+        }
+        backStage("Daten werden in Mitglieder-CRM gespeichert")
+        support("CiviCRM / Mitglieder-DB") {
+            system = "CiviCRM"
+        }
+    }
+
+    phase("Bestätigung") {
+        customerAction("Erhält Willkommens-E-Mail") {
+            sentiment = Sentiment.POSITIVE
+            channel   = Channel.EMAIL
+        }
+        frontStage("Automatische Bestätigungs-E-Mail mit Aktivierungslink") {
+            sentiment = Sentiment.POSITIVE
+            channel   = Channel.EMAIL
+        }
+        backStage("E-Mail-Trigger wird durch CRM ausgelöst")
+        support("Brevo (ehemals Sendinblue)") {
+            system = "Brevo"
+        }
+    }
+
+    phase("Aktivierung") {
+        customerAction("Klickt auf Aktivierungslink, erstellt Account") {
+            sentiment = Sentiment.POSITIVE
+            channel   = Channel.WEB
+        }
+        frontStage("Mitglieder-Portal: Dashboard, Abstimmungen, Events") {
+            sentiment = Sentiment.POSITIVE
+            channel   = Channel.WEB
+        }
+        backStage("Account wird aktiviert, Mitgliedsbeitrag gebucht")
+        support("Stripe / SEPA-Lastschrift") {
+            system = "Stripe"
+        }
+    }
+
+    phase("Bindung") {
+        customerAction("Nimmt an Abstimmung / lokalem Treffen teil") {
+            sentiment = Sentiment.POSITIVE
+            channel   = Channel.WEB
+        }
+        frontStage("Abstimmungs-Tool, Event-Kalender, Telegram-Gruppe") {
+            sentiment = Sentiment.NEUTRAL
+            channel   = Channel.WEB
+        }
+        backStage("Teilnahme wird geloggt, Engagement-Score berechnet")
+        support("Mitglieder-Portal Backend") {
+            system = "Portal API"
+        }
+    }
+
+    phase("Verlängerung") {
+        customerAction("Erhält Erinnerung zur Beitragsverlängerung") {
+            sentiment = Sentiment.NEUTRAL
+            channel   = Channel.EMAIL
+        }
+        frontStage("Personalisierte Erinnerungs-E-Mail 30 Tage vorher") {
+            sentiment = Sentiment.NEUTRAL
+            channel   = Channel.EMAIL
+        }
+        backStage("Automatische Erinnerung ausgelöst durch CRM")
+        support("Brevo + CiviCRM") {
+            system = "Brevo"
+        }
+    }
+}
+----
+
+Render this with:
+
+[source,bash]
+----
+kuml render pdv-membership-journey.kuml.kts --format svg
+----
+
+The resulting SVG shows seven columns (phases) across four horizontal layers,
+with the Beitritt Frontstage step highlighted in amber (pain-point) and the
+Willkommens-E-Mail in green (positive).
+
+== Where to go from here
+
+* xref:concepts.adoc[Core concepts] — rendering pipeline and metamodel.
+* xref:reference:simulate.adoc[Simulate] — execute state machines extracted from
+  blueprints.
+* xref:showcases/pepela-thermostat.adoc[Pepela Thermostat showcase] — an embedded
+  systems showcase using the behaviour runtime.
