@@ -1727,15 +1727,17 @@ public object KumlSvgRenderer {
     public fun toSvg(
         model: BlueprintModel,
         diagram: BlueprintDiagram,
-    ): String = renderBlueprintJourney(model, diagram)
+        theme: KumlTheme = PlainTheme(),
+    ): String = renderBlueprintJourney(model, diagram, theme)
 
     /** [toSvg]-Variante für Blueprint-Diagramme, schreibt direkt auf Platte. */
     public fun toSvgFile(
         model: BlueprintModel,
         diagram: BlueprintDiagram,
         out: Path,
+        theme: KumlTheme = PlainTheme(),
     ): File {
-        val svg = toSvg(model, diagram)
+        val svg = toSvg(model, diagram, theme)
         val file = out.toFile()
         file.parentFile?.mkdirs()
         file.writeText(svg, Charsets.UTF_8)

@@ -32,10 +32,15 @@ internal fun SvgBuilder.renderStepCard(
             """<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="6" """ +
                 """fill="#fff" stroke="$accent" stroke-width="1.5"/>""",
         )
+        // When an actor icon is present, reserve space on the right so the
+        // title text does not bleed under it (iconSize=16 + 4px right margin +
+        // 4px gap = 24px reserve).
+        val iconSize = 16.0
+        val iconRightReserve = if (actor != null) iconSize + 8 else 0.0
         tag(
             "text",
             mapOf(
-                "x" to f(x + w / 2),
+                "x" to f(x + (w - iconRightReserve) / 2),
                 "y" to f(y + 20),
                 "text-anchor" to "middle",
                 "class" to "kuml-body",
@@ -44,7 +49,6 @@ internal fun SvgBuilder.renderStepCard(
         ) { text(step.name ?: step.id) }
         // Actor-role icon (top-right corner), V3.1.24.
         if (actor != null) {
-            val iconSize = 16.0
             val ix = x + w - iconSize - 4
             val iy = y + 4
             val icon = BlueprintActorIcons.fragmentFor(actor.role)

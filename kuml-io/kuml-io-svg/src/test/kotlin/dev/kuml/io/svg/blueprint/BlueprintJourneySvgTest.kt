@@ -218,4 +218,12 @@ class BlueprintJourneySvgTest :
                 )
             Regex("""id="bp-arrow"""").findAll(svg).count() shouldBe 1
         }
+
+        "svg contains embedded style block with kuml-title and kuml-body" {
+            val m = journeyModel()
+            val svg = renderBlueprintJourney(m, JourneyDiagram("J"))
+            svg shouldContain "<style>"
+            svg shouldContain ".kuml-title"
+            svg shouldContain ".kuml-body"
+        }
     })

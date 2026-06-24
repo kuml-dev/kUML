@@ -7,7 +7,10 @@ import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.blueprint.model.JourneyDiagram
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.SvgDocument
 import dev.kuml.io.svg.blueprint.edge.renderConnection
+import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.renderer.theme.core.PlainTheme
 
 /**
  * Top-level Journey-Map / Service-Blueprint SVG renderer.
@@ -25,6 +28,7 @@ import dev.kuml.io.svg.blueprint.edge.renderConnection
 internal fun renderBlueprintJourney(
     model: BlueprintModel,
     diagram: BlueprintDiagram,
+    theme: KumlTheme = PlainTheme(),
 ): String {
     val visibleLayers =
         when (diagram) {
@@ -68,6 +72,9 @@ internal fun renderBlueprintJourney(
             """<defs><marker id="bp-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">""" +
                 """<path d="M0,0 L8,4 L0,8 z" fill="#555"/></marker></defs>""",
         )
+        // Standard kUML CSS (kuml-title, kuml-body, etc.) so that text renders
+        // correctly in standalone SVG/PNG — same style block used by all other renderers.
+        SvgDocument.buildDefs(b, theme)
 
         // 1. layer band backgrounds (z-order: background first) with distinct
         //    per-layer tint + the swimlane (layer) header on the left.
@@ -108,7 +115,7 @@ internal fun renderBlueprintJourney(
 
         // 3. emotion curve band (over the customer layer)
         if (showEmotion) {
-            b.renderEmotionCurve(
+            renderEmotionCurve(
                 curve = model.emotionCurve(),
                 columnCenters = geo.columnCenters,
                 bandTop = geo.emotionTop,
@@ -123,7 +130,7 @@ internal fun renderBlueprintJourney(
                 val stepsHere = model.stepsIn(phase.id, layer)
                 stepsHere.forEach { step ->
                     val actor = step.actorRef?.let { ref -> model.actors.firstOrNull { it.id == ref } }
-                    b.renderStepCard(
+                    renderStepCard(
                         step = step,
                         cellX = cellX,
                         cellY = cellY,
@@ -135,7 +142,7 @@ internal fun renderBlueprintJourney(
                     step.touchpointRefs.forEachIndexed { tIdx, tpId ->
                         val tp = model.touchpoints.firstOrNull { it.id == tpId } ?: return@forEachIndexed
                         val ch = tp.channelRef?.let { ref -> model.channels.firstOrNull { it.id == ref } }
-                        b.renderTouchpoint(
+                        renderTouchpoint(
                             tp = tp,
                             channel = ch,
                             cx = cellX + 18 + tIdx * 30,
@@ -149,7 +156,7 @@ internal fun renderBlueprintJourney(
         // 5. separator lines (full view only), drawn over the bands/cards but
         //    under the connections.
         if (showLines.isNotEmpty()) {
-            b.renderBlueprintLines(showLines, geo)
+            renderBlueprintLines(showLines, geo)
         }
 
         // 6. connections on top
@@ -157,7 +164,7 @@ internal fun renderBlueprintJourney(
             val src = cellCenterOf(model, geo, conn.sourceRef)
             val dst = cellCenterOf(model, geo, conn.targetRef)
             if (src != null && dst != null) {
-                b.renderConnection(src, dst, conn.style)
+                renderConnection(src, dst, conn.style)
             }
         }
     }

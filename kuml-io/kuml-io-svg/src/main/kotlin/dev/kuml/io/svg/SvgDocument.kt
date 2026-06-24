@@ -94,7 +94,7 @@ internal object SvgDocument {
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private fun buildDefs(
+    internal fun buildDefs(
         b: SvgBuilder,
         theme: KumlTheme,
     ) {

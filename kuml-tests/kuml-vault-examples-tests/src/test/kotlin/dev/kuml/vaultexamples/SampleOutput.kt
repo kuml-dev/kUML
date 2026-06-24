@@ -23,7 +23,7 @@ import java.nio.file.Paths
  * für eine triviale Datei-Write-Funktion).
  */
 internal object SampleOutput {
-    private val pngOptions = PngRenderOptions(widthPx = 1200)
+    private val pngOptions = PngRenderOptions(widthPx = 2400)
 
     fun write(
         filename: String,
