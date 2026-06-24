@@ -61,7 +61,7 @@ class BlueprintJourneySvgTest :
             val svg = renderBlueprintJourney(m, JourneyDiagram("J", showEmotionCurve = true))
             svg shouldContain "<polyline"
             // 4 sentiment dots
-            Regex("<circle[^>]*r=\"4\"").findAll(svg).count() shouldBe 4
+            Regex("""class="bp-emotion-dot"""").findAll(svg).count() shouldBe 4
         }
 
         "emotion curve y-inversion: VERY_POSITIVE is higher than VERY_NEGATIVE" {
@@ -73,12 +73,38 @@ class BlueprintJourneySvgTest :
                 }
             val svg = renderBlueprintJourney(m, JourneyDiagram("J", showEmotionCurve = true))
             val ys =
-                Regex("<circle[^>]*cy=\"([0-9.]+)\"[^>]*r=\"4\"")
+                Regex("""<circle class="bp-emotion-dot"[^>]*cy="([0-9.]+)"""")
                     .findAll(svg)
                     .map { it.groupValues[1].toDouble() }
                     .toList()
             // first point (VERY_NEGATIVE) must have LARGER y than second (VERY_POSITIVE = higher = smaller y)
             (ys[0] > ys[1]) shouldBe true
+        }
+
+        "emotion curve renders Y-axis scale, neutral baseline and band label" {
+            val m = journeyModel()
+            val svg = renderBlueprintJourney(m, JourneyDiagram("J", showEmotionCurve = true))
+            // axis ticks
+            svg shouldContain ">+2<"
+            svg shouldContain ">−2<"
+            // dashed neutral baseline
+            svg shouldContain """stroke-dasharray="4 3""""
+            // band label
+            svg shouldContain ">Emotion<"
+        }
+
+        "emotion points are colour-coded by sentiment with tooltip" {
+            val m =
+                blueprint("C") {
+                    phase("Tief") { customer("schlecht", Sentiment.VERY_NEGATIVE) }
+                    phase("Hoch") { customer("super", Sentiment.VERY_POSITIVE) }
+                    journeyDiagram("J")
+                }
+            val svg = renderBlueprintJourney(m, JourneyDiagram("J", showEmotionCurve = true))
+            svg shouldContain "#c0143c" // VERY_NEGATIVE red
+            svg shouldContain "#2e9e5b" // VERY_POSITIVE green
+            svg shouldContain "Tief: sehr negativ"
+            svg shouldContain "Hoch: sehr positiv"
         }
 
         "missing sentiment leaves a gap (point skipped)" {
@@ -90,7 +116,7 @@ class BlueprintJourneySvgTest :
                     journeyDiagram("J")
                 }
             val svg = renderBlueprintJourney(m, JourneyDiagram("J", showEmotionCurve = true))
-            Regex("<circle[^>]*r=\"4\"").findAll(svg).count() shouldBe 2
+            Regex("""class="bp-emotion-dot"""").findAll(svg).count() shouldBe 2
         }
 
         "touchpoint symbols render channel icons" {

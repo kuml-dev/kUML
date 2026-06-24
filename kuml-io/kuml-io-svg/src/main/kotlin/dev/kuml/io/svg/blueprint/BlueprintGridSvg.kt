@@ -120,6 +120,9 @@ internal fun renderBlueprintJourney(
                 columnCenters = geo.columnCenters,
                 bandTop = geo.emotionTop,
                 bandHeight = geo.emotionHeight,
+                contentLeft = geo.contentLeft,
+                contentRight = geo.contentRight,
+                labelX = geo.padding + 6,
             )
         }
 
