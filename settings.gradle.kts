@@ -93,6 +93,7 @@ include(
     "kuml-runtime:kuml-runtime-chain-api",  // V3.0.1  — Chain-Adapter-Interfaces + ModelHasher (pure Kotlin, Native-Image-tauglich)
     "kuml-runtime:kuml-runtime-chain-evm",  // V3.0.2  — EVM JSON-RPC adapter + EIP-712 verifier (JVM-only, raw HttpClient + kotlinx-json)
     "kuml-runtime:kuml-runtime-chain-move", // V3.0.20 — Sui + Aptos Move-VM adapters (JVM-only, raw HttpClient + kotlinx-json)
+    "kuml-runtime:kuml-runtime-chain-cosmos", // V3.0.21 — CosmWasm (Cosmos-SDK) + Substrate/ink! WASM-contract adapters (JVM-only, raw HttpClient + kotlinx-json)
 )
 
 // ── I/O ──────────────────────────────────────────────── Phase 2 ──
