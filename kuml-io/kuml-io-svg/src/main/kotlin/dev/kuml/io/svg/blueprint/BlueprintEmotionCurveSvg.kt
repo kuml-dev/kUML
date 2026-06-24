@@ -39,25 +39,32 @@ internal fun SvgBuilder.renderEmotionCurve(
 
     fun yForSentiment(s: Sentiment): Double = yForFrac((s.value + 2) / 4.0)
 
+    // ── Y-axis scale geometry: labels sit at the left edge, the reference lines
+    //    must start to their RIGHT so they don't cross the "+2 / 0 / −2" text. ──
+    val axisX = contentLeft + 3
+    // Width reserved for the axis labels ("+2"/"−2" are the widest at font-size 9)
+    // plus a small gap before the lines begin.
+    val axisLabelGutter = 18.0
+    val lineLeft = axisX + axisLabelGutter
+
     // ── 1. reference lines: +2 (top), 0 (neutral, dashed), −2 (bottom) ──
     val yTop = yForFrac(1.0)
     val yMid = yForFrac(0.5)
     val yBottom = yForFrac(0.0)
     rawXml(
-        """<line x1="${f(contentLeft)}" y1="${f(yTop)}" x2="${f(contentRight)}" y2="${f(yTop)}" """ +
+        """<line x1="${f(lineLeft)}" y1="${f(yTop)}" x2="${f(contentRight)}" y2="${f(yTop)}" """ +
             """stroke="#e6e9ee" stroke-width="1"/>""",
     )
     rawXml(
-        """<line x1="${f(contentLeft)}" y1="${f(yBottom)}" x2="${f(contentRight)}" y2="${f(yBottom)}" """ +
+        """<line x1="${f(lineLeft)}" y1="${f(yBottom)}" x2="${f(contentRight)}" y2="${f(yBottom)}" """ +
             """stroke="#e6e9ee" stroke-width="1"/>""",
     )
     rawXml(
-        """<line x1="${f(contentLeft)}" y1="${f(yMid)}" x2="${f(contentRight)}" y2="${f(yMid)}" """ +
+        """<line x1="${f(lineLeft)}" y1="${f(yMid)}" x2="${f(contentRight)}" y2="${f(yMid)}" """ +
             """stroke="#c4cad4" stroke-width="1" stroke-dasharray="4 3"/>""",
     )
 
     // ── 2. Y-axis scale (+2 / 0 / −2) just inside the chart's left edge ──
-    val axisX = contentLeft + 3
     listOf(yTop to "+2", yMid to "0", yBottom to "−2").forEach { (y, lbl) ->
         tag(
             "text",
