@@ -8,7 +8,12 @@ import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
+import dev.kuml.c4.model.ComponentDiagram
+import dev.kuml.c4.model.ContainerDiagram
+import dev.kuml.c4.model.DeploymentDiagram
 import dev.kuml.c4.model.DynamicDiagram
+import dev.kuml.c4.model.SystemContextDiagram
+import dev.kuml.c4.model.SystemLandscapeDiagram
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
@@ -237,7 +242,31 @@ public object KumlSvgRenderer {
                 options
             }
 
-        return SvgDocument.render(effectiveLayoutResult, theme, effectiveOptions) { nodesBuilder, edgesBuilder ->
+        val frameTypeLabel =
+            when (diagram.type) {
+                DiagramType.CLASS -> "class"
+                DiagramType.OBJECT -> "object"
+                DiagramType.PACKAGE -> "package"
+                DiagramType.COMPONENT -> "component"
+                DiagramType.COMPOSITE_STRUCTURE -> "composite structure"
+                DiagramType.DEPLOYMENT -> "deployment"
+                DiagramType.PROFILE -> "profile"
+                DiagramType.USE_CASE -> "use case"
+                DiagramType.ACTIVITY -> "activity"
+                DiagramType.COMMUNICATION -> "communication"
+                DiagramType.TIMING -> "timing"
+                DiagramType.INTERACTION_OVERVIEW -> "interaction overview"
+                DiagramType.BPMN_COLLABORATION -> "collaboration"
+                else -> null
+            }
+
+        return SvgDocument.render(
+            effectiveLayoutResult,
+            theme,
+            effectiveOptions,
+            frameName = diagram.name.takeIf { frameTypeLabel != null },
+            frameTypeLabel = frameTypeLabel,
+        ) { nodesBuilder, edgesBuilder ->
             val padding = effectiveOptions.paddingPx
 
             // Groups FIRST — paint backgrounds before children so node boxes
@@ -454,8 +483,24 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
-    ): String =
-        SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+    ): String {
+        val c4TypeLabel =
+            when (diagram) {
+                is SystemContextDiagram -> "system context"
+                is ContainerDiagram -> "container"
+                is ComponentDiagram -> "component"
+                is DeploymentDiagram -> "deployment"
+                is DynamicDiagram -> "dynamic"
+                is SystemLandscapeDiagram -> "system landscape"
+                else -> "c4"
+            }
+        return SvgDocument.render(
+            layoutResult,
+            theme,
+            options,
+            frameName = diagram.name,
+            frameTypeLabel = c4TypeLabel,
+        ) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
             val elementIndex = model.elements.associateBy { it.id }
@@ -557,6 +602,7 @@ public object KumlSvgRenderer {
                 }
             }
         }
+    }
 
     /**
      * Schreibt ein UML-Diagramm als SVG in eine Datei und gibt sie zurück.
@@ -612,7 +658,13 @@ public object KumlSvgRenderer {
                 options
             }
 
-        return SvgDocument.render(layoutResult, theme, effectiveOptions) { nodesBuilder, edgesBuilder ->
+        return SvgDocument.render(
+            layoutResult,
+            theme,
+            effectiveOptions,
+            frameName = diagram.name,
+            frameTypeLabel = "sequence",
+        ) { nodesBuilder, edgesBuilder ->
             val padding = effectiveOptions.paddingPx
             val shiftedLayouts = mutableMapOf<dev.kuml.layout.NodeId, dev.kuml.layout.NodeLayout>()
 
@@ -864,8 +916,15 @@ public object KumlSvgRenderer {
         theme: KumlTheme,
         options: SvgRenderOptions,
         sysml2EdgeAdapter: Sysml2EdgeAdapter,
+        typeLabel: String,
     ): String =
-        SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+        SvgDocument.render(
+            layoutResult,
+            theme,
+            options,
+            frameName = synthetic.name,
+            frameTypeLabel = typeLabel,
+        ) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
             // Nodes — same logic as the UML/C4 path.
@@ -961,7 +1020,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, BddEdgeAdapter(model, diagram))
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, BddEdgeAdapter(model, diagram), typeLabel = "bdd")
     }
 
     /** [toSvg]-Variante für SysML 2 BDDs, schreibt direkt auf Platte. */
@@ -1011,7 +1070,7 @@ public object KumlSvgRenderer {
                 elements = visible,
             )
         val enrichedLayout = Sysml2LayoutBridge.enrichIbdPortPositions(model, diagram, layoutResult)
-        return renderSysml2Synthetic(synthetic, enrichedLayout, theme, options, IbdEdgeAdapter(model, diagram))
+        return renderSysml2Synthetic(synthetic, enrichedLayout, theme, options, IbdEdgeAdapter(model, diagram), typeLabel = "ibd")
     }
 
     /** [toSvg]-Variante für SysML 2 IBDs, schreibt direkt auf Platte. */
@@ -1066,7 +1125,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, UcEdgeAdapter(diagram))
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, UcEdgeAdapter(diagram), typeLabel = "use case")
     }
 
     /** [toSvg]-Variante für SysML 2 UC-Diagramme, schreibt direkt auf Platte. */
@@ -1128,7 +1187,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ReqEdgeAdapter(diagram))
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ReqEdgeAdapter(diagram), typeLabel = "requirement")
     }
 
     /** [toSvg]-Variante für SysML 2 REQ-Diagramme, schreibt direkt auf Platte. */
@@ -1184,7 +1243,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, StmEdgeAdapter(model, diagram))
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, StmEdgeAdapter(model, diagram), typeLabel = "state machine")
     }
 
     /** [toSvg]-Variante für SysML 2 STM-Diagramme, schreibt direkt auf Platte. */
@@ -1347,7 +1406,13 @@ public object KumlSvgRenderer {
                 }
             }
 
-        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+        return SvgDocument.render(
+            layoutResult,
+            theme,
+            options,
+            frameName = diagram.name,
+            frameTypeLabel = "activity",
+        ) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
             // 1. V2.0.16: render swimlane outlines + header bars FIRST so
@@ -1549,7 +1614,13 @@ public object KumlSvgRenderer {
                 options
             }
 
-        return SvgDocument.render(layoutResult, theme, effectiveOptions) { nodesBuilder, edgesBuilder ->
+        return SvgDocument.render(
+            layoutResult,
+            theme,
+            effectiveOptions,
+            frameName = diagram.name,
+            frameTypeLabel = "sequence",
+        ) { nodesBuilder, edgesBuilder ->
             val padding = effectiveOptions.paddingPx
 
             // 1. Geshiftete Lifeline-Layouts pre-computen, OHNE noch SVG zu
@@ -1693,7 +1764,7 @@ public object KumlSvgRenderer {
                 type = DiagramType.CLASS,
                 elements = elements,
             )
-        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ParEdgeAdapter(model, diagram))
+        return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ParEdgeAdapter(model, diagram), typeLabel = "parametric")
     }
 
     /** [toSvg]-Variante für SysML 2 PAR-Diagramme, schreibt direkt auf Platte. */
@@ -2395,7 +2466,13 @@ public object KumlSvgRenderer {
                 }
             }
 
-        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+        return SvgDocument.render(
+            layoutResult,
+            theme,
+            options,
+            frameName = diagram.name,
+            frameTypeLabel = "collaboration",
+        ) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
             // Groups (pools and lanes rendered as group backgrounds)
@@ -2550,7 +2627,13 @@ public object KumlSvgRenderer {
                 .map { it.id }
                 .toSet()
 
-        return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
+        return SvgDocument.render(
+            layoutResult,
+            theme,
+            options,
+            frameName = diagram.name,
+            frameTypeLabel = "process",
+        ) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
 
             // 1. Groups FIRST — render expanded SubProcess frames behind their contents.

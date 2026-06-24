@@ -22,6 +22,8 @@ internal object SvgDocument {
         layoutResult: LayoutResult,
         theme: KumlTheme,
         options: SvgRenderOptions,
+        frameName: String? = null,
+        frameTypeLabel: String? = null,
         populate: (nodes: SvgBuilder, edges: SvgBuilder) -> Unit,
     ): String {
         val padding = options.paddingPx
@@ -55,6 +57,12 @@ internal object SvgDocument {
 
         val nodesBuilder = SvgBuilder(p, if (p) 4 else 0)
         val edgesBuilder = SvgBuilder(p, if (p) 4 else 0)
+
+        // Draw outer diagram frame first (z-order: below all diagram content)
+        if (!frameName.isNullOrBlank() && !frameTypeLabel.isNullOrBlank()) {
+            renderDiagramFrame(frameTypeLabel, frameName, canvasW, canvasH, nodesBuilder)
+        }
+
         populate(nodesBuilder, edgesBuilder)
 
         // Assemble <svg>
