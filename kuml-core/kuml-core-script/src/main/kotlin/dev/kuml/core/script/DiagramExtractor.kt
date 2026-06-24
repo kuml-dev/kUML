@@ -1,5 +1,7 @@
 package dev.kuml.core.script
 
+import dev.kuml.blueprint.model.BlueprintDiagram
+import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.bpmn.model.BpmnDiagram
 import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.c4.model.C4Diagram
@@ -60,6 +62,19 @@ public sealed class ExtractedDiagram {
     public data class Bpmn(
         val model: BpmnModel,
         val diagram: BpmnDiagram,
+    ) : ExtractedDiagram()
+
+    /**
+     * A Blueprint / Journey-Map diagram with its parent [BlueprintModel].
+     *
+     * The blueprint renderer is geometry-driven (no ELK) and needs both the
+     * model (holds phases, steps, touchpoints, connections) and the concrete
+     * diagram view ([BlueprintDiagram]) to know which layers/lines to render.
+     * V3.1.24 wires this into the CLI render pipeline.
+     */
+    public data class Blueprint(
+        val model: BlueprintModel,
+        val diagram: BlueprintDiagram,
     ) : ExtractedDiagram()
 }
 
@@ -231,6 +246,11 @@ object DiagramExtractor {
                     return ExtractedDiagram.Bpmn(value, it)
                 }
             }
+            if (value is BlueprintModel) {
+                value.firstDiagramOrNull()?.let {
+                    return ExtractedDiagram.Blueprint(value, it)
+                }
+            }
         }
 
         // Case 2: scan script instance for properties
@@ -299,6 +319,21 @@ object DiagramExtractor {
                     val model = prop.get(instance) as BpmnModel
                     return ExtractedDiagram.Bpmn(model, model.firstDiagramOrNull()!!)
                 }
+
+            // BlueprintModel property with at least one diagram (V3.1.24).
+            properties
+                .firstOrNull { prop ->
+                    try {
+                        val v = prop.get(instance)
+                        v is BlueprintModel && v.firstDiagramOrNull() != null
+                    } catch (_: Exception) {
+                        false
+                    }
+                }?.let { prop ->
+                    @Suppress("UNCHECKED_CAST")
+                    val model = prop.get(instance) as BlueprintModel
+                    return ExtractedDiagram.Blueprint(model, model.firstDiagramOrNull()!!)
+                }
         }
 
         throw ScriptEvaluationException(
@@ -309,7 +344,8 @@ object DiagramExtractor {
                 "`sysml2Model(\"…\") { ibd(\"…\", owner = …) { … } }` (SysML 2 IBD) / " +
                 "`sysml2Model(\"…\") { stmDiagram(\"…\") { … } }` (SysML 2 STM) / " +
                 "`sysml2Model(\"…\") { actDiagram(\"…\") { … } }` (SysML 2 ACT), " +
-                "or a `bpmnModel(\"…\") { process(…) { … }; diagram(\"…\", processId = \"…\") }` (BPMN) expression.",
+                "a `bpmnModel(\"…\") { process(…) { … }; diagram(\"…\", processId = \"…\") }` (BPMN), " +
+                "or a `blueprint(\"…\") { … ; journeyDiagram(\"…\") }` (Blueprint / Journey Map) expression.",
         )
     }
 
@@ -325,4 +361,7 @@ object DiagramExtractor {
 
     /** V3.1.6: picks the first diagram in declaration order from a [BpmnModel]. */
     private fun BpmnModel.firstDiagramOrNull(): BpmnDiagram? = diagrams.firstOrNull()
+
+    /** V3.1.24: picks the first diagram in declaration order from a [BlueprintModel]. */
+    private fun BlueprintModel.firstDiagramOrNull(): BlueprintDiagram? = diagrams.firstOrNull()
 }

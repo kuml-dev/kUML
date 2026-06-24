@@ -123,6 +123,7 @@ internal object WebRenderPipeline {
                 is ExtractedDiagram.C4 -> renderC4(extracted, format, theme, widthPx, durationMs, standaloneTex)
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, format, theme, widthPx, durationMs, standaloneTex)
                 is ExtractedDiagram.Bpmn -> renderBpmn(extracted, format, theme, widthPx, durationMs)
+                is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, format, widthPx, durationMs)
             }
         } catch (e: ScriptEvaluationException) {
             WebRenderResult.Error(e.message ?: "Script error")
@@ -539,6 +540,28 @@ internal object WebRenderPipeline {
                     else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
                 }
             }
+        }
+    }
+
+    /**
+     * Blueprint / Journey-Map render branch (V3.1.24).
+     * No ELK — deterministic grid geometry.
+     */
+    private fun renderBlueprint(
+        extracted: ExtractedDiagram.Blueprint,
+        format: String,
+        widthPx: Int,
+        durationMs: Long,
+    ): WebRenderResult {
+        val model = extracted.model
+        val diagram = extracted.diagram
+        return when (format) {
+            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, diagram), durationMs)
+            "png" -> {
+                val svg = KumlSvgRenderer.toSvg(model, diagram)
+                WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
+            }
+            else -> WebRenderResult.Error("Unsupported format for Blueprint: $format (svg, png supported)")
         }
     }
 

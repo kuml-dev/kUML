@@ -108,12 +108,19 @@ internal fun xmlEscapeAttr(s: String): String =
         .replace("'", "&apos;")
 
 /**
- * XML-escaped einen String für die Verwendung in [SvgBuilder.rawXml]-Kontexten.
+ * XML-escaped einen String für die Verwendung in [SvgBuilder.rawXml]-Kontexten,
+ * **ausschließlich für Textinhalt** (zwischen öffnendem und schließendem Tag,
+ * nie innerhalb eines Attributwerts).
  *
- * Verwende diese Funktion, wenn Text in einen `rawXml()`-Block eingebettet wird
- * (z. B. nach einem `<tspan>`-Präfix). Im Gegensatz zu [SvgBuilder.text] escapiert
- * `rawXml` nicht automatisch — deshalb muss der Aufrufer [xmlEscapeContent] explizit
- * aufrufen.
+ * Escapiert `&`, `<`, `>` und `'`. Doppelte Anführungszeichen (`"`) werden
+ * **nicht** escapiert, weil sie in XML-Textinhalt kein Sonderzeichen sind.
+ *
+ * **Warnung — kein Attribut-Einsatz:** Diese Funktion darf *nicht* innerhalb
+ * von Attributwerten (z. B. `title="…"`) in einem `rawXml()`-Block verwendet
+ * werden. Für Attributwerte ist [xmlEscapeAttr] vorgesehen, das zusätzlich `"`
+ * escapiert. Ein Aufrufer, der `xmlEscapeContent()` in ein Attribut einsetzt,
+ * erzeugt im Bestfall unvollständig escapiertes, im schlechtesten Fall injizier-
+ * bares SVG.
  *
  * Wichtig: Nicht bei [SvgBuilder.text] verwenden — das würde doppeltes Escaping
  * erzeugen (`&amp;lt;` statt `&lt;`). [SvgBuilder.text] escapiert intern bereits.
@@ -123,6 +130,7 @@ internal fun xmlEscapeContent(s: String): String =
         .replace("&", "&amp;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
+        .replace("'", "&apos;")
 
 /**
  * No-op identity function. SvgBuilder.text() escapes automatically — passing

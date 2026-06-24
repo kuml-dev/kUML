@@ -1,5 +1,7 @@
 package dev.kuml.cli
 
+import dev.kuml.blueprint.model.BlueprintDiagram
+import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.bpmn.constraint.BpmnConstraintChecker
 import dev.kuml.bpmn.constraint.ViolationSeverity
 import dev.kuml.bpmn.model.CollaborationDiagram
@@ -205,6 +207,7 @@ internal object RenderPipeline {
                 is ExtractedDiagram.C4 -> renderC4(extracted, output, format, width, theme)
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme)
                 is ExtractedDiagram.Bpmn -> renderBpmn(extracted, output, format, width, theme)
+                is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, output, format, width, theme)
             }
         } catch (e: IOException) {
             throw e
@@ -630,6 +633,35 @@ internal object RenderPipeline {
                     else -> throw ScriptEvaluationException("Unsupported format for BPMN: $format (supported: svg, png)")
                 }
             }
+        }
+    }
+
+    /**
+     * Blueprint / Journey-Map render branch (V3.1.24).
+     *
+     * Blueprint diagrams bypass ELK entirely — the layout is deterministic
+     * grid geometry (phases = columns, layers = rows). Only SVG and PNG export
+     * are supported; LaTeX output for blueprints arrives in V3.1.26.
+     */
+    private fun renderBlueprint(
+        extracted: ExtractedDiagram.Blueprint,
+        output: Path,
+        format: String,
+        width: Int,
+        @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
+    ) {
+        val model: BlueprintModel = extracted.model
+        val diagram: BlueprintDiagram = extracted.diagram
+        when (format) {
+            "svg" -> KumlSvgRenderer.toSvgFile(model, diagram, output)
+            "png" -> {
+                val svg = KumlSvgRenderer.toSvg(model, diagram)
+                val pngBytes = KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = width))
+                writeBinary(output, pngBytes)
+            }
+            else -> throw ScriptEvaluationException(
+                "Unsupported format for Blueprint: $format (supported: svg, png)",
+            )
         }
     }
 

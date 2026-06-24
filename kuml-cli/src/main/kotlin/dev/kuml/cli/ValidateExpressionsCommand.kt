@@ -150,6 +150,9 @@ internal class ValidateExpressionsCommand : CliktCommand(name = "validate-expres
                 // BPMN diagrams — sequence flow conditions are string expressions;
                 // not checked here (no OCL-like type system for BPMN conditions).
             }
+            is ExtractedDiagram.Blueprint -> {
+                // Blueprint/Journey-Map diagrams have no guard expressions.
+            }
         }
         return result
     }

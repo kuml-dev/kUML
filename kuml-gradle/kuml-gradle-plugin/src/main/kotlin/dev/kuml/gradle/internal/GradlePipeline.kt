@@ -240,6 +240,8 @@ internal object GradlePipeline {
                     }
                 }
             }
+            // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
+            is ExtractedDiagram.Blueprint -> KumlSvgRenderer.toSvg(extracted.model, extracted.diagram)
         }
 
     /** Render an extracted diagram to PNG bytes. */
@@ -286,6 +288,11 @@ internal object GradlePipeline {
                     }
                 }
             }
+            // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
+            is ExtractedDiagram.Blueprint -> {
+                val svg = KumlSvgRenderer.toSvg(extracted.model, extracted.diagram)
+                KumlPngRenderer.toPng(svg, options)
+            }
         }
     }
 
@@ -296,6 +303,7 @@ internal object GradlePipeline {
             is ExtractedDiagram.C4 -> extracted.diagram.name
             is ExtractedDiagram.Sysml2 -> extracted.diagram.name
             is ExtractedDiagram.Bpmn -> extracted.diagram.name
+            is ExtractedDiagram.Blueprint -> extracted.diagram.name
         }
 
     /** Default (fallback) theme — used when the user's pick fails to resolve. */

@@ -17,6 +17,7 @@ dependencies {
     api(project(":kuml-metamodel:kuml-metamodel-c4"))
     api(project(":kuml-metamodel:kuml-metamodel-sysml2")) // V2.0.4 — SysML 2 BDD-Extraktion
     api(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN CLI-Integration
+    api(project(":kuml-metamodel:kuml-metamodel-blueprint")) // V3.1.24 — Blueprint/Journey-Map-Extraktion
 
     implementation(libs.kotlin.scripting.common)
     implementation(libs.kotlin.scripting.jvm)

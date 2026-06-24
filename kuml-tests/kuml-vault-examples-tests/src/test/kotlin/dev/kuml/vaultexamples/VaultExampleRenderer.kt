@@ -268,6 +268,12 @@ object VaultExampleRenderer {
                         }
                     RenderResult(svg, null, null)
                 }
+
+                // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
+                is ExtractedDiagram.Blueprint -> {
+                    val svg = KumlSvgRenderer.toSvg(extracted.model, extracted.diagram)
+                    RenderResult(svg, null, null)
+                }
             }
         } catch (e: Exception) {
             RenderResult(null, null, "Render-Exception: ${e.javaClass.simpleName}: ${e.message}")

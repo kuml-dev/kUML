@@ -2,6 +2,7 @@ package dev.kuml.mcp.tools
 
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.script.DiagramExtractor
+import dev.kuml.core.script.KumlScriptGuard
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.core.script.ScriptEvaluationException
 import dev.kuml.mcp.McpContent
@@ -48,6 +49,7 @@ internal object ListElementsTool : McpTool {
             arguments["script"]?.jsonPrimitive?.content
                 ?: throw IllegalArgumentException("Missing required argument: script")
 
+        KumlScriptGuard.validate(script)
         val scriptFile = Files.createTempFile("kuml-mcp-list-", ".kuml.kts").toFile()
         scriptFile.writeText(script)
 

@@ -159,6 +159,14 @@ internal class SandboxValidateCommand : CliktCommand(name = "validate") {
                 echo("BPMN diagrams are not supported by `kuml sandbox validate`. Use a UML or SysML 2 STM script instead.", err = true)
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
+            is ExtractedDiagram.Blueprint -> {
+                echo(
+                    "Blueprint/Journey-Map diagrams are not supported by `kuml sandbox validate`. " +
+                        "Use a UML or SysML 2 STM script instead.",
+                    err = true,
+                )
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
         }
     }
 }

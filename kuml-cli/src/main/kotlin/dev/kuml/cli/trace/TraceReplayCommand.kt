@@ -341,6 +341,10 @@ internal class TraceReplayCommand : CliktCommand(name = "replay") {
                 System.err.println("BPMN diagrams are not supported by `kuml trace replay`.")
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
+            is ExtractedDiagram.Blueprint -> {
+                System.err.println("Blueprint/Journey-Map diagrams are not supported by `kuml trace replay`.")
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
         }
     }
 }

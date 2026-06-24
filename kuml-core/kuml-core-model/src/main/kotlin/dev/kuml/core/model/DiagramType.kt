@@ -30,4 +30,8 @@ enum class DiagramType {
 
     // ── BPMN 2.0 — V3.1.4 ───────────────────────────────────────────────────
     BPMN_COLLABORATION,
+
+    // ── Blueprint / Journey Map — V3.1.24 ───────────────────────────────────
+    JOURNEY,
+    BLUEPRINT,
 }

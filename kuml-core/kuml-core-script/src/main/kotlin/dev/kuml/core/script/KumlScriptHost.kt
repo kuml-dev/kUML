@@ -1,5 +1,6 @@
 package dev.kuml.core.script
 
+import dev.kuml.c4.dsl.C4Ids
 import java.io.File
 import kotlin.script.experimental.api.EvaluationResult
 import kotlin.script.experimental.api.ResultWithDiagnostics
@@ -28,12 +29,14 @@ object KumlScriptHost {
      *
      * @param file A `*.kuml.kts` file accessible on the local filesystem.
      */
-    fun eval(file: File): ResultWithDiagnostics<EvaluationResult> =
-        host.eval(
+    fun eval(file: File): ResultWithDiagnostics<EvaluationResult> {
+        C4Ids.resetForScript()
+        return host.eval(
             script = file.toScriptSource(),
             compilationConfiguration = compilationConfig,
             evaluationConfiguration = null,
         )
+    }
 
     /**
      * Evaluates a kUML script from an inline string.
@@ -46,10 +49,12 @@ object KumlScriptHost {
     fun eval(
         code: String,
         fileName: String = "inline.kuml.kts",
-    ): ResultWithDiagnostics<EvaluationResult> =
-        host.eval(
+    ): ResultWithDiagnostics<EvaluationResult> {
+        C4Ids.resetForScript()
+        return host.eval(
             script = code.toScriptSource(fileName),
             compilationConfiguration = compilationConfig,
             evaluationConfiguration = null,
         )
+    }
 }

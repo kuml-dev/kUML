@@ -2,6 +2,7 @@ package dev.kuml.mcp.tools
 
 import dev.kuml.codegen.api.CodeGenRegistry
 import dev.kuml.core.script.DiagramExtractor
+import dev.kuml.core.script.KumlScriptGuard
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.core.script.ScriptEvaluationException
 import dev.kuml.mcp.McpContent
@@ -58,6 +59,7 @@ internal object GenerateTool : McpTool {
         val pluginId = arguments["plugin"]?.jsonPrimitive?.content ?: "kotlin"
         val packageName = arguments["package"]?.jsonPrimitive?.content
 
+        KumlScriptGuard.validate(script)
         val scriptFile = Files.createTempFile("kuml-mcp-generate-", ".kuml.kts").toFile()
         scriptFile.writeText(script)
 

@@ -79,6 +79,17 @@ import dev.kuml.uml.UmlUseCase
  * - [dispatch] — schreibt SVG-Markup in einen [SvgBuilder].
  * - [dispatchKey] — gibt den Klassen-SimpleNamen zurück; für Tests ohne SVG-Output.
  *
+ * **Blueprint-Elemente werden hier nicht geroutet.** Das Blueprint-Rendering
+ * (`BlueprintPhaseHeaderSvg`, `BlueprintStepSvg`, usw.) schreibt SVG direkt
+ * in einen eigenen [SvgBuilder]-Kontext innerhalb von `KumlSvgRenderer.toSvg(BlueprintModel, …)`.
+ * Der Dispatcher wird für Blueprint-Renderpfade nie aufgerufen — dieses Bypass-Design
+ * ist absichtlich, weil Blueprint-Elemente (Phase, Step, Touchpoint) keine
+ * [KumlElement]-Subtypen sind und daher nicht über den gemeinsamen Dispatching-Mechanismus
+ * laufen können. Sollte ein zukünftiges Refactoring alle Elemente durch diesen Dispatcher
+ * leiten, würden Blueprint-Typen ohne Fehler in den `else`-Zweig (`renderFallbackNode`)
+ * fallen und stumm leere Rechtecke erzeugen — ein solches Refactoring muss deshalb
+ * explizit einen Blueprint-Arm oder eine Guard-Exception hinzufügen.
+ *
  * Beispiel:
  * ```kotlin
  * NodeRendererDispatcher.dispatch(element, layout, theme, builder)

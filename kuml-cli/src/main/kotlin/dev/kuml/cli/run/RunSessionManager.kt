@@ -454,5 +454,6 @@ internal class RunSessionManager {
 
             is ExtractedDiagram.C4 -> null
             is ExtractedDiagram.Bpmn -> null
+            is ExtractedDiagram.Blueprint -> null
         }
 }

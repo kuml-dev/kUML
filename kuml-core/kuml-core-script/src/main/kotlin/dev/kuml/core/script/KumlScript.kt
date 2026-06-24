@@ -57,5 +57,9 @@ object KumlScriptCompilationConfiguration : ScriptCompilationConfiguration({
         "dev.kuml.c4.dsl.*",
         // C4 metamodel types
         "dev.kuml.c4.model.*",
+        // Blueprint DSL builders (blueprint, phase, journeyDiagram, …) — V3.1.24
+        "dev.kuml.blueprint.dsl.*",
+        // Blueprint metamodel types (BlueprintLayer, Sentiment, ChannelKind, …)
+        "dev.kuml.blueprint.model.*",
     )
 })

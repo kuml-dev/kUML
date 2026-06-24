@@ -1,5 +1,7 @@
 package dev.kuml.io.svg
 
+import dev.kuml.blueprint.model.BlueprintDiagram
+import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnSubProcess
@@ -11,6 +13,7 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
 import dev.kuml.core.model.PackageDiagramConfig
+import dev.kuml.io.svg.blueprint.renderBlueprintJourney
 import dev.kuml.io.svg.c4.c4RelationshipLabel
 import dev.kuml.io.svg.c4.renderC4Interaction
 import dev.kuml.io.svg.c4.renderC4Relationship
@@ -1703,6 +1706,36 @@ public object KumlSvgRenderer {
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): File {
         val svg = toSvg(model, diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(svg, Charsets.UTF_8)
+        return file
+    }
+
+    /**
+     * Rendert ein Blueprint / Journey-Map-Diagramm als SVG-String (V3.1.24).
+     *
+     * Blueprint-Diagramme durchlaufen **keine** ELK-Pipeline — das Layout ist
+     * deterministisch tabellarisch (Phasen = Spalten, Layer = Zeilen). Der
+     * interne Renderer [dev.kuml.io.svg.blueprint.renderBlueprintJourney] baut
+     * den SVG-String direkt aus dem [BlueprintModel] und dem [BlueprintDiagram].
+     *
+     * @param model das Blueprint-Modell mit Phasen, Steps, Touchpoints, Connections
+     * @param diagram das konkrete Diagramm-View (JourneyDiagram oder BlueprintDiagramFull)
+     * @return wohlgeformter SVG-String
+     */
+    public fun toSvg(
+        model: BlueprintModel,
+        diagram: BlueprintDiagram,
+    ): String = renderBlueprintJourney(model, diagram)
+
+    /** [toSvg]-Variante für Blueprint-Diagramme, schreibt direkt auf Platte. */
+    public fun toSvgFile(
+        model: BlueprintModel,
+        diagram: BlueprintDiagram,
+        out: Path,
+    ): File {
+        val svg = toSvg(model, diagram)
         val file = out.toFile()
         file.parentFile?.mkdirs()
         file.writeText(svg, Charsets.UTF_8)

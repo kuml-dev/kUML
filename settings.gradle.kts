@@ -44,6 +44,7 @@ include(
     "kuml-metamodel:kuml-metamodel-kerml",  // V2.0.3 — KerML-Basis für SysML 2
     "kuml-metamodel:kuml-metamodel-sysml2", // V2.0.3 — SysML 2 auf KerML (BDD-MVP)
     "kuml-metamodel:kuml-metamodel-bpmn",   // V3.1.1 — BPMN 2.0 Process Core-Metamodell
+    "kuml-metamodel:kuml-metamodel-blueprint", // V3.1.21 — User Journey / Service Blueprint Core-Metamodell
 )
 
 // ── Renderer ─────────────────────────────────────────── Phase 1 ──
@@ -94,6 +95,7 @@ include(
     "kuml-runtime:kuml-runtime-chain-evm",  // V3.0.2  — EVM JSON-RPC adapter + EIP-712 verifier (JVM-only, raw HttpClient + kotlinx-json)
     "kuml-runtime:kuml-runtime-chain-move", // V3.0.20 — Sui + Aptos Move-VM adapters (JVM-only, raw HttpClient + kotlinx-json)
     "kuml-runtime:kuml-runtime-chain-cosmos", // V3.0.21 — CosmWasm (Cosmos-SDK) + Substrate/ink! WASM-contract adapters (JVM-only, raw HttpClient + kotlinx-json)
+    "kuml-runtime:kuml-runtime-chain-wasm", // V3.0.22 — Generic WASM contract adapter: pure-Kotlin SCALE codec + ink! ABI metadata parser + Substrate JSON-RPC adapter (ink! primary, CosmWasm secondary). Core utilities Native-Image-tauglich; RPC layer JVM-only (raw HttpClient + kotlinx-json).
 )
 
 // ── I/O ──────────────────────────────────────────────── Phase 2 ──

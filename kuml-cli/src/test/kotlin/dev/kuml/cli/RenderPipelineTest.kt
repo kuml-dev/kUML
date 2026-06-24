@@ -1,6 +1,9 @@
 package dev.kuml.cli
 
+import dev.kuml.core.script.ScriptEvaluationException
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
@@ -172,6 +175,77 @@ class RenderPipelineTest :
             content shouldContain "MessageBroker"
 
             outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
+        // ── Blueprint integration tests (V3.1.24) ──────────────────────────────
+
+        test("RenderPipeline writes SVG file from Blueprint/Journey-Map script") {
+            val fixture = File("src/test/resources/minimal-blueprint.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-blueprint-test")
+            val outputFile = outputDir.resolve("minimal-blueprint.svg")
+
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "svg",
+                width = 1024,
+                themeName = "plain",
+            )
+
+            val content = outputFile.toFile().readText()
+            content shouldStartWith "<svg"
+            content shouldContain "Entdeckung"
+            content shouldContain "Interesse"
+            content shouldContain "Sieht Post"
+            // arrowhead marker must appear exactly once (not per-connection)
+            val defsCount = Regex("""id="bp-arrow"""").findAll(content).count()
+            defsCount shouldBe 1
+
+            outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
+        test("RenderPipeline writes PNG file from Blueprint/Journey-Map script") {
+            val fixture = File("src/test/resources/minimal-blueprint.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-blueprint-png-test")
+            val outputFile = outputDir.resolve("minimal-blueprint.png")
+
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "png",
+                width = 1024,
+                themeName = "plain",
+            )
+
+            val bytes = outputFile.toFile().readBytes()
+            bytes.size shouldNotBe 0
+            check(bytes[0] == 0x89.toByte() && bytes[1] == 0x50.toByte()) {
+                "Output is not a PNG (first bytes: ${bytes.take(8).joinToString { "%02x".format(it) }})"
+            }
+
+            outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
+        test("RenderPipeline writes SVG file from Blueprint/Journey-Map script via `kuml render` (no latex format)") {
+            val fixture = File("src/test/resources/minimal-blueprint.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-blueprint-latex-test")
+            val outputFile = outputDir.resolve("minimal-blueprint.latex")
+
+            val ex =
+                shouldThrow<ScriptEvaluationException> {
+                    RenderPipeline.run(
+                        input = fixture,
+                        output = outputFile,
+                        format = "latex",
+                        width = 1024,
+                        themeName = "plain",
+                    )
+                }
+            ex.message shouldContain "Unsupported format for Blueprint"
+
             outputDir.toFile().delete()
         }
 

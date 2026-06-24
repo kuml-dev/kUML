@@ -1,5 +1,6 @@
 package dev.kuml.mcp.tools
 
+import dev.kuml.core.script.KumlScriptGuard
 import dev.kuml.mcp.McpContent
 import dev.kuml.mcp.McpRenderPipeline
 import dev.kuml.mcp.McpToolDescriptor
@@ -55,6 +56,7 @@ internal object RenderTool : McpTool {
         val format = arguments["format"]?.jsonPrimitive?.content ?: "svg"
         val width = arguments["width"]?.jsonPrimitive?.int ?: 1024
 
+        KumlScriptGuard.validate(script)
         val scriptFile = writeTemp(script)
         return try {
             when (val result = McpRenderPipeline.render(scriptFile, format, width)) {

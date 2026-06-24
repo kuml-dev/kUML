@@ -2,7 +2,6 @@ package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeContent
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.StereotypeTheme
 import dev.kuml.uml.AppliedStereotype
@@ -72,7 +71,7 @@ internal object StereotypeHelper {
                 "y" to fmt(cy),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(label)) }
+        ) { text(label) }
         return fontSize + 4f
     }
 
@@ -117,7 +116,7 @@ internal object StereotypeHelper {
                     "x" to "8",
                     "y" to fmt(cy2),
                 ),
-            ) { text(xmlEscapeText(row)) }
+            ) { text(row) }
             cy2 += lineH
         }
         return cy2 - cy
@@ -143,7 +142,7 @@ internal object StereotypeHelper {
                 "y" to fmt(midY),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(label)) }
+        ) { text(label) }
         return true
     }
 

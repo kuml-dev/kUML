@@ -373,6 +373,13 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
                 )
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
+            is ExtractedDiagram.Blueprint -> {
+                System.err.println(
+                    "Blueprint/Journey-Map diagrams are not supported by `kuml simulate`. " +
+                        "Use a UML or SysML 2 STM/ACT script instead.",
+                )
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
         }
 
     private fun runInteractive(

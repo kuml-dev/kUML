@@ -166,6 +166,9 @@ internal object DesktopRenderPipeline {
                         }
                     }
                 }
+                // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
+                is ExtractedDiagram.Blueprint ->
+                    KumlSvgRenderer.toSvg(extracted.model, extracted.diagram)
             }
             DesktopRenderResult.Svg(svg)
 
