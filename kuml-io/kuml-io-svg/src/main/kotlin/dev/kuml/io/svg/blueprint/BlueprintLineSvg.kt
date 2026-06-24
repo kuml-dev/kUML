@@ -1,5 +1,6 @@
 package dev.kuml.io.svg.blueprint
 
+import dev.kuml.blueprint.model.BlueprintGridConstants
 import dev.kuml.blueprint.model.BlueprintLayer
 import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.io.svg.SvgBuilder
@@ -70,12 +71,14 @@ internal fun SvgBuilder.renderBlueprintLines(
             """<line x1="${f(geo.contentLeft)}" y1="${f(y)}" x2="${f(geo.contentRight)}" y2="${f(y)}" """ +
                 """stroke="#1d2968" stroke-width="1.5"$dashAttr/>""",
         )
-        // Right-aligned caption sitting just above the boundary line.
+        // Right-aligned caption in the 24 px clearance zone below the step card.
+        // SEPARATOR_LABEL_OFFSET (12 px) places the baseline at mid-height of that
+        // zone, well clear of both the card border (24 px above) and the line (0 px).
         tag(
             "text",
             mapOf(
                 "x" to f(geo.contentRight - 6),
-                "y" to f(y - 4),
+                "y" to f(y - BlueprintGridConstants.SEPARATOR_LABEL_OFFSET),
                 "text-anchor" to "end",
                 "class" to "kuml-body",
                 "font-size" to "10",

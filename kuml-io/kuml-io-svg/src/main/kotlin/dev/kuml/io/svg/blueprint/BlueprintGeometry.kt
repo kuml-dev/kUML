@@ -32,6 +32,8 @@ internal class BlueprintGeometry(
     val labelColumnWidth = BlueprintGridConstants.LABEL_COLUMN_WIDTH
     val columnWidth = BlueprintGridConstants.COLUMN_WIDTH
     val rowHeight = BlueprintGridConstants.ROW_HEIGHT
+    val cardMarginTop = BlueprintGridConstants.CARD_MARGIN_TOP
+    val cardMarginBottom = BlueprintGridConstants.CARD_MARGIN_BOTTOM
     val emotionBandHeight = BlueprintGridConstants.EMOTION_BAND_HEIGHT
     val headerHeight = BlueprintGridConstants.HEADER_HEIGHT
     val padding = BlueprintGridConstants.PADDING

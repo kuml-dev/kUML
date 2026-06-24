@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.blueprint
 
 import dev.kuml.blueprint.model.Actor
+import dev.kuml.blueprint.model.BlueprintGridConstants
 import dev.kuml.blueprint.model.JourneyStep
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeContent
@@ -48,7 +49,9 @@ internal fun wrapText(
  * accent stroke passed in as [accent]. V3.1.25 shifts text anchor left when
  * an icon is present. V3.1.27 adds automatic title text wrapping via
  * [wrapText] + `<tspan>` so long titles like "Beschließt Aufnahme im
- * Vorstand" no longer overflow the card.
+ * Vorstand" no longer overflow the card. V3.1.28 uses an asymmetric top/bottom
+ * margin (8 px top, 24 px bottom) so Shostack separator-line captions have a
+ * clear 24 px zone between the card border and the separator line.
  */
 internal fun SvgBuilder.renderStepCard(
     step: JourneyStep,
@@ -59,11 +62,13 @@ internal fun SvgBuilder.renderStepCard(
     actor: Actor? = null,
     accent: String = "#b0b8c4",
 ) {
-    val m = 8.0
-    val x = cellX + m
-    val y = cellY + m
-    val w = cellW - 2 * m
-    val h = cellH - 2 * m
+    val mSide = 8.0
+    val mTop = BlueprintGridConstants.CARD_MARGIN_TOP
+    val mBottom = BlueprintGridConstants.CARD_MARGIN_BOTTOM
+    val x = cellX + mSide
+    val y = cellY + mTop
+    val w = cellW - 2 * mSide
+    val h = cellH - mTop - mBottom
     tag("g", mapOf("id" to step.id)) {
         rawXml(
             """<rect x="${f(x)}" y="${f(y)}" width="${f(w)}" height="${f(h)}" rx="6" """ +

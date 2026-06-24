@@ -145,11 +145,20 @@ internal fun renderBlueprintJourney(
                     step.touchpointRefs.forEachIndexed { tIdx, tpId ->
                         val tp = model.touchpoints.firstOrNull { it.id == tpId } ?: return@forEachIndexed
                         val ch = tp.channelRef?.let { ref -> model.channels.firstOrNull { it.id == ref } }
+                        // Position touchpoint icons 8 px above the card bottom edge.
+                        // Card bottom = cellY + cardMarginTop + (rowHeight - cardMarginTop - cardMarginBottom)
+                        //             = cellY + rowHeight - cardMarginBottom
+                        // Icon cy     = card bottom - 8
+                        //
+                        // When a pain indicator is present it occupies (cellX+18, cellY+78).
+                        // Shift the touchpoint row 20 px right so the first icon does not
+                        // cover the pain circle (both share cx = cellX+18 otherwise).
+                        val tpStartX = cellX + 18 + if (step.painPoint != null) 20 else 0
                         renderTouchpoint(
                             tp = tp,
                             channel = ch,
-                            cx = cellX + 18 + tIdx * 30,
-                            cy = cellY + geo.rowHeight - 16,
+                            cx = tpStartX + tIdx * 30,
+                            cy = cellY + geo.rowHeight - geo.cardMarginBottom - 8,
                         )
                     }
                 }
