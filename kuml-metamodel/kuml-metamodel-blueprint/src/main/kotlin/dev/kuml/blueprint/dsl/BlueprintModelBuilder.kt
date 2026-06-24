@@ -103,8 +103,9 @@ class BlueprintModelBuilder(
     }
 
     /**
-     * Full Service-Blueprint view. By default all layers and all separator
-     * lines are shown. (Layer-/line-subset arguments arrive in V3.1.24.)
+     * Full Service-Blueprint view. By default all four layers and all three
+     * separator lines are shown; pass [layers] / [lines] subsets to restrict
+     * the projection, and [emotionCurve] = true to overlay the emotion curve.
      */
     fun blueprintDiagram(
         name: String,

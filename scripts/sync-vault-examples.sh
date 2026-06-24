@@ -56,6 +56,7 @@ map_vault_to_web() {
     "20 UML Communication – Place Order.md")      echo "uml-communication-checkout.kuml.kts" ;;
     "23 C4 Context – Internet Banking.md")        echo "c4-context-internet-banking.kuml.kts" ;;
     "28 SysML 2 PAR – Newton.md")                 echo "sysml2-newton-second-law-par.kuml.kts" ;;
+    "33 Blueprint – PdV Mitglieder-Journey.md")   echo "blueprint-pdv-mitglieder-journey.kuml.kts" ;;
     *)                                            echo "" ;;
   esac
 }

@@ -207,7 +207,7 @@ internal object RenderPipeline {
                 is ExtractedDiagram.C4 -> renderC4(extracted, output, format, width, theme)
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme)
                 is ExtractedDiagram.Bpmn -> renderBpmn(extracted, output, format, width, theme)
-                is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, output, format, width, theme)
+                is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, output, format, width, theme, latexStandalone)
             }
         } catch (e: IOException) {
             throw e
@@ -640,8 +640,8 @@ internal object RenderPipeline {
      * Blueprint / Journey-Map render branch (V3.1.24).
      *
      * Blueprint diagrams bypass ELK entirely — the layout is deterministic
-     * grid geometry (phases = columns, layers = rows). Only SVG and PNG export
-     * are supported; LaTeX output for blueprints arrives in V3.1.26.
+     * grid geometry (phases = columns, layers = rows). SVG, PNG and (V3.1.26)
+     * LaTeX/TikZ export are supported.
      */
     private fun renderBlueprint(
         extracted: ExtractedDiagram.Blueprint,
@@ -649,6 +649,7 @@ internal object RenderPipeline {
         format: String,
         width: Int,
         @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
+        latexStandalone: Boolean = false,
     ) {
         val model: BlueprintModel = extracted.model
         val diagram: BlueprintDiagram = extracted.diagram
@@ -659,8 +660,13 @@ internal object RenderPipeline {
                 val pngBytes = KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = width))
                 writeBinary(output, pngBytes)
             }
+            "latex" -> {
+                val opts = LatexRenderOptions(standalone = latexStandalone)
+                val tex = KumlLatexRenderer.toLatex(model, diagram, opts)
+                writeText(output, tex)
+            }
             else -> throw ScriptEvaluationException(
-                "Unsupported format for Blueprint: $format (supported: svg, png)",
+                "Unsupported format for Blueprint: $format (supported: svg, png, latex)",
             )
         }
     }

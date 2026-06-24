@@ -33,3 +33,4 @@
 30 BPMN Process – Order Fulfillment.md
 31 BPMN Process – Sub-Process Loop.md
 32 BPMN Collaboration – Customer und Supplier.md
+33 Blueprint – PdV Mitglieder-Journey.md

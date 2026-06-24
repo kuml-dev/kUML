@@ -148,9 +148,9 @@ Der [Playground auf kuml.dev](https://kuml.dev/playground) speist seine Beispiel
 | 27 | [[27 SysML 2 IBD – Hybrid Vehicle Wiring]] | *(noch kein Playground-Eintrag — Lücke)* |
 | 28 | [[28 SysML 2 PAR – Newton]] | `sysml2-newton-second-law-par` |
 | 29 | [[29 UML Profil – AUTOSAR]] | `uml-profile-autosar` **und** `uml-profile-autosar-ecu` (Profil-Definition + Anwendung) |
-| 30 | [[30 BPMN Process – Order Fulfillment]] | *(noch kein Playground-Eintrag — BPMN im Playground noch nicht angeboten)* |
-| 31 | [[31 BPMN Process – Sub-Process Loop]] | *(noch kein Playground-Eintrag — BPMN im Playground noch nicht angeboten)* |
-| 32 | [[32 BPMN Collaboration – Customer und Supplier]] | *(noch kein Playground-Eintrag — BPMN im Playground noch nicht angeboten)* |
+| 30 | [[30 BPMN Process – Order Fulfillment]] | `bpmn-order-fulfillment` |
+| 31 | [[31 BPMN Process – Sub-Process Loop]] | `bpmn-subprocess-loop` |
+| 32 | [[32 BPMN Collaboration – Customer und Supplier]] | `bpmn-collaboration-customer-supplier` |
 
 ### Playground-Keys ohne Vault-Anker
 

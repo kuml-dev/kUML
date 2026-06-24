@@ -8,6 +8,7 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
+import dev.kuml.core.script.KumlScriptGuard
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.core.script.ScriptEvaluationException
 import dev.kuml.io.latex.KumlLatexRenderer
@@ -98,6 +99,7 @@ internal object WebRenderPipeline {
     ): WebRenderResult {
         val startMs = System.currentTimeMillis()
         return try {
+            KumlScriptGuard.validate(script)
             val evalResult = KumlScriptHost.eval(script)
             val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
             if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {

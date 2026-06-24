@@ -3,19 +3,22 @@ package dev.kuml.io.svg.blueprint
 import dev.kuml.blueprint.model.BlueprintDiagram
 import dev.kuml.blueprint.model.BlueprintDiagramFull
 import dev.kuml.blueprint.model.BlueprintLayer
+import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.blueprint.model.JourneyDiagram
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.blueprint.edge.renderConnection
 
 /**
- * Top-level Journey-Map SVG renderer (V3.1.23).
+ * Top-level Journey-Map / Service-Blueprint SVG renderer.
  *
- * Renders the grid (phase column headers, layer swimlane headers), the step
- * cards in their (phase × layer) cells, touchpoint symbols, step connections,
- * and the emotion curve. Service-Blueprint layer bands and the three separator
- * lines arrive in V3.1.25 (this renderer already draws every visible layer as a
- * row, so the extension is additive).
+ * V3.1.23 introduced the Journey-Map view (Customer layer + emotion curve).
+ * V3.1.24 extends it to the full Service Blueprint:
+ *
+ *  - distinct per-layer band styling (each Shostack layer has its own tint),
+ *  - the three separator lines (Interaction/Visibility/Internal Interaction),
+ *  - actor-role icons on backstage/support step cards,
+ *  - per-layer accent strokes on the step cards.
  *
  * The renderer owns its geometry via [BlueprintGeometry] (grid, not ELK).
  */
@@ -33,12 +36,20 @@ internal fun renderBlueprintJourney(
             is JourneyDiagram -> diagram.showEmotionCurve
             is BlueprintDiagramFull -> diagram.showEmotionCurve
         }
-    // Journey view hides empty layers; full view keeps requested layers visible.
+    // Journey view hides empty layers; full view keeps requested layers visible
+    // (even when empty) so the blueprint structure stays complete.
     val effectiveLayers =
         when (diagram) {
             is JourneyDiagram -> visibleLayers.filter { it in model.activeLayers() }.toSet()
             is BlueprintDiagramFull -> visibleLayers
         }.ifEmpty { setOf(BlueprintLayer.CUSTOMER_ACTIONS) }
+
+    // Which separator lines to draw — only the full view carries them.
+    val showLines: Set<BlueprintLine> =
+        when (diagram) {
+            is BlueprintDiagramFull -> diagram.showLines
+            is JourneyDiagram -> emptySet()
+        }
 
     val geo = BlueprintGeometry(model, effectiveLayers, showEmotion)
     val b = SvgBuilder(pretty = false)
@@ -53,22 +64,20 @@ internal fun renderBlueprintJourney(
         ),
     ) {
         // Arrowhead marker — emitted once per SVG in the root <defs> block.
-        // Previously it was emitted inline per renderConnection() call, producing
-        // duplicate <defs> blocks and duplicate id="bp-arrow" declarations (invalid SVG).
         rawXml(
             """<defs><marker id="bp-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">""" +
                 """<path d="M0,0 L8,4 L0,8 z" fill="#555"/></marker></defs>""",
         )
 
-        // 1. layer band backgrounds (z-order: background first)
-        geo.layers.forEachIndexed { idx, layer ->
+        // 1. layer band backgrounds (z-order: background first) with distinct
+        //    per-layer tint + the swimlane (layer) header on the left.
+        geo.layers.forEach { layer ->
             val band = geo.bandY(layer)
-            val fill = if (idx % 2 == 0) "#f6f8fb" else "#eef2f7"
             rawXml(
                 """<rect x="${f(geo.contentLeft)}" y="${f(band.start)}" """ +
-                    """width="${f(geo.columnWidth * geo.phases.size)}" height="${f(geo.rowHeight)}" fill="$fill"/>""",
+                    """width="${f(geo.columnWidth * geo.phases.size)}" height="${f(geo.rowHeight)}" """ +
+                    """fill="${layerBandFill(layer)}"/>""",
             )
-            // swimlane (layer) header on the left
             tag(
                 "text",
                 mapOf(
@@ -77,6 +86,7 @@ internal fun renderBlueprintJourney(
                     "class" to "kuml-body",
                     "font-size" to "12",
                     "font-weight" to "600",
+                    "fill" to "#1d2968",
                 ),
             ) { text(layerLabel(layer)) }
         }
@@ -112,7 +122,16 @@ internal fun renderBlueprintJourney(
                 val (cellX, cellY) = geo.cellOrigin(i, layer)
                 val stepsHere = model.stepsIn(phase.id, layer)
                 stepsHere.forEach { step ->
-                    b.renderStepCard(step, cellX, cellY, geo.columnWidth, geo.rowHeight)
+                    val actor = step.actorRef?.let { ref -> model.actors.firstOrNull { it.id == ref } }
+                    b.renderStepCard(
+                        step = step,
+                        cellX = cellX,
+                        cellY = cellY,
+                        cellW = geo.columnWidth,
+                        cellH = geo.rowHeight,
+                        actor = actor,
+                        accent = layerAccent(layer),
+                    )
                     step.touchpointRefs.forEachIndexed { tIdx, tpId ->
                         val tp = model.touchpoints.firstOrNull { it.id == tpId } ?: return@forEachIndexed
                         val ch = tp.channelRef?.let { ref -> model.channels.firstOrNull { it.id == ref } }
@@ -127,7 +146,13 @@ internal fun renderBlueprintJourney(
             }
         }
 
-        // 5. connections on top
+        // 5. separator lines (full view only), drawn over the bands/cards but
+        //    under the connections.
+        if (showLines.isNotEmpty()) {
+            b.renderBlueprintLines(showLines, geo)
+        }
+
+        // 6. connections on top
         model.connections.forEach { conn ->
             val src = cellCenterOf(model, geo, conn.sourceRef)
             val dst = cellCenterOf(model, geo, conn.targetRef)
@@ -138,6 +163,24 @@ internal fun renderBlueprintJourney(
     }
     return b.toString()
 }
+
+/** Per-layer band tint (distinct Shostack-layer styling, V3.1.24). */
+private fun layerBandFill(layer: BlueprintLayer): String =
+    when (layer) {
+        BlueprintLayer.CUSTOMER_ACTIONS -> "#fff8e1" // warm — the customer's world
+        BlueprintLayer.FRONTSTAGE -> "#eaf2fb" // light blue — visible interaction
+        BlueprintLayer.BACKSTAGE -> "#eef1f6" // grey-blue — internal
+        BlueprintLayer.SUPPORT_PROCESSES -> "#f3eef8" // light violet — systems/partners
+    }
+
+/** Per-layer step-card accent stroke (V3.1.24). */
+private fun layerAccent(layer: BlueprintLayer): String =
+    when (layer) {
+        BlueprintLayer.CUSTOMER_ACTIONS -> "#fab500"
+        BlueprintLayer.FRONTSTAGE -> "#186cb4"
+        BlueprintLayer.BACKSTAGE -> "#6b7588"
+        BlueprintLayer.SUPPORT_PROCESSES -> "#8a4fbf"
+    }
 
 private fun layerLabel(layer: BlueprintLayer): String =
     when (layer) {

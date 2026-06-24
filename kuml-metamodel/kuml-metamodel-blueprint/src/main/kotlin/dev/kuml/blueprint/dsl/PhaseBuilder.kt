@@ -61,4 +61,54 @@ class PhaseBuilder(
             pain = pain,
             opportunity = opportunity,
         )
+
+    /**
+     * Convenience: a Frontstage step — visible staff interaction, above the
+     * Line of Visibility. V3.1.24.
+     */
+    fun frontstage(
+        name: String,
+        touchpoints: List<String> = emptyList(),
+        actor: String? = null,
+        opportunity: String? = null,
+    ): String =
+        step(
+            name = name,
+            layer = BlueprintLayer.FRONTSTAGE,
+            touchpoints = touchpoints,
+            actor = actor,
+            opportunity = opportunity,
+        )
+
+    /**
+     * Convenience: a Backstage step — invisible internal staff action, below
+     * the Line of Visibility. V3.1.24.
+     */
+    fun backstage(
+        name: String,
+        actor: String? = null,
+        opportunity: String? = null,
+    ): String =
+        step(
+            name = name,
+            layer = BlueprintLayer.BACKSTAGE,
+            actor = actor,
+            opportunity = opportunity,
+        )
+
+    /**
+     * Convenience: a Support-Processes step — IT systems and partners, below
+     * the Line of Internal Interaction. V3.1.24.
+     */
+    fun support(
+        name: String,
+        actor: String? = null,
+        opportunity: String? = null,
+    ): String =
+        step(
+            name = name,
+            layer = BlueprintLayer.SUPPORT_PROCESSES,
+            actor = actor,
+            opportunity = opportunity,
+        )
 }

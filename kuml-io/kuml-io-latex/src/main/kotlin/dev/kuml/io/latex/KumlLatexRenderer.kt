@@ -1,5 +1,7 @@
 package dev.kuml.io.latex
 
+import dev.kuml.blueprint.model.BlueprintDiagram
+import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
@@ -10,6 +12,7 @@ import dev.kuml.c4.model.C4Relationship
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
+import dev.kuml.io.latex.blueprint.BlueprintLatexRenderer
 import dev.kuml.io.latex.bpmn.BpmnLatexRenderer
 import dev.kuml.io.latex.c4.C4LatexRenderer
 import dev.kuml.io.latex.sysml2.Sysml2DefLatexRenderer
@@ -717,8 +720,66 @@ public object KumlLatexRenderer {
         // co-located with the BPMN renderer.
         appendLine("$indent  % ── BPMN styles ─────────────────────────────────────────────────────────")
         BpmnLatexRenderer.appendBpmnTikzStyles(this, indent)
+        // V3.1.26 — Blueprint / Journey TikZ styles (bands, steps, lines, emotion).
+        appendLine("$indent  % ── Blueprint styles ────────────────────────────────────────────────────")
+        BlueprintLatexRenderer.appendBlueprintTikzStyles(this, indent)
         appendLine("$indent}")
     }
+
+    /**
+     * Render a Blueprint / Journey-Map [BlueprintDiagram] as TikZ source
+     * (V3.1.26).
+     *
+     * The blueprint is a strict table (phases = columns, layers = rows); the
+     * renderer computes coordinates directly (no layout engine), mirroring the
+     * SVG renderer. The emotion curve becomes a `\draw … plot coordinates`, the
+     * three separator lines use `solid`/`dashed`/`dotted` styles, and the four
+     * swimlane bands are labelled to the left of the grid.
+     *
+     * @return a `\tikzset{…}` preamble + `\begin{tikzpicture}…\end{tikzpicture}`
+     *   block (snippet mode), or a complete `.tex` document (standalone mode).
+     */
+    public fun toLatex(
+        model: BlueprintModel,
+        diagram: BlueprintDiagram,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String = renderBlueprint(options) { BlueprintLatexRenderer.render(model, diagram) }
+
+    /**
+     * Render a Blueprint model's first diagram as TikZ source (V3.1.26).
+     * Returns an empty string if the model has no diagrams.
+     */
+    public fun toLatex(
+        model: BlueprintModel,
+        options: LatexRenderOptions = LatexRenderOptions.DEFAULT,
+    ): String =
+        when (val first = model.diagrams.firstOrNull()) {
+            null -> ""
+            else -> toLatex(model, first, options)
+        }
+
+    /**
+     * Shared wrapper for the Blueprint render overload. Emits the standalone
+     * preamble (with the extra `shapes.geometric` + `plotmarks` libraries the
+     * blueprint output needs), the shared `\tikzset{…}` style block, then the
+     * inner `\begin{tikzpicture}…\end{tikzpicture}` block.
+     */
+    private fun renderBlueprint(
+        options: LatexRenderOptions,
+        inner: () -> String,
+    ): String =
+        buildString {
+            if (options.standalone) {
+                appendStandalonePreamble()
+                // Blueprint needs extra TikZ libraries beyond the shared preamble.
+                appendLine("\\usetikzlibrary{shapes.geometric, plotmarks}")
+            }
+            appendTikzStyles(options.indent)
+            append(inner())
+            if (options.standalone) {
+                appendStandaloneCoda()
+            }
+        }
 
     /**
      * Render a BPMN [ProcessDiagram] as TikZ source (V3.1.8).

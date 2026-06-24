@@ -14,6 +14,7 @@ dependencies {
     api(project(":kuml-metamodel:kuml-metamodel-sysml2")) // V2.0.4 — SysML 2 BDD-TikZ-Export
     api(project(":kuml-metamodel:kuml-metamodel-c4")) // C4 LaTeX renderer
     api(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.8 — BPMN LaTeX/TikZ renderer
+    api(project(":kuml-metamodel:kuml-metamodel-blueprint")) // V3.1.26 — Blueprint LaTeX/TikZ renderer
     implementation(project(":kuml-core:kuml-core-model"))
 
     testImplementation(libs.kotest.runner.junit5)

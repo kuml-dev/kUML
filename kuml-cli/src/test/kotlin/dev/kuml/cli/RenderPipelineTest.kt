@@ -1,7 +1,5 @@
 package dev.kuml.cli
 
-import dev.kuml.core.script.ScriptEvaluationException
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -229,23 +227,24 @@ class RenderPipelineTest :
             outputDir.toFile().delete()
         }
 
-        test("RenderPipeline writes SVG file from Blueprint/Journey-Map script via `kuml render` (no latex format)") {
+        test("RenderPipeline writes LaTeX/TikZ file from Blueprint/Journey-Map script (V3.1.26)") {
             val fixture = File("src/test/resources/minimal-blueprint.kuml.kts")
             val outputDir = Files.createTempDirectory("kuml-blueprint-latex-test")
-            val outputFile = outputDir.resolve("minimal-blueprint.latex")
+            val outputFile = outputDir.resolve("minimal-blueprint.tex")
 
-            val ex =
-                shouldThrow<ScriptEvaluationException> {
-                    RenderPipeline.run(
-                        input = fixture,
-                        output = outputFile,
-                        format = "latex",
-                        width = 1024,
-                        themeName = "plain",
-                    )
-                }
-            ex.message shouldContain "Unsupported format for Blueprint"
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "latex",
+                width = 1024,
+                themeName = "plain",
+            )
 
+            val content = outputFile.toFile().readText()
+            content shouldContain """\begin{tikzpicture}"""
+            content shouldContain """\end{tikzpicture}"""
+
+            outputFile.toFile().delete()
             outputDir.toFile().delete()
         }
 
