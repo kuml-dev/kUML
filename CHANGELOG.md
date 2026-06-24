@@ -6,6 +6,49 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-06-24
+
+### Added
+
+**Chain Adapters — CosmWasm, Substrate, ink!**
+
+- **`kuml-runtime-chain-cosmos`**: Chain adapter for CosmWasm and Substrate RPC. Enables
+  kUML diagrams to be generated directly from live on-chain state via CosmWasm smart
+  contract queries and Substrate RPC endpoints. Supports contract introspection, state
+  diffing, and architecture diagrams derived from deployed contract schemas.
+- **`kuml-runtime-chain-wasm`**: Chain adapter for ink! smart contracts with ABI parsing
+  and SCALE codec support. Decodes ink! ABI metadata into kUML metamodel elements,
+  enabling automatic class and interaction diagrams from deployed ink! contracts on
+  Substrate-based chains.
+
+**User Journey / Service Blueprint**
+
+- **`kuml-metamodel-blueprint`**: New metamodel module introducing `Actor`, `Phase`,
+  `Step`, `Touchpoint`, `Emotion`, and `BackstageAction` as first-class metamodel
+  elements for User Journey Maps and full Service Blueprints.
+- **`blueprint{}` DSL**: Kotlin builder DSL for composing journey maps and service
+  blueprints inline in `.kuml.kts` scripts. Supports nested phase/step/touchpoint
+  hierarchies, emotion curves, and frontstage/backstage lane separation.
+- **SVG renderer — Journey Map + Full Blueprint**: Two new SVG render modes:
+  `JourneyMapRenderer` (swimlane layout with emotion curve overlay) and
+  `FullBlueprintRenderer` (five-lane layout: Actor / Frontstage / Backstage /
+  Support Processes / Physical Evidence). Both integrate with the existing
+  `KumlSvgRenderer` dispatch pipeline.
+- **CLI integration**: `kuml render --type blueprint` and `kuml render --type journey`
+  route to the new renderers. Output format flags (`--svg`, `--png`, `--pdf`) are
+  fully supported.
+- **`BlueprintConstraintChecker`**: Validation pass that enforces blueprint well-formedness
+  rules (every step must belong to a phase, touchpoints must reference a declared actor,
+  emotion values clamped to −2 … +2). Errors are reported via the standard
+  `KumlConstraintViolation` pipeline.
+- **PdV Mitglieder-Journey example**: End-to-end example blueprint modelling the
+  Partei der Vernunft member onboarding journey from first contact through active
+  membership. Included in `kuml-vault-examples-tests` as a smoke-test fixture.
+- **LaTeX/TikZ renderer**: `BlueprintTikzRenderer` emits a compilable `.tex` file
+  using TikZ/PGF for high-quality print output. Swim lanes are rendered as TikZ
+  matrices; the emotion curve uses a `\draw` spline. Requires a local LaTeX installation;
+  invoked via `kuml render --type blueprint --format tex`.
+
 ## [0.17.0] — 2026-06-23
 
 ### Added
