@@ -6,6 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.19.1] — 2026-06-25
+
+### Fixed
+
+**JetBrains Plugin — Marketplace API Compliance**
+
+- Replaced `PluginManagerCore.getPlugin(PluginId)` (internal `@ApiStatus.Internal` API)
+  with `PluginManager.getPluginByClass()` in `KumlScriptDefinitionsSource` — resolves
+  "Internal API usage" finding in JetBrains Marketplace plugin verifier.
+- Replaced deprecated-for-removal `TextFieldWithBrowseButton.addBrowseFolderListener(String, String, Project, FileChooserDescriptor)`
+  with the non-deprecated 2-arg `addBrowseFolderListener(Project?, FileChooserDescriptor)` form in
+  `KumlPreviewConfigurable`.
+- Replaced deprecated `FileChooserDescriptorFactory.createSingleLocalFileDescriptor()` with
+  `createSingleFileDescriptor()`.
+- Fixed deprecated `Document.addDocumentListener(DocumentListener)` call in `KumlSplitEditorProvider`:
+  the editor wrapper (`KumlSplitEditorWrapper`) is now passed as a `Disposable` parent so the listener
+  is automatically removed when the editor is closed — no more potential memory leak.
+
 ## [0.19.0] — 2026-06-25
 
 ### Added

@@ -49,8 +49,11 @@ class KumlSplitEditorProvider :
     ): FileEditor {
         val textEditor = TextEditorProvider.getInstance().createEditor(project, file) as TextEditor
         val previewPanel = KumlPreviewPanel()
+        // Create wrapper first so it can serve as the Disposable for the document
+        // listener — avoids the deprecated single-arg addDocumentListener overload.
+        val wrapper = KumlSplitEditorWrapper(textEditor, previewPanel)
 
-        // Wire document listener → debounced render
+        // Wire document listener → debounced render (auto-removed when wrapper is disposed)
         val document = textEditor.editor.document
         document.addDocumentListener(
             object : com.intellij.openapi.editor.event.DocumentListener {
@@ -61,6 +64,7 @@ class KumlSplitEditorProvider :
                     )
                 }
             },
+            wrapper,
         )
 
         // Trigger initial render for the current content
@@ -69,7 +73,7 @@ class KumlSplitEditorProvider :
             scriptName = file.path,
         )
 
-        return KumlSplitEditorWrapper(textEditor, previewPanel)
+        return wrapper
     }
 
     // HIDE_DEFAULT_EDITOR statt PLACE_BEFORE_DEFAULT_EDITOR: unser Split-Editor

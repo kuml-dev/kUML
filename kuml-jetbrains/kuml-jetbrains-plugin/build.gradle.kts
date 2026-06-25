@@ -131,6 +131,17 @@ intellijPlatform {
         }
         changeNotes =
             """
+            <h4>0.19.1</h4>
+            <ul>
+              <li>JetBrains Marketplace API compliance: replaced internal <code>PluginManagerCore</code>
+                  with public <code>PluginManager.getPluginByClass()</code> (resolves "Internal API" finding).</li>
+              <li>Replaced deprecated <code>TextFieldWithBrowseButton.addBrowseFolderListener(String, String, Project, descriptor)</code>
+                  (scheduled for removal) with the 2-arg <code>(Project?, FileChooserDescriptor)</code> overload.</li>
+              <li>Replaced deprecated <code>FileChooserDescriptorFactory.createSingleLocalFileDescriptor()</code>
+                  with <code>createSingleFileDescriptor()</code>.</li>
+              <li>Fixed deprecated <code>Document.addDocumentListener(listener)</code> call by passing the
+                  editor wrapper as a <code>Disposable</code> — listener auto-removed on editor close.</li>
+            </ul>
             <h4>0.19.0</h4>
             <ul>
               <li>Published to JetBrains Marketplace — install via <em>Settings → Plugins → Marketplace → search "kUML"</em>.</li>

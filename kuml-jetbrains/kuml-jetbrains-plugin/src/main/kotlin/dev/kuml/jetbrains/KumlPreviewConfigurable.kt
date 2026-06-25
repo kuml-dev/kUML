@@ -23,13 +23,12 @@ internal class KumlPreviewConfigurable : Configurable {
 
     override fun createComponent(): JComponent {
         val tf = TextFieldWithBrowseButton()
-        @Suppress("DEPRECATION")
-        tf.addBrowseFolderListener(
-            "kuml-CLI auswählen",
-            "Pfad zur kuml-CLI-Executable (leer lassen für automatische Erkennung)",
-            null,
-            FileChooserDescriptorFactory.createSingleLocalFileDescriptor(),
-        )
+        val descriptor =
+            FileChooserDescriptorFactory.createSingleFileDescriptor().apply {
+                title = "kuml-CLI auswählen"
+                description = "Pfad zur kuml-CLI-Executable (leer lassen für automatische Erkennung)"
+            }
+        tf.addBrowseFolderListener(null, descriptor)
         tf.text = KumlPreviewSettings.cliPath().orEmpty()
         field = tf
 

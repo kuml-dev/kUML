@@ -1,8 +1,7 @@
 package dev.kuml.jetbrains
 
-import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.ide.plugins.PluginManager
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.Project
 import dev.kuml.core.script.KumlScript
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
@@ -45,26 +44,35 @@ import kotlin.script.experimental.jvm.defaultJvmScriptingHostConfiguration
  * their stable public constructors to dodge the Kotlin default-argument synthetic
  * mismatch between maven `kotlin-scripting:2.4.0` (what the kuml modules compile
  * against) and the bundled Kotlin plugin (build 261) loaded at runtime.
+ *
+ * ## Suppress rationale
+ *
+ * [ScriptDefinitionsSource] is deprecated in newer Kotlin plugin versions. However,
+ * the `scriptDefinitionsSource` extension point is the only EP that works in **both**
+ * K1 and K2 mode (confirmed IntelliJ 2024.3 / build 243+). The suggested replacement
+ * (`scriptDefinitionsProvider` / `ScriptDefinitionsProvider`) fails to instantiate in
+ * K2 mode with "Cannot find suitable constructor, expected (Project)". Suppressed
+ * until JetBrains provides a stable K2-compatible replacement EP.
  */
+@Suppress("DEPRECATION")
 public class KumlScriptDefinitionsSource(
     @Suppress("unused") private val project: Project,
 ) : ScriptDefinitionsSource {
     private companion object {
         private val LOG = Logger.getInstance(KumlScriptDefinitionsSource::class.java)
-        private const val PLUGIN_ID = "dev.kuml.ide"
 
         /**
          * All jars bundled in this plugin's `lib/` directory — the real location of
          * the kUML model + DSL classes the script must resolve against.
          *
-         * We resolve them via [PluginManagerCore] (the plugin's `pluginPath`) rather
-         * than via `Class.protectionDomain.codeSource.location`, because IntelliJ's
+         * We resolve them via [PluginManager.getPluginByClass] (the plugin's `pluginPath`)
+         * rather than via `Class.protectionDomain.codeSource.location`, because IntelliJ's
          * `PluginClassLoader` does **not** populate a code-source location for plugin
          * classes — that reflective approach returns an empty list inside the IDE.
          */
         private fun collectKumlClasspath(): List<File> {
             val root =
-                PluginManagerCore.getPlugin(PluginId.getId(PLUGIN_ID))?.pluginPath
+                PluginManager.getPluginByClass(KumlScriptDefinitionsSource::class.java)?.pluginPath
                     ?: return emptyList()
             val libDir = root.resolve("lib")
             val dir = if (Files.isDirectory(libDir)) libDir else root
