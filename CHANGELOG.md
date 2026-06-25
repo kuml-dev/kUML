@@ -8,27 +8,24 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
-**JetBrains Plugin — Scroll Pane für die SVG-Vorschau**
+**JetBrains Plugin — Scroll Pane for the SVG Preview**
 
-- Der Preview-Bereich im Split-Editor ist jetzt in einem `JScrollPane` eingebettet.
-  Horizontale und vertikale Scrollleisten erscheinen automatisch, sobald ein Diagramm
-  größer ist als der sichtbare Bereich — kein Beschnitt bei großen Kommunikations-,
-  Klassen- oder SysML-Diagrammen mehr.
-- **Zoom-Modell überarbeitet**: Alle Fit-/Zoom-Aktionen (Fit to Window, Fit Width,
-  Fit Height, 100%, Zoom In/Out) steuern jetzt die bevorzugte Größe des `JSVGCanvas`
-  statt des Batik-Rendering-Transforms. Batik skaliert das SVG automatisch auf die
-  tatsächliche Canvas-Größe — das Ergebnis ist identisch, aber scroll-kompatibel.
-- Nach jedem neuen Render wird `svgNaturalSize` (native Pixelabmessungen des SVG) aus
-  dem frisch geparsten `SVGDocument` gelesen und für Fit-Width/Height-Berechnungen
-  verwendet.
-- **Hand-Drag-Interactor**: Linksklick + Ziehen verschiebt die Ansicht (Hand-Cursor
-  beim Hovern, Grab-Cursor beim Ziehen). Mausrad scrollt vertikal; Ctrl+Mausrad
-  zoomt via denselben Preferred-Size-Mechanismus wie die Toolbar-Buttons.
-  Batiks eingebaute Interactoren (Zoom, Pan, Rotate, Reset, ImageZoom) werden
-  deaktiviert, da sie auf dem Batik-Rendering-Transform arbeiten und mit dem
-  Scroll-Pane-Modell inkompatibel wären.
-- Zwei neue Unit-Tests in `KumlPreviewPanelBatikTest` (jetzt 10 Tests):
-  `scrollPane` ist ohne Ausnahme zugänglich; `svgNaturalSize` ist initial `null`.
+- The preview area in the split editor is now embedded in a `JScrollPane`. Horizontal
+  and vertical scrollbars appear automatically whenever a diagram exceeds the visible
+  viewport — no more clipping of large communication, class, or SysML diagrams.
+- **Zoom model revised**: All fit/zoom actions (Fit to Window, Fit Width, Fit Height,
+  100%, Zoom In/Out) now control the preferred size of the `JSVGCanvas` instead of the
+  Batik rendering transform. Batik scales the SVG automatically to the actual canvas
+  size — the result is identical but scroll-compatible.
+- After each new render, `svgNaturalSize` (native pixel dimensions of the SVG) is read
+  from the freshly parsed `SVGDocument` and used for fit-width/height calculations.
+- **Hand-drag interactor**: Left-click + drag pans the view (hand cursor on hover, grab
+  cursor while dragging). Mouse wheel scrolls vertically; Ctrl+mouse wheel zooms using
+  the same preferred-size mechanism as the toolbar buttons. Batik's built-in interactors
+  (Zoom, Pan, Rotate, Reset, ImageZoom) are disabled as they operate on the Batik
+  rendering transform and would be incompatible with the scroll pane model.
+- Two new unit tests in `KumlPreviewPanelBatikTest` (now 10 tests): `scrollPane` is
+  accessible without throwing; `svgNaturalSize` is initially `null`.
 
 ## [0.18.0] — 2026-06-24
 
@@ -190,132 +187,130 @@ All notable changes to this project are documented here. Format follows
 
 ### Fixed
 
-**Composite-Structure: Assembly-Connector lief diagonal durch Komponenten-Boxen** (`UmlComponentSvg`)
+**Composite Structure: assembly connector routed diagonally through component boxes** (`UmlComponentSvg`)
 
-Interne Connectors in Composite-Structure-Diagrammen wurden als einfache
-`<line>`-Elemente gerendert — ohne orthogonales Routing. Ein Assembly-Connector
-von einem RIGHT-seitigen Port (z.B. `Validator::out`) zu einem LEFT-seitigen Port
-(z.B. `Persistence::in`) bei vertikal gestapelten Komponenten erzeugte eine
-Diagonale, die durch beide Komponenten-Rechtecke verlief.
+Internal connectors in Composite Structure diagrams were rendered as plain `<line>`
+elements — without orthogonal routing. An assembly connector from a RIGHT-side port
+(e.g. `Validator::out`) to a LEFT-side port (e.g. `Persistence::in`) on vertically
+stacked components produced a diagonal line that cut through both component rectangles.
 
-- `drawInternalConnectors()` zeichnet jetzt `<polyline fill="none">` statt `<line>`.
-- `resolvePortCenter()` ersetzt durch `resolvePortAnchor()` — liefert zusätzlich
-  `isLeft` und `compId` für das Routing.
-- Neue `buildInternalRoute()`: erkennt die Port-Seiten und wählt:
-  - **Gleiche Seite** → U-Form: gemeinsamer Korridor außerhalb beider Boxen.
-  - **Gegenüberliegende Seiten** → Gap-Routing: die vertikale Brücke verläuft
-    durch den Spalt zwischen den Komponenten-Boxen (kein Schnitt durch Rechtecke).
-    Bei horizontaler Überlappung (keine Lücke): einfacher Mittelpunkt als Fallback.
+- `drawInternalConnectors()` now draws `<polyline fill="none">` instead of `<line>`.
+- `resolvePortCenter()` replaced by `resolvePortAnchor()` — additionally returns
+  `isLeft` and `compId` for routing.
+- New `buildInternalRoute()`: detects the port sides and selects:
+  - **Same side** → U-shape: shared corridor outside both boxes.
+  - **Opposite sides** → gap routing: the vertical bridge runs through the gap between
+    the component boxes (no intersection through rectangles). When horizontal overlap
+    exists (no gap): simple midpoint as fallback.
 
 ## [0.16.1] — 2026-06-23
 
 ### Fixed
 
-**Composite-Structure-Diagramm: `provides`/`requires`-Kanten fehlten** (`CompositeStructureDiagramBuilder`)
+**Composite Structure diagram: `provides`/`requires` edges were missing** (`CompositeStructureDiagramBuilder`)
 
-`compositeStructureDiagram { }` zeigte Interfaces als eigenständige Nodes, ohne
-visuelle Verbindung zu den Komponenten, die sie bereitstellen oder benötigen.
-`ComponentDiagramBuilder` hatte bereits `synthesizeInterfaceRelationships()`,
-`CompositeStructureDiagramBuilder` nicht.
+`compositeStructureDiagram { }` showed interfaces as standalone nodes without any
+visual connection to the components that provide or require them.
+`ComponentDiagramBuilder` already had `synthesizeInterfaceRelationships()`;
+`CompositeStructureDiagramBuilder` did not.
 
-- `synthesizeInterfaceRelationships()` in `CompositeStructureDiagramBuilder.build()`
-  ergänzt: erzeugt `UmlInterfaceRealization` für `provides(iface)` und
-  `UmlDependency(name = "use")` für `requires(iface)`, sofern das Interface als
-  Knoten im Diagramm existiert und die Beziehung nicht bereits explizit deklariert
-  wurde. Nested Parts werden rekursiv besucht.
-- `addRelationship()` akzeptiert jetzt auch `UmlInterfaceRealization` explizit
-  (für manuelle Deklarationen).
+- `synthesizeInterfaceRelationships()` added to `CompositeStructureDiagramBuilder.build()`:
+  emits `UmlInterfaceRealization` for `provides(iface)` and
+  `UmlDependency(name = "use")` for `requires(iface)`, provided the interface exists as
+  a node in the diagram and the relationship has not already been declared explicitly.
+  Nested parts are visited recursively.
+- `addRelationship()` now also accepts `UmlInterfaceRealization` explicitly
+  (for manual declarations).
 
 ## [0.16.0] — 2026-06-22
 
-### BPMN 2.0 — Neue Modellierungssprache (V3.1.1–V3.1.8)
+### BPMN 2.0 — New Modelling Language (V3.1.1–V3.1.8)
 
-Vollständige BPMN 2.0-Unterstützung als eigenständiges Metamodell
-(eigenständiges pure-Kotlin-Metamodell, analog zu SysML 2).
-Deckt Process, Collaboration, CLI-Integration, XML-IO und LaTeX-Renderer ab.
-Choreography und Conversation folgen in V3.2.
+Full BPMN 2.0 support as a standalone metamodel (pure-Kotlin metamodel, analogous to
+SysML 2). Covers Process, Collaboration, CLI integration, XML I/O, and the LaTeX
+renderer. Choreography and Conversation will follow in V3.2.
 
-**Metamodell (`kuml-metamodel-bpmn`) — V3.1.1+V3.1.4**
+**Metamodel (`kuml-metamodel-bpmn`) — V3.1.1+V3.1.4**
 
-- Sealed-Interface-Hierarchie: `BpmnElement` → `BpmnFlowElement` → `BpmnFlowNode`
-- `BpmnEvent` (Event-Matrix-Design): einzelne Klasse mit `(EventPosition × EventDefinition × EventBehaviour)`-Triplet + `init{}`-Guards (13 EventDefinitions, 3 Positions, 2 Behaviours)
-- `BpmnGateway`: 5 Typen (EXCLUSIVE, INCLUSIVE, PARALLEL, EVENT_BASED, COMPLEX)
+- Sealed interface hierarchy: `BpmnElement` → `BpmnFlowElement` → `BpmnFlowNode`
+- `BpmnEvent` (event-matrix design): single class with `(EventPosition × EventDefinition × EventBehaviour)` triplet + `init{}` guards (13 EventDefinitions, 3 Positions, 2 Behaviours)
+- `BpmnGateway`: 5 types (EXCLUSIVE, INCLUSIVE, PARALLEL, EVENT_BASED, COMPLEX)
 - `BpmnTask`, `BpmnSubProcess` (expanded/collapsed/transactional/triggeredByEvent), `BpmnCallActivity`, `LoopCharacteristics` (Standard + MultiInstance)
-- `SequenceFlow` als Pattern-A-Edge: auf dem Modell mit `sourceRef`/`targetRef` + `conditionExpression`
+- `SequenceFlow` as Pattern-A edge: on the model with `sourceRef`/`targetRef` + `conditionExpression`
 - `BpmnDataObject`, `BpmnDataStore`, `DataAssociation`
-- `BpmnProcess` mit `elementById()`
-- Collaboration-Typen: `BpmnCollaboration`, `BpmnParticipant` (Pool), `BpmnLane` (verschachtelt via `childLanes`, Lane referenziert FlowNodes via `flowNodeRefs`), `MessageFlow` (Pattern A)
-- `BpmnModel` + `ProcessDiagram` + `CollaborationDiagram` als `BpmnDiagram sealed interface`
+- `BpmnProcess` with `elementById()`
+- Collaboration types: `BpmnCollaboration`, `BpmnParticipant` (Pool), `BpmnLane` (nested via `childLanes`, lane references FlowNodes via `flowNodeRefs`), `MessageFlow` (Pattern A)
+- `BpmnModel` + `ProcessDiagram` + `CollaborationDiagram` as `BpmnDiagram sealed interface`
 
 **DSL (`@BpmnDsl`) — V3.1.2+V3.1.4**
 
-- `bpmnModel { }` — Top-Level-Builder-Funktion
+- `bpmnModel { }` — top-level builder function
 - `ProcessBuilder`: `startEvent()`, `endEvent()`, `intermediateEvent()`, `boundaryEvent()`, `task()`, `subProcess { }`, `callActivity()`, `gateway()`, `dataObject()`, `dataAssociation()`, `sequenceFlow()`
-- Infix-Syntax: `"sourceId" flowsTo "targetId"`
-- Auto-IDs: `{processId}_{type}_{counter}` (deterministisch)
+- Infix syntax: `"sourceId" flowsTo "targetId"`
+- Auto-IDs: `{processId}_{type}_{counter}` (deterministic)
 - `CollaborationBuilder`: `pool { }`, `blackBoxPool()`, `messageFlow()`
-- `PoolBuilder`: `lane { }`, `process()`; `LaneBuilder`: `contains()`, verschachtelte `lane { }`
+- `PoolBuilder`: `lane { }`, `process()`; `LaneBuilder`: `contains()`, nested `lane { }`
 
-**SVG-Renderer (`kuml-io-svg`) — V3.1.3+V3.1.5**
+**SVG Renderer (`kuml-io-svg`) — V3.1.3+V3.1.5**
 
-- Alle OMG-BPMN-Symbole: Events (dünner Ring START, Doppelring INTERMEDIATE, dicker Ring END), Gateways (Diamant + 5 Typ-Symbole), Tasks (abgerundete Rechtecke + 7 Typ-Marker), SubProcess (`+`-Marker), CallActivity (fetter Rahmen)
-- Loop-/MultiInstance-Marker (↻ / ≡ / ‖)
-- `BpmnSequenceFlowSvg`: gefüllter Pfeilkopf, Default-Slash, Condition-Label, Marker-ID per Regex sanitized
-- Boundary-Events: `stroke-dasharray` für non-interrupting, `attachedToRef`-Positionierung
-- Event-Symbole für alle 13 `EventDefinition`-Typen (catching=outline, throwing=filled)
-- `BpmnPoolSvg`: Swimlane-Rahmen + gedrehtes Titel-Band (horizontal links, vertikal oben)
-- `BpmnLaneSvg`: Lane-Trennlinien + Lane-Titel, rekursiv für verschachtelte Lanes
-- `BpmnMessageFlowSvg`: gestrichelte Linie + offener Pfeilkopf + Kreis am Source
-- `BpmnLayoutBridge`: FlowNodes → LayoutGraph (Task 120×60, Gateway 50×50, Event 36×36, DataObject 40×55); Pools als Container-Nodes; Boundary-Events als Child-Nodes
+- All OMG BPMN symbols: Events (thin ring START, double ring INTERMEDIATE, thick ring END), Gateways (diamond + 5 type symbols), Tasks (rounded rectangles + 7 type markers), SubProcess (`+` marker), CallActivity (bold border)
+- Loop/multi-instance markers (↻ / ≡ / ‖)
+- `BpmnSequenceFlowSvg`: filled arrowhead, default slash, condition label, marker ID sanitised via regex
+- Boundary events: `stroke-dasharray` for non-interrupting, `attachedToRef` positioning
+- Event symbols for all 13 `EventDefinition` types (catching = outline, throwing = filled)
+- `BpmnPoolSvg`: swimlane frame + rotated title band (horizontal left, vertical top)
+- `BpmnLaneSvg`: lane dividers + lane titles, recursive for nested lanes
+- `BpmnMessageFlowSvg`: dashed line + open arrowhead + circle at source
+- `BpmnLayoutBridge`: FlowNodes → LayoutGraph (Task 120×60, Gateway 50×50, Event 36×36, DataObject 40×55); Pools as container nodes; Boundary Events as child nodes
 
-**CLI-Integration, Constraint-Checker, Vault-Beispiele — V3.1.6**
+**CLI Integration, Constraint Checker, Vault Examples — V3.1.6**
 
-- `BpmnConstraintChecker` mit 7 Regeln: fehlende Start-/EndEvents (WARNING), unbekannte SequenceFlow-Referenzen (ERROR), XOR/OR-Gateway ohne defaultFlow (WARNING), ungültige BoundaryEvent-attachedToRef (ERROR), MessageFlow source == target (ERROR), Participant.processRef auf nicht-existierenden Prozess (ERROR)
-- CLI erkennt `BpmnModel` als Skript-Rückgabetyp und ruft BPMN-Renderer auf
-- Constraint-Violations werden als Warnings in CLI-Output integriert
-- 3 neue Vault-Beispiele: Order Fulfillment (Process), Document Review (SubProcess+Loop), Customer-Supplier (Collaboration 2 Pools)
+- `BpmnConstraintChecker` with 7 rules: missing start/end events (WARNING), unknown SequenceFlow references (ERROR), XOR/OR gateway without defaultFlow (WARNING), invalid BoundaryEvent attachedToRef (ERROR), MessageFlow source == target (ERROR), Participant.processRef pointing to a non-existent process (ERROR)
+- CLI recognises `BpmnModel` as the script return type and invokes the BPMN renderer
+- Constraint violations are surfaced as warnings in the CLI output
+- 3 new Vault examples: Order Fulfillment (Process), Document Review (SubProcess+Loop), Customer-Supplier (Collaboration, 2 Pools)
 
 **BPMN 2.0 XML Import/Export (`kuml-io-bpmn`) — V3.1.7**
 
-- Neues Modul `kuml-io-bpmn` (analog zu `kuml-io-arxml`)
-- `BpmnXmlExporter`: BPMN 2.0 XML ohne JAXB (Kotlin stdlib), Namespace `http://www.omg.org/spec/BPMN/20100524/MODEL`; alle FlowNode-Typen, SequenceFlow+ConditionExpression, Collaboration
-- `BpmnXmlImporter`: namespace-aware DOM-Parser, XXE-Schutz (`disallow-doctype-decl` + external-entities deaktiviert), unbekannte Tags ignoriert
-- `BpmnXml`: Convenience-API (`export()`, `import()`)
-- Roundtrip-Konsistenz: Export → Import → gleiche id/name/Typen
+- New module `kuml-io-bpmn` (analogous to `kuml-io-arxml`)
+- `BpmnXmlExporter`: BPMN 2.0 XML without JAXB (Kotlin stdlib), namespace `http://www.omg.org/spec/BPMN/20100524/MODEL`; all FlowNode types, SequenceFlow + ConditionExpression, Collaboration
+- `BpmnXmlImporter`: namespace-aware DOM parser, XXE protection (`disallow-doctype-decl` + external entities disabled), unknown tags ignored
+- `BpmnXml`: convenience API (`export()`, `import()`)
+- Roundtrip consistency: Export → Import → same ids/names/types
 
-**LaTeX/TikZ-Renderer (`kuml-io-latex`) — V3.1.8**
+**LaTeX/TikZ Renderer (`kuml-io-latex`) — V3.1.8**
 
-- `BpmnLatexRenderer`: ProcessDiagram + CollaborationDiagram als TikZ-Output
-- 15 neue TikZ-Styles: `kuml-bpmn-start/end/intermediate/boundary`, `kuml-bpmn-gateway`, `kuml-bpmn-task/subprocess/callactivity`, `kuml-bpmn-pool/lane/pool-header/lane-header`, `kuml-bpmn-flow/msgflow`
-- Event-Symbole über LaTeX-Math-Zeichen (`\bowtie`, `\bullet`, `\lightning`, `\triangle` etc.)
-- Gateway-Typ-Symbole (`\times`, `+`, `\bigcirc` etc.)
-- Pool-Header mit `\rotatebox{90}`
-- LaTeX-Injection-Schutz: alle Modell-Felder durch `LatexEscape.escape()`
-- TikZ-ID-Sanitizing: `[^a-zA-Z0-9]` → `_`
-- 3 neue `KumlLatexRenderer.toLatex()`-Überladungen für BPMN
+- `BpmnLatexRenderer`: ProcessDiagram + CollaborationDiagram as TikZ output
+- 15 new TikZ styles: `kuml-bpmn-start/end/intermediate/boundary`, `kuml-bpmn-gateway`, `kuml-bpmn-task/subprocess/callactivity`, `kuml-bpmn-pool/lane/pool-header/lane-header`, `kuml-bpmn-flow/msgflow`
+- Event symbols via LaTeX math characters (`\bowtie`, `\bullet`, `\lightning`, `\triangle` etc.)
+- Gateway type symbols (`\times`, `+`, `\bigcirc` etc.)
+- Pool header with `\rotatebox{90}`
+- LaTeX injection protection: all model fields passed through `LatexEscape.escape()`
+- TikZ ID sanitising: `[^a-zA-Z0-9]` → `_`
+- 3 new `KumlLatexRenderer.toLatex()` overloads for BPMN
 
-### C4 LaTeX/TikZ-Renderer (`kuml-io-latex`) — V3.1
+### C4 LaTeX/TikZ Renderer (`kuml-io-latex`) — V3.1
 
-- `C4LatexRenderer`: alle 6 C4-Elementtypen (Person, System, Container, Component, ExternalSystem, DeploymentNode) für alle 5 C4-Diagrammtypen als TikZ-Output; 10 neue TikZ-Styles (`kuml-c4-person`, `kuml-c4-system` etc.); monochrom/weiß als Default, überschreibbar
+- `C4LatexRenderer`: all 6 C4 element types (Person, System, Container, Component, ExternalSystem, DeploymentNode) for all 5 C4 diagram types as TikZ output; 10 new TikZ styles (`kuml-c4-person`, `kuml-c4-system` etc.); monochrome/white as default, overridable
 
-### Composite-Structure-Renderer
+### Composite Structure Renderer
 
-- **Nested-Parts-Rendering-Fix**: `UmlComponent.nestedComponents` werden jetzt von `UmlContentSizeProvider` und `UmlComponentSvg` berücksichtigt — composite Components renderten zuvor als leere Box. Rekursives Rendering verschachtelter Parts als gestapelte Boxen; Port-Clearance rückt Parts ein, wenn der Parent Boundary-Ports hat.
-- **Port-zu-Part-Connectors**: Delegation-Connectors (Boundary-Port → innerer Part-Port) und Assembly-Connectors (Part-Port → Part-Port) in Composite-Structure-Diagrammen. Connector-Routing rein im SVG-Renderer (ohne ELK); `UmlLayoutBridge` filtert diese Connectors aus dem ELK-Graph. Guards: Cycle/Depth-Schutz, Connector-Cap (500).
+- **Nested parts rendering fix**: `UmlComponent.nestedComponents` are now taken into account by `UmlContentSizeProvider` and `UmlComponentSvg` — composite components previously rendered as an empty box. Recursive rendering of nested parts as stacked boxes; port clearance indents parts when the parent has boundary ports.
+- **Port-to-part connectors**: Delegation connectors (boundary port → inner part port) and assembly connectors (part port → part port) in Composite Structure diagrams. Connector routing is handled entirely in the SVG renderer (without ELK); `UmlLayoutBridge` filters these connectors out of the ELK graph. Guards: cycle/depth protection, connector cap (500).
 
-### UML-Association-Decoration
+### UML Association Decoration
 
-- Rollennamen werden jetzt zusammen mit der Multiplizität an jedem Association-Ende gerendert (`UmlEdgesSvg`) — zuvor fehlten die Rollennamen im Output. Regressionstest am Order-Domain-Beispiel.
+- Role names are now rendered together with the multiplicity at each association end (`UmlEdgesSvg`) — role names were previously missing from the output. Regression test against the Order Domain example.
 
-### BPMN-Process-Renderer-Fix
+### BPMN Process Renderer Fix
 
-- BPMN-**Process**-Diagramme renderten über die CLI/Web-Pipeline als leeres Canvas, wenn das DSL `diagram(name, processId)` ohne expliziten `include()`-Block verwendet wurde. Drei gestapelte Ursachen behoben: leeres `elementIds` = „alle Elemente anzeigen" (Konvention wie `Sysml2LayoutBridge`), expandierte Sub-Process-Kinder + innere Flows korrekt einbezogen, neuer rekursiver `BpmnProcess.renderableElements()`-Helfer für den Renderer-Index (CLI + Web).
+- BPMN **Process** diagrams rendered as an empty canvas through the CLI/web pipeline when the DSL used `diagram(name, processId)` without an explicit `include()` block. Three stacked root causes fixed: empty `elementIds` = "show all elements" (convention matching `Sysml2LayoutBridge`), expanded sub-process children + inner flows now correctly included, new recursive `BpmnProcess.renderableElements()` helper for the renderer index (CLI + Web).
 
-### Beispiele & Dokumentation
+### Examples & Documentation
 
-- **Named-Parameter-Sweep**: alle DSL-Beispiele (`kuml-examples`, Vault-Beispiele, Handbuch-Snippets) auf benannte Parameter umgestellt — konsistent mit kUMLs LLM-first-Designprinzip.
-- 3 neue BPMN-Vault-Beispiele (Order Fulfillment, Sub-Process Loop, Customer-Supplier Collaboration) in die CI-Smoke-Tests aufgenommen (jetzt 33 Beispiele).
-- READMEs + Antora-Handbuch um BPMN-2.0-DSL- und XML-I/O-Referenz erweitert.
+- **Named parameter sweep**: all DSL examples (`kuml-examples`, Vault examples, handbook snippets) migrated to named parameters — consistent with kUML's LLM-first design principle.
+- 3 new BPMN Vault examples (Order Fulfillment, Sub-Process Loop, Customer-Supplier Collaboration) added to the CI smoke tests (now 33 examples).
+- READMEs + Antora handbook extended with BPMN 2.0 DSL and XML I/O reference.
 
 ## [0.15.0] — 2026-06-21
 
@@ -814,9 +809,8 @@ stable on the next refactor.
   overprinting.
 
 **Activity partition lane-gap fix**
-- Activity-Diagramme mit Partitionen behalten jetzt einen lesbaren Spalt
-  zwischen Lanes; vorher konnten benachbarte Action-Boxen direkt an die
-  Lane-Trennlinie anschlagen.
+- Activity diagrams with partitions now maintain a readable gap between lanes;
+  previously, adjacent action boxes could butt directly against the lane separator.
 
 **Shared rendering utilities**
 - New `SvgInlineArrow` produces SVG `<defs>`-free inline arrowheads so
@@ -987,7 +981,7 @@ turns 10 production Kotlin files into a 267-line `*.kuml.kts` script in
 
 ## [0.8.0] — 2026-06-11
 
-### Renderer-Validierung 2026-06-11 — 15 of 17 visual defects fixed
+### Renderer Validation 2026-06-11 — 15 of 17 visual defects fixed
 
 Systematic visual inspection of all 25 sample PNGs under
 `kuml-cli/build/sample-output/examples/` found 17 defects across
@@ -1101,7 +1095,7 @@ the V2.0.39 STM replay.
 - The existing `TraceReplayer` was refactored to use
   `TraceFlavourDetector` (no behaviour change).
 
-### JetBrains Autovervollständigung + Rename Refactoring (V2.0.41)
+### JetBrains Autocomplete + Rename Refactoring (V2.0.41)
 
 IntelliJ-side ergonomics for the `*.kuml.kts` DSL.
 
@@ -1114,7 +1108,7 @@ IntelliJ-side ergonomics for the `*.kuml.kts` DSL.
 - `KumlRenameExtractor` (pure Kotlin) finds all rename candidates for a
   DSL identifier; powers the IntelliJ rename refactoring action.
 
-### Sandbox-Garantien (V2.0.40)
+### Sandbox Guarantees (V2.0.40)
 
 New module `kuml-runtime/kuml-runtime-sandbox` provides bounded,
 isolated execution for guards and effects.
