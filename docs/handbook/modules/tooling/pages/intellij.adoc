@@ -42,9 +42,22 @@ Then *Settings → Plugins → ⚙ → Install Plugin from Disk…* and pick the
 
 == Annotator and Quick Fixes (V2.0.28a)
 
-The plugin highlights `.kuml.kts` errors inline using the same validation engine as
-`kuml validate` — no external process required. Errors and warnings appear as red/yellow
-wave underlines directly in the editor; hover to read the constraint name and OCL body.
+The plugin highlights `.kuml.kts` errors inline by invoking the external `kuml` CLI
+(`kuml diagnostics`, which returns each diagnostic with its source location). Errors and
+warnings appear as red/yellow wave underlines directly in the editor; hover to read the
+message.
+
+[IMPORTANT]
+====
+Both the annotator and the live preview require the `kuml` CLI to be available — the
+Kotlin scripting host cannot run inside the IDE plugin classloader, so validation and
+rendering are delegated to the CLI process. The CLI is located automatically (PATH,
+common install locations, or a local Gradle `installDist` build discovered by walking up
+from the edited file); you can also set an explicit path under
+*Settings → Tools → kUML Preview*. If the CLI cannot be found, the preview panel shows a
+"kUML-CLI nicht gefunden" message with setup instructions and the annotator stays silent.
+See xref:tooling:cli.adoc[the CLI reference] for installation.
+====
 
 Four quick-fix types are offered via the intention-action bulb (Alt+Enter):
 
@@ -72,10 +85,10 @@ Quick fixes are applied in-editor, with full undo history. The annotator re-eval
 on every keystroke (debounced at 300 ms) so the underlines clear as soon as the violation
 is resolved.
 
-NOTE: The annotator runs the kUML structural checker synchronously in the IDE's background
-thread pool. For scripts with many elements, the first annotation pass may take 1–2 seconds
-on a cold editor open. Subsequent passes are sub-100 ms because the compiled model is cached
-by the IDE's Kotlin scripting host.
+NOTE: The annotator runs `kuml diagnostics` in the IDE's background thread pool and caches
+the result per file-modification-stamp. Because each pass spawns the CLI, the first pass on
+a cold editor open may take 1–2 seconds (CLI JVM start); subsequent passes reuse the cache
+until the next edit.
 
 == Live SVG Preview (V2.0.28b / V2.0.30)
 
@@ -93,9 +106,10 @@ The preview toolbar provides:
 * *Copy SVG* — copy the current SVG source to the clipboard.
 * *Open in browser* — save a temporary file and open the system browser for full-resolution inspection.
 
-The live preview is rendered by the same kUML rendering engine as `kuml render` — the
-SVG is byte-identical to the CLI output for the same theme and engine settings. Theme and
-layout engine are read from `kuml.config.kts` in the project root if present.
+The live preview is rendered by invoking `kuml render` on the current (including unsaved)
+buffer — the SVG is therefore byte-identical to the CLI output for the same theme and
+engine settings. The same CLI-availability requirement as the annotator applies (see the
+IMPORTANT note above).
 
 NOTE: If the SVG preview panel is not visible after opening a `.kuml.kts` file, toggle it
 via *View → Tool Windows → kUML Preview*, or split the editor manually with the preview
@@ -128,9 +142,11 @@ that hands the `dev.kuml.core.script.KumlScript` template to IntelliJ's Kotlin p
 The Kotlin plugin reads the `@KotlinScript(fileExtension = "kuml.kts", …)` annotation
 and provides the editing experience.
 
-There is no custom lexer, no custom parser, no custom annotator — we ride entirely on the
-Kotlin plugin's investment. That keeps the plugin tiny (12 KB distribution + bundled
-runtime JARs) and inherits every future improvement to Kotlin scripting for free.
+There is no custom lexer and no custom parser — the core editing experience (highlighting,
+completion, navigation) rides entirely on the Kotlin plugin's investment, inheriting every
+future improvement to Kotlin scripting for free. The kUML-specific layers on top — the
+inline annotator and the live preview — delegate to the external `kuml` CLI rather than
+running the scripting host in-process (which is not reachable from the plugin classloader).
 
 The bundled runtime includes:
 
@@ -158,9 +174,15 @@ Features that were originally listed as V2 aspirations and have since shipped:
 
 == Configuration
 
-None. The plugin has no settings panel because there's nothing to configure. If you want
-to choose a theme, generator, or layout engine, do that in `kuml.config.kts` or on the
-command line — the IDE plugin is for editing, not for rendering.
+A single setting under *Settings → Tools → kUML Preview*: the path to the `kuml` CLI used
+by the live preview and the annotator. Leave it empty to auto-detect (PATH, common install
+locations, or a local Gradle `installDist` build found by walking up from the edited file);
+set it explicitly only if auto-detection cannot find the binary. The path can also be
+overridden via the `KUML_CLI` environment variable or the `-Dkuml.cli.path=…` system
+property.
+
+Theme, generator, and layout engine are not IDE settings — choose those in
+`kuml.config.kts` or on the command line.
 
 == Troubleshooting
 
@@ -174,6 +196,12 @@ command line — the IDE plugin is for editing, not for rendering.
 
 | File opens as plain text, no syntax highlighting
 | The file extension isn't `.kuml.kts`. The plugin only activates on that suffix.
+
+| Preview shows "kUML-CLI nicht gefunden" / no error squiggles appear
+| The `kuml` CLI could not be located. Install it (so it is on the `PATH`), run
+  `./gradlew :kuml-cli:installDist` for a local build, or set the path explicitly under
+  *Settings → Tools → kUML Preview*. Note that `./gradlew clean` deletes a local
+  `installDist` build — re-run `installDist` afterwards.
 
 | Refactoring renames break references in other `*.kuml.kts` files
 | The Kotlin scripting infrastructure indexes scripts independently. Run *Invalidate

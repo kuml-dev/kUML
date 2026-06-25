@@ -94,6 +94,46 @@ and a short failure message. Exit code 3 on violations, 0 on clean. Suitable as 
 See xref:reference:validate.adoc[Validation Reference] for full flag details, exit codes,
 and a GitHub Actions integration example.
 
+== `kuml diagnostics`
+
+Emit script compile/eval diagnostics with their **source locations**, for editor and
+IDE integration (this is what the JetBrains plugin's inline error highlighting uses).
+
+[source,bash]
+----
+kuml diagnostics <script>
+----
+
+Unlike `kuml validate` — which focuses on OCL/structural model violations and prints
+script errors as a plain, location-less message — `diagnostics` preserves the line and
+column of every diagnostic so an editor can place squiggles precisely.
+
+Output is one diagnostic per line on stdout, tab-separated (so consumers need no JSON
+parser):
+
+[source]
+----
+<severity>	<startLine>	<startCol>	<endLine>	<endCol>	<message>
+----
+
+* `severity` is `WARNING`, `ERROR`, or `FATAL` (only these are reported).
+* Location fields are empty when the diagnostic carries no location (e.g. a whole-file
+  failure). The `message` is the last field, with any tab/newline replaced by a space,
+  so `split('\t')` with a limit of 6 is always safe.
+* The command **always exits 0** — validity is conveyed by the emitted lines, not the
+  exit code, so callers can parse the result regardless of script validity.
+
+Example — a script with two unresolved references:
+
+[source,bash]
+----
+$ kuml diagnostics broken.kuml.kts
+ERROR	3	5	3	13	Unresolved reference 'nonsense'.
+ERROR	3	18	3	19	Unresolved reference 'y'.
+----
+
+A valid script produces no output.
+
 == `kuml simulate`
 
 Run a state-machine simulation. See xref:reference:simulate.adoc[the simulate reference]

@@ -370,6 +370,9 @@ Structurizr DSL round-trip is supported via `kuml import --format structurizr` a
 | `kuml validate`
 | Evaluate OCL `constraint(name, body)` declarations; `--output text\|json`, exit code `4` on violations.
 
+| `kuml diagnostics`
+| Emit script compile/eval diagnostics with source locations as TSV (`severity⇥startLine⇥startCol⇥endLine⇥endCol⇥message`), for editor/IDE integration. Always exits `0`. Used by the JetBrains plugin for inline error highlighting. (v0.18.0)
+
 | `kuml fmt`
 | Idempotent text formatter for `*.kuml.kts`; `--check` mode exits `5` if reformat needed.
 
