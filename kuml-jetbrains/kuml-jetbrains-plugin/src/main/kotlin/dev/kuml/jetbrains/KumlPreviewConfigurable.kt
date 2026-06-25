@@ -1,8 +1,9 @@
 package dev.kuml.jetbrains
 
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
-import java.awt.BorderLayout
+import com.intellij.util.ui.FormBuilder
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -22,19 +23,26 @@ internal class KumlPreviewConfigurable : Configurable {
 
     override fun createComponent(): JComponent {
         val tf = TextFieldWithBrowseButton()
+        @Suppress("DEPRECATION")
+        tf.addBrowseFolderListener(
+            "kuml-CLI auswählen",
+            "Pfad zur kuml-CLI-Executable (leer lassen für automatische Erkennung)",
+            null,
+            FileChooserDescriptorFactory.createSingleLocalFileDescriptor(),
+        )
         tf.text = KumlPreviewSettings.cliPath().orEmpty()
         field = tf
 
-        val panel = JPanel(BorderLayout(8, 8))
-        panel.add(
-            JLabel(
-                "<html>Pfad zur <code>kuml</code>-CLI (leer = automatische Erkennung über PATH / " +
-                    "lokalen Gradle-Build):</html>",
-            ),
-            BorderLayout.NORTH,
-        )
-        panel.add(tf, BorderLayout.CENTER)
-        return panel
+        return FormBuilder
+            .createFormBuilder()
+            .addLabeledComponent(
+                JLabel(
+                    "<html>Pfad zur <code>kuml</code>-CLI (leer = automatische Erkennung über " +
+                        "PATH / lokalen Gradle-Build):</html>",
+                ),
+                tf,
+            ).addComponentFillVertically(JPanel(), 0)
+            .panel
     }
 
     override fun isModified(): Boolean = (field?.text?.trim() ?: "") != (KumlPreviewSettings.cliPath() ?: "")

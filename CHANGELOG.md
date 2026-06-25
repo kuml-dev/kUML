@@ -6,6 +6,30 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+**JetBrains Plugin — Scroll Pane für die SVG-Vorschau**
+
+- Der Preview-Bereich im Split-Editor ist jetzt in einem `JScrollPane` eingebettet.
+  Horizontale und vertikale Scrollleisten erscheinen automatisch, sobald ein Diagramm
+  größer ist als der sichtbare Bereich — kein Beschnitt bei großen Kommunikations-,
+  Klassen- oder SysML-Diagrammen mehr.
+- **Zoom-Modell überarbeitet**: Alle Fit-/Zoom-Aktionen (Fit to Window, Fit Width,
+  Fit Height, 100%, Zoom In/Out) steuern jetzt die bevorzugte Größe des `JSVGCanvas`
+  statt des Batik-Rendering-Transforms. Batik skaliert das SVG automatisch auf die
+  tatsächliche Canvas-Größe — das Ergebnis ist identisch, aber scroll-kompatibel.
+- Nach jedem neuen Render wird `svgNaturalSize` (native Pixelabmessungen des SVG) aus
+  dem frisch geparsten `SVGDocument` gelesen und für Fit-Width/Height-Berechnungen
+  verwendet.
+- **Hand-Drag-Interactor**: Linksklick + Ziehen verschiebt die Ansicht (Hand-Cursor
+  beim Hovern, Grab-Cursor beim Ziehen). Mausrad scrollt vertikal; Ctrl+Mausrad
+  zoomt via denselben Preferred-Size-Mechanismus wie die Toolbar-Buttons.
+  Batiks eingebaute Interactoren (Zoom, Pan, Rotate, Reset, ImageZoom) werden
+  deaktiviert, da sie auf dem Batik-Rendering-Transform arbeiten und mit dem
+  Scroll-Pane-Modell inkompatibel wären.
+- Zwei neue Unit-Tests in `KumlPreviewPanelBatikTest` (jetzt 10 Tests):
+  `scrollPane` ist ohne Ausnahme zugänglich; `svgNaturalSize` ist initial `null`.
+
 ## [0.18.0] — 2026-06-24
 
 ### Added

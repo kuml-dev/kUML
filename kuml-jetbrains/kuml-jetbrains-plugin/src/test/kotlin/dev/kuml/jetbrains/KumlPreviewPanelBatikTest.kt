@@ -5,12 +5,12 @@ import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 
 /**
- * V2.0.30 — Unit tests for the Batik JSVGCanvas-based KumlPreviewPanel.
+ * V2.0.31 — Unit tests for the Batik JSVGCanvas-based KumlPreviewPanel.
  *
  * All tests are standalone (no IntelliJ runtime required). Batik's
  * SAXSVGDocumentFactory is exercised directly via [KumlPreviewPanel.parseSvg].
  *
- * Eight tests total:
+ * Ten tests total:
  *  1.  parseSvg: valid minimal SVG string → non-null SVGDocument
  *  2.  parseSvg: malformed XML → returns null, no exception thrown
  *  3.  Panel initial status is STATUS_RENDERING
@@ -19,6 +19,8 @@ import io.kotest.matchers.shouldNotBe
  *  6.  dispose() is idempotent — calling twice does not throw
  *  7.  scheduleUpdate() on a disposed panel does not throw
  *  8.  STATUS_RENDERING, STATUS_READY, STATUS_NO_DIAGRAM are distinct non-null strings
+ *  9.  scrollPane: accessible without throwing (scroll pane wraps the canvas)
+ * 10.  svgNaturalSize: initially null (no diagram loaded yet)
  */
 class KumlPreviewPanelBatikTest :
     FunSpec({
@@ -127,5 +129,28 @@ class KumlPreviewPanelBatikTest :
                     KumlPreviewPanel.STATUS_NO_DIAGRAM,
                 )
             statuses.size shouldBe 3
+        }
+
+        // ── 9. scrollPane: accessible without throwing ────────────────────────
+
+        test("Panel: scrollPane lazy field can be accessed without throwing") {
+            val panel = KumlPreviewPanel(debounceMs = 50L)
+            try {
+                val sp = panel.scrollPane
+                sp shouldNotBe null
+            } finally {
+                panel.dispose()
+            }
+        }
+
+        // ── 10. svgNaturalSize: initially null ───────────────────────────────
+
+        test("Panel: svgNaturalSize is null before any diagram is rendered") {
+            val panel = KumlPreviewPanel(debounceMs = 50L)
+            try {
+                panel.svgNaturalSize shouldBe null
+            } finally {
+                panel.dispose()
+            }
         }
     })
