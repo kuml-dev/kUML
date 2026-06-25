@@ -131,6 +131,17 @@ intellijPlatform {
         }
         changeNotes =
             """
+            <h4>0.19.0</h4>
+            <ul>
+              <li>Published to JetBrains Marketplace — install via <em>Settings → Plugins → Marketplace → search "kUML"</em>.</li>
+              <li>Scroll Pane for SVG preview: horizontal and vertical scrollbars appear automatically for large diagrams.</li>
+              <li>Hand-drag interactor: left-click + drag pans the view; mouse wheel scrolls; Ctrl+wheel zooms.</li>
+              <li>Zoom model revised: fit/zoom actions control canvas preferred size (scroll-compatible).</li>
+              <li>Toolbar redesign: icon-only buttons + new Fit Width / Fit Height / Zoom Out actions.</li>
+              <li>Plugin icon updated: navy background with golden {k} monogram and "kUML" lettering.</li>
+              <li>Live preview now renders via external <code>kuml</code> CLI — no bundled renderer required.</li>
+              <li>New <code>kuml diagnostics</code> command: emits compile/eval errors as TSV for IDE integration.</li>
+            </ul>
             <h4>0.18.0</h4>
             <ul>
               <li>Live Preview repariert: Renderer- und Layout-Module
@@ -208,6 +219,24 @@ intellijPlatform {
         ides {
             recommended()
         }
+    }
+
+    // Plugin Signing — Pflicht für den Marketplace-Upload.
+    // Credentials kommen aus Umgebungsvariablen / CI-Secrets, nie hardcoded.
+    // Zertifikat generieren: https://plugins.jetbrains.com/docs/intellij/plugin-signing.html
+    // Lokal ohne Signing bauen: einfach diese Variablen nicht setzen → signPlugin wird übersprungen.
+    signing {
+        certificateChain.set(providers.environmentVariable("KUML_PLUGIN_CERTIFICATE_CHAIN"))
+        privateKey.set(providers.environmentVariable("KUML_PLUGIN_PRIVATE_KEY"))
+        password.set(providers.environmentVariable("KUML_PLUGIN_PRIVATE_KEY_PASSWORD"))
+    }
+
+    // Marketplace-Upload via `./gradlew publishPlugin`.
+    // Token aus: https://plugins.jetbrains.com/author/me → "Tokens"
+    publishing {
+        token.set(providers.environmentVariable("KUML_PLUGIN_PUBLISH_TOKEN"))
+        // Ohne `channels` → landet im stabilen "stable"-Channel.
+        // Für EAP: channels.set(listOf("eap"))
     }
 }
 

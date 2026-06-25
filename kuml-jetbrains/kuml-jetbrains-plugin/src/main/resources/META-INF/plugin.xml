@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>dev.kuml.intellij</id>
     <name>kUML</name>
-    <vendor email="dev@kuml.dev" url="https://kuml.dev">kUML</vendor>
+    <vendor organizationId="kuml" email="info@kuml.dev" url="https://kuml.dev">kUML</vendor>
 
     <description><![CDATA[
         <h3>kUML — Kotlin-based UML &amp; C4 modelling</h3>

@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-06-25
+
 ### Added
 
 **JetBrains Plugin — Scroll Pane for the SVG Preview**
@@ -26,6 +28,19 @@ All notable changes to this project are documented here. Format follows
   rendering transform and would be incompatible with the scroll pane model.
 - Two new unit tests in `KumlPreviewPanelBatikTest` (now 10 tests): `scrollPane` is
   accessible without throwing; `svgNaturalSize` is initially `null`.
+
+**JetBrains Marketplace Publishing**
+
+- Plugin published to JetBrains Marketplace as `dev.kuml.intellij`.
+- `organizationId="kuml"` and `email="info@kuml.dev"` added to vendor descriptor.
+- Plugin signing configured via `intellijPlatform.signing {}` (certificate chain + private key via CI secrets).
+- Automated Marketplace upload added to `release.yml` as Job 7 (`publish-jetbrains-plugin`), triggered on every `v*.*.*` tag push.
+
+### Fixed
+
+**Renderer:**
+
+- Outer UML diagram frame rendered for all 33 diagram types.
 
 ## [0.18.0] — 2026-06-24
 

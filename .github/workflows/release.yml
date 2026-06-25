@@ -613,3 +613,68 @@ jobs:
               echo "New packages enter moderation (typically 1–3 days). Once approved: \`choco install kuml\`."
             fi
           } >> $GITHUB_STEP_SUMMARY
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 7: Publish IntelliJ plugin to JetBrains Marketplace.
+  # Läuft bei jedem Tag-Push, gated auf KUML_PLUGIN_PUBLISH_TOKEN.
+  # publishPlugin hängt intern von signPlugin → buildPlugin ab — ein einziger
+  # Gradle-Aufruf reicht. Signing-Credentials kommen aus GitHub Secrets.
+  # ─────────────────────────────────────────────────────────────────────────
+  publish-jetbrains-plugin:
+    name: Publish JetBrains plugin
+    needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect token presence
+        id: gate
+        env:
+          HAS_TOKEN: ${{ secrets.KUML_PLUGIN_PUBLISH_TOKEN != '' }}
+        run: |
+          echo "has_token=$HAS_TOKEN" >> $GITHUB_OUTPUT
+          if [ "$HAS_TOKEN" != "true" ]; then
+            echo "::notice::KUML_PLUGIN_PUBLISH_TOKEN not set — skipping JetBrains Marketplace publish."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.has_token == 'true'
+
+      - name: Set up JDK 21
+        if: steps.gate.outputs.has_token == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        if: steps.gate.outputs.has_token == 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build, sign and publish plugin
+        if: steps.gate.outputs.has_token == 'true'
+        env:
+          KUML_PLUGIN_CERTIFICATE_CHAIN: ${{ secrets.KUML_PLUGIN_CERTIFICATE_CHAIN }}
+          KUML_PLUGIN_PRIVATE_KEY: ${{ secrets.KUML_PLUGIN_PRIVATE_KEY }}
+          KUML_PLUGIN_PRIVATE_KEY_PASSWORD: ${{ secrets.KUML_PLUGIN_PRIVATE_KEY_PASSWORD }}
+          KUML_PLUGIN_PUBLISH_TOKEN: ${{ secrets.KUML_PLUGIN_PUBLISH_TOKEN }}
+        run: ./gradlew :kuml-jetbrains:kuml-jetbrains-plugin:publishPlugin
+
+      - name: Summary
+        if: ${{ always() }}
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          HAS_TOKEN: ${{ steps.gate.outputs.has_token }}
+        run: |
+          {
+            echo "### JetBrains Marketplace publish"
+            echo ""
+            if [ "$HAS_TOKEN" != "true" ]; then
+              echo "⏭  Skipped — \`KUML_PLUGIN_PUBLISH_TOKEN\` ist nicht gesetzt."
+              echo ""
+              echo "Token generieren unter https://plugins.jetbrains.com/author/me → Tokens, dann: \`gh secret set KUML_PLUGIN_PUBLISH_TOKEN -R kuml-dev/kuml\`"
+            else
+              echo "✅ kUML plugin \`$VERSION\` an JetBrains Marketplace übermittelt."
+              echo ""
+              echo "Review dauert ca. 3–4 Werktage. Status: https://plugins.jetbrains.com/plugin/dev.kuml.intellij"
+            fi
+          } >> $GITHUB_STEP_SUMMARY

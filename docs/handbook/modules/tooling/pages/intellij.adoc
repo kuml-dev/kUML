@@ -97,14 +97,33 @@ SVG preview panel on the right. The preview updates automatically — changes in
 trigger a re-render after a 300 ms debounce, so the SVG stays in sync without blocking
 the typing flow.
 
-The preview toolbar provides:
+The preview toolbar provides icon-only buttons for:
 
-* *Zoom in / Zoom out* — incrementally scale the SVG (shortcut: Cmd+= / Cmd+–).
-* *Fit to panel* — reset zoom so the entire diagram is visible.
-* *Pan mode* — toggle hand-drag panning (click and drag the SVG canvas).
+* *Fit to Window* — scale the SVG so the entire diagram is visible within the current panel size.
+* *Fit Width* — scale the SVG to fill the panel width.
+* *Fit Height* — scale the SVG to fill the panel height.
+* *Zoom In / Zoom Out* — incrementally scale the canvas.
+* *100%* — reset to native pixel size.
 * *Refresh* — force a re-render even if the file has not changed on disk.
 * *Copy SVG* — copy the current SVG source to the clipboard.
 * *Open in browser* — save a temporary file and open the system browser for full-resolution inspection.
+
+=== Scroll Pane and Hand-Drag Panning (v0.19.0)
+
+The SVG preview canvas is embedded in a `JScrollPane`. Whenever a rendered diagram exceeds
+the visible panel area, horizontal and/or vertical scrollbars appear automatically — no
+more clipping of large class, communication, or SysML diagrams.
+
+Interaction model:
+
+* *Left-click + drag* — pans the view (hand cursor on hover, grab cursor while dragging).
+* *Mouse wheel* — scrolls vertically.
+* *Ctrl + mouse wheel* — zooms in/out using the same preferred-size mechanism as the toolbar buttons.
+
+The zoom model was revised in v0.19.0: all fit/zoom actions control the preferred size of
+the SVG canvas rather than Batik's internal rendering transform. Batik scales the SVG
+automatically to the actual canvas size, so the visual result is identical to the previous
+approach but fully compatible with the scroll pane.
 
 The live preview is rendered by invoking `kuml render` on the current (including unsaved)
 buffer — the SVG is therefore byte-identical to the CLI output for the same theme and
