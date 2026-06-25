@@ -6,23 +6,49 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.19.2] — 2026-06-25
+
+### Fixed
+
+**JetBrains Plugin — Marketplace Verifier (second pass)**
+
+The 0.19.1 verifier run revealed that two of the previous replacements had merely
+traded one finding for another: `PluginManager.getPluginByClass(Class)` is itself
+`@ApiStatus.Internal` in the 2026.2 EAP, and `createSingleFileDescriptor()` is
+deprecated there. Both are now resolved without depending on a moving target.
+
+- **Internal API fully eliminated**: `KumlScriptDefinitionsSource` no longer touches the
+  IntelliJ `PluginManager`/`PluginManagerCore` API at all. The plugin's bundled DSL
+  classpath is resolved purely through the JDK — `Class.getResource(<own .class>)` yields a
+  `jar:` URL into the plugin's `lib/` directory, whose sibling jars are the kUML model + DSL
+  modules. This is immune to future platform reclassifications of plugin-lookup APIs.
+- Replaced deprecated `FileChooserDescriptorFactory.createSingleFileDescriptor()` with the
+  documented `FileChooserDescriptor(true, false, false, false, false, false)` constructor
+  plus `.withTitle()` / `.withDescription()` in `KumlPreviewConfigurable`.
+
+### Known accepted warnings
+
+- `ScriptDefinitionsSource` is reported as a deprecated interface by the verifier. It is the
+  **only** script-definition extension point that works in both K1 and K2 mode; the suggested
+  replacement (`scriptDefinitionsProvider`) fails to instantiate in K2 mode. Suppressed at the
+  source until JetBrains ships a stable K2-compatible replacement. This is a warning, not a
+  compatibility problem.
+
 ## [0.19.1] — 2026-06-25
 
 ### Fixed
 
-**JetBrains Plugin — Marketplace API Compliance**
+**JetBrains Plugin — Marketplace API Compliance (first pass)**
 
-- Replaced `PluginManagerCore.getPlugin(PluginId)` (internal `@ApiStatus.Internal` API)
-  with `PluginManager.getPluginByClass()` in `KumlScriptDefinitionsSource` — resolves
-  "Internal API usage" finding in JetBrains Marketplace plugin verifier.
 - Replaced deprecated-for-removal `TextFieldWithBrowseButton.addBrowseFolderListener(String, String, Project, FileChooserDescriptor)`
   with the non-deprecated 2-arg `addBrowseFolderListener(Project?, FileChooserDescriptor)` form in
   `KumlPreviewConfigurable`.
-- Replaced deprecated `FileChooserDescriptorFactory.createSingleLocalFileDescriptor()` with
-  `createSingleFileDescriptor()`.
 - Fixed deprecated `Document.addDocumentListener(DocumentListener)` call in `KumlSplitEditorProvider`:
   the editor wrapper (`KumlSplitEditorWrapper`) is now passed as a `Disposable` parent so the listener
   is automatically removed when the editor is closed — no more potential memory leak.
+- (Superseded by 0.19.2) Initial attempts at the internal-API and file-chooser findings still relied
+  on `PluginManager.getPluginByClass()` and `createSingleFileDescriptor()`, both flagged by the
+  2026.2 EAP verifier.
 
 ## [0.19.0] — 2026-06-25
 

@@ -1,6 +1,6 @@
 package dev.kuml.jetbrains
 
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.util.ui.FormBuilder
@@ -23,11 +23,14 @@ internal class KumlPreviewConfigurable : Configurable {
 
     override fun createComponent(): JComponent {
         val tf = TextFieldWithBrowseButton()
+        // Single-file chooser built via the FileChooserDescriptor constructor
+        // (chooseFiles=true, everything else false) — the documented, non-deprecated
+        // replacement for FileChooserDescriptorFactory.createSingleFileDescriptor(),
+        // which is deprecated in recent IntelliJ platform versions.
         val descriptor =
-            FileChooserDescriptorFactory.createSingleFileDescriptor().apply {
-                title = "kuml-CLI auswählen"
-                description = "Pfad zur kuml-CLI-Executable (leer lassen für automatische Erkennung)"
-            }
+            FileChooserDescriptor(true, false, false, false, false, false)
+                .withTitle("kuml-CLI auswählen")
+                .withDescription("Pfad zur kuml-CLI-Executable (leer lassen für automatische Erkennung)")
         tf.addBrowseFolderListener(null, descriptor)
         tf.text = KumlPreviewSettings.cliPath().orEmpty()
         field = tf

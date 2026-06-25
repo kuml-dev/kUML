@@ -1,12 +1,13 @@
 package dev.kuml.jetbrains
 
-import com.intellij.ide.plugins.PluginManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import dev.kuml.core.script.KumlScript
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinition
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionsSource
 import java.io.File
+import java.net.URI
+import java.net.URL
 import java.nio.file.Files
 import kotlin.reflect.KClass
 import kotlin.script.experimental.api.ScriptCompilationConfiguration
@@ -65,20 +66,45 @@ public class KumlScriptDefinitionsSource(
          * All jars bundled in this plugin's `lib/` directory — the real location of
          * the kUML model + DSL classes the script must resolve against.
          *
-         * We resolve them via [PluginManager.getPluginByClass] (the plugin's `pluginPath`)
-         * rather than via `Class.protectionDomain.codeSource.location`, because IntelliJ's
-         * `PluginClassLoader` does **not** populate a code-source location for plugin
-         * classes — that reflective approach returns an empty list inside the IDE.
+         * Resolved **purely via the JDK**: we ask this class's own class loader for the
+         * URL of its `.class` resource. Inside a packaged plugin that is a `jar:` URL
+         * pointing at the plugin's main jar in `lib/`; its parent directory (`lib/`)
+         * holds every bundled kUML DSL jar.
+         *
+         * This deliberately avoids the IntelliJ `PluginManager` / `PluginManagerCore`
+         * APIs — both `getPlugin(PluginId)` and `getPluginByClass(Class)` are
+         * `@ApiStatus.Internal` in recent platform versions and trip the JetBrains
+         * Marketplace verifier ("internal API usage"). `Class.getResource(...)` returns
+         * a usable `jar:` URL where `protectionDomain.codeSource.location` would be empty
+         * under IntelliJ's plugin class loader, so this path works inside the running IDE.
+         *
+         * During local unit tests the class is loaded from an exploded `build/classes`
+         * directory (a `file:` URL, not `jar:`) → returns an empty list, which is the
+         * same best-effort fallback as before (the definition is still built).
          */
         private fun collectKumlClasspath(): List<File> {
-            val root =
-                PluginManager.getPluginByClass(KumlScriptDefinitionsSource::class.java)?.pluginPath
-                    ?: return emptyList()
-            val libDir = root.resolve("lib")
-            val dir = if (Files.isDirectory(libDir)) libDir else root
+            val ownJar = ownPluginJar() ?: return emptyList()
+            val libDir = ownJar.parentFile?.toPath() ?: return emptyList()
+            if (!Files.isDirectory(libDir)) return emptyList()
             return runCatching {
-                Files.newDirectoryStream(dir, "*.jar").use { stream -> stream.map { it.toFile() } }
+                Files.newDirectoryStream(libDir, "*.jar").use { stream -> stream.map { it.toFile() } }
             }.getOrDefault(emptyList())
+        }
+
+        /**
+         * The jar file this plugin class was loaded from, or `null` if it is not loaded
+         * from a `jar:` URL (e.g. an exploded class directory during local development).
+         */
+        private fun ownPluginJar(): File? {
+            val clazz = KumlScriptDefinitionsSource::class.java
+            val resourceName = clazz.name.replace('.', '/') + ".class"
+            val url: URL = clazz.classLoader?.getResource(resourceName) ?: return null
+            if (url.protocol != "jar") return null
+            // url.path looks like: file:/…/plugin/lib/kuml-…​.jar!/dev/kuml/…​/Foo.class
+            val path = url.path
+            val separator = path.indexOf("!/")
+            val filePart = if (separator >= 0) path.substring(0, separator) else path
+            return runCatching { File(URI(filePart)) }.getOrNull()
         }
     }
 
