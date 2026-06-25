@@ -40,6 +40,7 @@ internal class KumlCli : CliktCommand(name = "kuml") {
                 add(WatchCommand())
                 add(ValidateCommand())
                 add(ValidateExpressionsCommand())
+                add(DiagnosticsCommand())
                 add(FmtCommand())
                 add(GenerateCommand())
                 add(TransformCommand())

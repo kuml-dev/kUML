@@ -6,20 +6,19 @@ import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiFile
-import dev.kuml.core.script.KumlScriptHost
-import kotlin.script.experimental.api.ScriptDiagnostic
 
 /**
- * Runs the kUML validator (`KumlScriptHost.eval`) on `.kuml.kts` files in a
- * background thread and reports compilation/validation errors as inline
- * squiggles.
+ * Validates `.kuml.kts` files in a background thread and reports compilation
+ * errors as inline squiggles.
  *
- * Caches the last result per file-modification-stamp to avoid redundant
- * compilation. Evaluation is capped at [EVAL_TIMEOUT_MS] milliseconds.
+ * Validation runs via the external `kuml` CLI (`kuml diagnostics`), not the
+ * in-process Kotlin scripting host: that host (`BasicJvmScriptingHost`) is not
+ * reachable from the IDE plugin classloader, so the previous in-process approach
+ * silently threw `NoClassDefFoundError` and produced no diagnostics at all. The
+ * CLI carries its own consistent classpath and emits diagnostics with precise
+ * line/column locations — see [KumlCliDiagnostics].
  *
- * V2.0.28a: reports script compilation errors (the same set reported by
- * `kuml validate`). OCL guard type errors are V2.0.28b once the expression
- * validator is wired to a PSI-level diagnostic source.
+ * Caches the last result per file-modification-stamp to avoid redundant CLI runs.
  */
 class KumlAnnotator : ExternalAnnotator<KumlAnnotator.Info, List<KumlDiagnostic>>() {
     data class Info(
@@ -29,7 +28,6 @@ class KumlAnnotator : ExternalAnnotator<KumlAnnotator.Info, List<KumlDiagnostic>
     )
 
     companion object {
-        private const val EVAL_TIMEOUT_MS = 10_000L
         private val cache = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, List<KumlDiagnostic>>>()
     }
 
@@ -51,41 +49,13 @@ class KumlAnnotator : ExternalAnnotator<KumlAnnotator.Info, List<KumlDiagnostic>
 
         ProgressManager.checkCanceled()
 
-        val diagnostics = mutableListOf<KumlDiagnostic>()
-
-        try {
-            val future =
-                java.util.concurrent.Executors.newSingleThreadExecutor().submit<Unit> {
-                    val result = KumlScriptHost.eval(info.text, info.fileName)
-                    result.reports
-                        .filter { it.severity >= ScriptDiagnostic.Severity.WARNING }
-                        .forEach { diag ->
-                            val (line, col) =
-                                diag.location?.let {
-                                    it.start.line to it.start.col
-                                } ?: (1 to 1)
-                            diagnostics +=
-                                KumlDiagnostic(
-                                    message = diag.message,
-                                    line = line,
-                                    column = col,
-                                    severity =
-                                        when (diag.severity) {
-                                            ScriptDiagnostic.Severity.ERROR, ScriptDiagnostic.Severity.FATAL ->
-                                                KumlDiagnostic.DiagnosticSeverity.ERROR
-                                            ScriptDiagnostic.Severity.WARNING ->
-                                                KumlDiagnostic.DiagnosticSeverity.WARNING
-                                            else -> KumlDiagnostic.DiagnosticSeverity.INFO
-                                        },
-                                )
-                        }
-                }
-            future.get(EVAL_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
-        } catch (_: java.util.concurrent.TimeoutException) {
-            // Compilation timed out — return no diagnostics; try again on next edit
-        } catch (_: Exception) {
-            // Any other error — silently swallow to not crash the editor
-        }
+        val diagnostics =
+            try {
+                KumlCliDiagnostics.analyze(info.text, info.fileName)
+            } catch (_: Throwable) {
+                // Degrade gracefully — never crash the editor over a failed CLI call.
+                emptyList()
+            }
 
         cache[info.fileName] = info.modStamp to diagnostics
         return diagnostics
