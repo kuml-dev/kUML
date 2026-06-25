@@ -16,6 +16,45 @@ repositories {
     }
 }
 
+// V0.18 — Maven-Kotlin-Scripting weder bündeln NOCH dagegen kompilieren.
+//
+// Zwei Probleme entstehen sonst:
+//  1) BUNDLING: gebündelte Kopien von ScriptDefinitionsSource / @KotlinScript
+//     kollidieren mit den Kopien des Kotlin-Plugins (zwei Class-Objekte gleichen
+//     Namens aus verschiedenen Classloadern) → "does not implement interface".
+//  2) COMPILE: das maven-Artefakt kotlin-scripting-compiler-impl-embeddable:2.4.0
+//     hat eine ANDERE ScriptDefinition.FromTemplate-Signatur (…, KClass, KClass,
+//     Iterable, …) als die im Kotlin-Plugin (Build 261) tatsächlich geladene
+//     (…, KClass, KClass) → zur Laufzeit NoSuchMethodError.
+//
+// Lösung: alle kotlin-scripting-*-Artefakte aus compileClasspath UND
+// runtimeClasspath ausschließen. Sämtliche kotlin.script.experimental.* /
+// org.jetbrains.kotlin.scripting.definitions.* Symbole kommen damit – beim
+// Kompilieren wie zur Laufzeit – aus dem gebündelten Kotlin-Plugin
+// (via <depends>org.jetbrains.kotlin</depends> bzw. bundledPlugin(...)).
+// So sind Compile- und Runtime-Signaturen garantiert identisch.
+listOf("compileClasspath", "runtimeClasspath", "testCompileClasspath", "testRuntimeClasspath").forEach { cfg ->
+    configurations.named(cfg) {
+        listOf(
+            "kotlin-scripting-common",
+            "kotlin-scripting-jvm",
+            "kotlin-scripting-jvm-host",
+            "kotlin-scripting-compiler-embeddable",
+            "kotlin-scripting-compiler-impl-embeddable",
+        ).forEach { exclude(group = "org.jetbrains.kotlin", module = it) }
+
+        // Batik pulls in xml-apis (javax.xml.parsers.*, org.xml.sax.*, org.w3c.dom.*),
+        // which SHADOWS the JDK's JAXP classes inside the plugin classloader. When Batik
+        // parses SVG in the running IDE, SAXParserFactory.newInstance() returns IntelliJ's
+        // Xerces impl (extending the JDK's SAXParserFactory) which then can't be cast to the
+        // plugin-bundled SAXParserFactory → ClassCastException in SAXDocumentFactory.<clinit>.
+        // Excluding ONLY xml-apis lets javax.xml/org.xml.sax/org.w3c.dom resolve to the JDK
+        // (single class, no conflict). xml-apis-ext is KEPT — it provides org.w3c.dom.svg.*,
+        // which the JDK does not ship and Batik requires.
+        exclude(group = "xml-apis", module = "xml-apis")
+    }
+}
+
 dependencies {
     // kUML-Module, die wir in den Plugin-Classpath bundeln:
     // Die `KumlScript`-Template-Klasse (inkl. ihrer @KotlinScript-Annotation und
@@ -30,13 +69,29 @@ dependencies {
     implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
     implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
 
-    // Kotlin Scripting Common / Annotations — wird transitive zwar mitkommen,
-    // hier explizit, damit der Plugin-Classpath stabil bleibt.
-    implementation(libs.kotlin.scripting.common)
+    // Kotlin-Scripting-API (kotlin.script.experimental.* /
+    // org.jetbrains.kotlin.scripting.definitions.*) kommt ausschließlich aus dem
+    // gebündelten Kotlin-Plugin — siehe der configurations-Ausschluss oben.
+    // Daher hier KEINE expliziten kotlin-scripting-*-Deps: sie würden nur die
+    // versions-fremden maven-Artefakte zurück auf den Compile-Classpath holen.
     // Apache Batik Swing — JSVGCanvas for the live SVG preview panel (V2.0.30).
     // batik-transcoder/codec are already on the classpath via kuml-io-png;
     // batik-swing adds the Swing widget on top.
     implementation(libs.batik.swing)
+    // V0.18 — Live Preview: Layout + SVG renderer classes (previously missing from plugin classpath,
+    // causing renderToSvgReflective() to always return null via silent ClassNotFoundException).
+    implementation(project(":kuml-renderer:kuml-layout-api"))
+    implementation(project(":kuml-renderer:kuml-layout-bridge"))
+    implementation(project(":kuml-renderer:kuml-layout-elk"))
+    implementation(project(":kuml-renderer:kuml-layout-grid"))
+    implementation(project(":kuml-renderer:kuml-themes-core"))
+    // Bewusst NICHT kuml-themes (Compose-Adapter) — zieht androidx.compose.* aus dem
+    // google()-Repo, das im IntelliJ-Plugin-Modul nicht verfügbar ist. Der Reflection-
+    // Renderer braucht nur ThemeRegistry/PlainThemeProvider aus kuml-themes-core.
+    implementation(project(":kuml-io:kuml-io-svg"))
+    // V0.18 — Blueprint metamodel needed for dev.kuml.blueprint.dsl.* + dev.kuml.blueprint.model.*
+    // default imports in KumlScriptCompilationConfiguration (absent classpath caused resolution gaps).
+    implementation(project(":kuml-metamodel:kuml-metamodel-blueprint"))
 
     intellijPlatform {
         intellijIdea(
@@ -76,6 +131,22 @@ intellijPlatform {
         }
         changeNotes =
             """
+            <h4>0.18.0</h4>
+            <ul>
+              <li>Live Preview repariert: Renderer- und Layout-Module
+                  (<code>kuml-layout-api/bridge/elk/grid</code>, <code>kuml-themes-core/themes</code>,
+                  <code>kuml-io-svg</code>) werden jetzt in das Plugin gebündelt — vorher fehlten sie
+                  im Plugin-Classpath, sodass <code>renderToSvgReflective()</code> immer
+                  <code>null</code> zurückgab und nur „No diagram" erschien.</li>
+              <li>Blueprint-Metamodell gebündelt: <code>dev.kuml.blueprint.dsl.*</code> und
+                  <code>dev.kuml.blueprint.model.*</code> sind jetzt im Script-Definitionen-Classpath
+                  verfügbar (fehlten bisher als <code>ScriptDefinitionsProvider</code>-Marker).</li>
+              <li>Plugin-Icon auf kUML-Brand aktualisiert: navy Hintergrund (#1d2b4f) mit goldenem
+                  <code>{k}</code>-Monogramm (#c49a2e) — pfadbasiert, keine Font-Abhängigkeit.</li>
+              <li>Datei-Icon (<code>*.kuml.kts</code>): goldes „k"-Monogramm pfadbasiert;
+                  <code>fileIconProvider</code> mit <code>order="first"</code> stellt sicher, dass das
+                  kUML-Icon Vorrang vor dem generischen Kotlin-Script-Icon hat.</li>
+            </ul>
             <h4>0.11.0</h4>
             <ul>
               <li>kUML-Monorepo Versions-Alignment: kein plugin-spezifischer Inhalt

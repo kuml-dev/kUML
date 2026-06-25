@@ -93,14 +93,22 @@
         <supportsKotlinPluginMode supportsK1="true" supportsK2="true"/>
 
         <!--
-            Registers KumlScriptDefinitionsProvider with the Kotlin plugin.
-            The provider hands back `dev.kuml.core.script.KumlScript` (which carries the
-            `@KotlinScript(fileExtension = "kuml.kts", …)` annotation) so the Kotlin
-            scripting infrastructure knows how to lex, parse, and resolve `*.kuml.kts`
-            files in the editor.
+            Registers the kUML script definition with the Kotlin plugin via the
+            K2-native `scriptDefinitionsSource` extension point (interface
+            org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionsSource).
+
+            This replaces the legacy `scriptDefinitionsProvider` EP, which in
+            IntelliJ 2025.1+/build 261 K2 mode is only reached through the
+            BridgeScriptDefinitionsContributor shim — and that shim fails to
+            instantiate a no-arg provider ("Cannot find suitable constructor,
+            expected (Project), …"), so `*.kuml.kts` was never recognised.
+
+            `scriptDefinitionsSource` is consumed in BOTH K1 and K2 modes (JetBrains'
+            own Gradle/main.kts definitions use it), so this one registration works
+            across every IntelliJ configuration. See KumlScriptDefinitionsSource.
         -->
-        <scriptDefinitionsProvider
-            implementation="dev.kuml.jetbrains.KumlScriptDefinitionsProvider"/>
+        <scriptDefinitionsSource
+            implementation="dev.kuml.jetbrains.KumlScriptDefinitionsSource"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -110,7 +118,8 @@
             we only override the icon for files matching the kUML extension.
         -->
         <fileIconProvider
-            implementation="dev.kuml.jetbrains.KumlFileIconProvider"/>
+            implementation="dev.kuml.jetbrains.KumlFileIconProvider"
+            order="first"/>
 
         <externalAnnotator language="kotlin" implementationClass="dev.kuml.jetbrains.KumlAnnotator"/>
 
@@ -119,6 +128,16 @@
             Registered with editorTypeId = "kuml-split-editor".
         -->
         <fileEditorProvider implementation="dev.kuml.jetbrains.KumlSplitEditorProvider"/>
+
+        <!--
+            Settings → Tools → kUML Preview: configure the path to the external
+            `kuml` CLI used to render previews (empty = auto-detect).
+        -->
+        <applicationConfigurable
+            parentId="tools"
+            instance="dev.kuml.jetbrains.KumlPreviewConfigurable"
+            id="dev.kuml.jetbrains.KumlPreviewConfigurable"
+            displayName="kUML Preview"/>
 
         <!--
             V2.0.28b: Structure view — shows DSL elements (states, parts, classes …)

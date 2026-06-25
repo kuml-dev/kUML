@@ -62,6 +62,7 @@ internal fun collectPluginClasspath(): List<java.io.File> {
             "dev.kuml.core.dsl.DiagramType",
             "dev.kuml.uml.UmlClass",
             "dev.kuml.c4.model.C4Workspace",
+            "dev.kuml.blueprint.model.BlueprintModel", // V0.18 — blueprint default imports
         )
     val classLoader = KumlScriptDefinitionsProvider::class.java.classLoader
     return markers

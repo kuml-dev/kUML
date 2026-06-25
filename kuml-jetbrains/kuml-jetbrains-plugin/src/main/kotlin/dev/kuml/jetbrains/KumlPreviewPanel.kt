@@ -197,28 +197,52 @@ class KumlPreviewPanel(
         setStatusOnEdt(STATUS_RENDERING)
         renderExecutor.submit {
             if (disposed) return@submit
-            val svgOrNull = renderScript(scriptText, scriptName)
+            val outcome = renderScript(scriptText, scriptName)
             if (disposed) return@submit
             SwingUtilities.invokeLater {
                 if (disposed) return@invokeLater
-                if (svgOrNull != null) {
-                    val doc = parseSvg(svgOrNull)
-                    if (doc != null) {
-                        svgCanvas.setSVGDocument(doc)
-                        cardLayout.show(cardPanel, CARD_CANVAS)
-                        setStatus(STATUS_READY)
-                    } else {
-                        cardLayout.show(cardPanel, CARD_EMPTY)
-                        emptyLabel.text = STATUS_NO_DIAGRAM
-                        setStatus(STATUS_NO_DIAGRAM)
+                when (outcome) {
+                    is KumlPreviewRenderer.Outcome.Svg -> {
+                        val doc = parseSvg(outcome.svg)
+                        if (doc != null) {
+                            svgCanvas.setSVGDocument(doc)
+                            cardLayout.show(cardPanel, CARD_CANVAS)
+                            setStatus(STATUS_READY)
+                        } else {
+                            showMessage("SVG konnte nicht geparst werden", STATUS_NO_DIAGRAM)
+                        }
                     }
-                } else {
-                    cardLayout.show(cardPanel, CARD_EMPTY)
-                    emptyLabel.text = STATUS_NO_DIAGRAM
-                    setStatus(STATUS_NO_DIAGRAM)
+                    is KumlPreviewRenderer.Outcome.Failure -> {
+                        showMessage(outcome.message, STATUS_NO_DIAGRAM)
+                    }
+                    is KumlPreviewRenderer.Outcome.Empty -> {
+                        showMessage(STATUS_NO_DIAGRAM, STATUS_NO_DIAGRAM)
+                    }
                 }
             }
         }
+    }
+
+    /** Show a (possibly multi-line) message in the empty/error card. */
+    private fun showMessage(
+        message: String,
+        status: String,
+    ) {
+        cardLayout.show(cardPanel, CARD_EMPTY)
+        // HTML so multi-line diagnostics (script errors, stack frames) wrap and
+        // render with line breaks inside the JLabel.
+        val html =
+            "<html><div style='padding:8px;font-family:monospace;'>" +
+                message
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;")
+                    .replace("\n", "<br/>") +
+                "</div></html>"
+        emptyLabel.text = html
+        emptyLabel.verticalAlignment = JLabel.TOP
+        emptyLabel.horizontalAlignment = JLabel.LEFT
+        setStatus(status)
     }
 
     /**
@@ -232,12 +256,20 @@ class KumlPreviewPanel(
     internal fun renderScript(
         scriptText: String,
         scriptName: String,
-    ): String? {
-        if (System.getProperty(DISABLE_SYSTEM_PROPERTY) != null) return null
+    ): KumlPreviewRenderer.Outcome {
+        if (System.getProperty(DISABLE_SYSTEM_PROPERTY) != null) {
+            return KumlPreviewRenderer.Outcome.Empty
+        }
         return try {
-            KumlPreviewRenderer.render(scriptText, scriptName)
-        } catch (_: Exception) {
-            null
+            KumlPreviewRenderer.renderOutcome(scriptText, scriptName)
+        } catch (t: Throwable) {
+            // Throwable, nicht nur Exception: KumlScriptHost kann NoClassDefFoundError
+            // (ein Error) werfen, wenn der Scripting-Host nicht im Plugin-Bundle liegt.
+            // Würde das nicht gefangen, stirbt der Render-Thread und das Panel bleibt
+            // bei "Rendering…" hängen.
+            KumlPreviewRenderer.Outcome.Failure(
+                "Render-Ausnahme: ${t::class.java.name}: ${t.message ?: "(keine Meldung)"}",
+            )
         }
     }
 

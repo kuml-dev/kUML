@@ -6,6 +6,7 @@ import com.intellij.openapi.fileEditor.FileEditorProvider
 import com.intellij.openapi.fileEditor.TextEditor
 import com.intellij.openapi.fileEditor.TextEditorWithPreview
 import com.intellij.openapi.fileEditor.impl.text.TextEditorProvider
+import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.UserDataHolderBase
 import com.intellij.openapi.vfs.VirtualFile
@@ -28,7 +29,9 @@ import com.intellij.openapi.vfs.VirtualFile
  * both the SVG rendering and the split layout. When disabled, [accept] returns
  * `false` so the platform uses the standard Kotlin editor instead.
  */
-class KumlSplitEditorProvider : FileEditorProvider {
+class KumlSplitEditorProvider :
+    FileEditorProvider,
+    DumbAware {
     override fun getEditorTypeId(): String = EDITOR_TYPE_ID
 
     /**
@@ -54,7 +57,7 @@ class KumlSplitEditorProvider : FileEditorProvider {
                 override fun documentChanged(event: com.intellij.openapi.editor.event.DocumentEvent) {
                     previewPanel.scheduleUpdate(
                         scriptText = document.text,
-                        scriptName = file.name,
+                        scriptName = file.path,
                     )
                 }
             },
@@ -63,13 +66,19 @@ class KumlSplitEditorProvider : FileEditorProvider {
         // Trigger initial render for the current content
         previewPanel.scheduleUpdate(
             scriptText = document.text,
-            scriptName = file.name,
+            scriptName = file.path,
         )
 
         return KumlSplitEditorWrapper(textEditor, previewPanel)
     }
 
-    override fun getPolicy(): FileEditorPolicy = FileEditorPolicy.PLACE_BEFORE_DEFAULT_EDITOR
+    // HIDE_DEFAULT_EDITOR statt PLACE_BEFORE_DEFAULT_EDITOR: unser Split-Editor
+    // enthält bereits einen vollwertigen Text-Editor (linke Pane). Ohne diese
+    // Policy bietet IntelliJ zusätzlich den Default-"Text"-Editor an → zwei
+    // Editor-Tabs unten ("Text" / "TextEditorWithPreview"). Mit HIDE_DEFAULT_EDITOR
+    // gibt es nur noch unseren Editor → keine unteren Tabs; der Layout-Umschalter
+    // (Editor / Split / Preview) bleibt oben rechts erhalten.
+    override fun getPolicy(): FileEditorPolicy = FileEditorPolicy.HIDE_DEFAULT_EDITOR
 
     companion object {
         const val EDITOR_TYPE_ID: String = "kuml-split-editor"

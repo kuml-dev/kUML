@@ -1,160 +1,87 @@
 package dev.kuml.jetbrains
 
-import dev.kuml.core.script.DiagramExtractor
-import dev.kuml.core.script.ExtractedDiagram
-import dev.kuml.core.script.KumlScriptHost
-import kotlin.script.experimental.api.ResultWithDiagnostics
-import kotlin.script.experimental.api.ScriptDiagnostic
+import java.io.File
 
 /**
  * Thin rendering facade used by [KumlPreviewPanel].
  *
- * Decoupled from the panel so unit tests can test debounce + status logic
- * independently of the full kUML rendering pipeline. The heavy coupling to
- * [KumlScriptHost] lives here and can be swapped or mocked at the call site.
+ * ## Why the CLI (and not in-process scripting)
  *
- * V2.0.30 wires the full render pipeline:
- *  KumlScriptHost.eval → DiagramExtractor.extractAny → layout → KumlSvgRenderer.toSvg
+ * kUML scripts are compiled + evaluated by the Kotlin scripting host
+ * (`BasicJvmScriptingHost`). That host is **not reachable** from the IntelliJ
+ * plugin classloader — the bundled IDE Kotlin plugin exposes only the scripting
+ * *definitions* API for editor support, not the JVM scripting *host*. On top of
+ * that, kUML targets Kotlin scripting 2.4.x while the bundled IDE Kotlin plugin
+ * is 2.1.x, so even bundling the host would risk version conflicts.
  *
- * The SVG and layout modules are loaded via the plugin classpath at runtime
- * inside the running IntelliJ process. If those classes are absent (e.g. in
- * a unit-test environment without the full plugin classpath), all reflective
- * calls fail gracefully and `render` returns `null` — the panel shows
- * "No diagram" without crashing.
+ * Therefore the preview renders by shelling out to the **external `kuml` CLI**
+ * (a self-contained process with its own consistent classpath), exactly like the
+ * Obsidian kUML plugin. [KumlCliLocator] finds the binary; [KumlCliRenderer]
+ * runs it on the current (possibly unsaved) editor text and returns the SVG.
  */
 internal object KumlPreviewRenderer {
     /**
-     * Render the given `.kuml.kts` [scriptText] to an SVG string.
+     * Outcome of a preview render attempt.
      *
-     * Returns `null` if the script has no renderable diagram, compilation fails,
-     * or required renderer classes are not on the classpath.
+     * Carrying an explicit [Failure] (instead of collapsing to `null`) lets the
+     * panel surface *why* nothing rendered — a missing CLI, a script error, or a
+     * render exception — rather than silently showing "No diagram".
+     */
+    sealed interface Outcome {
+        /** Successful render → ready-to-parse SVG string. */
+        data class Svg(
+            val svg: String,
+        ) : Outcome
+
+        /** Script rendered but produced no diagram (empty output). */
+        data object Empty : Outcome
+
+        /** Something went wrong — [message] is shown in the preview pane. */
+        data class Failure(
+            val message: String,
+        ) : Outcome
+    }
+
+    /**
+     * Render [scriptText] to an SVG string, or `null` if rendering did not
+     * succeed. Thin wrapper over [renderOutcome].
      *
      * @param scriptText Full text of the `.kuml.kts` file.
-     * @param scriptName A name / path used for diagnostics.
+     * @param scriptName Path (or name) of the source file — used to name temp
+     *   files and to locate a local CLI build by walking up the directory tree.
      */
     fun render(
         scriptText: String,
         scriptName: String,
-    ): String? =
-        try {
-            renderInternal(scriptText, scriptName)
-        } catch (_: Exception) {
-            null
-        }
-
-    private fun renderInternal(
-        scriptText: String,
-        scriptName: String,
-    ): String? {
-        // 1. Compile + evaluate the script.
-        val evalResult = KumlScriptHost.eval(scriptText, scriptName)
-        val errors = evalResult.reports.filter { it.severity >= ScriptDiagnostic.Severity.ERROR }
-        if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) return null
-
-        val success = evalResult as? ResultWithDiagnostics.Success ?: return null
-
-        // 2. Extract diagram — UML, C4, or SysML 2.
-        //    extractAny requires a File for error messages; create a synthetic placeholder.
-        val syntheticFile = java.io.File(scriptName)
-        val extracted: ExtractedDiagram =
-            try {
-                DiagramExtractor.extractAny(success.value.returnValue, syntheticFile)
-            } catch (_: Throwable) {
-                return null
-            }
-
-        // 3. Layout + SVG emission — loaded via the plugin runtime classpath.
-        // We use reflection so this file compiles even if kuml-io-svg /
-        // kuml-layout are not direct compile-time dependencies of the plugin
-        // module. Inside the running IDE all kUML jars are on the classloader.
-        return renderToSvgReflective(extracted)
-    }
+    ): String? = (renderOutcome(scriptText, scriptName) as? Outcome.Svg)?.svg
 
     /**
-     * Reflectively invoke the layout + SVG pipeline.
-     *
-     * Using reflection keeps the plugin module's compile-time dependency list
-     * minimal (only kuml-core-* and kuml-metamodel-*), while still calling the
-     * real renderer when the full classpath is present at runtime.
-     *
-     * Returns `null` if any required class / method is missing (headless test
-     * environments, incomplete classpath).
+     * Render [scriptText], returning a detailed [Outcome].
      */
-    private fun renderToSvgReflective(extracted: ExtractedDiagram): String? =
+    fun renderOutcome(
+        scriptText: String,
+        scriptName: String,
+    ): Outcome =
         try {
-            val cl = KumlPreviewRenderer::class.java.classLoader
+            val hintDir = File(scriptName).absoluteFile.parentFile
+            val binary =
+                KumlCliLocator.resolve(hintDir)
+                    ?: return Outcome.Failure(cliNotFoundMessage())
+            KumlCliRenderer.render(binary, scriptText, scriptName)
+        } catch (t: Throwable) {
+            Outcome.Failure("Render-Ausnahme: ${t::class.java.name}: ${t.message ?: "(keine Meldung)"}")
+        }
 
-            // Theme
-            val themeRegistryClass = cl.loadClass("dev.kuml.renderer.theme.core.ThemeRegistry")
-            val namesMethod = themeRegistryClass.getMethod("names")
-            val loadMethod = themeRegistryClass.getMethod("loadFromClasspath")
-            @Suppress("UNCHECKED_CAST")
-            if ((namesMethod.invoke(null) as Collection<*>).isEmpty()) {
-                loadMethod.invoke(null)
-            }
-            val getThemeMethod = themeRegistryClass.getMethod("get", String::class.java)
-            val theme = getThemeMethod.invoke(null, "plain") ?: return null
-
-            // Layout engine registry
-            val registryClass = cl.loadClass("dev.kuml.layout.LayoutEngineRegistry")
-            val regIdsMethod = registryClass.getMethod("ids")
-            @Suppress("UNCHECKED_CAST")
-            if ((regIdsMethod.invoke(null) as Collection<*>).isEmpty()) {
-                val gridProviderClass = cl.loadClass("dev.kuml.layout.grid.GridLayoutEngineProvider")
-                val elkProviderClass = cl.loadClass("dev.kuml.layout.elk.ElkLayoutEngineProvider")
-                val registerMethod = registryClass.getMethod("register", cl.loadClass("dev.kuml.layout.KumlLayoutEngineProvider"))
-                registerMethod.invoke(null, gridProviderClass.getDeclaredConstructor().newInstance())
-                registerMethod.invoke(null, elkProviderClass.getDeclaredConstructor().newInstance())
-            }
-
-            val layoutHintsClass = cl.loadClass("dev.kuml.layout.LayoutHints")
-            val defaultHints = layoutHintsClass.getField("DEFAULT").get(null)
-
-            when (extracted) {
-                is ExtractedDiagram.Uml -> {
-                    val diagram = extracted.diagram
-                    val bridgeClass = cl.loadClass("dev.kuml.layout.bridge.UmlLayoutBridge")
-                    val toGraphMethod = bridgeClass.getMethod("toLayoutGraph", diagram::class.java)
-                    val layoutGraph = toGraphMethod.invoke(null, diagram)
-
-                    val engineId = cl.loadClass("dev.kuml.layout.LayoutEngineId")
-                    val gridId =
-                        engineId
-                            .getDeclaredConstructor(String::class.java)
-                            .newInstance("kuml.grid")
-                    val diagramKindClass = cl.loadClass("dev.kuml.layout.DiagramKind")
-                    val pickForMethod =
-                        registryClass.getMethod("pickFor", diagramKindClass, engineId)
-                    val genericKind = diagramKindClass.getField("Generic").get(null)
-                    val engine = pickForMethod.invoke(null, genericKind, gridId) ?: return null
-
-                    val layoutEngineInterface = cl.loadClass("dev.kuml.layout.KumlLayoutEngine")
-                    val layoutGraphClass = cl.loadClass("dev.kuml.layout.LayoutGraph")
-                    val layoutMethod =
-                        layoutEngineInterface.getMethod("layout", layoutGraphClass, layoutHintsClass)
-                    val layoutResult = layoutMethod.invoke(engine, layoutGraph, defaultHints)
-
-                    val svgRendererClass = cl.loadClass("dev.kuml.io.svg.KumlSvgRenderer")
-                    val svgRenderOptionsClass = cl.loadClass("dev.kuml.io.svg.SvgRenderOptions")
-                    val optionsDefault = svgRenderOptionsClass.getField("DEFAULT").get(null)
-                    val layoutResultClass = cl.loadClass("dev.kuml.layout.LayoutResult")
-                    val themeClass = cl.loadClass("dev.kuml.renderer.theme.core.KumlTheme")
-                    val toSvgMethod =
-                        svgRendererClass.getMethod(
-                            "toSvg",
-                            diagram::class.java,
-                            layoutResultClass,
-                            themeClass,
-                            svgRenderOptionsClass,
-                        )
-                    toSvgMethod.invoke(null, diagram, layoutResult, theme, optionsDefault) as? String
-                }
-                else ->
-                    // C4 and SysML 2 preview — return null for V2.0.30 MVP;
-                    // full C4/SysML2 preview wiring is V2.x.
-                    null
-            }
-        } catch (_: Throwable) {
-            null
+    private fun cliNotFoundMessage(): String =
+        buildString {
+            appendLine("kUML-CLI nicht gefunden.")
+            appendLine()
+            appendLine("Die Vorschau rendert über die externe 'kuml'-CLI. Bitte einen der folgenden Wege wählen:")
+            appendLine(" • 'kuml' in den PATH legen (z. B. via Homebrew-Tap kuml-dev/homebrew-kuml), oder")
+            appendLine(" • den CLI-Pfad in Settings → Tools → kUML Preview eintragen, oder")
+            appendLine(" • die Umgebungsvariable KUML_CLI bzw. -Dkuml.cli.path=… setzen.")
+            appendLine()
+            appendLine("Lokaler Gradle-Build: ./gradlew :kuml-cli:installDist erzeugt")
+            append("   kuml-cli/build/install/kuml/bin/kuml")
         }
 }
