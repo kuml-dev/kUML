@@ -675,6 +675,6 @@ jobs:
             else
               echo "✅ kUML plugin \`$VERSION\` an JetBrains Marketplace übermittelt."
               echo ""
-              echo "Review dauert ca. 3–4 Werktage. Status: https://plugins.jetbrains.com/plugin/dev.kuml.intellij"
+              echo "Review dauert ca. 3–4 Werktage. Status: https://plugins.jetbrains.com/plugin/dev.kuml.ide"
             fi
           } >> $GITHUB_STEP_SUMMARY

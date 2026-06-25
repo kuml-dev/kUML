@@ -1,7 +1,7 @@
 = JetBrains IDE Plugin
 :description: First-class editor support for `*.kuml.kts` in IntelliJ IDEA, Android Studio, PyCharm, …
 
-The `dev.kuml.intellij` plugin adds editor support for kUML script files in every JetBrains
+The `dev.kuml.ide` plugin adds editor support for kUML script files in every JetBrains
 IDE based on IntelliJ Platform build 243+ (IDEA 2024.3 or newer). It is intentionally
 minimal — Syntax highlighting, default imports, file icon. Nothing more, nothing less.
 

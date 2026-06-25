@@ -51,7 +51,7 @@ public class KumlScriptDefinitionsSource(
 ) : ScriptDefinitionsSource {
     private companion object {
         private val LOG = Logger.getInstance(KumlScriptDefinitionsSource::class.java)
-        private const val PLUGIN_ID = "dev.kuml.intellij"
+        private const val PLUGIN_ID = "dev.kuml.ide"
 
         /**
          * All jars bundled in this plugin's `lib/` directory — the real location of

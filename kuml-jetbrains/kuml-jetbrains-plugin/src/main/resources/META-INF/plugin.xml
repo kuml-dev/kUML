@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>dev.kuml.intellij</id>
+    <id>dev.kuml.ide</id>
     <name>kUML</name>
     <vendor organizationId="kuml" email="info@kuml.dev" url="https://kuml.dev">kUML</vendor>
 

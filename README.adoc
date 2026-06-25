@@ -178,7 +178,7 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 | Model end-to-end customer experiences as a four-layer Service Blueprint: Customer Actions / Frontstage / Backstage / Support Processes, separated by the three standard dividing lines. Each step carries an optional `Sentiment` annotation (POSITIVE / NEUTRAL / NEGATIVE / PAINPOINT) that drives colour coding in the SVG swimlane output. Renderable with `kuml render`, validatable with `kuml validate`. (v0.18.0)
 
 | *JetBrains Plugin (Marketplace)*
-| `dev.kuml.intellij` — available on the JetBrains Marketplace. Install via *Settings → Plugins → Marketplace*, search for `kUML`. Provides live SVG preview with scroll pane (automatic scrollbars for large diagrams), hand-drag panning, zoom toolbar (Fit Width / Fit Height / Zoom Out / Fit to Window), inline error highlighting via `kuml diagnostics`, structure view, and code completion for all DSL builders. (v0.19.0)
+| `dev.kuml.ide` — available on the JetBrains Marketplace. Install via *Settings → Plugins → Marketplace*, search for `kUML`. Provides live SVG preview with scroll pane (automatic scrollbars for large diagrams), hand-drag panning, zoom toolbar (Fit Width / Fit Height / Zoom Out / Fit to Window), inline error highlighting via `kuml diagnostics`, structure view, and code completion for all DSL builders. (v0.19.0)
 
 | *Outer UML Diagram Frame*
 | All 33 diagram types now render with a standard outer UML frame (rectangle with a name tab in the top-left corner), consistent with the UML 2.x notation specification. (v0.19.0)
@@ -532,7 +532,7 @@ Windows Chocolatey package (`choco install kuml`) ✅ +
 Diagram fixes: State Machine composite states, Deployment nested nodes, IBD boundary ports ✅ +
 *v0.18.0*: Chain adapters CosmWasm + ink! (`kuml-runtime-chain-cosmos`, `kuml-runtime-chain-wasm`) ✅ +
 User Journey / Service Blueprint (`blueprint{}` DSL, SVG + LaTeX renderers) ✅ +
-*v0.19.0*: JetBrains plugin published to JetBrains Marketplace (`dev.kuml.intellij`) ✅ +
+*v0.19.0*: JetBrains plugin published to JetBrains Marketplace (`dev.kuml.ide`) ✅ +
 Scroll Pane + hand-drag interactor in SVG preview ✅ +
 Outer UML diagram frame for all 33 diagram types ✅ +
 Blueprint SVG fixes (emotion curve, step cards) ✅

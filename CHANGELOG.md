@@ -31,7 +31,7 @@ All notable changes to this project are documented here. Format follows
 
 **JetBrains Marketplace Publishing**
 
-- Plugin published to JetBrains Marketplace as `dev.kuml.intellij`.
+- Plugin published to JetBrains Marketplace as `dev.kuml.ide`.
 - `organizationId="kuml"` and `email="info@kuml.dev"` added to vendor descriptor.
 - Plugin signing configured via `intellijPlatform.signing {}` (certificate chain + private key via CI secrets).
 - Automated Marketplace upload added to `release.yml` as Job 7 (`publish-jetbrains-plugin`), triggered on every `v*.*.*` tag push.
