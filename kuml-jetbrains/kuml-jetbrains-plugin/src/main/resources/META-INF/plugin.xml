@@ -5,6 +5,9 @@
 
     <description><![CDATA[
         <h3>kUML — Kotlin-based UML &amp; C4 modelling</h3>
+        <img src="https://raw.githubusercontent.com/kuml-dev/kUML/master/docs/screenshots/jetbrains-plugin-split-view.png"
+             alt="kUML split-view in IntelliJ IDEA: script on the left, live UML class diagram on the right"
+             width="800"/>
         <p>
             Adds first-class IntelliJ support for kUML diagram scripts (<code>*.kuml.kts</code>):
         </p>
