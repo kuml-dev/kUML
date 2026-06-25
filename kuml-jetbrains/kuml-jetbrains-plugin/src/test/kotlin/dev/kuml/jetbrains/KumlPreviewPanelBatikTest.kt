@@ -15,7 +15,7 @@ import io.kotest.matchers.shouldNotBe
  *  2.  parseSvg: malformed XML → returns null, no exception thrown
  *  3.  Panel initial status is STATUS_RENDERING
  *  4.  JSVGCanvas can be accessed without throwing
- *  5.  Toolbar has exactly 3 buttons
+ *  5.  Toolbar has exactly 6 buttons (Fit Window, Fit Width, Fit Height, 100%, Zoom In, Zoom Out)
  *  6.  dispose() is idempotent — calling twice does not throw
  *  7.  scheduleUpdate() on a disposed panel does not throw
  *  8.  STATUS_RENDERING, STATUS_READY, STATUS_NO_DIAGRAM are distinct non-null strings
@@ -78,9 +78,9 @@ class KumlPreviewPanelBatikTest :
             }
         }
 
-        // ── 5. Toolbar has exactly 3 buttons ─────────────────────────────────
+        // ── 5. Toolbar has exactly 6 buttons ─────────────────────────────────
 
-        test("Panel: toolbar contains exactly 3 JButton components") {
+        test("Panel: toolbar contains exactly 6 JButton components") {
             val panel = KumlPreviewPanel(debounceMs = 50L)
             try {
                 var buttonCount = 0
@@ -89,7 +89,7 @@ class KumlPreviewPanelBatikTest :
                         buttonCount++
                     }
                 }
-                buttonCount shouldBe 3
+                buttonCount shouldBe 6
             } finally {
                 panel.dispose()
             }

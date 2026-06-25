@@ -10,6 +10,7 @@ import java.io.StringReader
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.atomic.AtomicReference
+import javax.swing.Icon
 import javax.swing.JButton
 import javax.swing.JLabel
 import javax.swing.JPanel
@@ -35,10 +36,17 @@ import javax.swing.SwingUtilities
  *
  * ## Toolbar
  *
- * Three [JButton]s above the canvas:
+ * Six icon buttons above the canvas (with tooltip text):
  *  - **Fit to Window** — resets the canvas transform so the entire diagram fits.
+ *  - **Fit Width** — scales so the diagram width fills the panel exactly.
+ *  - **Fit Height** — scales so the diagram height fills the panel exactly.
  *  - **100%** — shows the diagram at its native 1:1 pixel scale.
  *  - **Zoom In** — enlarges the canvas view by a fixed 1.25× factor.
+ *  - **Zoom Out** — shrinks the canvas view by a fixed 1.25× factor.
+ *
+ * Icons are loaded from [AllIcons.Graph] at first use, wrapped in [runCatching]
+ * so that test environments without a running IntelliJ application context
+ * degrade gracefully to labelled text buttons.
  *
  * ## IntelliJ integration
  *
@@ -62,6 +70,36 @@ class KumlPreviewPanel(
         private const val CARD_CANVAS = "canvas"
         private const val CARD_EMPTY = "empty"
         private const val ZOOM_STEP = 1.25
+
+        // ── Toolbar icons ─────────────────────────────────────────────────────
+        // AllIcons.Graph.* are from the IntelliJ Platform — wrapped in runCatching
+        // so tests that run without a full application context still produce
+        // functional (text-labelled) buttons instead of crashing at class init.
+
+        private val ICON_FIT_WINDOW: Icon? by lazy {
+            runCatching { com.intellij.icons.AllIcons.General.FitContent }.getOrNull()
+        }
+        private val ICON_FIT_WIDTH: Icon? by lazy {
+            runCatching {
+                com.intellij.openapi.util.IconLoader
+                    .getIcon("/icons/toolbar/fit-width.svg", KumlPreviewPanel::class.java)
+            }.getOrNull()
+        }
+        private val ICON_FIT_HEIGHT: Icon? by lazy {
+            runCatching {
+                com.intellij.openapi.util.IconLoader
+                    .getIcon("/icons/toolbar/fit-height.svg", KumlPreviewPanel::class.java)
+            }.getOrNull()
+        }
+        private val ICON_ZOOM_100: Icon? by lazy {
+            runCatching { com.intellij.icons.AllIcons.General.ActualZoom }.getOrNull()
+        }
+        private val ICON_ZOOM_IN: Icon? by lazy {
+            runCatching { com.intellij.icons.AllIcons.General.ZoomIn }.getOrNull()
+        }
+        private val ICON_ZOOM_OUT: Icon? by lazy {
+            runCatching { com.intellij.icons.AllIcons.General.ZoomOut }.getOrNull()
+        }
     }
 
     // ── Internal state ────────────────────────────────────────────────────────
@@ -108,28 +146,17 @@ class KumlPreviewPanel(
 
     // ── Toolbar ───────────────────────────────────────────────────────────────
 
-    /** Toolbar with Fit / 100% / Zoom In buttons. */
+    /** Toolbar with Fit / Zoom buttons. */
     val toolbar: JToolBar =
         JToolBar().also { bar ->
             bar.isFloatable = false
-
-            val fitBtn = JButton("Fit to Window")
-            fitBtn.addActionListener { svgCanvas.resetRenderingTransform() }
-            bar.add(fitBtn)
-
-            val oneToOneBtn = JButton("100%")
-            oneToOneBtn.addActionListener {
-                svgCanvas.resetRenderingTransform()
-            }
-            bar.add(oneToOneBtn)
-
-            val zoomInBtn = JButton("Zoom In")
-            zoomInBtn.addActionListener {
-                val at = svgCanvas.renderingTransform.clone() as java.awt.geom.AffineTransform
-                at.scale(ZOOM_STEP, ZOOM_STEP)
-                svgCanvas.setRenderingTransform(at, true)
-            }
-            bar.add(zoomInBtn)
+            bar.add(toolbarBtn(ICON_FIT_WINDOW, "⊡", "An Fenster anpassen") { fitToWindow() })
+            bar.add(toolbarBtn(ICON_FIT_WIDTH, "↔", "Breite anpassen") { fitWidth() })
+            bar.add(toolbarBtn(ICON_FIT_HEIGHT, "↕", "Höhe anpassen") { fitHeight() })
+            bar.add(toolbarBtn(ICON_ZOOM_100, "100%", "100% (Originalgröße)") { actualZoom() })
+            bar.addSeparator()
+            bar.add(toolbarBtn(ICON_ZOOM_IN, "+", "Vergrößern") { zoomIn() })
+            bar.add(toolbarBtn(ICON_ZOOM_OUT, "−", "Verkleinern") { zoomOut() })
         }
 
     init {
@@ -290,6 +317,128 @@ class KumlPreviewPanel(
         } catch (_: Exception) {
             null
         }
+
+    // ── Toolbar helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Create a toolbar [JButton] with an optional icon.
+     * Falls back to [fallback] text if [icon] is null (e.g., in test environments
+     * without an initialised IntelliJ application context).
+     */
+    private fun toolbarBtn(
+        icon: Icon?,
+        fallback: String,
+        tooltip: String,
+        action: () -> Unit,
+    ): JButton =
+        (if (icon != null) JButton(icon) else JButton(fallback)).also { btn ->
+            btn.toolTipText = tooltip
+            btn.isFocusable = false
+            btn.addActionListener { action() }
+        }
+
+    /**
+     * Read the SVG document's intrinsic dimensions in user units.
+     *
+     * Tries `width`/`height` attributes first, then falls back to the `viewBox`
+     * third and fourth fields. Returns `null` if no SVG is loaded or the
+     * dimensions cannot be parsed.
+     */
+    private fun svgDimensions(): Pair<Double, Double>? {
+        val doc = svgCanvas.svgDocument ?: return null
+        val root = doc.rootElement
+        var w = root.getAttribute("width").removeSuffix("px").toDoubleOrNull()
+        var h = root.getAttribute("height").removeSuffix("px").toDoubleOrNull()
+        if (w != null && h != null && w > 0 && h > 0) return w to h
+        val vb = root.getAttribute("viewBox").trim()
+        if (vb.isNotEmpty()) {
+            val parts = vb.split(Regex("""[\s,]+"""), limit = 4)
+            if (parts.size == 4) {
+                w = parts[2].toDoubleOrNull()
+                h = parts[3].toDoubleOrNull()
+                if (w != null && h != null && w > 0 && h > 0) return w to h
+            }
+        }
+        return null
+    }
+
+    // ── Zoom / fit actions ────────────────────────────────────────────────────
+
+    /** Reset to the auto-fit-to-window view (the Batik default). */
+    private fun fitToWindow() {
+        svgCanvas.resetRenderingTransform()
+    }
+
+    /**
+     * Scale so the diagram's full width exactly fills the panel, regardless of
+     * the current letterbox fit direction.
+     *
+     * The implementation computes the viewing scale `v = min(cW/svgW, cH/svgH)`
+     * that Batik applies as its initial fit-to-window transform, then sets the
+     * rendering transform so the effective horizontal scale = `cW / svgW`.
+     */
+    private fun fitWidth() {
+        val (svgW, svgH) = svgDimensions() ?: return
+        val cW = svgCanvas.width.toDouble().takeIf { it > 0.0 } ?: return
+        val cH = svgCanvas.height.toDouble().takeIf { it > 0.0 } ?: return
+        val viewScale = minOf(cW / svgW, cH / svgH)
+        val renderScale = (cW / svgW) / viewScale
+        svgCanvas.setRenderingTransform(
+            java.awt.geom.AffineTransform
+                .getScaleInstance(renderScale, renderScale),
+            true,
+        )
+    }
+
+    /**
+     * Scale so the diagram's full height exactly fills the panel.
+     * Mirror of [fitWidth] for the vertical axis.
+     */
+    private fun fitHeight() {
+        val (svgW, svgH) = svgDimensions() ?: return
+        val cW = svgCanvas.width.toDouble().takeIf { it > 0.0 } ?: return
+        val cH = svgCanvas.height.toDouble().takeIf { it > 0.0 } ?: return
+        val viewScale = minOf(cW / svgW, cH / svgH)
+        val renderScale = (cH / svgH) / viewScale
+        svgCanvas.setRenderingTransform(
+            java.awt.geom.AffineTransform
+                .getScaleInstance(renderScale, renderScale),
+            true,
+        )
+    }
+
+    /**
+     * Show the diagram at 1:1 scale — 1 SVG user-unit = 1 canvas pixel.
+     *
+     * Batik's initial viewing transform scales the SVG to fit the canvas
+     * (`viewScale = min(cW/svgW, cH/svgH)`). To undo it, set the rendering
+     * transform to `1 / viewScale`.
+     */
+    private fun actualZoom() {
+        val (svgW, svgH) = svgDimensions() ?: return
+        val cW = svgCanvas.width.toDouble().takeIf { it > 0.0 } ?: return
+        val cH = svgCanvas.height.toDouble().takeIf { it > 0.0 } ?: return
+        val viewScale = minOf(cW / svgW, cH / svgH)
+        svgCanvas.setRenderingTransform(
+            java.awt.geom.AffineTransform
+                .getScaleInstance(1.0 / viewScale, 1.0 / viewScale),
+            true,
+        )
+    }
+
+    /** Zoom in by [ZOOM_STEP] × relative to the current rendering transform. */
+    private fun zoomIn() {
+        val at = svgCanvas.renderingTransform.clone() as java.awt.geom.AffineTransform
+        at.scale(ZOOM_STEP, ZOOM_STEP)
+        svgCanvas.setRenderingTransform(at, true)
+    }
+
+    /** Zoom out by [ZOOM_STEP] × relative to the current rendering transform. */
+    private fun zoomOut() {
+        val at = svgCanvas.renderingTransform.clone() as java.awt.geom.AffineTransform
+        at.scale(1.0 / ZOOM_STEP, 1.0 / ZOOM_STEP)
+        svgCanvas.setRenderingTransform(at, true)
+    }
 
     private fun setStatusOnEdt(status: String) {
         if (SwingUtilities.isEventDispatchThread()) {

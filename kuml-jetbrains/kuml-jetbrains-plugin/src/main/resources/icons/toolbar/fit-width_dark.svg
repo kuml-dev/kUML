@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <!-- left vertical bar -->
+  <line x1="1.75" y1="4.5" x2="1.75" y2="11.5" stroke="#AFB1B3" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- right vertical bar -->
+  <line x1="14.25" y1="4.5" x2="14.25" y2="11.5" stroke="#AFB1B3" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- horizontal line -->
+  <line x1="3" y1="8" x2="13" y2="8" stroke="#AFB1B3" stroke-width="1.5"/>
+  <!-- left arrowhead (pointing left) -->
+  <polyline points="5.5,5.5 3,8 5.5,10.5" fill="none" stroke="#AFB1B3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- right arrowhead (pointing right) -->
+  <polyline points="10.5,5.5 13,8 10.5,10.5" fill="none" stroke="#AFB1B3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
