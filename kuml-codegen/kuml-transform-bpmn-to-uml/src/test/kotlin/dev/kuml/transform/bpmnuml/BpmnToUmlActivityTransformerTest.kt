@@ -45,7 +45,7 @@ class BpmnToUmlActivityTransformerTest :
             val kinds = model.nodes.map { it.kind }
             kinds.filter { it == UmlActivityNodeKind.ACTION }.size shouldBe 3
             kinds shouldContain UmlActivityNodeKind.INITIAL
-            kinds shouldContain UmlActivityNodeKind.FLOW_FINAL
+            kinds shouldContain UmlActivityNodeKind.ACTIVITY_FINAL
             kinds shouldContain UmlActivityNodeKind.DECISION
         }
 
@@ -64,27 +64,10 @@ class BpmnToUmlActivityTransformerTest :
             model.nodes.count { it.kind == UmlActivityNodeKind.INITIAL } shouldBe 1
         }
 
-        test("end event with definition=NONE maps to FLOW_FINAL") {
+        test("end event maps to ACTIVITY_FINAL") {
             val proc = sampleProcess()
             val model = BpmnToUmlActivityMapper.map(proc)
-            model.nodes.count { it.kind == UmlActivityNodeKind.FLOW_FINAL } shouldBe 1
-            model.nodes.count { it.kind == UmlActivityNodeKind.ACTIVITY_FINAL } shouldBe 0
-        }
-
-        test("end event with definition=TERMINATE maps to ACTIVITY_FINAL") {
-            val proc =
-                bpmnModel("TermTest") {
-                    process(id = "pt", name = "Terminate Process") {
-                        val start = startEvent("Start")
-                        val task = task("Work")
-                        val end = endEvent("End", definition = EventDefinition.TERMINATE)
-                        sequenceFlow(start, task)
-                        sequenceFlow(task, end)
-                    }
-                }.processes.first()
-            val model = BpmnToUmlActivityMapper.map(proc)
             model.nodes.count { it.kind == UmlActivityNodeKind.ACTIVITY_FINAL } shouldBe 1
-            model.nodes.count { it.kind == UmlActivityNodeKind.FLOW_FINAL } shouldBe 0
         }
 
         test("sequence flow condition maps to edge guard") {
@@ -187,14 +170,17 @@ class BpmnToUmlActivityTransformerTest :
             success.trace.links shouldHaveAtLeastSize 1
         }
 
-        test("lane membership recorded in node metadata as uml.partition") {
-            // Construct a process where two tasks belong to different lanes
+        test("lane membership recorded in uml.partition metadata for real BpmnLane input") {
+            // Build a process with two tasks that will be assigned to separate lanes.
+            // The DSL auto-generates IDs, so capture them from the return values.
+            var reviewTaskId = ""
+            var approveTaskId = ""
             val proc =
                 bpmnModel("LaneTest") {
-                    process(id = "lp", name = "Lane Process") {
+                    process(id = "laneProc", name = "Lane Process") {
                         val start = startEvent("Start")
-                        val t1 = task("Task Alpha")
-                        val t2 = task("Task Beta")
+                        val t1 = task("Review").also { reviewTaskId = it }
+                        val t2 = task("Approve").also { approveTaskId = it }
                         val end = endEvent("End")
                         sequenceFlow(start, t1)
                         sequenceFlow(t1, t2)
@@ -202,31 +188,140 @@ class BpmnToUmlActivityTransformerTest :
                     }
                 }.processes.first()
 
-            // Manually retrieve IDs to build lane references (DSL ids are auto-assigned)
-            val alphaNode = proc.flowNodes.first { it.name == "Task Alpha" }
-            val betaNode = proc.flowNodes.first { it.name == "Task Beta" }
-
-            val lanes =
-                listOf(
-                    BpmnLane(id = "lane_a", name = "Department A", flowNodeRefs = listOf(alphaNode.id)),
-                    BpmnLane(id = "lane_b", name = "Department B", flowNodeRefs = listOf(betaNode.id)),
+            // Simulate lanes from the enclosing BpmnParticipant
+            val lane1 =
+                BpmnLane(
+                    id = "lane1",
+                    name = "Reviewer",
+                    flowNodeRefs = listOf(reviewTaskId),
+                )
+            val lane2 =
+                BpmnLane(
+                    id = "lane2",
+                    name = "Approver",
+                    flowNodeRefs = listOf(approveTaskId),
                 )
 
-            val model = BpmnToUmlActivityMapper.map(proc, lanes = lanes)
+            val model = BpmnToUmlActivityMapper.map(proc, listOf(lane1, lane2))
 
-            val alphaUml = model.nodes.first { it.name == "Task Alpha" }
-            val betaUml = model.nodes.first { it.name == "Task Beta" }
+            val reviewNode = model.nodes.first { it.id == reviewTaskId }
+            val approveNode = model.nodes.first { it.id == approveTaskId }
 
-            (alphaUml.metadata["uml.partition"] as? KumlMetaValue.Text)?.value shouldBe "Department A"
-            (betaUml.metadata["uml.partition"] as? KumlMetaValue.Text)?.value shouldBe "Department B"
+            (reviewNode.metadata["uml.partition"] as? KumlMetaValue.Text)?.value shouldBe "Reviewer"
+            (approveNode.metadata["uml.partition"] as? KumlMetaValue.Text)?.value shouldBe "Approver"
         }
 
-        test("nodes without lane membership have no uml.partition metadata") {
+        test("nodes without lane assignment have no uml.partition metadata") {
             val proc = sampleProcess()
-            val model = BpmnToUmlActivityMapper.map(proc) // no lanes passed
-            // No node should have uml.partition when no lane info is provided
+            // No lanes supplied → no uml.partition entries
+            val model = BpmnToUmlActivityMapper.map(proc, emptyList())
             model.nodes.forEach { node ->
                 node.metadata["uml.partition"] shouldBe null
             }
+        }
+
+        test("nested child lane membership is recorded (innermost lane name wins)") {
+            var subTaskId = ""
+            val proc =
+                bpmnModel("NestedLaneTest") {
+                    process(id = "nlProc", name = "Nested Lane Process") {
+                        val start = startEvent("Start")
+                        val t1 = task("Sub Task").also { subTaskId = it }
+                        val end = endEvent("End")
+                        sequenceFlow(start, t1)
+                        sequenceFlow(t1, end)
+                    }
+                }.processes.first()
+
+            val childLane =
+                BpmnLane(
+                    id = "child_lane",
+                    name = "Inner Team",
+                    flowNodeRefs = listOf(subTaskId),
+                )
+            val parentLane =
+                BpmnLane(
+                    id = "parent_lane",
+                    name = "Outer Department",
+                    flowNodeRefs = listOf(subTaskId), // also listed at parent level
+                    childLanes = listOf(childLane),
+                )
+
+            val model = BpmnToUmlActivityMapper.map(proc, listOf(parentLane))
+
+            val subTaskNode = model.nodes.first { it.id == subTaskId }
+            // innermost lane (child) wins
+            (subTaskNode.metadata["uml.partition"] as? KumlMetaValue.Text)?.value shouldBe "Inner Team"
+        }
+
+        test("intermediate event maps to ACTION with bpmn.eventPosition metadata") {
+            var intermediateId = ""
+            val proc =
+                bpmnModel("IntermediateTest") {
+                    process(id = "iProc", name = "Intermediate") {
+                        val start = startEvent("Start")
+                        val intermediate =
+                            intermediateEvent(
+                                "Receive Payment",
+                                definition = EventDefinition.MESSAGE,
+                            ).also { intermediateId = it }
+                        val end = endEvent("End")
+                        sequenceFlow(start, intermediate)
+                        sequenceFlow(intermediate, end)
+                    }
+                }.processes.first()
+
+            val model = BpmnToUmlActivityMapper.map(proc)
+
+            val intNode = model.nodes.first { it.id == intermediateId }
+            intNode.kind shouldBe UmlActivityNodeKind.ACTION
+            (intNode.metadata["bpmn.eventPosition"] as? KumlMetaValue.Text)?.value shouldBe "INTERMEDIATE"
+            (intNode.metadata["bpmn.eventDefinition"] as? KumlMetaValue.Text)?.value shouldBe "MESSAGE"
+        }
+
+        test("terminate end event maps to ACTIVITY_FINAL") {
+            var terminateEndId = ""
+            val proc =
+                bpmnModel("TerminateTest") {
+                    process(id = "tProc", name = "Terminate") {
+                        val start = startEvent("Start")
+                        val terminateEnd =
+                            endEvent("Terminate", definition = EventDefinition.TERMINATE)
+                                .also { terminateEndId = it }
+                        sequenceFlow(start, terminateEnd)
+                    }
+                }.processes.first()
+
+            val model = BpmnToUmlActivityMapper.map(proc)
+
+            val termNode = model.nodes.first { it.id == terminateEndId }
+            termNode.kind shouldBe UmlActivityNodeKind.ACTIVITY_FINAL
+        }
+
+        test("typed end event (non-terminate, non-none) maps to FLOW_FINAL") {
+            var msgEndId = ""
+            val proc =
+                bpmnModel("FlowFinalTest") {
+                    process(id = "ffProc", name = "FlowFinal") {
+                        val start = startEvent("Start")
+                        val msgEnd =
+                            endEvent("Send Notification", definition = EventDefinition.MESSAGE)
+                                .also { msgEndId = it }
+                        sequenceFlow(start, msgEnd)
+                    }
+                }.processes.first()
+
+            val model = BpmnToUmlActivityMapper.map(proc)
+
+            val msgEndNode = model.nodes.first { it.id == msgEndId }
+            msgEndNode.kind shouldBe UmlActivityNodeKind.FLOW_FINAL
+        }
+
+        test("plain none end event maps to ACTIVITY_FINAL") {
+            // The sampleProcess() already contains a plain end event with NONE definition
+            val proc = sampleProcess()
+            val model = BpmnToUmlActivityMapper.map(proc)
+            model.nodes.count { it.kind == UmlActivityNodeKind.ACTIVITY_FINAL } shouldBe 1
+            model.nodes.none { it.kind == UmlActivityNodeKind.FLOW_FINAL } shouldBe true
         }
     })
