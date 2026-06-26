@@ -173,6 +173,7 @@ include(
     "kuml-plugin-examples:plugin-renderer-pdf",
     "kuml-plugin-examples:plugin-layout-elk-bridge",
     "kuml-plugin-examples:plugin-codegen-typescript",
+    "kuml-plugin-examples:plugin-codegen-cpp",   // V3.1.37 — Drittanbieter C++ Codegen-Plugin
     "kuml-plugin-examples:plugin-reverse-typescript",
 )
 
