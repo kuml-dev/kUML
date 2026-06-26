@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-06-26
+
 ### Added
 
 **V3.1.43 — M2M Bridge: BPMN Process ⇌ UML Activity**
@@ -270,6 +272,19 @@ parses traces via `KumlRuntimeJson.decodeFromString(TraceFile.serializer(), …)
   SMIL elements from the SVG and suppresses injection of new ones; safe for PNG rendering.
 - `SpeedFactor` — type-safe speed multiplier; applied by `SmilTimeline.scaledBy(factor)`.
   The emitter is speed-neutral — callers pre-scale the timeline before calling inject.
+
+### Security
+
+**V3.1.42 — chain-evm SSRF and DoS hardening (post-review)**
+
+- `EvmUrlValidator`: tightened private-range rejection to cover APIPA (169.254.x.x), IPv6
+  `::1` loopback, and all RFC-1918 subnets; scheme whitelist enforces `http`/`https` only.
+- `EvmJsonRpcClient`: added per-request HTTP timeouts (connect 5 s, read 10 s) and a
+  response-size cap (4 MB) to prevent unbounded memory allocation from malicious RPC nodes.
+- `ChainEvmAdapterRunner`: `takeWhile { !manager.isTerminated }` guards the infinite
+  subscribe() Cold Flow so no goroutine leaks on session shutdown.
+- `ExitCodes`: added `CHAIN_HASH_MISMATCH` (50) and `CHAIN_CONNECT_ERROR` (51) for
+  unambiguous exit-code signalling from the EVM adapter path.
 
 ## [0.19.2] — 2026-06-25
 
