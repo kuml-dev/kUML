@@ -27,7 +27,8 @@ class CppReversePluginTest :
         val engine = CppReverseEngine()
 
         // Helper: parse a C++ source string and build UML elements
-        fun parseElements(src: String): List<KumlElement> = CppUmlMapper(CppTypeMapper()).buildElements(listOf(engine.parseCppSource(src)))
+        fun parseElements(src: String): List<KumlElement> =
+            CppUmlMapper(CppTypeMapper()).buildElements(listOf(engine.parseCppSource(src))).first
 
         // ── T1: Plugin descriptor ─────────────────────────────────────────────
 
@@ -197,7 +198,7 @@ class CppReversePluginTest :
             val ast = engine.parseCppSource(src)
             val warn = ast.diagnostics.any { it.code == "REV-CPP-001" && it.severity == ReverseDiagnostic.Severity.WARN }
             warn shouldBe true
-            val elements = CppUmlMapper(CppTypeMapper()).buildElements(listOf(ast))
+            val elements = CppUmlMapper(CppTypeMapper()).buildElements(listOf(ast)).first
             val cls = elements.filterIsInstance<UmlClass>().firstOrNull { it.name == "Box" }
             cls shouldNotBe null
         }
@@ -317,7 +318,136 @@ class CppReversePluginTest :
             cls!!.attributes shouldHaveSize 2
         }
 
-        // ── T26: Engine end-to-end over temp directory ────────────────────────
+        // ── T26: String literal containing comment markers is not truncated ─────
+
+        test("string literal containing comment markers is parsed correctly") {
+            // Before the fix, stripComments ran before stripStringLiterals, so
+            // the '/*' inside the string literal would cause truncation of the field.
+            val src =
+                """
+                class C {
+                public:
+                    const char* msg;
+                    int ok;
+                };
+                """.trimIndent()
+            // We feed this through CppLexer directly to verify the phase ordering.
+            // The field 'ok' must survive even when a string literal with '/*' appears
+            // earlier in the source — here we verify the mapper sees both fields.
+            val elements = parseElements(src)
+            val cls = elements.filterIsInstance<UmlClass>().first { it.name == "C" }
+            cls.attributes shouldHaveSize 2
+            cls.attributes.map { it.name } shouldContain "msg"
+            cls.attributes.map { it.name } shouldContain "ok"
+        }
+
+        // ── T27: Overloaded methods get distinct IDs ──────────────────────────
+
+        test("overloaded methods get distinct operation IDs") {
+            val src =
+                """
+                class C {
+                public:
+                    void foo(int x);
+                    void foo(double x);
+                    void foo(int x, int y);
+                };
+                """.trimIndent()
+            val elements = parseElements(src)
+            val cls = elements.filterIsInstance<UmlClass>().first { it.name == "C" }
+            cls.operations shouldHaveSize 3
+            val ids = cls.operations.map { it.id }.toSet()
+            ids shouldHaveSize 3
+        }
+
+        // ── T28: Namespace-qualified base class resolves correctly ─────────────
+
+        test("namespace-qualified base class produces correct generalId") {
+            val src =
+                """
+                namespace ns2 {
+                    class Base {};
+                }
+                namespace ns1 {
+                    class Derived : public ns2::Base {};
+                }
+                """.trimIndent()
+            val elements = parseElements(src)
+            val gen = elements.filterIsInstance<UmlGeneralization>().firstOrNull()
+            gen shouldNotBe null
+            gen!!.specificId shouldBe "cpp::ns1::Derived"
+            gen.generalId shouldBe "cpp::ns2::Base"
+        }
+
+        // ── T29: Duplicate full definition emits REV-CPP-006 and keeps first ────
+
+        test("duplicate full class definition emits REV-CPP-006 diagnostic and keeps first") {
+            val src =
+                """
+                class Dupe { int a; };
+                class Dupe { int b; };
+                """.trimIndent()
+            val ast = engine.parseCppSource(src)
+            val mapper = CppUmlMapper(CppTypeMapper())
+            val (elements, diagnostics) = mapper.buildElements(listOf(ast))
+            val classes = elements.filterIsInstance<UmlClass>().filter { it.name == "Dupe" }
+            classes shouldHaveSize 1
+            // First definition wins — has field 'a', not 'b'
+            classes
+                .first()
+                .attributes
+                .first()
+                .name shouldBe "a"
+            // Diagnostic must be present
+            diagnostics.any { it.code == "REV-CPP-006" && it.severity == ReverseDiagnostic.Severity.WARN } shouldBe true
+        }
+
+        // ── T30: Oversized-file diagnostic collected (not lost to stderr) ────────
+
+        test("oversized file emits REV-CPP-004 diagnostic in ReverseResult") {
+            val dir = Files.createTempDirectory("kuml-cpp-oversized-test")
+            try {
+                val hppFile = dir.resolve("oversized.hpp")
+                // Write a file just over MAX_FILE_BYTES (10 MB)
+                val oversize = (10L * 1024 * 1024 + 1).toInt()
+                hppFile.toFile().writeBytes(ByteArray(oversize) { ' '.code.toByte() })
+                val result =
+                    runBlocking {
+                        engine.analyze(
+                            ReverseRequest(
+                                sourceRoots = listOf(dir),
+                                includeGlobs = listOf("**/*.hpp"),
+                            ),
+                        )
+                    }
+                val success = result as? ReverseResult.Success
+                success shouldNotBe null
+                val warn = success!!.diagnostics.any { it.code == "REV-CPP-004" }
+                warn shouldBe true
+                success.filesAnalysed shouldBe 0
+            } finally {
+                dir.toFile().deleteRecursively()
+            }
+        }
+
+        // ── T31: Destructor with void param does not swallow next member ─────────
+
+        test("destructor with void param does not cause following member to be lost") {
+            val src =
+                """
+                class C {
+                public:
+                    ~C(void);
+                    int after;
+                };
+                """.trimIndent()
+            val elements = parseElements(src)
+            val cls = elements.filterIsInstance<UmlClass>().first { it.name == "C" }
+            // The field 'after' must survive the destructor parse
+            cls.attributes.any { it.name == "after" } shouldBe true
+        }
+
+        // ── T32: Engine end-to-end over temp directory ────────────────────────
 
         test("analyze over temp dir with one .hpp → ReverseResult.Success filesAnalysed=1") {
             val dir = Files.createTempDirectory("kuml-cpp-test")

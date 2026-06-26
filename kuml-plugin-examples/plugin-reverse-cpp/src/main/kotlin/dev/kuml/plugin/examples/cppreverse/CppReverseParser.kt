@@ -11,14 +11,19 @@ import dev.kuml.codegen.reverse.ReverseDiagnostic
  * - Complex declarators (function pointers, array types in params).
  *
  * Safety guards:
- * - Max nesting depth of [MAX_DEPTH] → emits REV-CPP-002 WARN and bails.
+ * - Max namespace nesting depth of [MAX_NAMESPACE_DEPTH] → emits REV-CPP-002 WARN and bails.
+ *   Note: class nesting is handled non-recursively via skipNestedClassOrStruct(), so it does
+ *   not contribute to this counter.
  * - Never throws on malformed input — collects diagnostics and continues.
  */
 internal class CppReverseParser(
     private val tokens: List<CppToken>,
 ) {
     private var pos = 0
-    private var depth = 0
+
+    // Tracks nested namespace depth only; class nesting is handled non-recursively
+    // via skipNestedClassOrStruct() so it does not contribute to this counter.
+    private var namespaceDepth = 0
     private val namespaceStack = mutableListOf<String>()
     private val diagnostics = mutableListOf<ReverseDiagnostic>()
     private val declarations = mutableListOf<CppDeclaration>()
@@ -33,12 +38,13 @@ internal class CppReverseParser(
     // ── Top-level dispatch ────────────────────────────────────────────────────
 
     private fun parseTopLevel() {
-        if (depth > MAX_DEPTH) {
+        if (namespaceDepth > MAX_NAMESPACE_DEPTH) {
             diagnostics +=
                 ReverseDiagnostic(
                     severity = ReverseDiagnostic.Severity.WARN,
                     code = "REV-CPP-002",
-                    message = "Maximum nesting depth ($MAX_DEPTH) exceeded — aborting parse.",
+                    message =
+                        "Maximum namespace nesting depth ($MAX_NAMESPACE_DEPTH) exceeded — aborting parse.",
                 )
             // Skip to end
             while (!atEof()) advance()
@@ -57,7 +63,10 @@ internal class CppReverseParser(
             tok.text == "}" -> {
                 // Closing brace for namespace or other block — pop namespace
                 advance()
-                if (namespaceStack.isNotEmpty()) namespaceStack.removeLast()
+                if (namespaceStack.isNotEmpty()) {
+                    namespaceStack.removeLast()
+                    if (namespaceDepth > 0) namespaceDepth--
+                }
             }
             else -> advance() // skip unknown top-level tokens
         }
@@ -71,7 +80,7 @@ internal class CppReverseParser(
         if (peek().text == "{") {
             advance() // {
             if (name.isNotEmpty()) namespaceStack += name
-            depth++
+            namespaceDepth++
         } else {
             advance() // skip unexpected token
         }
@@ -295,7 +304,11 @@ internal class CppReverseParser(
                     advance() // ~
                     if (peek().type == CppTokenType.IDENTIFIER) advance() // name
                     if (peek().text == "(") {
-                        advance() // (
+                        advance() // consume '(' before calling skipToClose, which starts
+                        // counting nested opens from depth 0 (not 1). This matches the
+                        // contract: skipToClose returns when it sees ')' at depth 0,
+                        // meaning the opener was already consumed by the caller.
+                        // Works correctly for ~Foo(), ~Foo(void), and ~Foo(T x) alike.
                         skipToClose(')', '(')
                     }
                     skipOptionalBody()
@@ -778,7 +791,7 @@ internal class CppReverseParser(
     private fun currentNamespace(): String? = if (namespaceStack.isEmpty()) null else namespaceStack.joinToString("::")
 
     private companion object {
-        const val MAX_DEPTH: Int = 256
+        const val MAX_NAMESPACE_DEPTH: Int = 256
         val ACCESS_KEYWORDS: Set<String> = setOf("public", "protected", "private")
     }
 }

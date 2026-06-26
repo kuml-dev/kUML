@@ -1,5 +1,6 @@
 package dev.kuml.plugin.examples.cppreverse
 
+import dev.kuml.codegen.reverse.ReverseDiagnostic
 import dev.kuml.core.model.KumlElement
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlEnumeration
@@ -20,6 +21,10 @@ import dev.kuml.uml.Visibility
  * definition exist for the same qualified name, the definition wins (dedupe via
  * [knownIds] set).
  *
+ * When two **full** definitions for the same qualified name appear (e.g. the same
+ * header included from multiple translation units), the first wins and a
+ * REV-CPP-006 WARN diagnostic is emitted so callers can surface the data-loss.
+ *
  * All inheritance (C++ base specifiers) is modelled as [UmlGeneralization] —
  * C++ has no interface keyword; the all-pure-virtual → UmlInterface convention
  * is NOT applied (safe default).
@@ -27,10 +32,17 @@ import dev.kuml.uml.Visibility
 internal class CppUmlMapper(
     private val typeMapper: CppTypeMapper,
 ) {
-    fun buildElements(fileAsts: List<CppFileAst>): List<KumlElement> {
+    /**
+     * Returns a pair of (elements, mapperDiagnostics).
+     *
+     * Callers should merge [mapperDiagnostics] into their own diagnostics list
+     * alongside the per-file diagnostics already collected from [CppFileAst.diagnostics].
+     */
+    fun buildElements(fileAsts: List<CppFileAst>): Pair<List<KumlElement>, List<ReverseDiagnostic>> {
         val elements = mutableListOf<KumlElement>()
         val relationships = mutableListOf<KumlElement>()
         val knownIds = mutableSetOf<String>()
+        val mapperDiagnostics = mutableListOf<ReverseDiagnostic>()
 
         // Two-pass: first collect full definitions, then process
         // (ensures that if a forward decl appears after a full def, we still get the def)
@@ -40,20 +52,40 @@ internal class CppUmlMapper(
                 when (decl) {
                     is CppClassDecl -> {
                         if (decl.isForwardDecl) {
-                            // Register as forward-only if not yet known; will be replaced by full def
-                            if (id !in knownIds) {
-                                // Don't add to knownIds yet — let a potential full def win
-                            }
+                            // Don't add to knownIds yet — let a potential full def win
                             continue
                         }
                         // Full definition — wins over any forward decl
-                        if (id in knownIds) continue
+                        if (id in knownIds) {
+                            // Second full definition for the same qualified name (e.g. same header
+                            // included from multiple translation units). First definition wins;
+                            // emit a diagnostic so callers are aware of the data-loss.
+                            mapperDiagnostics +=
+                                ReverseDiagnostic(
+                                    severity = ReverseDiagnostic.Severity.WARN,
+                                    code = "REV-CPP-006",
+                                    message =
+                                        "Duplicate full definition for '$id' — " +
+                                            "keeping first occurrence, ignoring subsequent definition of '${decl.name}'.",
+                                )
+                            continue
+                        }
                         knownIds += id
                         elements += buildClass(decl)
                         relationships += buildGeneralizations(decl)
                     }
                     is CppEnumDecl -> {
-                        if (id in knownIds) continue
+                        if (id in knownIds) {
+                            mapperDiagnostics +=
+                                ReverseDiagnostic(
+                                    severity = ReverseDiagnostic.Severity.WARN,
+                                    code = "REV-CPP-006",
+                                    message =
+                                        "Duplicate full definition for '$id' — " +
+                                            "keeping first occurrence, ignoring subsequent definition of '${decl.name}'.",
+                                )
+                            continue
+                        }
                         knownIds += id
                         elements += buildEnum(decl)
                     }
@@ -61,7 +93,7 @@ internal class CppUmlMapper(
             }
         }
 
-        return elements + relationships
+        return Pair(elements + relationships, mapperDiagnostics)
     }
 
     // ── Class ─────────────────────────────────────────────────────────────────
@@ -100,10 +132,21 @@ internal class CppUmlMapper(
     private fun buildGeneralizations(decl: CppClassDecl): List<KumlElement> {
         val childId = qualifiedId(decl.namespace, decl.name)
         return decl.bases.mapIndexed { i, base ->
+            // base.name may be a qualified name like "ns2::Base" (from the parser's
+            // parseQualifiedName()). Split off the last segment as the simple name and
+            // treat everything before the last "::" as the namespace, so that the
+            // generalId is built consistently with qualifiedId().
+            val lastSep = base.name.lastIndexOf("::")
+            val (baseNs, baseName) =
+                if (lastSep >= 0) {
+                    base.name.substring(0, lastSep) to base.name.substring(lastSep + 2)
+                } else {
+                    null to base.name
+                }
             UmlGeneralization(
                 id = "cpp::gen::${decl.name}::${base.name}::$i",
                 specificId = childId,
-                generalId = qualifiedId(null, base.name),
+                generalId = qualifiedId(baseNs, baseName),
             )
         }
     }
@@ -142,8 +185,9 @@ internal class CppUmlMapper(
                     type = UmlTypeRef(name = typeMapper.map(pTypeName)),
                 )
             }
+        val paramTypes = params.joinToString(",") { it.type.name }
         return UmlOperation(
-            id = "$ownerId::${member.name}()",
+            id = "$ownerId::${member.name}($paramTypes)",
             name = member.name,
             visibility = toVisibility(member.access),
             parameters = params,

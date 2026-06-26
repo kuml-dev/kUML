@@ -5,8 +5,9 @@ package dev.kuml.plugin.examples.cppreverse
  *
  * Phase order:
  * 1. Strip preprocessor lines (lines starting with `#`, respecting `\` continuations).
- * 2. Strip `//` and `/* */` comments.
- * 3. Strip string and char literals.
+ * 2. Strip string and char literals — must run before comment stripping so that
+ *    comment-marker sequences inside string literals are not mistakenly removed.
+ * 3. Strip `//` line comments and block comments.
  * 4. Tokenize into IDENTIFIER / KEYWORD / PUNCT / NUMBER / STRING_LIT / EOF tokens.
  *
  * Template meta-programming, preprocessor macros, and full C++ semantics are out of scope.
@@ -16,9 +17,9 @@ internal class CppLexer(
 ) {
     fun tokenize(): List<CppToken> {
         val stripped = stripPreprocessor(source)
-        val noComments = stripComments(stripped)
-        val noStrings = stripStringLiterals(noComments)
-        return lex(noStrings)
+        val noStrings = stripStringLiterals(stripped)
+        val noComments = stripComments(noStrings)
+        return lex(noComments)
     }
 
     // ── Phase 1: Strip preprocessor lines ────────────────────────────────────

@@ -10,6 +10,7 @@ import dev.kuml.core.model.ModelLevel
 import dev.kuml.core.model.ModelingLanguage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * Handwritten recursive-descent C++ header → UML reverse engine (V3.1.39).
@@ -24,7 +25,7 @@ import kotlinx.coroutines.withContext
  * Safety limits:
  * - Max file size: [MAX_FILE_BYTES] (10 MB).
  * - Max files per run: [MAX_FILES] (2000).
- * - Max parse depth: 256 levels (REV-CPP-002 warning if exceeded).
+ * - Max namespace nesting depth: 256 levels (REV-CPP-002 warning if exceeded).
  */
 public class CppReverseEngine : KumlReverseEngine {
     override val id: String = "cpp"
@@ -42,24 +43,41 @@ public class CppReverseEngine : KumlReverseEngine {
             var filesAnalysed = 0
 
             outer@ for (root in request.sourceRoots) {
+                val rootFile = root.toFile()
+                val rootCanonical = rootFile.canonicalPath
                 val cppFiles =
-                    root
-                        .toFile()
+                    rootFile
                         .walkTopDown()
-                        .filter { it.isFile && it.extension in CPP_EXTENSIONS }
+                        .onEnter { dir ->
+                            // Reject symlinks that point outside the source root to prevent
+                            // path-traversal attacks (CVE-class: symlink escape).
+                            dir == rootFile ||
+                                dir.canonicalPath.startsWith(rootCanonical + File.separator)
+                        }.filter { it.isFile && it.extension in CPP_EXTENSIONS }
                 for (file in cppFiles) {
                     if (filesAnalysed >= MAX_FILES) {
-                        System.err.println(
-                            "[CppReverseEngine] File cap ($MAX_FILES) reached — " +
-                                "skipping remaining files.",
-                        )
+                        allDiagnostics +=
+                            dev.kuml.codegen.reverse.ReverseDiagnostic(
+                                severity = dev.kuml.codegen.reverse.ReverseDiagnostic.Severity.WARN,
+                                code = "REV-CPP-003",
+                                message =
+                                    "File cap ($MAX_FILES) reached — " +
+                                        "skipping remaining files.",
+                            )
                         break@outer
                     }
+                    // Use a root-relative path in diagnostics to avoid leaking absolute
+                    // filesystem layout in server-side deployments.
+                    val relPath = file.relativeTo(rootFile).path
                     if (file.length() > MAX_FILE_BYTES) {
-                        System.err.println(
-                            "[CppReverseEngine] Skipping oversized file " +
-                                "'${file.path}' (${file.length()} bytes > $MAX_FILE_BYTES).",
-                        )
+                        allDiagnostics +=
+                            dev.kuml.codegen.reverse.ReverseDiagnostic(
+                                severity = dev.kuml.codegen.reverse.ReverseDiagnostic.Severity.WARN,
+                                code = "REV-CPP-004",
+                                message =
+                                    "Skipping oversized file " +
+                                        "'$relPath' (${file.length()} bytes > $MAX_FILE_BYTES).",
+                            )
                         continue
                     }
                     try {
@@ -68,15 +86,20 @@ public class CppReverseEngine : KumlReverseEngine {
                         allDiagnostics += ast.diagnostics
                         filesAnalysed++
                     } catch (e: StackOverflowError) {
-                        System.err.println(
-                            "[CppReverseEngine] StackOverflowError while parsing " +
-                                "'${file.path}' — skipping file.",
-                        )
+                        allDiagnostics +=
+                            dev.kuml.codegen.reverse.ReverseDiagnostic(
+                                severity = dev.kuml.codegen.reverse.ReverseDiagnostic.Severity.ERROR,
+                                code = "REV-CPP-005",
+                                message =
+                                    "StackOverflowError while parsing " +
+                                        "'$relPath' — skipping file.",
+                            )
                     }
                 }
             }
 
-            val elements = umlMapper.buildElements(fileAsts = fileAsts)
+            val (elements, mapperDiagnostics) = umlMapper.buildElements(fileAsts = fileAsts)
+            allDiagnostics += mapperDiagnostics
 
             val diagram =
                 KumlDiagram(
