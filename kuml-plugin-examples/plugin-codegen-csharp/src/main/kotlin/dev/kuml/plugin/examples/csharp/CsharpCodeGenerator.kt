@@ -322,7 +322,10 @@ public class CsharpCodeGenerator : KumlCodeGenerator {
         opts: CsharpGeneratorOptions,
     ): String {
         val csType = mapper.mapType(prop.type.name)
-        val nullable = opts.useNullableReferenceTypes && prop.multiplicity.lower == 0
+        // Value types (int, bool, long, …) must NOT receive the NRT '?' suffix —
+        // 'int?' is Nullable<int> and has different semantics from an NRT annotation.
+        // Only reference types are eligible for the '?' suffix under #nullable enable.
+        val nullable = opts.useNullableReferenceTypes && prop.multiplicity.lower == 0 && !mapper.isValueType(csType)
         val typeStr = if (nullable) "$csType?" else csType
         val propName = opts.naming.apply(prop.name)
         return "public $typeStr $propName { get; set; }"

@@ -64,6 +64,10 @@ class CsharpCodegenPluginTest :
             plugin.descriptor.requiredPermissions shouldContain PluginPermission.FS_WRITE
         }
 
+        test("descriptor id ist dev.kuml.plugin.codegen.csharp") {
+            plugin.descriptor.id shouldBe "dev.kuml.plugin.codegen.csharp"
+        }
+
         test("descriptor kumlVersionRange enthält 0.12.0") {
             plugin.descriptor.kumlVersionRange.contains(PluginVersion(0, 12, 0)) shouldBe true
         }
@@ -250,6 +254,47 @@ class CsharpCodegenPluginTest :
             val out = tempDir()
             generator.generate(diagram(cls), out, emptyMap())
             File(out, "Order.cs").readText() shouldNotContain "string?"
+        }
+
+        test("Value-Type Property (int) bekommt kein ? Suffix auch bei lower=0") {
+            val cls =
+                UmlClass(
+                    id = "Order",
+                    name = "Order",
+                    attributes =
+                        listOf(
+                            UmlProperty(
+                                id = "p1",
+                                name = "count",
+                                type = UmlTypeRef("Int"),
+                                multiplicity = Multiplicity(0, 1),
+                            ),
+                        ),
+                )
+            val out = tempDir()
+            generator.generate(diagram(cls), out, emptyMap())
+            // 'int?' is Nullable<int> — not a valid NRT annotation; value types must not get '?'
+            File(out, "Order.cs").readText() shouldNotContain "int?"
+        }
+
+        test("Value-Type Property (bool) bekommt kein ? Suffix auch bei lower=0") {
+            val cls =
+                UmlClass(
+                    id = "Order",
+                    name = "Order",
+                    attributes =
+                        listOf(
+                            UmlProperty(
+                                id = "p1",
+                                name = "active",
+                                type = UmlTypeRef("Boolean"),
+                                multiplicity = Multiplicity(0, 1),
+                            ),
+                        ),
+                )
+            val out = tempDir()
+            generator.generate(diagram(cls), out, emptyMap())
+            File(out, "Order.cs").readText() shouldNotContain "bool?"
         }
 
         test("useNullableReferenceTypes=false unterdrückt ?") {
