@@ -38,6 +38,36 @@ public object ArxmlSchema {
     public const val ELEM_RUNNABLES: String = "RUNNABLES"
     public const val ELEM_RUNNABLE_ENTITY: String = "RUNNABLE-ENTITY"
 
+    // ── V3.1.34 — Runnable trigger event elements (under SWC-INTERNAL-BEHAVIOR/EVENTS) ──
+    public const val ELEM_EVENTS: String = "EVENTS"
+    public const val ELEM_TIMING_EVENT: String = "TIMING-EVENT"
+    public const val ELEM_DATA_RECEIVED_EVENT: String = "DATA-RECEIVED-EVENT"
+    public const val ELEM_OPERATION_INVOKED_EVENT: String = "OPERATION-INVOKED-EVENT"
+    public const val ELEM_INIT_EVENT: String = "INIT-EVENT"
+    public const val ELEM_SWC_MODE_SWITCH_EVENT: String = "SWC-MODE-SWITCH-EVENT"
+
+    /** Path reference from an event element back to the RUNNABLE-ENTITY it activates. */
+    public const val ELEM_START_ON_EVENT_REF: String = "START-ON-EVENT-REF"
+
+    // ── V3.1.34 — Port interface cross-reference elements ────────────────────
+
+    /** Required port → interface TREF element (child of R-PORT-PROTOTYPE). */
+    public const val ELEM_REQUIRED_INTERFACE_TREF: String = "REQUIRED-INTERFACE-TREF"
+
+    /** Provided port → interface TREF element (child of P-PORT-PROTOTYPE). */
+    public const val ELEM_PROVIDED_INTERFACE_TREF: String = "PROVIDED-INTERFACE-TREF"
+
+    // ── V3.1.34 — BehaviorSpec / state machine ───────────────────────────────
+
+    /**
+     * Represents an AUTOSAR behavior spec element carrying a state machine.
+     * Written as `BEHAVIOR-SPEC` under SWC-INTERNAL-BEHAVIOR.
+     */
+    public const val ELEM_BEHAVIOR_SPEC: String = "BEHAVIOR-SPEC"
+
+    /** DEST attribute value written on *-TREF elements to aid interoperability. */
+    public const val ATTR_DEST: String = "DEST"
+
     // ── AUTOSAR profile stereotype names ─────────────────────────────────────
     // Single source of truth — ArxmlReader and ArxmlWriter reference these
     // constants so that a rename in the profile is caught at compile time.
@@ -45,6 +75,9 @@ public object ArxmlSchema {
     public const val STEREOTYPE_COM_INTERFACE: String = "ComInterface"
     public const val STEREOTYPE_AUTOSAR_PORT: String = "AutosarPort"
     public const val STEREOTYPE_RUNNABLE: String = "Runnable"
+
+    /** Stereotype applied to [dev.kuml.uml.UmlStateMachine] elements imported from BEHAVIOR-SPEC. */
+    public const val STEREOTYPE_BEHAVIOR_SPEC: String = "BehaviorSpec"
 
     /**
      * Returns a JDOM2 [Namespace] for the given [ArxmlVersion].

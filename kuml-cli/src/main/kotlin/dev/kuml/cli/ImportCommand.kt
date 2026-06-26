@@ -21,6 +21,7 @@ import java.io.IOException
  * Parses a diagram file in an external format and generates a `.kuml.kts` script.
  * V1 supports Structurizr DSL only.
  * V3.0.17 adds XMI import via reflection (EMF is JVM-only, not in Native Image).
+ * V3.1.34 adds ARXML import via reflection (JDOM2 is JVM-only, not in Native Image).
  *
  * Exit codes:
  * - 0: success
@@ -29,17 +30,17 @@ import java.io.IOException
  * - 24: format requires Fat-JAR distribution (see [ExitCodes.FORMAT_NOT_AVAILABLE])
  */
 internal class ImportCommand : CliktCommand(name = "import") {
-    private val input by argument(help = "Path to the input file (e.g. workspace.dsl, model.xmi)")
+    private val input by argument(help = "Path to the input file (e.g. workspace.dsl, model.xmi, model.arxml)")
         .file(mustExist = true, canBeDir = false)
 
     private val format by option("--format", help = "Source format to import from")
-        .choice("structurizr", "xmi")
+        .choice("structurizr", "xmi", "arxml")
         .default("structurizr")
 
     private val output by option("-o", "--output", help = "Output .kuml.kts file (default: input filename with .kuml.kts extension)")
         .file()
 
-    override fun help(context: Context): String = "Import a diagram from another format (Structurizr DSL, XMI)."
+    override fun help(context: Context): String = "Import a diagram from another format (Structurizr DSL, XMI, ARXML)."
 
     override fun run() {
         val inputFile = input
@@ -48,6 +49,7 @@ internal class ImportCommand : CliktCommand(name = "import") {
         when (format) {
             "structurizr" -> importStructurizr(inputFile, outputFile)
             "xmi" -> importXmi(inputFile, outputFile)
+            "arxml" -> importArxml(inputFile, outputFile)
             else -> {
                 // Clikt choice() already validates the value, but keep for safety
                 System.err.println("Unknown format: $format")
@@ -115,6 +117,51 @@ internal class ImportCommand : CliktCommand(name = "import") {
 
         writeOutput(outputFile, script)
         echo("Imported XMI: ${inputFile.name} → ${outputFile.path}")
+    }
+
+    private fun importArxml(
+        inputFile: File,
+        outputFile: File,
+    ) {
+        // Load ArxmlClassicImporter via Reflection — kuml-io-arxml is JVM-only (JDOM2) and not
+        // bundled in the Native Image binary. The Fat-JAR includes it at runtime.
+        val importer =
+            try {
+                // ArxmlClassicImporter has a nullable ArxmlVersion? default parameter.
+                // We call the no-arg constructor equivalent by using the companion-generated
+                // constructor with a single ArxmlVersion? parameter set to null (auto-detect).
+                val clazz = Class.forName("dev.kuml.io.arxml.ArxmlClassicImporter")
+                // Try the single-arg constructor (ArxmlVersion?) first, then no-arg fallback.
+                try {
+                    val arxmlVersionClass = Class.forName("dev.kuml.io.arxml.ArxmlVersion")
+                    clazz.getDeclaredConstructor(arxmlVersionClass).newInstance(null as Any?)
+                } catch (_: NoSuchMethodException) {
+                    clazz.getDeclaredConstructor().newInstance()
+                }
+            } catch (_: ClassNotFoundException) {
+                System.err.println(
+                    "ARXML format requires the kUML Fat-JAR distribution.\n" +
+                        "Native Image binary does not include JDOM2 (JVM-only).\n" +
+                        "Download the Fat-JAR from https://kuml.dev/releases",
+                )
+                throw ProgramResult(ExitCodes.FORMAT_NOT_AVAILABLE)
+            }
+
+        val importMethod = importer.javaClass.getMethod("import", File::class.java)
+        val importResult = importMethod.invoke(importer, inputFile)
+        val modelField = importResult.javaClass.getMethod("getModel")
+        val kumlModel = modelField.invoke(importResult) as KumlModel
+
+        val script =
+            try {
+                UmlModelDslPrinter.print(kumlModel)
+            } catch (_: Exception) {
+                "// ARXML import: model '${kumlModel.name}'\n" +
+                    "// Use `kuml export --format arxml` for roundtrip.\n"
+            }
+
+        writeOutput(outputFile, script)
+        echo("Imported ARXML: ${inputFile.name} → ${outputFile.path}")
     }
 
     private fun writeOutput(

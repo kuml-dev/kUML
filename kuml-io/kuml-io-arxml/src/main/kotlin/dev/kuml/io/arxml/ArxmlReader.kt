@@ -9,8 +9,6 @@ import dev.kuml.uml.UmlPort
 import org.jdom2.Document
 import org.jdom2.Element
 import org.jdom2.Namespace
-import org.jdom2.input.SAXBuilder
-import org.jdom2.input.sax.XMLReaders
 import java.io.File
 import java.io.StringReader
 import java.util.UUID
@@ -46,7 +44,7 @@ public class ArxmlReader(
 ) {
     /** Parses an AUTOSAR ARXML [file] and returns an [ArxmlParseResult]. */
     public fun read(file: File): ArxmlParseResult {
-        val doc = secureSaxBuilder().build(file)
+        val doc = ArxmlSax.secureBuilder().build(file)
         return buildModel(doc)
     }
 
@@ -55,28 +53,11 @@ public class ArxmlReader(
      * No temp file is written; the string is parsed directly via [StringReader].
      */
     public fun readFromString(xml: String): ArxmlParseResult {
-        val doc = secureSaxBuilder().build(StringReader(xml))
+        val doc = ArxmlSax.secureBuilder().build(StringReader(xml))
         return buildModel(doc)
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
-
-    /**
-     * Builds an XXE-hardened [SAXBuilder].
-     *
-     * The primary guard is `disallow-doctype-decl=true` which causes any DOCTYPE
-     * declaration to throw immediately — this kills both XXE injection and
-     * billion-laughs entity-expansion in one flag.
-     */
-    private fun secureSaxBuilder(): SAXBuilder {
-        val sb = SAXBuilder(XMLReaders.NONVALIDATING)
-        sb.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
-        sb.setFeature("http://xml.org/sax/features/external-general-entities", false)
-        sb.setFeature("http://xml.org/sax/features/external-parameter-entities", false)
-        sb.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
-        sb.expandEntities = false
-        return sb
-    }
 
     private fun buildModel(doc: Document): ArxmlParseResult {
         val root = doc.rootElement
