@@ -255,7 +255,12 @@ internal object BpmnToUmlActivityMapper {
                 if (definition == EventDefinition.TERMINATE || definition == EventDefinition.NONE) {
                     UmlActivityNodeKind.ACTIVITY_FINAL to emptyMap()
                 } else {
-                    UmlActivityNodeKind.FLOW_FINAL to emptyMap()
+                    // Record the original BPMN definition so the reverse mapper can restore it
+                    // and preserve the round-trip guarantee for typed end events.
+                    UmlActivityNodeKind.FLOW_FINAL to
+                        mapOf(
+                            META_BPMN_EVENT_DEFINITION to KumlMetaValue.Text(definition.name),
+                        )
                 }
 
             EventPosition.INTERMEDIATE ->

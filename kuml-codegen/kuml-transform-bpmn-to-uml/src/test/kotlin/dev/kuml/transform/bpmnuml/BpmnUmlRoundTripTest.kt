@@ -4,6 +4,7 @@ import dev.kuml.bpmn.dsl.bpmnModel
 import dev.kuml.bpmn.model.BpmnEvent
 import dev.kuml.bpmn.model.BpmnGateway
 import dev.kuml.bpmn.model.BpmnTask
+import dev.kuml.bpmn.model.EventDefinition
 import dev.kuml.bpmn.model.EventPosition
 import dev.kuml.bpmn.model.GatewayDirection
 import dev.kuml.bpmn.model.GatewayType
@@ -154,5 +155,104 @@ class BpmnUmlRoundTripTest :
                 restored.flowNodes.filterIsInstance<BpmnEvent>().count { it.position == EventPosition.START }
             original.flowNodes.filterIsInstance<BpmnEvent>().count { it.position == EventPosition.END } shouldBe
                 restored.flowNodes.filterIsInstance<BpmnEvent>().count { it.position == EventPosition.END }
+        }
+
+        test("BPMN Message end event round-trips with MESSAGE definition preserved") {
+            val proc =
+                bpmnModel("MsgEndRT") {
+                    process(id = "msgrt", name = "MsgEndRT") {
+                        val start = startEvent("Start")
+                        val msgEnd = endEvent("Notify", definition = EventDefinition.MESSAGE)
+                        sequenceFlow(start, msgEnd)
+                    }
+                }.processes.first()
+
+            val umlModel = BpmnToUmlActivityMapper.map(proc)
+            val diagram =
+                KumlDiagram(
+                    name = umlModel.name,
+                    type = DiagramType.ACTIVITY,
+                    elements = umlModel.nodes + umlModel.edges,
+                )
+            val restored = UmlActivityToBpmnMapper.map(diagram)!!
+            val endEvents = restored.flowNodes.filterIsInstance<BpmnEvent>().filter { it.position == EventPosition.END }
+            endEvents.size shouldBe 1
+            endEvents.first().definition shouldBe EventDefinition.MESSAGE
+        }
+
+        test("BPMN Signal end event round-trips with SIGNAL definition preserved") {
+            val proc =
+                bpmnModel("SigEndRT") {
+                    process(id = "sigrt", name = "SigEndRT") {
+                        val start = startEvent("Start")
+                        val sigEnd = endEvent("Broadcast", definition = EventDefinition.SIGNAL)
+                        sequenceFlow(start, sigEnd)
+                    }
+                }.processes.first()
+
+            val umlModel = BpmnToUmlActivityMapper.map(proc)
+            val diagram =
+                KumlDiagram(
+                    name = umlModel.name,
+                    type = DiagramType.ACTIVITY,
+                    elements = umlModel.nodes + umlModel.edges,
+                )
+            val restored = UmlActivityToBpmnMapper.map(diagram)!!
+            val endEvents = restored.flowNodes.filterIsInstance<BpmnEvent>().filter { it.position == EventPosition.END }
+            endEvents.size shouldBe 1
+            endEvents.first().definition shouldBe EventDefinition.SIGNAL
+        }
+
+        test("BPMN Error end event round-trips with ERROR definition preserved") {
+            val proc =
+                bpmnModel("ErrEndRT") {
+                    process(id = "errrt", name = "ErrEndRT") {
+                        val start = startEvent("Start")
+                        val errEnd = endEvent("Fail", definition = EventDefinition.ERROR)
+                        sequenceFlow(start, errEnd)
+                    }
+                }.processes.first()
+
+            val umlModel = BpmnToUmlActivityMapper.map(proc)
+            val diagram =
+                KumlDiagram(
+                    name = umlModel.name,
+                    type = DiagramType.ACTIVITY,
+                    elements = umlModel.nodes + umlModel.edges,
+                )
+            val restored = UmlActivityToBpmnMapper.map(diagram)!!
+            val endEvents = restored.flowNodes.filterIsInstance<BpmnEvent>().filter { it.position == EventPosition.END }
+            endEvents.size shouldBe 1
+            endEvents.first().definition shouldBe EventDefinition.ERROR
+        }
+
+        test("mixed process: NONE end stays ACTIVITY_FINAL and Message end stays FLOW_FINAL after round-trip") {
+            val proc =
+                bpmnModel("MixedEndsRT") {
+                    process(id = "mixedrt", name = "MixedEndsRT") {
+                        val start = startEvent("Start")
+                        val t = task("Work")
+                        val gw = gateway(GatewayType.EXCLUSIVE)
+                        val noneEnd = endEvent("Done")
+                        val msgEnd = endEvent("Notify", definition = EventDefinition.MESSAGE)
+                        sequenceFlow(start, t)
+                        sequenceFlow(t, gw)
+                        sequenceFlow(gw, noneEnd, condition = "ok")
+                        sequenceFlow(gw, msgEnd, condition = "error")
+                    }
+                }.processes.first()
+
+            val umlModel = BpmnToUmlActivityMapper.map(proc)
+            val diagram =
+                KumlDiagram(
+                    name = umlModel.name,
+                    type = DiagramType.ACTIVITY,
+                    elements = umlModel.nodes + umlModel.edges,
+                )
+            val restored = UmlActivityToBpmnMapper.map(diagram)!!
+            val endEvents = restored.flowNodes.filterIsInstance<BpmnEvent>().filter { it.position == EventPosition.END }
+            endEvents.size shouldBe 2
+            endEvents.any { it.definition == EventDefinition.NONE } shouldBe true
+            endEvents.any { it.definition == EventDefinition.MESSAGE } shouldBe true
         }
     })

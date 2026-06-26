@@ -37,6 +37,7 @@ import dev.kuml.uml.UmlActivityNodeKind
  */
 internal object UmlActivityToBpmnMapper {
     private const val META_BPMN_SOURCE_ID = "bpmn.sourceId"
+    private const val META_BPMN_EVENT_DEFINITION = "bpmn.eventDefinition"
 
     /** Maps the given diagram to a [BpmnProcess]. Returns null if the diagram is not ACTIVITY type. */
     fun map(diagram: KumlDiagram): BpmnProcess? {
@@ -106,7 +107,7 @@ internal object UmlActivityToBpmnMapper {
                     umlIdToBpmnId[node.id] = bpmnId
                 }
 
-                UmlActivityNodeKind.ACTIVITY_FINAL, UmlActivityNodeKind.FLOW_FINAL -> {
+                UmlActivityNodeKind.ACTIVITY_FINAL -> {
                     val bpmnId = nextId("end")
                     flowNodes +=
                         BpmnEvent(
@@ -115,6 +116,32 @@ internal object UmlActivityToBpmnMapper {
                             position = EventPosition.END,
                             behaviour = EventBehaviour.THROWING,
                             definition = EventDefinition.NONE,
+                        )
+                    umlIdToBpmnId[node.id] = bpmnId
+                }
+
+                UmlActivityNodeKind.FLOW_FINAL -> {
+                    val bpmnId = nextId("end")
+                    // Restore the original typed event definition from metadata so that
+                    // a BPMN→UML→BPMN round-trip on processes with typed end events
+                    // (Message, Signal, Error, …) is lossless.
+                    // Falls back to MESSAGE as the canonical typed-end sentinel when no
+                    // metadata is present (e.g. FLOW_FINAL was authored directly in UML
+                    // without a BPMN origin).
+                    val restoredDefinition =
+                        (node.metadata[META_BPMN_EVENT_DEFINITION] as? KumlMetaValue.Text)
+                            ?.value
+                            ?.let { name ->
+                                runCatching { EventDefinition.valueOf(name) }.getOrNull()
+                            }
+                            ?: EventDefinition.MESSAGE
+                    flowNodes +=
+                        BpmnEvent(
+                            id = bpmnId,
+                            name = node.name.takeIf { it.isNotBlank() },
+                            position = EventPosition.END,
+                            behaviour = EventBehaviour.THROWING,
+                            definition = restoredDefinition,
                         )
                     umlIdToBpmnId[node.id] = bpmnId
                 }

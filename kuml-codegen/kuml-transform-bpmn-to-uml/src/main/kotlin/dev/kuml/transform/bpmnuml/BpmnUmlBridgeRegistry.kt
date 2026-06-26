@@ -23,6 +23,7 @@ public object BpmnUmlBridgeRegistry {
      */
     public fun registerAll() {
         TransformerRegistry.register(BpmnToUmlActivityTransformer())
+        TransformerRegistry.register(BpmnParticipantToUmlActivityTransformer())
         TransformerRegistry.register(UmlActivityToBpmnTransformer())
     }
 }
