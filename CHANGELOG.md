@@ -8,6 +8,35 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**V3.1.42 — `kuml run --adapter chain-evm`: Wire EVM Chain Adapter into the Run Command**
+
+New files in `kuml-cli/src/main/kotlin/dev/kuml/cli/run/`:
+- `EvmUrlValidator` — validates EVM RPC URLs (http/https only; rejects private IP ranges
+  10.x, 172.16–31.x, 192.168.x, 127.x, ::1 via `RpcUrlValidator.Default` SSRF guard)
+  and contract addresses (40 hex chars, optional 0x prefix). `normalizeContract()` ensures
+  the required 0x prefix before calling `EvmChainAdapter.connect()`.
+- `ChainEvmCliOptions` — value holder (`data class`) for `--rpc`, `--contract`,
+  `--from-block`, and `--chain-id` CLI options.
+- `ChainEvmAdapterRunner` — bridges `RunCommand` to `EvmChainAdapter`. Connects, verifies
+  on-chain `modelHash` against the local script hash (exit code 50 `CHAIN_HASH_MISMATCH` on
+  mismatch), then feeds chain events into the running `RunSessionManager` session. Uses
+  `replay(fromBlock)` when `--from-block` is set, otherwise the infinite `subscribe()` Cold
+  Flow (guarded by `takeWhile { !manager.isTerminated }` to ensure clean termination).
+  `EvmChainAdapterException.ReorgDetected` exits with `CHAIN_CONNECT_ERROR` (51).
+
+Modified:
+- `RunCommand.kt` — adds `"chain-evm"` to the `--adapter` choice; adds `--rpc`,
+  `--contract`, `--from-block (.long())`, and `--chain-id (.int())` options; dispatches to
+  `ChainEvmAdapterRunner` with full validation before connect.
+
+New tests in `kuml-cli/src/test/kotlin/dev/kuml/cli/run/`:
+- `EvmUrlValidatorTest` — 15 unit tests covering https/http accept, file:// reject, all
+  private-range IP literals, IPv6 loopback, contract address format variants, and prefix
+  normalization.
+- `ChainEvmRunCommandTest` — integration tests using `FakeChainAdapter` (no network/testnet):
+  subscribe vs replay dispatch, hash mismatch exit code, network error friendly message,
+  SSRF and contract validation.
+
 **V3.1.41 — EMF Profile Conversion: kUML Profile ⇌ Eclipse UML2 `.profile.uml`**
 
 New source files in `kuml-io/kuml-io-emf`:
