@@ -8,6 +8,41 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**V3.1.40 — C# Reverse-Engineering Plugin (Handwritten Structural Parser)**
+
+New Drittanbieter-Plugin `kuml-plugin-examples/plugin-reverse-csharp`:
+- `CsharpReversePlugin` — implements `KumlReversePlugin` SPI with id
+  `dev.kuml.plugins.reverse-csharp`, capability `REVERSE`, permission `FS_READ`.
+- `CsharpReverseEngine` — analyses `.cs` source files in a directory tree and produces
+  a `KumlModel` with a `KumlDiagram(type=CLASS)`. Safety limits: 10 MB per file (REV-CS-004),
+  2000 files per run (REV-CS-003), symlink-escape guard, `StackOverflowError` catch (REV-CS-005).
+- `CsharpLexer` — 4-phase handwritten lexer: strip preprocessor (#if/#region/#pragma),
+  strip string literals (regular, verbatim @"...", interpolated $"..."), strip comments,
+  tokenise into `CsharpToken` stream.
+- `CsharpReverseParser` — recursive-descent structural parser. Supports file-scoped
+  namespaces (C# 10: `namespace X.Y;`) and block namespaces; class / abstract class /
+  sealed class / static class / interface / struct / record / enum; auto-properties
+  (`T Name { get; set; }`); methods; fields; readonly fields; generic type parameters;
+  `[Attribute]` lists; base list (`class C : Base, IFace1, IFace2`). Max namespace depth
+  guard → REV-CS-002. Never throws on malformed input.
+- `CsharpTypeMapper` — maps C# primitive aliases (string, int, bool, …), BCL types
+  (Int32, Boolean, …), and generic collections (List<T>, IEnumerable<T>, T[], Dictionary<K,V>,
+  HashSet<T>) to UML-friendly names. Depth-guarded (MAX_RECURSION_DEPTH=32).
+- `CsharpUmlMapper` — two-pass mapper: first pass collects all declared interface names
+  for accurate base-list classification; second pass builds `UmlClass` / `UmlInterface` /
+  `UmlEnumeration` / `UmlGeneralization` / `UmlInterfaceRealization`. Duplicate-definition
+  guard → REV-CS-006. Base-type classification: known-interface set first, then
+  `I`+uppercase heuristic (IShape, IDisposable) as fallback.
+- Note: ANTLR4 was evaluated but rejected — no reliable ANTLR4 C# grammar artifact is
+  available on Maven Central. Option B (handwritten structural parsing) mirrors the approach
+  proven in V3.1.39 for C++.
+- 24 Kotest `FunSpec` tests covering: plugin descriptor, engine id, capabilities,
+  permissions, simple class, auto-property, method with params, abstract class, interface,
+  `UmlInterfaceRealization`, `UmlGeneralization`, mixed inheritance, file-scoped namespace,
+  block namespace, dotted namespace, enum, sealed class, record (positional params),
+  readonly field, static method, attribute (best-effort), generic property `List<string>`,
+  and malformed-input no-crash guard.
+
 **V3.1.36 — ARXML CLI Integration + Comprehensive Roundtrip Tests + Vault Example**
 
 CLI export:

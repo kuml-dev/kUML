@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "dev.kuml.plugins.reverse-csharp",
+  "name": "C# Reverse Engine",
+  "version": "1.0.0",
+  "kumlVersionRange": ">=0.12.0",
+  "extensions": [
+    {
+      "category": "reverse",
+      "implementation": "dev.kuml.plugin.examples.csharpreverse.CsharpReversePlugin",
+      "id": "csharp-reverse-plugin"
+    }
+  ],
+  "permissions": ["fs.read"],
+  "licenseSpdx": "Apache-2.0"
+}

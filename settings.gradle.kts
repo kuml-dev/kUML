@@ -176,6 +176,7 @@ include(
     "kuml-plugin-examples:plugin-codegen-cpp",   // V3.1.37 — Drittanbieter C++ Codegen-Plugin
     "kuml-plugin-examples:plugin-codegen-csharp",  // V3.1.38 — Drittanbieter C# Codegen-Plugin
     "kuml-plugin-examples:plugin-reverse-cpp",  // V3.1.39 — Drittanbieter C++ Reverse-Plugin
+    "kuml-plugin-examples:plugin-reverse-csharp",  // V3.1.40 — Drittanbieter C# Reverse-Plugin
     "kuml-plugin-examples:plugin-reverse-typescript",
 )
 
