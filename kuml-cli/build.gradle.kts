@@ -75,6 +75,7 @@ dependencies {
     implementation(project(":kuml-renderer:kuml-layout-bridge"))
     implementation(project(":kuml-renderer:kuml-themes-core"))
     implementation(project(":kuml-io:kuml-io-svg"))
+    implementation(project(":kuml-io:kuml-render-smil")) // V3.1.31 — TraceFileLoader, SpeedFactor, StaticSnapshotMode
     implementation(project(":kuml-io:kuml-io-png"))
     implementation(project(":kuml-io:kuml-io-latex")) // V2.0.2 — TikZ/LaTeX-Export
     implementation(project(":kuml-metamodel:kuml-metamodel-uml"))

@@ -1,0 +1,26 @@
+{
+    "schema": "kuml.trace.v1",
+    "modelId": "test-model",
+    "entries": [
+        {
+            "type": "StateEntered",
+            "seqNo": 0,
+            "timestamp": "2026-06-26T10:00:00Z",
+            "vertexId": "stateA"
+        },
+        {
+            "type": "TransitionFired",
+            "seqNo": 1,
+            "timestamp": "2026-06-26T10:00:01Z",
+            "transitionId": "t1",
+            "fromVertexId": "stateA",
+            "toVertexId": "stateB"
+        },
+        {
+            "type": "StateEntered",
+            "seqNo": 2,
+            "timestamp": "2026-06-26T10:00:02Z",
+            "vertexId": "stateB"
+        }
+    ]
+}

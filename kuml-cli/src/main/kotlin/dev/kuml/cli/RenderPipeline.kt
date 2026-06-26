@@ -20,6 +20,10 @@ import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SvgRenderOptions
+import dev.kuml.io.svg.activity.smil.ActivityAnimationContext
+import dev.kuml.io.svg.activity.smil.ActivitySmilRenderer
+import dev.kuml.io.svg.stm.smil.StmAnimationContext
+import dev.kuml.io.svg.stm.smil.StmSmilRenderer
 import dev.kuml.layout.DiagramKind
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutEngineRegistry
@@ -34,8 +38,13 @@ import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
+import dev.kuml.render.smil.SpeedFactor
+import dev.kuml.render.smil.TraceFileLoader
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
+import dev.kuml.runtime.TraceEntry
+import dev.kuml.runtime.TraceFile
+import dev.kuml.runtime.sysml2.Sysml2StateMachineAdapter
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
@@ -150,6 +159,10 @@ internal object RenderPipeline {
      * @param latexStandalone When `true` and format is `"latex"`, emit a complete
      *   `\documentclass{standalone}` document instead of a bare tikzpicture snippet.
      *   Only meaningful for LaTeX output — ignored for SVG / PNG.
+     * @param animated When `true` and format is `"svg"`, inject SMIL animations (V3.1.31).
+     * @param traceFile Optional path to a `kuml.trace.v1` JSON file for trace-driven animation.
+     *   When `null` and [animated] is `true`, a demo animation sequence is synthesised.
+     * @param speed Playback speed multiplier for animation (default 1.0).
      * @throws ScriptEvaluationException if the script fails to compile or evaluate.
      * @throws IOException if the output file cannot be written.
      */
@@ -162,6 +175,9 @@ internal object RenderPipeline {
         config: KumlConfig = KumlConfig.DEFAULT,
         layoutEngineOverride: String? = null,
         latexStandalone: Boolean = false,
+        animated: Boolean = false,
+        traceFile: File? = null,
+        speed: Double = 1.0,
     ) {
         // 1. Evaluate script
         val evalResult = KumlScriptHost.eval(input)
@@ -203,9 +219,9 @@ internal object RenderPipeline {
         try {
             when (extracted) {
                 is ExtractedDiagram.Uml ->
-                    renderUml(extracted, output, format, width, theme, layoutEngineOverride, latexStandalone)
+                    renderUml(extracted, output, format, width, theme, layoutEngineOverride, latexStandalone, animated, traceFile, speed)
                 is ExtractedDiagram.C4 -> renderC4(extracted, output, format, width, theme)
-                is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme)
+                is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme, animated, traceFile, speed)
                 is ExtractedDiagram.Bpmn -> renderBpmn(extracted, output, format, width, theme)
                 is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, output, format, width, theme, latexStandalone)
             }
@@ -213,6 +229,7 @@ internal object RenderPipeline {
             throw e
         } catch (e: Exception) {
             if (e is ScriptEvaluationException) throw e
+            if (e is IllegalArgumentException) throw e
             throw IOException("Failed to write output file: ${e.message}", e)
         }
     }
@@ -225,6 +242,9 @@ internal object RenderPipeline {
         theme: KumlTheme,
         layoutEngineOverride: String? = null,
         latexStandalone: Boolean = false,
+        animated: Boolean = false,
+        traceFile: File? = null,
+        speed: Double = 1.0,
     ) {
         val diagram = extracted.diagram
         // V2.x — Connection-aware sizing braucht die Layout-Richtung, damit der
@@ -271,8 +291,54 @@ internal object RenderPipeline {
         val engine = pickEngine(diagram, layoutEngineOverride)
         val layoutResult: LayoutResult = engine.layout(layoutGraph, hints)
         when (format) {
-            "svg" -> KumlSvgRenderer.toSvgFile(diagram, layoutResult, output, theme)
+            "svg" -> {
+                when {
+                    animated && diagram.type == DiagramType.STATE -> {
+                        val sm = diagram.elements.filterIsInstance<dev.kuml.uml.UmlStateMachine>().firstOrNull()
+                        if (sm != null) {
+                            val trace = loadOrSynthesiseStmTrace(traceFile, sm)
+                            val svgOptions = SvgRenderOptions.DEFAULT
+                            val result =
+                                StmSmilRenderer.render(
+                                    diagram = diagram,
+                                    stateMachine = sm,
+                                    layoutResult = layoutResult,
+                                    theme = theme,
+                                    options = svgOptions,
+                                    trace = trace,
+                                    context = StmAnimationContext(speedFactor = SpeedFactor(speed)),
+                                )
+                            writeText(output, result.svg)
+                        } else {
+                            KumlSvgRenderer.toSvgFile(diagram, layoutResult, output, theme)
+                        }
+                    }
+                    animated && diagram.type == DiagramType.ACTIVITY -> {
+                        val actEdges = diagram.elements.filterIsInstance<dev.kuml.uml.UmlActivityEdge>()
+                        val trace = loadOrSynthesiseActivityTrace(traceFile, actEdges)
+                        val svgOptions = SvgRenderOptions.DEFAULT
+                        val result =
+                            ActivitySmilRenderer.render(
+                                diagram = diagram,
+                                activityEdges = actEdges,
+                                layoutResult = layoutResult,
+                                theme = theme,
+                                options = svgOptions,
+                                trace = trace,
+                                context = ActivityAnimationContext(speedFactor = SpeedFactor(speed)),
+                            )
+                        writeText(output, result.svg)
+                    }
+                    else -> KumlSvgRenderer.toSvgFile(diagram, layoutResult, output, theme)
+                }
+            }
             "png" -> {
+                // StaticSnapshotMode.STRIPPED is always correct for PNG: the KumlPngRenderer
+                // rasterises the static SVG produced by KumlSvgRenderer directly (no SMIL is
+                // injected into that path). If `animated=true` reaches here (bypassing the CLI
+                // guard), SMIL stripping is still guaranteed because SMIL is never generated for
+                // PNG — we only use the non-SMIL renderer branch. This comment documents the
+                // design intent so the guarantee is explicit rather than incidental.
                 val pngBytes =
                     KumlPngRenderer.toPng(diagram, layoutResult, theme, PngRenderOptions(widthPx = width))
                 writeBinary(output, pngBytes)
@@ -285,6 +351,72 @@ internal object RenderPipeline {
             else -> throw ScriptEvaluationException("Unsupported format: $format")
         }
     }
+
+    /**
+     * Loads a [TraceFile] from [file] or synthesises a demo STM trace over [sm]'s vertices.
+     * Demo mode emits [TraceEntry.StateEntered] for each vertex in declaration order.
+     */
+    private fun loadOrSynthesiseStmTrace(
+        file: File?,
+        sm: dev.kuml.uml.UmlStateMachine,
+    ): TraceFile =
+        if (file != null) {
+            TraceFileLoader.load(file)
+        } else {
+            // Demo mode: synthesise StateEntered for each vertex
+            val entries =
+                sm.vertices.mapIndexed { idx, vertex ->
+                    TraceEntry.StateEntered(
+                        seqNo = idx.toLong(),
+                        timestamp = "2026-01-01T00:00:${idx.toString().padStart(2, '0')}Z",
+                        vertexId = vertex.id,
+                    )
+                }
+            TraceFile(entries = entries)
+        }
+
+    /**
+     * Loads a [TraceFile] from [file] or synthesises a demo Activity trace over [edges].
+     * Demo mode emits [TraceEntry.TokenPlaced] for each edge source then target in order.
+     */
+    private fun loadOrSynthesiseActivityTrace(
+        file: File?,
+        edges: List<dev.kuml.uml.UmlActivityEdge>,
+    ): TraceFile =
+        if (file != null) {
+            TraceFileLoader.load(file)
+        } else {
+            // Demo mode: synthesise TokenPlaced for each edge sourceId then targetId in order.
+            // When `edges` is empty (e.g. an ACTIVITY diagram with only nodes and no
+            // UmlActivityEdge elements) there is nothing to animate.  Emit a diagnostic so the
+            // user understands why the SVG contains no SMIL animations instead of silently
+            // falling back to static output that looks identical to a non-animated render.
+            if (edges.isEmpty()) {
+                System.err.println(
+                    "[kuml] WARNING: --animated requested but no activity edges found in diagram. " +
+                        "Demo animation requires at least one edge (control flow or object flow). " +
+                        "Rendering static SVG without SMIL animations.",
+                )
+                return TraceFile(entries = emptyList())
+            }
+            val nodeIds =
+                buildList {
+                    for (edge in edges) {
+                        if (isEmpty() || last() != edge.sourceId) add(edge.sourceId)
+                        add(edge.targetId)
+                    }
+                }
+            val entries =
+                nodeIds.mapIndexed { idx, nodeId ->
+                    TraceEntry.TokenPlaced(
+                        seqNo = idx.toLong(),
+                        timestamp = "2026-01-01T00:00:${idx.toString().padStart(2, '0')}Z",
+                        nodeId = nodeId,
+                        clock = idx.toLong(),
+                    )
+                }
+            TraceFile(entries = entries)
+        }
 
     /**
      * SysML 2 render-Branch (V2.0.4 BDD, V2.0.6 IBD, V2.0.7 UC, V2.0.8 REQ,
@@ -312,6 +444,9 @@ internal object RenderPipeline {
         format: String,
         width: Int,
         theme: KumlTheme,
+        animated: Boolean = false,
+        traceFile: File? = null,
+        speed: Double = 1.0,
     ) {
         val model = extracted.model
         // SysML 2 uses ELK (same as all other diagram types)
@@ -396,12 +531,30 @@ internal object RenderPipeline {
                         spacing = Spacing(nodeToNode = 80f, edgeToEdge = 28f, groupPadding = 24f),
                     )
                 val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, stmHints)
+                val stmOptions = SvgRenderOptions(paddingPx = 64f)
                 when (format) {
-                    "svg" ->
-                        writeText(
-                            output,
-                            KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(paddingPx = 64f)),
-                        )
+                    "svg" -> {
+                        val baseSvg = KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, stmOptions)
+                        if (animated) {
+                            // Build UmlStateMachine via adapter for animation
+                            val umlSm =
+                                Sysml2StateMachineAdapter.toUmlStateMachine(model, diagram)
+                            val trace = loadOrSynthesiseStmTrace(traceFile, umlSm)
+                            val ctx = StmAnimationContext(speedFactor = SpeedFactor(speed))
+                            val result =
+                                StmSmilRenderer.renderWithBaseSvg(
+                                    baseSvg = baseSvg,
+                                    stateMachine = umlSm,
+                                    layoutResult = layoutResult,
+                                    options = stmOptions,
+                                    trace = trace,
+                                    context = ctx,
+                                )
+                            writeText(output, result.svg)
+                        } else {
+                            writeText(output, baseSvg)
+                        }
+                    }
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
                     "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")
@@ -429,12 +582,59 @@ internal object RenderPipeline {
                             ),
                     )
                 val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, actHints)
+                val actOptions = SvgRenderOptions(paddingPx = 64f)
                 when (format) {
-                    "svg" ->
-                        writeText(
-                            output,
-                            KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(paddingPx = 64f)),
-                        )
+                    "svg" -> {
+                        val baseSvg = KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, actOptions)
+                        if (animated) {
+                            // Build UmlActivityEdge list from model for path resolution
+                            val visible = diagram.elementIds.toSet()
+                            val actEdges =
+                                buildList<dev.kuml.uml.UmlActivityEdge> {
+                                    for (usage in model.usages) {
+                                        when (usage) {
+                                            is dev.kuml.sysml2.ControlFlowUsage ->
+                                                if (usage.sourceNodeId in visible && usage.targetNodeId in visible) {
+                                                    add(
+                                                        dev.kuml.uml.UmlActivityEdge(
+                                                            id = usage.id,
+                                                            sourceId = usage.sourceNodeId,
+                                                            targetId = usage.targetNodeId,
+                                                            isObjectFlow = false,
+                                                        ),
+                                                    )
+                                                }
+                                            is dev.kuml.sysml2.ObjectFlowUsage ->
+                                                if (usage.sourceNodeId in visible && usage.targetNodeId in visible) {
+                                                    add(
+                                                        dev.kuml.uml.UmlActivityEdge(
+                                                            id = usage.id,
+                                                            sourceId = usage.sourceNodeId,
+                                                            targetId = usage.targetNodeId,
+                                                            isObjectFlow = true,
+                                                        ),
+                                                    )
+                                                }
+                                            else -> Unit
+                                        }
+                                    }
+                                }
+                            val trace = loadOrSynthesiseActivityTrace(traceFile, actEdges)
+                            val ctx = ActivityAnimationContext(speedFactor = SpeedFactor(speed))
+                            val result =
+                                ActivitySmilRenderer.renderWithBaseSvg(
+                                    baseSvg = baseSvg,
+                                    activityEdges = actEdges,
+                                    layoutResult = layoutResult,
+                                    options = actOptions,
+                                    trace = trace,
+                                    context = ctx,
+                                )
+                            writeText(output, result.svg)
+                        } else {
+                            writeText(output, baseSvg)
+                        }
+                    }
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
                     "png" -> writeSysml2Png(model, diagram, layoutResult, theme, width, output)
                     else -> throw ScriptEvaluationException("Unsupported format: $format")

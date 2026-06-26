@@ -9,6 +9,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
+import com.github.ajalt.clikt.parameters.types.double
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
@@ -57,10 +58,22 @@ internal class RenderCommand : CliktCommand(name = "render") {
     private val animated by option(
         "--animated",
         help =
-            "Emit an animated SMIL SVG for BPMN diagrams when a trace file is supplied " +
-                "(wired in V3.1.31). Currently accepted as a flag but not yet threaded into " +
-                "the render pipeline.",
+            "Emit an animated SMIL SVG (SVG output only). Works with STATE (UML state machine) " +
+                "and ACTIVITY diagrams. Optionally supply --trace for trace-driven animation; " +
+                "without --trace a demo StateEntered/TokenPlaced sequence is synthesised. " +
+                "Not valid with --format=png or --format=latex.",
     ).flag()
+
+    private val traceFile by option(
+        "--trace",
+        help = "Path to a kuml.trace.v1 JSON file for trace-driven animation (requires --animated).",
+    ).file(mustExist = true, canBeDir = false)
+
+    private val speed by option(
+        "--speed",
+        help = "Playback speed multiplier for animation (default 1.0). Must be > 0. Requires --animated.",
+    ).double()
+        .default(1.0)
 
     private val latexStandalone by option(
         "--latex-standalone",
@@ -74,9 +87,13 @@ internal class RenderCommand : CliktCommand(name = "render") {
     override fun run() {
         try {
             val resolvedFormat = FormatResolver.resolve(format, output, input)
-            // --animated is only meaningful for SVG output (BPMN SMIL wiring in V3.1.31)
+            // --animated is only meaningful for SVG output
             if (animated && resolvedFormat != "svg") {
                 throw UsageError("--animated is only valid with --format=svg (current format: $resolvedFormat)")
+            }
+            // --speed must be positive
+            if (speed <= 0.0) {
+                throw UsageError("--speed must be greater than 0, got: $speed")
             }
             // --latex-standalone is only meaningful for latex output
             if (latexStandalone && resolvedFormat != "latex" && resolvedFormat != "tex") {
@@ -94,6 +111,9 @@ internal class RenderCommand : CliktCommand(name = "render") {
                 config,
                 layoutOverride,
                 latexStandalone,
+                animated = animated,
+                traceFile = traceFile,
+                speed = speed,
             )
             echo("Wrote $resolvedOutput")
         } catch (e: ScriptEvaluationException) {

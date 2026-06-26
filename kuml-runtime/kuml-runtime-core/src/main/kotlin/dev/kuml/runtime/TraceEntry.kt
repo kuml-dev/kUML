@@ -1,5 +1,6 @@
 package dev.kuml.runtime
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
@@ -26,6 +27,7 @@ public sealed class TraceEntry {
     public abstract val timestamp: String
 
     @Serializable
+    @SerialName("EventReceived")
     public data class EventReceived(
         override val seqNo: Long,
         override val timestamp: String,
@@ -34,6 +36,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("StateEntered")
     public data class StateEntered(
         override val seqNo: Long,
         override val timestamp: String,
@@ -41,6 +44,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("StateExited")
     public data class StateExited(
         override val seqNo: Long,
         override val timestamp: String,
@@ -48,6 +52,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("ActionInvoked")
     public data class ActionInvoked(
         override val seqNo: Long,
         override val timestamp: String,
@@ -58,6 +63,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("TransitionFired")
     public data class TransitionFired(
         override val seqNo: Long,
         override val timestamp: String,
@@ -67,6 +73,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("GuardEvaluated")
     public data class GuardEvaluated(
         override val seqNo: Long,
         override val timestamp: String,
@@ -76,6 +83,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("GuardWarning")
     public data class GuardWarning(
         override val seqNo: Long,
         override val timestamp: String,
@@ -85,6 +93,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("ActionError")
     public data class ActionError(
         override val seqNo: Long,
         override val timestamp: String,
@@ -93,6 +102,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("Stayed")
     public data class Stayed(
         override val seqNo: Long,
         override val timestamp: String,
@@ -100,6 +110,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("Terminated")
     public data class Terminated(
         override val seqNo: Long,
         override val timestamp: String,
@@ -109,6 +120,7 @@ public sealed class TraceEntry {
     // ── Activity-Runtime trace entries (V2.0.18) ──────────────────────────────
 
     @Serializable
+    @SerialName("TokenPlaced")
     public data class TokenPlaced(
         override val seqNo: Long,
         override val timestamp: String,
@@ -117,6 +129,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("TokenConsumed")
     public data class TokenConsumed(
         override val seqNo: Long,
         override val timestamp: String,
@@ -125,6 +138,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("DecisionTaken")
     public data class DecisionTaken(
         override val seqNo: Long,
         override val timestamp: String,
@@ -135,6 +149,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("ForkSplit")
     public data class ForkSplit(
         override val seqNo: Long,
         override val timestamp: String,
@@ -144,6 +159,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("JoinReached")
     public data class JoinReached(
         override val seqNo: Long,
         override val timestamp: String,
@@ -154,6 +170,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("ActivityActionInvoked")
     public data class ActivityActionInvoked(
         override val seqNo: Long,
         override val timestamp: String,
@@ -163,6 +180,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("FlowFinalConsumed")
     public data class FlowFinalConsumed(
         override val seqNo: Long,
         override val timestamp: String,
@@ -171,6 +189,7 @@ public sealed class TraceEntry {
     ) : TraceEntry()
 
     @Serializable
+    @SerialName("ActivityTerminated")
     public data class ActivityTerminated(
         override val seqNo: Long,
         override val timestamp: String,
