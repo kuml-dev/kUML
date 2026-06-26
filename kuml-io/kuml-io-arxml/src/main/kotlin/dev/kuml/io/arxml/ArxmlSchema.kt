@@ -79,6 +79,48 @@ public object ArxmlSchema {
     /** Stereotype applied to [dev.kuml.uml.UmlStateMachine] elements imported from BEHAVIOR-SPEC. */
     public const val STEREOTYPE_BEHAVIOR_SPEC: String = "BehaviorSpec"
 
+    // ── V3.1.35 — AUTOSAR Adaptive Platform element local-names ─────────────
+
+    /** Adaptive Platform: service instance manifest element. */
+    public const val ELEM_SERVICE_INSTANCE: String = "SERVICE-INSTANCE"
+
+    /** Adaptive Platform: adaptive application software component type element. */
+    public const val ELEM_ADAPTIVE_APPLICATION_SWC: String = "ADAPTIVE-APPLICATION-SW-COMPONENT-TYPE"
+
+    /** Adaptive Platform: machine design element. */
+    public const val ELEM_MACHINE_DESIGN: String = "MACHINE-DESIGN"
+
+    /** Adaptive Platform: service manifest element. */
+    public const val ELEM_SERVICE_MANIFEST: String = "SERVICE-MANIFEST"
+
+    /** Adaptive Platform: machine manifest element. */
+    public const val ELEM_MACHINE_MANIFEST: String = "MACHINE-MANIFEST"
+
+    /** Adaptive Platform: generic manifest element. */
+    public const val ELEM_MANIFEST: String = "MANIFEST"
+
+    // ── V3.1.35 — Adaptive Platform stereotype name constants ────────────────
+
+    /** Stereotype applied to Adaptive Application SW-Component elements. */
+    public const val STEREOTYPE_ADAPTIVE_APPLICATION: String = "AdaptiveApplication"
+
+    /** Stereotype applied to Machine Design elements. */
+    public const val STEREOTYPE_MACHINE: String = "Machine"
+
+    /** Stereotype applied to Service Instance elements. */
+    public const val STEREOTYPE_SERVICE_INSTANCE: String = "ServiceInstance"
+
+    /** Stereotype applied to Service/Machine Manifest elements. */
+    public const val STEREOTYPE_MANIFEST: String = "Manifest"
+
+    /**
+     * Returns `true` when the given schema-location token identifies an AUTOSAR Adaptive Platform schema.
+     *
+     * An Adaptive Platform schema label contains the substring `AP` (e.g. `AUTOSAR_AP_00052`).
+     * Classic Platform schema labels do NOT contain `AP` (e.g. `AUTOSAR_00051`).
+     */
+    public fun isAdaptiveSchemaLabel(label: String): Boolean = label.contains("AP")
+
     /**
      * Returns a JDOM2 [Namespace] for the given [ArxmlVersion].
      *
@@ -86,4 +128,12 @@ public object ArxmlSchema {
      * and future extensibility should the namespace ever change in a future AUTOSAR release.
      */
     public fun arNamespace(version: ArxmlVersion): Namespace = Namespace.getNamespace(version.namespaceUri)
+
+    /**
+     * Returns a JDOM2 [Namespace] for the given [ArxmlAdaptiveVersion].
+     *
+     * All Adaptive Platform releases share the same R4.x URI; this mirrors [arNamespace]
+     * for the Adaptive version enum.
+     */
+    public fun arNamespace(version: ArxmlAdaptiveVersion): Namespace = Namespace.getNamespace(version.namespaceUri)
 }

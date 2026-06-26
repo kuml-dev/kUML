@@ -14,6 +14,7 @@ dependencies {
     api(project(":kuml-metamodel:kuml-metamodel-uml"))
     implementation(project(":kuml-core:kuml-core-model"))
     implementation(project(":kuml-profile:kuml-profile-autosar"))
+    implementation(project(":kuml-metamodel:kuml-metamodel-sysml2"))
 
     // JDOM2 XML — JVM-only, NIEMALS in kuml-cli oder kuml-packaging einlinken
     implementation(libs.jdom2)

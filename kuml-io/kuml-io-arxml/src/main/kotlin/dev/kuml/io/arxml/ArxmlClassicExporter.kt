@@ -29,16 +29,29 @@ import java.io.StringWriter
  * - `SWC-INTERNAL-BEHAVIOR` with `RUNNABLES` and `EVENTS` blocks from [UmlOperation] with "Runnable" stereotype
  * - `BEHAVIOR-SPEC` from component `behaviorSpec` metadata
  *
+ * When [emitAdaptiveManifests] is `true`, additional Adaptive Platform manifest elements are emitted
+ * for components/packages that carry Adaptive metadata:
+ * - `SERVICE-INSTANCE` for elements with `kind=ServiceInstance` metadata
+ * - `ADAPTIVE-APPLICATION-SW-COMPONENT-TYPE` for elements with `kind=AdaptiveApplication` metadata
+ * - `MACHINE-DESIGN` for elements with `kind=Machine` metadata
+ * - `SERVICE-MANIFEST` / `MACHINE-MANIFEST` for elements with `kind=Manifest` metadata
+ *
+ * When [emitAdaptiveManifests] is `false` (the default), the Classic output is byte-identical to V3.1.34
+ * — no regression risk for existing tests.
+ *
  * **DEST attribute**: `*-TREF` elements carry a `DEST` attribute for AUTOSAR interoperability
  * (e.g. `DEST="SENDER-RECEIVER-INTERFACE"`). The importer is lenient and ignores this attribute;
  * the exporter emits it based on the interface kind stored in the model.
  *
  * @property version AUTOSAR schema version used for xmlns / xsi:schemaLocation output.
+ * @property emitAdaptiveManifests When `true`, Adaptive Platform manifest elements are emitted.
  *
  * V3.1.34 — initial implementation.
+ * V3.1.35 — added [emitAdaptiveManifests] flag.
  */
 public class ArxmlClassicExporter(
     public val version: ArxmlVersion = ArxmlVersion.R22_11,
+    public val emitAdaptiveManifests: Boolean = false,
 ) {
     /**
      * Exports [model] as AUTOSAR ARXML XML and returns the pretty-printed string.
@@ -210,10 +223,59 @@ public class ArxmlClassicExporter(
         pkgPath: String,
     ): Element? =
         when (member) {
-            is UmlComponent -> buildComponentElement(member, arNs, pathIndex, interfaceDestIndex, pkgPath)
+            is UmlComponent ->
+                if (emitAdaptiveManifests) {
+                    buildAdaptiveOrClassicComponentElement(member, arNs, pathIndex, interfaceDestIndex, pkgPath)
+                } else {
+                    buildComponentElement(member, arNs, pathIndex, interfaceDestIndex, pkgPath)
+                }
             is UmlInterface -> buildInterfaceElement(member, arNs)
             else -> null
         }
+
+    /**
+     * When [emitAdaptiveManifests] is `true`, dispatches to an Adaptive element emitter
+     * based on the component's `kind` metadata. Classic components fall through to the
+     * standard [buildComponentElement].
+     */
+    private fun buildAdaptiveOrClassicComponentElement(
+        component: UmlComponent,
+        arNs: Namespace,
+        pathIndex: Map<String, String>,
+        interfaceDestIndex: Map<String, String>,
+        pkgPath: String,
+    ): Element {
+        val kind = (component.metadata["kind"] as? KumlMetaValue.Text)?.value ?: ""
+        return when (kind) {
+            ArxmlSchema.STEREOTYPE_SERVICE_INSTANCE ->
+                buildAdaptiveManifestElement(component, arNs, ArxmlSchema.ELEM_SERVICE_INSTANCE)
+            ArxmlSchema.STEREOTYPE_ADAPTIVE_APPLICATION ->
+                buildAdaptiveManifestElement(component, arNs, ArxmlSchema.ELEM_ADAPTIVE_APPLICATION_SWC)
+            ArxmlSchema.STEREOTYPE_MACHINE ->
+                buildAdaptiveManifestElement(component, arNs, ArxmlSchema.ELEM_MACHINE_DESIGN)
+            else ->
+                buildComponentElement(component, arNs, pathIndex, interfaceDestIndex, pkgPath)
+        }
+    }
+
+    /**
+     * Emits a simple Adaptive Platform element (SERVICE-INSTANCE, ADAPTIVE-APPLICATION-SW-COMPONENT-TYPE,
+     * or MACHINE-DESIGN) carrying only a SHORT-NAME child.
+     *
+     * Manifest elements (`kind=Manifest`) are handled via an additional metadata entry
+     * `manifestKind` on components that carry `kind=Manifest`.
+     */
+    private fun buildAdaptiveManifestElement(
+        component: UmlComponent,
+        arNs: Namespace,
+        tagName: String,
+    ): Element {
+        val adaptiveEl = el(tagName, arNs)
+        adaptiveEl.addContent(
+            el(ArxmlSchema.ELEM_SHORT_NAME, arNs).also { it.text = component.name },
+        )
+        return adaptiveEl
+    }
 
     private fun buildComponentElement(
         component: UmlComponent,

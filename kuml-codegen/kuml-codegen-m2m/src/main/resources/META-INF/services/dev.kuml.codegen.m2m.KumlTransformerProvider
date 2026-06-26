@@ -3,3 +3,6 @@ dev.kuml.codegen.m2m.rest.UmlToRestTransformerProvider
 dev.kuml.codegen.m2m.k8s.UmlToK8sTransformerProvider
 dev.kuml.codegen.m2m.docker.UmlToDockerTransformerProvider
 dev.kuml.codegen.m2m.c4.C4ToUmlTransformerProvider
+
+dev.kuml.codegen.m2m.arxml.ArxmlToSysml2TransformerProvider
+dev.kuml.codegen.m2m.arxml.Sysml2ToArxmlTransformerProvider

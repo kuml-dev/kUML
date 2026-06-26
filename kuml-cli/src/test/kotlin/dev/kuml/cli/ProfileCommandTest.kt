@@ -27,9 +27,9 @@ class ProfileCommandTest :
             ProfileRegistry.clear()
         }
 
-        // ── Test 1: kuml profile list shows 5 built-in profiles ──────────────────
+        // ── Test 1: kuml profile list shows 6 built-in profiles ──────────────────
 
-        test("profile list shows all 5 built-in profiles") {
+        test("profile list shows all 6 built-in profiles") {
             val result = KumlCli().test("profile list")
             result.statusCode shouldBe 0
             result.output shouldContain "dev.kuml.profiles.soaml"
@@ -37,11 +37,12 @@ class ProfileCommandTest :
             result.output shouldContain "dev.kuml.profiles.spring"
             result.output shouldContain "dev.kuml.profiles.openapi"
             result.output shouldContain "dev.kuml.profiles.autosar"
+            result.output shouldContain "dev.kuml.profiles.autosar.adaptive"
         }
 
         // ── Test 2: kuml profile list --output json produces valid JSON ──────────
 
-        test("profile list --output json produces valid JSON with all 5 profiles") {
+        test("profile list --output json produces valid JSON with all 6 profiles") {
             val result = KumlCli().test("profile list --output json")
             result.statusCode shouldBe 0
 
@@ -51,7 +52,7 @@ class ProfileCommandTest :
                 json.jsonObject["profiles"]?.jsonArray
                     ?: error("Expected 'profiles' array in JSON output")
 
-            profiles.size shouldBe 5
+            profiles.size shouldBe 6
 
             // Each entry must have a namespace field
             val namespaces = profiles.map { it.jsonObject["namespace"]?.toString()?.trim('"') ?: "" }
@@ -60,6 +61,7 @@ class ProfileCommandTest :
             namespaces shouldContain "dev.kuml.profiles.spring"
             namespaces shouldContain "dev.kuml.profiles.openapi"
             namespaces shouldContain "dev.kuml.profiles.autosar"
+            namespaces shouldContain "dev.kuml.profiles.autosar.adaptive"
         }
 
         // ── Test 3: kuml profile show javaee shows 4 stereotypes ────────────────
