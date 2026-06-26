@@ -1,0 +1,162 @@
+= SMIL Animation
+:description: Produce animated SVG diagrams from execution traces with --animated.
+
+kUML can render any state machine or BPMN process diagram as an *animated SVG* — a
+single file that plays back the model's execution trace in the browser or any SVG
+viewer. No JavaScript, no external assets: the animation is pure SMIL, embedded
+directly in the SVG.
+
+== Quick start
+
+[source,bash]
+----
+# 1. Run the state machine and capture the trace
+kuml simulate order-lifecycle.kuml.kts \
+    --events events.json \
+    --output order-lifecycle.trace.json
+
+# 2. Render the animated SVG
+kuml render order-lifecycle.kuml.kts \
+    --animated order-lifecycle.trace.json \
+    --format svg \
+    --output order-lifecycle-animated.svg
+----
+
+Open the resulting file in any modern browser — the token moves through the diagram
+according to the captured trace.
+
+The same workflow works for BPMN:
+
+[source,bash]
+----
+kuml simulate membership-process.kuml.kts \
+    --events member-events.json \
+    --output membership.trace.json
+
+kuml render membership-process.kuml.kts \
+    --animated membership.trace.json \
+    --format svg
+----
+
+== Trace format (`kuml.trace.v1`)
+
+The trace file is a JSON document produced by `kuml simulate`. It is the *single source
+of truth* for the animation — the renderer reads the trace and derives all timing from
+it without running the machine again.
+
+[source,json]
+----
+{
+  "schema": "kuml.trace.v1",
+  "machine": "Order",
+  "entries": [
+    {"type": "Initialised",    "vertex": "start"},
+    {"type": "Transitioned",   "trigger": null, "from": "start", "to": "draft"},
+    {"type": "Entered",        "vertex": "draft"},
+    {"type": "EventReceived",  "event": {"name": "confirm"}},
+    {"type": "Transitioned",   "trigger": "confirm", "from": "draft", "to": "confirmed"},
+    {"type": "Exited",         "vertex": "draft"},
+    {"type": "Entered",        "vertex": "confirmed"},
+    {"type": "Terminated"}
+  ]
+}
+----
+
+For BPMN, the relevant entry types are `TokenPlaced`, `TokenConsumed`, and
+`DecisionTaken`. These map to token circle animations along sequence-flow paths.
+
+Read traces programmatically with:
+
+[source,kotlin]
+----
+val traceFile = KumlRuntimeJson.decodeFromString(TraceFile.serializer(), json)
+----
+
+== Animation elements
+
+[cols="1,3"]
+|===
+| Diagram type | Animation elements
+
+| *UML State Machine*
+| Highlight overlay `<rect>` per active state (id: `smil-stm-hl-<vertexId>`);
+  `<path>` overlay per fired transition; opacity-pulse reveals each element at the
+  correct instant.
+
+| *SysML 2 STM*
+| Same overlay scheme as UML STM — `StmSmilRenderer` handles both metamodels.
+
+| *UML Activity*
+| Token `<circle>` elements travel along action-flow edges using `<animateMotion>`.
+  Fork/join and decision nodes animate in sequence.
+
+| *BPMN Process*
+| Token `<circle>` elements follow sequence-flow `<path>`s via `<animateMotion>`.
+  Gateway highlights use `<animate attributeName="fill">`.
+  Task activation uses a stroke-width pulse; start/end events dim on completion.
+|===
+
+NOTE: Per ADR-0014, `<animateColor>` is never emitted — `<animate attributeName="fill">`
+is used instead (deprecated in SVG 1.2, removed in SVG 2.0).
+
+== Speed control
+
+Scale the entire timeline with `--speed`:
+
+[source,bash]
+----
+kuml render machine.kuml.kts \
+    --animated trace.json \
+    --speed 2.0 \
+    --output fast.svg
+----
+
+`SpeedFactor` is type-safe — values < 0.1 or > 20.0 are rejected with a clear error.
+The default speed factor is `1.0`.
+
+== Static fallback
+
+When `--animated` is omitted, or when the trace produces no animations, the renderer
+falls back to a static SVG that is byte-identical to the output of `kuml render` without
+`--animated`. This guarantees that switching animation on/off does not change the diagram
+layout.
+
+You can also strip SMIL elements from an existing animated SVG:
+
+[source,kotlin]
+----
+import dev.kuml.io.smil.SmilEmitter
+import dev.kuml.io.smil.StaticSnapshotMode
+
+val staticSvg = SmilEmitter.inject(animatedSvg, timeline = null, mode = StaticSnapshotMode.STRIPPED)
+----
+
+`STRIPPED` removes every `<animate*>` and `<set >` element and suppresses injection of
+new ones — safe for PNG rendering pipelines.
+
+== Embedding the renderers
+
+[source,kotlin]
+----
+import dev.kuml.io.smil.BpmnSmilRenderer
+import dev.kuml.io.smil.StmSmilRenderer
+
+// BPMN animated SVG
+val bpmnSvg = BpmnSmilRenderer().render(bpmnDiagram, traceFile, speedFactor = 1.0)
+
+// UML / SysML 2 State Machine animated SVG
+val stmSvg = StmSmilRenderer().render(stmDiagram, traceFile, speedFactor = 1.0)
+----
+
+Both renderers are in `kuml-io/kuml-render-smil` (`dev.kuml:kuml-render-smil`).
+
+== Browser compatibility
+
+Animated kUML SVGs play back in all evergreen browsers (Chrome 88+, Firefox 63+,
+Safari 13.1+). The `<animateMotion>` and `<animate>` elements used are part of the
+SVG/SMIL subset that all major browsers support. Internet Explorer is not supported.
+
+== See also
+
+* xref:simulate.adoc[State-Machine Simulation] — how to produce traces
+* xref:bpmn-dsl.adoc[BPMN 2.0 DSL] — authoring BPMN process models

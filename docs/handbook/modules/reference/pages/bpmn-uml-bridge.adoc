@@ -1,0 +1,163 @@
+= BPMN ⇌ UML Activity Bridge
+:description: Model-to-model transformation between BPMN Process and UML Activity diagrams.
+
+The `kuml-transform-bpmn-to-uml` module provides a bidirectional model-to-model (M2M)
+bridge between BPMN Process models and UML Activity diagrams. Both share the same
+Petri-net / token-flow foundation (ADR-0015), making a structurally lossless bridge
+possible for the common subset.
+
+== CLI usage
+
+[source,bash]
+----
+# BPMN → UML Activity
+kuml transform membership-process.kuml.kts \
+    --from bpmn \
+    --to uml-activity \
+    --output membership-activity.kuml.kts
+
+# UML Activity → BPMN
+kuml transform order-activity.kuml.kts \
+    --from uml-activity \
+    --to bpmn \
+    --output order-process.kuml.kts
+----
+
+`--from bpmn` / `--to uml-activity` are sugar for
+`--transformer bpmn-to-uml-activity` and `--transformer uml-activity-to-bpmn`.
+
+== Element mapping
+
+[cols="1,1,2"]
+|===
+| BPMN | UML Activity | Notes
+
+| `BpmnTask`
+| `ACTION`
+| Name preserved.
+
+| `startEvent`
+| `INITIAL`
+| One per process.
+
+| `endEvent`
+| `ACTIVITY_FINAL`
+| Multiple end events produce multiple `ACTIVITY_FINAL` nodes.
+
+| `exclusiveGateway` (split)
+| `DECISION`
+| `conditionExpression` → edge `guard`.
+
+| `exclusiveGateway` (join)
+| `MERGE`
+| Detected by multiple incoming, single outgoing.
+
+| `parallelGateway` (split)
+| `FORK`
+|
+
+| `parallelGateway` (join)
+| `JOIN`
+|
+
+| `inclusiveGateway`
+| `DECISION` (best-effort)
+| Marked in metadata; no direct UML equivalent.
+
+| Mixed gateway (multiple incoming AND outgoing)
+| `MERGE` + `DECISION` pair
+| Shared `"bpmn.sourceId"` metadata enables reverse collapse.
+
+| `conditionExpression`
+| Edge `guard`
+|
+|===
+
+== Roundtrip fidelity
+
+A BPMN → UML Activity → BPMN roundtrip is structurally lossless for the elements in the
+table above. The bridge collapses `DECISION + MERGE` and `FORK + JOIN` pairs that share
+the same `"bpmn.sourceId"` metadata back into the original MIXED gateway.
+
+What is **not** preserved:
+
+* Pool / Lane → ActivityPartition is best-effort. Lane names are recorded in the node
+  metadata key `"uml.partition"` and emitted as Kotlin comments. The kUML UML Activity
+  metamodel has no PARTITION node kind.
+* BPMN `MessageFlow` between pools — no UML Activity equivalent.
+* Boundary events — not supported by the bridge.
+
+== Library API
+
+[source,kotlin]
+----
+import dev.kuml.transform.bpmnuml.BpmnUmlBridgeRegistry
+import dev.kuml.codegen.m2m.TransformRegistry
+import dev.kuml.codegen.m2m.TransformResult
+
+// Register transformers (or rely on ServiceLoader in CLI / Fat-JAR)
+BpmnUmlBridgeRegistry.registerAll(TransformRegistry.global())
+
+// BPMN → UML Activity
+val result = TransformRegistry.global()
+    .transform("bpmn-to-uml-activity", bpmnProcess)
+when (result) {
+    is TransformResult.Success -> println(result.script)  // kUML DSL script
+    is TransformResult.Failure -> println(result.message)
+}
+----
+
+In a non-CLI context (e.g. a Gradle plugin or an embedded use), call
+`BpmnUmlBridgeRegistry.registerAll()` explicitly — the CLI loads providers via
+`ServiceLoader` automatically.
+
+== Example
+
+BPMN input (PdV membership application process):
+
+[source,kotlin]
+----
+bpmnModel("PdV Mitgliedsantrag") {
+    process(id = "p", name = "Mitgliedsantrag") {
+        val start    = startEvent("Antrag eingegangen")
+        val pruefung = task("Antrag prüfen", type = TaskType.USER)
+        val gw       = exclusiveGateway("Vollständig?")
+        val nachf    = task("Nachforderung senden", type = TaskType.SEND)
+        val bestaet  = task("Bestätigung senden", type = TaskType.SEND)
+        val ende     = endEvent("Abgeschlossen")
+
+        start flowsTo pruefung flowsTo gw
+        gw.flowsTo(bestaet, condition = "Ja") flowsTo ende
+        gw.flowsTo(nachf,   condition = "Nein") flowsTo pruefung
+    }
+}
+----
+
+Transformed UML Activity output:
+
+[source,kotlin]
+----
+activityDiagram(name = "PdV Mitgliedsantrag") {
+    val start    = initial("Antrag eingegangen")
+    val pruefung = action("Antrag prüfen")
+    val gw       = decision("Vollständig?")
+    val merge    = merge()
+    val nachf    = action("Nachforderung senden")
+    val bestaet  = action("Bestätigung senden")
+    val ende     = activityFinal("Abgeschlossen")
+
+    flow(start, pruefung)
+    flow(pruefung, merge)
+    flow(merge, gw)
+    flow(gw, bestaet, guard = "Ja")
+    flow(gw, nachf,   guard = "Nein")
+    flow(nachf, merge)
+    flow(bestaet, ende)
+}
+----
+
+== See also
+
+* xref:bpmn-dsl.adoc[BPMN 2.0 DSL] — authoring BPMN process models
+* xref:uml-dsl.adoc[UML DSL] — Activity diagram DSL reference
+* xref:codegen.adoc[Code Generation] — other M2M transformers (`uml-to-jpa`, `uml-to-rest`, …)

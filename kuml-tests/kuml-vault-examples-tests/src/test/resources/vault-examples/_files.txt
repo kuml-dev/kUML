@@ -12,6 +12,7 @@
 08 STM animiert – Traffic Light.md
 08 SysML 2 REQ – Vehicle Requirements.md
 09 C4 Landscape – Enterprise Banking.md
+10 BPMN zu UML-Aktivität – PdV Prozess.md
 10 UML Objekt – Order Snapshot.md
 11 UML Paket – Domain Modules.md
 12 UML Component – Order Architecture.md
@@ -37,3 +38,4 @@
 32 BPMN Collaboration – Customer und Supplier.md
 33 Blueprint – PdV Mitglieder-Journey.md
 34 User Journey – PdV Mitglieder-Journey.md
+35 AUTOSAR Classic – SW-Komponenten.md

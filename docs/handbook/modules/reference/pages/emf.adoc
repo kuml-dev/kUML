@@ -1,0 +1,126 @@
+= EMF / XMI I/O
+:description: Import and export Eclipse UML2 XMI and UML profiles with kuml-io-emf.
+
+The `kuml-io-emf` module provides bidirectional exchange with the Eclipse Modeling
+Framework (EMF) UML2 format. It covers two independent capabilities:
+
+. *Model XMI* — import/export of UML class models as `.uml` XMI files.
+. *Profile XMI* — import/export of kUML profiles as `.profile.uml` XMI files (v0.20.0).
+
+Both are JVM-only and loaded via reflection. They work with Enterprise Architect, Papyrus,
+and MagicDraw.
+
+== Model XMI (`.uml`)
+
+=== Export
+
+[source,bash]
+----
+kuml export model.kuml.kts --format xmi --output model.uml
+----
+
+Writes a `uml:Model` root element in Eclipse UML2 XMI format. Supported elements:
+Class, Interface, Enumeration, Association, Generalization, InterfaceRealization,
+Dependency.
+
+=== Import
+
+[source,bash]
+----
+kuml reverse --format xmi model.uml --output model.kuml.kts
+----
+
+Reads a `uml:Model` XMI and emits a `classDiagram { ... }` script.
+
+=== Library API
+
+[source,kotlin]
+----
+import dev.kuml.io.emf.XmiExporter
+import dev.kuml.io.emf.XmiImporter
+
+// Export
+XmiExporter().export(kumlModel, File("model.uml"))
+
+// Import
+val model: KumlModel = XmiImporter().import(File("model.uml"))
+----
+
+== Profile XMI (`.profile.uml`)
+
+v0.20.0 extends `kuml-io-emf` with bidirectional profile exchange using the standard
+Eclipse UML2 `uml:Profile` root element.
+
+=== Export a profile to XMI
+
+[source,bash]
+----
+kuml export autosar-profile.kuml.kts --format profile-uml --output autosar.profile.uml
+----
+
+The script must evaluate to a `KumlProfile` as its last expression. The profile is
+written by `ProfileXmiExporter` to a `.profile.uml` file with a `uml:Profile` root.
+
+=== Import a profile from XMI
+
+[source,kotlin]
+----
+import dev.kuml.io.emf.ProfileXmiImporter
+
+val result = ProfileXmiImporter().importResult(File("autosar.profile.uml"))
+when (result) {
+    is ProfileResult.Success -> println(result.profile.name)
+    is ProfileResult.Failure -> println(result.message)
+}
+----
+
+`importResult` catches all `Throwable` and wraps failures in `ProfileResult.Failure` —
+useful when the file origin is external (CI artifact, partner toolchain).
+
+=== Roundtrip
+
+[source,kotlin]
+----
+import dev.kuml.io.emf.ProfileXmiExporter
+import dev.kuml.io.emf.ProfileXmiImporter
+
+val original: KumlProfile = autosarProfile()
+
+ProfileXmiExporter().export(original, File("out.profile.uml"))
+
+val roundTripped = ProfileXmiImporter().importResult(File("out.profile.uml"))
+    as ProfileResult.Success
+----
+
+A roundtrip preserves stereotype names, `targetMetaclass`, required/default/min tag
+properties, and profile namespace / version.
+
+NOTE: Eclipse metaclass proxies require `org.eclipse.uml2.uml.resources`, which is not
+available on Maven Central. kUML encodes the metaclass as a sentinel attribute
+`_kuml_metaclass_<Name>` and recovers it on import — this means `.profile.uml` files
+produced by kUML are not directly loadable by the Eclipse P2 toolchain without the UML
+Resources bundle.
+
+=== What round-trips
+
+[cols="1,1"]
+|===
+| Preserved | Limitation
+
+| Stereotype names and `targetMetaclass`
+| Enum-typed tag properties fall back to `String::class` (enum class may not be on classpath at import time)
+
+| Tag properties: name, type, required, default, min
+| `BehaviorSpec` stereotypes map to `UmlClass` on import
+
+| Profile namespace, version, description
+| Eclipse-specific EAnnotations not produced by kUML are ignored
+
+| `extendsProfiles` list
+| —
+|===
+
+== See also
+
+* xref:profiles.adoc[Profiles] — authoring profiles in the kUML DSL
+* xref:arxml.adoc[AUTOSAR / ARXML I/O] — AUTOSAR Classic toolchain exchange

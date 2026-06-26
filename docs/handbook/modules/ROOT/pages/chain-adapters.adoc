@@ -223,6 +223,101 @@ kuml simulate escrow.kuml.kts \
 kuml simulate escrow.kuml.kts --adapter wasm --dry-run
 ----
 
+== EVM chain adapter (`kuml-runtime-chain-evm`)
+
+The EVM adapter connects the `kuml run` interactive execution command to any
+EVM-compatible blockchain (Ethereum, Polygon, Arbitrum, Base, …) that exposes a
+standard JSON-RPC endpoint.
+
+[NOTE]
+====
+The EVM adapter is JVM-only (`web3j` dependency) and is included in the Fat-JAR CLI
+but not in the Native Image. It is discovered at runtime via ServiceLoader.
+====
+
+=== Dependency
+
+[source,kotlin,subs="attributes+"]
+----
+dependencies {
+    implementation("dev.kuml:kuml-runtime-chain-evm:{kuml-version}")
+}
+----
+
+=== CLI usage
+
+[source,bash]
+----
+# Replay events from block 18000000 onwards
+kuml run order-lifecycle.kuml.kts \
+    --adapter chain-evm \
+    --rpc https://mainnet.infura.io/v3/<PROJECT_ID> \
+    --contract 0xAbCd…1234 \
+    --from-block 18000000
+
+# Subscribe to live events (no --from-block)
+kuml run order-lifecycle.kuml.kts \
+    --adapter chain-evm \
+    --rpc https://rpc.ankr.com/eth \
+    --contract 0xAbCd…1234 \
+    --chain-id 1
+----
+
+Options:
+
+[cols="1,3"]
+|===
+| Option | Description
+
+| `--rpc <url>`
+| JSON-RPC endpoint (`http://` or `https://` only). Private-range IPs rejected (SSRF guard).
+
+| `--contract <address>`
+| Contract address — 40 hex characters, optional `0x` prefix (normalised automatically).
+
+| `--from-block <n>`
+| Replay events from block `n`. Without this flag, subscribes to live events.
+
+| `--chain-id <n>`
+| Optional chain ID for disambiguation (default: auto-detected from the RPC endpoint).
+|===
+
+=== Hash verification
+
+Before streaming events, the adapter reads the on-chain `modelHash` from the contract
+and compares it against the SHA-256 hash of the local `.kuml.kts` script. On mismatch:
+
+[source]
+----
+Error: on-chain model hash does not match local script (exit code 50 CHAIN_HASH_MISMATCH).
+----
+
+This ensures the running model matches what was deployed to the chain.
+
+=== Exit codes
+
+[cols="1,1,2"]
+|===
+| Code | Name | Meaning
+
+| `50`
+| `CHAIN_HASH_MISMATCH`
+| On-chain `modelHash` differs from the local script hash.
+
+| `51`
+| `CHAIN_CONNECT_ERROR`
+| RPC connection failed, timeout, or a chain reorganisation was detected.
+|===
+
+=== Security
+
+* `EvmUrlValidator` enforces `http`/`https` only; rejects RFC-1918 subnets
+  (10.x, 172.16–31.x, 192.168.x), loopback (127.x, ::1), and APIPA (169.254.x.x).
+* `EvmJsonRpcClient` applies per-request timeouts (connect 5 s, read 10 s) and a
+  4 MB response-size cap to prevent memory exhaustion from malicious RPC nodes.
+* The live-subscribe `Flow` is bounded by `takeWhile { !manager.isTerminated }` to
+  prevent goroutine leaks when the session is shut down.
+
 == Shared adapter features
 
 Both adapters support:

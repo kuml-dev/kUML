@@ -158,6 +158,85 @@ kuml {
 `kumlGenerate` writes to `${buildDir}/kuml/generated/` by default. Configure
 `outputDir.dir("generated")` to override.
 
+== C++ and C# code generation
+
+kUML ships two optional codegen plugins for native languages:
+
+[cols="1,2,3"]
+|===
+| Plugin id | Module | Output
+
+| `cpp`
+| `kuml-gen-cpp`
+| ISO C++ 17 header (`.hpp`) + implementation stub (`.cpp`) per class
+
+| `csharp`
+| `kuml-gen-csharp`
+| C# 10 `.cs` file per class, auto-properties, nullable annotations
+|===
+
+[source,bash]
+----
+kuml generate model.kuml.kts \
+    --plugin cpp \
+    --namespace com::example::domain \
+    --output gen/
+
+kuml generate model.kuml.kts \
+    --plugin csharp \
+    --namespace Example.Domain \
+    --output gen/
+----
+
+The C++ generator produces one `.hpp` / `.cpp` pair per `UmlClass`. Forward declarations
+handle circular includes; `enum class` maps to `UmlEnumeration`; `virtual` methods with
+`= 0` stub operations on abstract classes. The C# generator emits idiomatic C# 10:
+`record` for value objects (no mutable attributes), `class` otherwise; `List<T>` for
+`1..*` multiplicities; nullable reference types (`T?`) for optional attributes.
+
+== C++ and C# reverse engineering
+
+`kuml reverse` reconstructs a UML class diagram from existing C++ or C# source code:
+
+[source,bash]
+----
+# C# — reads all *.cs files in the directory tree
+kuml reverse --format csharp ./src/ --output model.kuml.kts
+
+# C++ — reads all *.hpp / *.h / *.cpp files
+kuml reverse --format cpp ./include/ --output model.kuml.kts
+----
+
+Both plugins ship as example plugins under `kuml-plugin-examples/`:
+
+[cols="1,2"]
+|===
+| Plugin | Module
+
+| `plugin-reverse-csharp`
+| `kuml-plugin-examples/plugin-reverse-csharp`
+
+| `plugin-reverse-cpp`
+| `kuml-plugin-examples/plugin-reverse-cpp`
+|===
+
+The C# reverse engine (`CsharpReverseEngine`) is a handwritten four-phase structural
+parser — no ANTLR dependency. It handles:
+
+* File-scoped namespaces (`namespace X.Y;`) and block namespaces.
+* `class`, `abstract class`, `sealed class`, `static class`, `interface`, `struct`, `record`, `enum`.
+* Auto-properties (`T Name { get; set; }`), methods, fields, readonly fields.
+* Generic types: `List<T>`, `IEnumerable<T>`, `T[]`, `Dictionary<K,V>`, `HashSet<T>`.
+* Base list classification: exact known-interface set first, then `I`-prefix heuristic.
+
+Safety limits: 10 MB per file, 2000 files per run, symlink-escape guard.
+
+The C++ reverse engine uses the same structural approach, parsing headers for class and
+struct declarations, method signatures, and inheritance lists.
+
+Register the plugins via `META-INF/services` in the standard plugin loader way, or
+pass `--plugin-jar plugin-reverse-csharp.jar` on the CLI.
+
 == Authoring a custom generator
 
 Implement `KumlCodeGenerator` and provide a `KumlCodeGeneratorProvider`:

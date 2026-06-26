@@ -99,13 +99,13 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 | `sdk install kuml` — *not available yet*; SDKMAN! vendor onboarding (API keys) is still pending. Planned platforms: Linux x86_64, Linux ARM64, macOS, Windows x86_64. Use Homebrew or the native installers in the meantime.
 
 | *Docker*
-| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.19.0` — minimal CLI image.
+| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.20.0` — minimal CLI image.
 
 | *Native installers*
-| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.19.0). Download from the GitHub Releases page.
+| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.20.0). Download from the GitHub Releases page.
 
 | *Maven Central* (library modules)
-| `implementation("dev.kuml:kuml-core-dsl:0.19.0")` — library modules published to Maven Central.
+| `implementation("dev.kuml:kuml-core-dsl:0.20.0")` — library modules published to Maven Central.
 |===
 
 == Features
@@ -182,6 +182,24 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 
 | *Outer UML Diagram Frame*
 | All 33 diagram types now render with a standard outer UML frame (rectangle with a name tab in the top-left corner), consistent with the UML 2.x notation specification. (v0.19.0)
+
+| *SMIL Animation (`--animated`)*
+| Render any state machine (UML STM, SysML 2 STM, UML Activity) or BPMN process diagram as an animated SVG that plays back an execution trace in the browser. Pure SMIL — no JavaScript. `BpmnSmilRenderer`, `StmSmilRenderer`, `ActivitySmilRenderer` in `kuml-render-smil`. `--speed` factor, `StaticSnapshotMode.STRIPPED` for PNG pipelines. (v0.20.0)
+
+| *AUTOSAR / ARXML I/O*
+| `kuml export --format arxml` writes AUTOSAR Classic ARXML R22-11 from any `componentDiagram` or `UmlPackage`-returning script. `kuml reverse --format arxml ./dir/` imports and merges multiple `.arxml` files with recursive package deduplication. Supports R19-11 through R23-11 schema versions. (v0.20.0)
+
+| *C# Reverse Engineering*
+| `kuml reverse --format csharp` reconstructs a UML class diagram from C# 10 source. Handwritten four-phase structural parser: strip preprocessor / strings / comments, tokenise. Supports class/interface/struct/record/enum, auto-properties, generic collections, file-scoped namespaces, base-list classification. Safety limits: 10 MB/file, 2000 files/run. (v0.20.0)
+
+| *EMF Profile Conversion*
+| `kuml export --format profile-uml` writes a `KumlProfile` to a `.profile.uml` XMI file (Eclipse UML2 `uml:Profile` root). `ProfileXmiImporter` reads it back. Round-trip preserves stereotype names, metaclass, tag properties, namespace, and version. (v0.20.0)
+
+| *EVM Chain Adapter (`kuml run --adapter chain-evm`)*
+| Connect `kuml run` interactive sessions to any EVM-compatible blockchain (Ethereum, Polygon, Arbitrum, …) via JSON-RPC. Verifies on-chain `modelHash` against the local script before streaming events. `--from-block` replays history; without it, subscribes to live events. SSRF-safe URL validation, HTTP timeouts, 4 MB response cap, `CHAIN_HASH_MISMATCH` (50) and `CHAIN_CONNECT_ERROR` (51) exit codes. (v0.20.0)
+
+| *BPMN ⇌ UML Activity M2M Bridge*
+| `kuml transform --from bpmn --to uml-activity` converts a `BpmnProcess` to a kUML Activity diagram script and vice versa. Bidirectional: `BpmnToUmlActivityTransformer` / `UmlActivityToBpmnTransformer`. Mixed gateways (multiple-in AND multiple-out) are split into MERGE+DECISION or JOIN+FORK pairs sharing a `"bpmn.sourceId"` metadata key for lossless round-trip reconstruction. (v0.20.0)
 |===
 
 == UML 2.x Support

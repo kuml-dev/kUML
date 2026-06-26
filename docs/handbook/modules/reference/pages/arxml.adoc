@@ -1,0 +1,159 @@
+= AUTOSAR / ARXML I/O
+:description: Import and export AUTOSAR Classic ARXML R22-11 with kuml-io-arxml.
+
+The `kuml-io-arxml` module reads and writes AUTOSAR Classic ARXML (R19-11 through
+R23-11). It bridges the gap between the kUML component and class diagram DSL and the
+AUTOSAR toolchain used in automotive embedded-software projects.
+
+[NOTE]
+====
+ARXML I/O is a *JVM-only* module loaded via reflection. It is included in the Fat-JAR
+(`kuml-cli-fat.jar`) but not in the Native Image CLI. Degradation to exit code `24`
+(`FORMAT_NOT_AVAILABLE`) occurs on GraalVM Native Image.
+====
+
+== CLI export
+
+[source,bash]
+----
+kuml export brake-assist.kuml.kts --format arxml
+# writes brake-assist.arxml
+
+kuml export brake-assist.kuml.kts --format arxml -o out/brake-assist.arxml
+----
+
+The script must either:
+
+* define a `componentDiagram { ... }` — elements are wrapped in a synthetic `AR-PACKAGE`.
+* evaluate to a `UmlPackage` root — the package tree is preserved as a `AR-PACKAGES`
+  hierarchy.
+
+Unsupported diagram types (C4, SysML 2, BPMN, Blueprint) are rejected with a clear
+`SCRIPT_ERROR` message.
+
+== CLI import (reverse)
+
+[source,bash]
+----
+kuml reverse --format arxml ./arxml-dir/ -o model.kuml.kts
+----
+
+Reads every `*.arxml` file in `arxml-dir/` (sorted alphabetically), imports each via
+`ArxmlClassicImporter`, and merges them into a single `KumlModel` — packages with the
+same `AR-PACKAGE` name across files are merged recursively to avoid duplicate
+declarations.
+
+Exit codes:
+
+* `0` — success, output script written.
+* `REVERSE_NO_SOURCES` — the directory contains no `.arxml` files.
+
+== Supported ARXML elements
+
+[cols="1,2"]
+|===
+| ARXML element | kUML mapping
+
+| `AR-PACKAGE`
+| `UmlPackage` (nested hierarchy preserved)
+
+| `APPLICATION-SW-COMPONENT-TYPE`
+| `UmlClass` with `«SoftwareComponent»` stereotype, `kind = Application`
+
+| `COMPOSITION-SW-COMPONENT-TYPE`
+| `UmlClass` with `«SoftwareComponent»` stereotype, `kind = Composition`
+
+| `SENSOR-ACTUATOR-SW-COMPONENT-TYPE`
+| `UmlClass` with `«SoftwareComponent»` stereotype, `kind = SensorActuator`
+
+| `P-PORT-PROTOTYPE` / `R-PORT-PROTOTYPE`
+| `UmlPort` with `«AutosarPort»` stereotype, direction `Provided` / `Required`
+
+| `CLIENT-SERVER-INTERFACE` / `SENDER-RECEIVER-INTERFACE`
+| `UmlInterface` with `«ComInterface»` stereotype, `version` from `ADMIN-DATA`
+
+| `RUNNABLE-ENTITY`
+| `UmlOperation` with `«Runnable»` stereotype, `kind`, `periodMs`
+
+| `ASSEMBLY-SW-CONNECTOR`
+| `UmlAssociation` between `UmlPort` instances (delegation connectors)
+|===
+
+AUTOSAR Adaptive Platform elements (`SERVICE-MANIFEST`, `MACHINE-MANIFEST`) are parsed
+and round-tripped, but map to `UmlPackage`/`UmlClass` with `«BehaviorSpec»` stereotypes
+rather than distinct metamodel classes.
+
+== Roundtrip guarantee
+
+The exporter writes R22-11 schema-labelled ARXML. A full roundtrip
+(import → export → import) preserves:
+
+* All SWC types, port names and directions.
+* Interface names, service flags, and admin-data version strings.
+* Runnable entity names, trigger types, and period values.
+* Assembly connector mappings (provider/requirer port TREFs).
+
+What is NOT preserved:
+
+* Calibration parameters (`PARAMETER-DATA-PROTOTYPE`) — omitted as out of scope.
+* `BSW-MODULE-DESCRIPTION` — not supported.
+* Schema declarations other than R22-11 are parsed but always exported as R22-11.
+
+== Library API
+
+[source,kotlin]
+----
+import dev.kuml.io.arxml.ArxmlClassicImporter
+import dev.kuml.io.arxml.ArxmlClassicExporter
+
+// Import
+val importer = ArxmlClassicImporter()
+val model: KumlModel = importer.import(File("composition.arxml"))
+
+// Export
+val exporter = ArxmlClassicExporter()
+exporter.export(model, File("out/composition.arxml"))
+----
+
+For multi-file import, use `ArxmlModelMerge`:
+
+[source,kotlin]
+----
+import dev.kuml.cli.reverse.ArxmlModelMerge
+
+val models: List<KumlModel> = arxmlFiles.map { ArxmlClassicImporter().import(it) }
+val merged: KumlModel = ArxmlModelMerge.merge(models)
+----
+
+== AUTOSAR profile
+
+kUML ships a built-in AUTOSAR profile in `kuml-profile-autosar`. Apply it in any
+component diagram to use AUTOSAR stereotypes:
+
+[source,kotlin]
+----
+componentDiagram(name = "Brake Assist SWC") {
+    applyProfile("AUTOSAR")
+
+    component("BrakeAssist") {
+        stereotype("SoftwareComponent", "kind" to "Application",
+                   "packageName" to "powertrain")
+
+        port("wheelSpeedIn") { stereotype("AutosarPort", "direction" to "Required") }
+        port("brakeCmdOut")  { stereotype("AutosarPort", "direction" to "Provided") }
+
+        operation("evaluate") { stereotype("Runnable", "kind" to "Periodic", "periodMs" to 10L) }
+    }
+
+    interface("WheelSpeed") {
+        stereotype("ComInterface", "version" to "1.0", "isService" to false)
+    }
+}
+----
+
+See xref:profiles.adoc[Profiles] for the full AUTOSAR stereotype reference.
+
+== See also
+
+* xref:profiles.adoc[Profiles] — AUTOSAR, JavaEE, Spring, OpenAPI, SoaML
+* xref:emf.adoc[EMF / XMI I/O] — Eclipse UML2 XMI import and export
