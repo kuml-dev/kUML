@@ -7,7 +7,9 @@
 04 SysML 2 STM – Traffic Light.md
 05 SysML 2 UC – Library System.md
 06 SysML 2 SEQ – Login Flow.md
+07 BPMN animiert – PdV Mitgliedsantrag.md
 07 SysML 2 ACT – Order Processing.md
+08 STM animiert – Traffic Light.md
 08 SysML 2 REQ – Vehicle Requirements.md
 09 C4 Landscape – Enterprise Banking.md
 10 UML Objekt – Order Snapshot.md

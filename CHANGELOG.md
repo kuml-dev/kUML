@@ -6,6 +6,78 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+**V3.1.32 — SMIL Vault Examples + Vault-Examples SMIL Tests**
+
+Two new animated vault example notes added to `03 Bereiche/kUML/Beispiele/` and synced
+into `kuml-tests/kuml-vault-examples-tests/src/test/resources/vault-examples/`:
+
+- `07 BPMN animiert – PdV Mitgliedsantrag.md` — BPMN process diagram showing a PdV
+  membership application (Antrag-Prüfung → [Vollständig?] → Bestätigung/Nachforderung)
+  with embedded `kuml.trace.v1` JSON for the happy path (Start → Prüfung → Bestätigung → End).
+- `08 STM animiert – Traffic Light.md` — UML state machine diagram (via `stateDiagram { }` DSL,
+  not SysML 2) for a traffic light (Red/Green/Yellow cycle) with a two-cycle trace.
+  Uses the UML path because `StmSmilRenderer` requires a `UmlStateMachine`.
+
+New test spec `VaultExamplesSmilTest` (4 test cases):
+  1. *rendert animiert: BPMN PdV Mitgliedsantrag (SMIL)* — asserts `hasAnimation=true`,
+     `<animateMotion` present, animated SVG written to `build/sample-output/vault-examples/smil/`.
+  2. *rendert animiert: STM Traffic Light (SMIL)* — asserts `hasAnimation=true`,
+     `<animate` present, animated SVG written to `build/sample-output/vault-examples/smil/`.
+  3. *SMIL strip ist deterministisch: BPMN* — `SmilEmitter.inject(STRIPPED)` removes all
+     `<animate*` and `<set ` elements from the animated BPMN SVG.
+  4. *SMIL strip ist deterministisch: STM* — same strip assertion for the animated STM SVG.
+
+New helper `AnimatedExampleRenderer` in the test source set: evaluates kUML scripts via
+`KumlScriptHost`, routes BPMN to `BpmnSmilRenderer` and UML STM to `StmSmilRenderer`,
+parses traces via `KumlRuntimeJson.decodeFromString(TraceFile.serializer(), …)`.
+
+`build.gradle.kts` of `kuml-vault-examples-tests` adds
+`testImplementation(project(":kuml-io:kuml-render-smil"))` to expose `SmilEmitter`,
+`SmilTimeline`, and `StaticSnapshotMode` on the test classpath.
+
+`scripts/sync-vault-examples.sh` extended with two new case entries:
+  - `07 BPMN animiert – PdV Mitgliedsantrag.md` → `bpmn-pdv-mitgliedsantrag-animiert.kuml.kts`
+  - `08 STM animiert – Traffic Light.md` → `stm-traffic-light-animiert.kuml.kts`
+
+**V3.1.31 — STM + Activity SMIL Renderers**
+
+- `StmSmilRenderer` — renders UML State Machine diagrams as optionally animated SVGs.
+  Injects overlay `<rect>` elements (stable ids `smil-stm-hl-<vertexId>`) and `<path>` elements
+  per fired transition; animates via `SmilEmitter`. Static fallback is byte-identical to
+  `KumlSvgRenderer.toSvg` when trace is null/empty/produces no animations.
+- `ActivitySmilRenderer` — renders UML Activity diagrams with token-flow SMIL animations.
+- `TraceFileLoader` — loads `TraceFile` from disk with a 5 MB size cap and schema validation.
+  Wraps `SerializationException` without leaking raw file bytes.
+- `StmTransitionPathResolver`, `StmStateTimelineBuilder` — build STM overlay geometry and
+  animation timelines from `StateEntered` / `TransitionFired` trace entries.
+
+**V3.1.30 — BPMN SMIL Renderer**
+
+- `BpmnSmilRenderer` — renders BPMN process diagrams as optionally animated SVGs.
+  Token `<circle>` elements follow SequenceFlow paths via `<animateMotion>`. Gateway
+  highlights use `<animate attributeName="fill">` (ADR-0014: never `<animateColor>`).
+  Task activation uses `<animate attributeName="stroke-width">` pulse. Start/end events
+  dim via `<animate attributeName="opacity">`. Static fallback is byte-identical.
+- `BpmnFlowPathResolver`, `BpmnTokenTimelineBuilder` — build edge paths and animation
+  timelines from `TokenPlaced` / `TokenConsumed` / `DecisionTaken` trace entries.
+- `BpmnAnimationContext` — color/speed tuning with CSS-color allowlist injection protection.
+
+**V3.1.29 — SMIL Timeline API**
+
+- `SmilTimeline` / `SmilEmitter` / `SmilTimelineBuilder` — core SMIL timeline model and
+  SVG injection infrastructure. All animations are injected before `</svg>`.
+- ADR-0014: `<animateColor>` is never emitted — `SmilAnimation.Fill` emits
+  `<animate attributeName="fill" …/>` instead (deprecated in SVG 1.2, removed in SVG 2.0).
+- ADR-0015: opacity-pulse for `TransitionFired` overlays — overlay rects/paths appear at
+  `opacity=0` and are revealed via `<animate attributeName="opacity">` triggered at the
+  correct `begin` time.
+- `StaticSnapshotMode.STRIPPED` — `SmilEmitter.inject(svg, timeline, STRIPPED)` removes all
+  SMIL elements from the SVG and suppresses injection of new ones; safe for PNG rendering.
+- `SpeedFactor` — type-safe speed multiplier; applied by `SmilTimeline.scaledBy(factor)`.
+  The emitter is speed-neutral — callers pre-scale the timeline before calling inject.
+
 ## [0.19.2] — 2026-06-25
 
 ### Fixed

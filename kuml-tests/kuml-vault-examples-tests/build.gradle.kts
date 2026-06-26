@@ -22,6 +22,7 @@ dependencies {
     testImplementation(project(":kuml-renderer:kuml-themes-core"))
     testImplementation(project(":kuml-renderer:kuml-themes"))
     testImplementation(project(":kuml-io:kuml-io-svg"))
+    testImplementation(project(":kuml-io:kuml-render-smil")) // V3.1.32 — SMIL vault examples
     testImplementation(project(":kuml-io:kuml-io-png"))
     testImplementation(project(":kuml-io:kuml-io-latex"))
     // kotlin-scripting-* are implementation (not api) in kuml-core-script,
