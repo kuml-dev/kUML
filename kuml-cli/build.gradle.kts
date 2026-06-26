@@ -92,6 +92,10 @@ dependencies {
 
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
+    // V3.1.36 — ARXML CLI tests: ExportCommandArxmlCliTest + ReverseCommandArxmlCliTest.
+    // MUST remain testRuntimeOnly — kuml-io-arxml is JVM-only (JDOM2) and must NEVER become
+    // a compile-time or implementation dep of kuml-cli (that would break the GraalVM native image).
+    testRuntimeOnly(project(":kuml-io:kuml-io-arxml"))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

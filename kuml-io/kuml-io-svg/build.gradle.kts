@@ -26,6 +26,8 @@ dependencies {
     testImplementation(project(":kuml-profile:kuml-profile-api"))
     // PNG co-generation in SampleOutput: converts each SVG sample to PNG for visual regression
     testImplementation(project(":kuml-io:kuml-io-png"))
+    // V3.1.36 — ArxmlComponentRenderTest: render an imported ARXML composition as SVG
+    testImplementation(project(":kuml-io:kuml-io-arxml"))
 }
 
 tasks.withType<Test>().configureEach { useJUnitPlatform() }

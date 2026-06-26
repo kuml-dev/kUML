@@ -25,6 +25,7 @@ dependencies {
     testImplementation(project(":kuml-io:kuml-render-smil")) // V3.1.32 — SMIL vault examples
     testImplementation(project(":kuml-io:kuml-io-png"))
     testImplementation(project(":kuml-io:kuml-io-latex"))
+    testImplementation(project(":kuml-io:kuml-io-arxml")) // V3.1.36 — ArxmlComponentRenderTest
     // kotlin-scripting-* are implementation (not api) in kuml-core-script,
     // so we need to list them here explicitly for access to ResultWithDiagnostics etc.
     testImplementation(libs.kotlin.scripting.common)

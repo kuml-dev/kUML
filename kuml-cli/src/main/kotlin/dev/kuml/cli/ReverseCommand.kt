@@ -5,31 +5,37 @@ import com.github.ajalt.clikt.core.Context
 import com.github.ajalt.clikt.core.ProgramResult
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.optional
+import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.path
+import dev.kuml.cli.reverse.ArxmlModelMerge
+import dev.kuml.cli.reverse.ArxmlPackageDslPrinter
 import dev.kuml.cli.reverse.UmlModelDslPrinter
 import dev.kuml.codegen.reverse.ReverseDiagnostic
 import dev.kuml.codegen.reverse.ReverseRequest
 import dev.kuml.codegen.reverse.ReverseResult
 import dev.kuml.codegen.reverse.registry.ReverseEngineRegistry
+import dev.kuml.core.model.KumlModel
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * The `reverse` subcommand.
  *
- * Reverse-engineers source code into a UML model and emits it as a `*.kuml.kts`
- * script. V3.0.9 — user-facing entry point for Track B (reverse engineering).
+ * Reverse-engineers source code or ARXML files into a UML model and emits it as a `*.kuml.kts`
+ * script. V3.1.36 — added `--format arxml` for multi-file ARXML merge.
  *
  * Usage:
  * ```
  * kuml reverse src/main/java --lang java --output domain.kuml.kts
  * kuml reverse src/main/kotlin --lang kotlin
  * kuml reverse src/main/java --lang auto                     # auto-detect
+ * kuml reverse --format arxml models/                        # reads all *.arxml in dir
  * kuml reverse --list-engines
  * ```
  */
@@ -57,6 +63,10 @@ internal class ReverseCommand : CliktCommand(name = "reverse") {
     private val modelName by option("--model-name")
         .help("Name for the resulting model (default: ReverseEngineered)")
 
+    private val format by option("--format")
+        .help("Reverse format: 'source' for source-language reverse (default), 'arxml' for ARXML import+merge")
+        .default("source")
+
     private val listEngines by option("--list-engines")
         .flag()
         .help("List all available reverse engines and exit")
@@ -65,7 +75,7 @@ internal class ReverseCommand : CliktCommand(name = "reverse") {
         .flag()
         .help("Print every WARN/INFO diagnostic on stderr (default: summary only)")
 
-    override fun help(context: Context): String = "Reverse-engineer source code (Java/Kotlin) into a UML kUML script."
+    override fun help(context: Context): String = "Reverse-engineer source code (Java/Kotlin) or ARXML files into a kUML script."
 
     override fun run() {
         if (listEngines) {
@@ -78,6 +88,21 @@ internal class ReverseCommand : CliktCommand(name = "reverse") {
             engines.sortedBy { it.id }.forEach { e ->
                 echo("  ${e.id}: ${e.description}")
             }
+            return
+        }
+
+        // ── ARXML reverse path — delegate before source-language engine path ─────
+        if (format == "arxml") {
+            val srcDir =
+                sourceDir ?: run {
+                    echo("Missing argument <source-dir>. Provide a directory containing *.arxml files.", err = true)
+                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                }
+            if (!Files.isDirectory(srcDir)) {
+                echo("Source directory does not exist or is not a directory: $srcDir", err = true)
+                throw ProgramResult(ExitCodes.IO_ERROR)
+            }
+            reverseArxml(srcDir, output)
             return
         }
 
@@ -154,6 +179,81 @@ internal class ReverseCommand : CliktCommand(name = "reverse") {
                 echo("Analysed ${result.filesAnalysed} file(s) in ${result.elapsedMs} ms via '${engine.id}' engine.")
             }
         }
+    }
+
+    /**
+     * Reverses all `*.arxml` files found in [dir] into a merged kUML model and emits it as DSL.
+     *
+     * Uses reflection to load [dev.kuml.io.arxml.ArxmlClassicImporter] (JVM-only / Fat-JAR).
+     * Multiple files with overlapping AR-PACKAGE trees are merged via [ArxmlModelMerge.merge]
+     * which deduplicates packages by name recursively.
+     */
+    private fun reverseArxml(
+        dir: Path,
+        outputPath: String?,
+    ) {
+        val arxmlFiles =
+            dir
+                .toFile()
+                .listFiles { f -> f.extension.equals("arxml", ignoreCase = true) }
+                ?.sortedBy { it.name }
+                ?: emptyList()
+
+        if (arxmlFiles.isEmpty()) {
+            echo("No *.arxml files found in $dir", err = true)
+            throw ProgramResult(ExitCodes.REVERSE_NO_SOURCES)
+        }
+
+        // Load ArxmlClassicImporter via reflection — JVM-only, must not link into native image.
+        val importerClass =
+            try {
+                Class.forName("dev.kuml.io.arxml.ArxmlClassicImporter")
+            } catch (_: ClassNotFoundException) {
+                echo(
+                    "ARXML reverse requires the kUML Fat-JAR distribution.\n" +
+                        "Native Image binary does not include kuml-io-arxml (JVM-only, JDOM2).\n" +
+                        "Download the Fat-JAR from https://kuml.dev/releases",
+                    err = true,
+                )
+                throw ProgramResult(ExitCodes.FORMAT_NOT_AVAILABLE)
+            }
+
+        // Construct ArxmlClassicImporter with a single nullable ArxmlVersion? arg (null = auto-detect)
+        val importer =
+            try {
+                val versionClass = Class.forName("dev.kuml.io.arxml.ArxmlVersion")
+                importerClass
+                    .getDeclaredConstructor(versionClass)
+                    .newInstance(null)
+            } catch (_: NoSuchMethodException) {
+                importerClass.getDeclaredConstructor().newInstance()
+            }
+
+        val importMethod =
+            importer.javaClass.getMethod(
+                "import",
+                File::class.java,
+            )
+
+        val models = mutableListOf<KumlModel>()
+        for (file in arxmlFiles) {
+            val importResult = importMethod.invoke(importer, file)
+            // importResult is ImportResult — access its .model property via reflection
+            val modelField = importResult.javaClass.getMethod("getModel")
+            val kumlModel = modelField.invoke(importResult) as KumlModel
+            models.add(kumlModel)
+        }
+
+        val merged = ArxmlModelMerge.merge(models)
+        val dslText = ArxmlPackageDslPrinter.print(merged)
+
+        if (outputPath == null) {
+            echo(dslText)
+        } else {
+            File(outputPath).also { it.parentFile?.mkdirs() }.writeText(dslText)
+            echo("Wrote ${dslText.lineSequence().count()} lines to $outputPath")
+        }
+        echo("Merged ${arxmlFiles.size} ARXML file(s) from $dir")
     }
 
     private fun emitDiagnosticsSummary(diagnostics: List<ReverseDiagnostic>) {

@@ -8,6 +8,50 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**V3.1.36 — ARXML CLI Integration + Comprehensive Roundtrip Tests + Vault Example**
+
+CLI export:
+- `kuml export --format arxml <script> [-o output.arxml]` — exports UML/AUTOSAR models to
+  AUTOSAR Classic ARXML R22-11 via the Fat-JAR `kuml-io-arxml` module (JVM-only, reflection-loaded).
+  Supports `componentDiagram { ... }` scripts (elements wrapped into a synthetic UmlPackage) and
+  scripts returning a `UmlPackage` root directly. C4 / SysML 2 / BPMN / Blueprint rejected with
+  a clear `SCRIPT_ERROR` message. Derives `.arxml` extension when `-o` is omitted.
+
+CLI reverse:
+- `kuml reverse --format arxml <dir> [-o output.kuml.kts]` — reads all `*.arxml` files in the
+  given directory (sorted by name), imports each via `ArxmlClassicImporter` (reflection), and
+  merges them into a single `KumlModel` via `ArxmlModelMerge`. Packages with the same AR-PACKAGE
+  name across files are merged recursively (no duplicate package declarations). Output is a
+  `*.kuml.kts` script using raw UML metamodel constructors with AUTOSAR stereotypes preserved.
+  Empty directory exits `REVERSE_NO_SOURCES`. Source-language reverse is fully backwards-compatible.
+
+New internal classes:
+- `dev.kuml.cli.reverse.ArxmlModelMerge` — pure-Kotlin merge of `List<KumlModel>` into one
+  consolidated model; deduplicates `UmlPackage`s by name recursively; no `dev.kuml.io.arxml.*`
+  compile-time dependency (GraalVM-safe).
+- `dev.kuml.cli.reverse.ArxmlPackageDslPrinter` — prints `KumlModel` (root = `UmlPackage`) as
+  a `*.kuml.kts` source with AUTOSAR imports and full metadata preservation.
+
+New tests (20+ total):
+- `ArxmlCompositionRoundtripTest` (6 tests) — 3 SWCs / 6 ports / 2 interfaces / 4 runnables;
+  import←export←import structural equivalence, zero unresolved TREFs, trigger-type preservation,
+  deterministic byte-identical export, no raw XML entities.
+- `ArxmlVersionMatrixTest` (5 parametrised cases) — R19_11 through R23_11 parse and round-trip
+  with correct schema-label detection.
+- `ArxmlAdaptiveManifestRoundtripTest` (3 tests) — SERVICE-MANIFEST / MACHINE-MANIFEST /
+  mixed classic+adaptive document.
+- `ArxmlComponentRenderTest` (2 tests, kuml-vault-examples-tests) — imported ARXML composition
+  renders as non-empty SVG containing all SWC names; interface names present in SVG.
+- `ExportCommandArxmlCliTest` (4 tests) — CLI export to ARXML; C4 rejection; extension derivation;
+  FORMAT_NOT_AVAILABLE guard.
+- `ReverseCommandArxmlCliTest` (4 tests) — multi-file merge without duplicate packages; empty-dir;
+  single file; source-language reverse regression guard.
+
+Vault example:
+- `03 Bereiche/kUML/Beispiele/35 AUTOSAR Classic – SW-Komponenten.md` — sensor-brake-diag
+  SWC composition with 3 components, ports, interfaces, connect() calls; DSL-Anatomie table;
+  ARXML export/import shell examples; AUTOSAR background explanation.
+
 **V3.1.32 — SMIL Vault Examples + Vault-Examples SMIL Tests**
 
 Two new animated vault example notes added to `03 Bereiche/kUML/Beispiele/` and synced
