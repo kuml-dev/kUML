@@ -133,7 +133,19 @@ internal object ExitCodes {
 
     // ── `kuml chain` (V3.0.4 / V3.0.5) ──────────────────────────────────────
 
-    /** `kuml chain verify` — on-chain modelHash differs from the local model's hash. */
+    /**
+     * `kuml chain verify` / `kuml run --adapter chain-evm` — on-chain modelHash differs from the
+     * local model's hash.
+     *
+     * **Spec deviation (recorded):** the original V3.1.42 specification referred to an exit code
+     * named `VALIDATION_ERROR` for the [dev.kuml.runtime.chain.ChainModelHashMismatchException]
+     * case in `kuml run --adapter chain-evm`. No such code exists in this object; the closest
+     * existing code, `CHAIN_HASH_MISMATCH` (50), was chosen instead because the condition is
+     * semantically a chain hash mismatch rather than a generic validation error, and reusing an
+     * established code keeps CLI contract stable for existing callers of `kuml chain verify`.
+     * The spec has not been retroactively amended, but this KDoc constitutes the formal record of
+     * the deviation. See `ChainEvmAdapterRunner` for the usage site.
+     */
     internal const val CHAIN_HASH_MISMATCH: Int = 50
 
     /** `kuml chain connect/verify/events` — could not connect to or read from the chain. */

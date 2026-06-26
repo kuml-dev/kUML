@@ -10,7 +10,10 @@ package dev.kuml.cli.run
  * @property contractAddress On-chain contract address (with 0x prefix, normalized by [EvmUrlValidator.normalizeContract]).
  * @property fromBlock If non-null, replay from this block number via [dev.kuml.runtime.chain.KumlChainAdapter.replay].
  *   If null, subscribe to live events via [dev.kuml.runtime.chain.KumlChainAdapter.subscribe].
- * @property chainId Optional chain ID hint (informational; EvmChainAdapter auto-detects from RPC).
+ * @property chainId Optional chain ID hint. This value is **informational only and is not forwarded
+ *   to [dev.kuml.runtime.chain.KumlChainAdapter.connect]**. [dev.kuml.runtime.chain.evm.EvmChainAdapter]
+ *   always auto-detects the chain ID from the RPC endpoint at connect time. The field is retained so
+ *   callers can surface the user-supplied value in diagnostics or future API extensions.
  */
 internal data class ChainEvmCliOptions(
     val rpcUrl: String,

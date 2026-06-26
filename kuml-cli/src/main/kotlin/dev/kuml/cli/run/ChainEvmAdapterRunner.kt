@@ -3,9 +3,8 @@ package dev.kuml.cli.run
 import dev.kuml.cli.ExitCodes
 import dev.kuml.runtime.chain.KumlChainAdapter
 import dev.kuml.runtime.chain.ModelHasher
-import dev.kuml.runtime.chain.evm.EvmChainAdapter
-import dev.kuml.runtime.chain.evm.EvmChainAdapterException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.onEach
@@ -24,14 +23,25 @@ import java.io.PrintStream
  * 3. Start event feed: if [ChainEvmCliOptions.fromBlock] is set use [KumlChainAdapter.replay];
  *    otherwise use [KumlChainAdapter.subscribe] (infinite Cold Flow).
  * 4. Feed each [dev.kuml.runtime.chain.ChainEvent] into [manager] via [RunSessionManager.event].
- *    Stop on [SessionResult.Terminated] or [EvmChainAdapterException.ReorgDetected].
+ *    Stop immediately on [SessionResult.Terminated] (flow is cancelled via coroutine scope) or
+ *    on a reorg exception detected by class name.
+ *
+ * **Native Image safety:** This class does NOT import any class from
+ * `dev.kuml.runtime.chain.evm.*` directly. The `kuml-runtime-chain-evm` module is JVM-only
+ * (web3j) and must not be referenced via static imports in classes compiled into the Native
+ * Image CLI. The [adapterFactory] parameter carries the `EvmChainAdapter` instance at runtime;
+ * the no-arg factory that instantiates `EvmChainAdapter` via reflection lives in
+ * [dev.kuml.cli.run.RunCommand] behind a `Class.forName` guard.
  *
  * Designed for testability: [adapterFactory] and [output]/[errOut] are injectable.
  *
  * @param manager Already-started run session (start() called by RunCommand before dispatching here).
  * @param options Validated CLI options.
  * @param scriptText Raw script text used for local hash computation.
- * @param adapterFactory Factory for [KumlChainAdapter] (default: [EvmChainAdapter]).
+ * @param adapterFactory Factory for [KumlChainAdapter]. No default — the caller in
+ *   [dev.kuml.cli.run.RunCommand] provides a reflection-based factory that is guarded by a
+ *   `Class.forName("dev.kuml.runtime.chain.evm.EvmChainAdapter")` check before this runner
+ *   is ever instantiated.
  * @param output Standard output stream (default: [System.out]).
  * @param errOut Standard error stream (default: [System.err]).
  */
@@ -39,7 +49,7 @@ internal class ChainEvmAdapterRunner(
     private val manager: RunSessionManager,
     private val options: ChainEvmCliOptions,
     private val scriptText: String,
-    private val adapterFactory: () -> KumlChainAdapter = { EvmChainAdapter() },
+    private val adapterFactory: () -> KumlChainAdapter,
     private val output: PrintStream = System.out,
     private val errOut: PrintStream = System.err,
 ) {
@@ -59,7 +69,9 @@ internal class ChainEvmAdapterRunner(
             } catch (e: IllegalArgumentException) {
                 errOut.println("chain-evm: invalid argument — ${e.message}")
                 return ExitCodes.CHAIN_CONNECT_ERROR
-            } catch (e: EvmChainAdapterException) {
+            } catch (e: RuntimeException) {
+                // Catches EvmChainAdapterException (and subclasses) without a direct import.
+                // EvmChainAdapterException extends RuntimeException.
                 errOut.println("chain-evm: connection failed — ${e.message}")
                 return ExitCodes.CHAIN_CONNECT_ERROR
             }
@@ -73,7 +85,8 @@ internal class ChainEvmAdapterRunner(
                     "Use 'kuml chain verify' for details.",
             )
             // CHAIN_HASH_MISMATCH (50) is the established code for hash-mismatch in this codebase.
-            // The spec refers to ExitCodes.VALIDATION_ERROR which does not exist — map to CHAIN_HASH_MISMATCH.
+            // The original spec referred to ExitCodes.VALIDATION_ERROR (which does not exist).
+            // The deviation is formally recorded in the KDoc of ExitCodes.CHAIN_HASH_MISMATCH.
             return ExitCodes.CHAIN_HASH_MISMATCH
         }
 
@@ -84,6 +97,12 @@ internal class ChainEvmAdapterRunner(
             } else {
                 adapter.subscribe()
             }
+
+        // Sentinel CancellationException used to break the collect loop when the session
+        // terminates. This avoids the takeWhile-predicate race where the predicate is only
+        // evaluated BEFORE the next element arrives — on a live subscribe() flow with no
+        // further on-chain events that would cause the runner to hang indefinitely.
+        class TerminatedSignal : CancellationException("session terminated cleanly")
 
         return try {
             runBlocking {
@@ -110,27 +129,49 @@ internal class ChainEvmAdapterRunner(
 
                                             is SessionResult.Terminated -> {
                                                 output.println("[chain-evm] session terminated: ${result.message}")
+                                                // Cancel the coroutine scope immediately so that an infinite
+                                                // subscribe() flow does not hang waiting for the next on-chain
+                                                // event (the takeWhile predicate is only evaluated before each
+                                                // emission, not after — it cannot react to termination mid-element).
+                                                this@coroutineScope.cancel(TerminatedSignal())
                                             }
 
                                             is SessionResult.Error ->
                                                 output.println("[chain-evm] error: ${result.message}")
                                         }
                                     }.collect()
-                            } catch (e: EvmChainAdapterException.ReorgDetected) {
-                                errOut.println(
-                                    "chain-evm: chain reorg detected at block ${e.reorgFromBlock} — aborting. " +
-                                        "Re-run with --from-block ${e.reorgFromBlock} to replay from the reorg point.",
-                                )
-                                exitCode = ExitCodes.CHAIN_CONNECT_ERROR
+                            } catch (e: RuntimeException) {
+                                // Detect EvmChainAdapterException.ReorgDetected by class name to
+                                // avoid a direct import of dev.kuml.runtime.chain.evm.* (JVM-only).
+                                if (e.javaClass.name == "dev.kuml.runtime.chain.evm.EvmChainAdapterException\$ReorgDetected") {
+                                    val reorgBlock =
+                                        try {
+                                            e.javaClass.getMethod("getReorgFromBlock").invoke(e) as Long
+                                        } catch (_: Exception) {
+                                            -1L
+                                        }
+                                    errOut.println(
+                                        "chain-evm: chain reorg detected at block $reorgBlock — aborting. " +
+                                            "Re-run with --from-block $reorgBlock to replay from the reorg point.",
+                                    )
+                                    exitCode = ExitCodes.CHAIN_CONNECT_ERROR
+                                } else {
+                                    throw e
+                                }
                             }
                         }
                     job.join()
                 }
                 exitCode
             }
-        } catch (_: CancellationException) {
-            0
-        } catch (e: EvmChainAdapterException) {
+        } catch (e: CancellationException) {
+            if (e is TerminatedSignal || e.cause is TerminatedSignal) {
+                0
+            } else {
+                errOut.println("chain-evm: unexpected cancellation — ${e.message}")
+                ExitCodes.CHAIN_CONNECT_ERROR
+            }
+        } catch (e: RuntimeException) {
             errOut.println("chain-evm: adapter error — ${e.message}")
             ExitCodes.CHAIN_CONNECT_ERROR
         }

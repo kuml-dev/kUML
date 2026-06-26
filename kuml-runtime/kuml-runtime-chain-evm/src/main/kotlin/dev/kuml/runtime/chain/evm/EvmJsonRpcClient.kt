@@ -79,9 +79,11 @@ public class EvmJsonRpcClient(
             withContext(Dispatchers.IO) {
                 try {
                     val response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream())
-                    if (response.statusCode() !in 200..299) {
+                    val statusCode = response.statusCode()
+                    if (statusCode !in 200..299) {
+                        response.body().close()
                         throw EvmChainAdapterException.NetworkError(
-                            "HTTP ${response.statusCode()} from ${sanitizeUrl(rpcUrl)}",
+                            "HTTP $statusCode from ${sanitizeUrl(rpcUrl)}",
                         )
                     }
                     readLimited(response.body(), maxResponseBytes)

@@ -34,7 +34,7 @@ import dev.kuml.runtime.snapshot.MigrationPolicy
  *  - `--rpc <url>`: EVM JSON-RPC endpoint (http/https only, no private ranges)
  *  - `--contract <address>`: contract address (40 hex chars, optional 0x prefix)
  *  - `--from-block <long>`: replay from block number (omit for live subscribe)
- *  - `--chain-id <int>`: chain ID hint (optional, EvmChainAdapter auto-detects)
+ *  - `--chain-id <int>`: chain ID hint (informational only; EvmChainAdapter always auto-detects from RPC and ignores this value)
  */
 internal class RunCommand : CliktCommand(name = "run") {
     private val script by argument(help = "Path to *.kuml.kts state-machine or activity script")
@@ -62,7 +62,7 @@ internal class RunCommand : CliktCommand(name = "run") {
 
     private val chainId by option(
         "--chain-id",
-        help = "EVM chain ID hint (chain-evm only; EvmChainAdapter auto-detects from RPC if omitted)",
+        help = "EVM chain ID hint (chain-evm only; informational — adapter always auto-detects from RPC, this value is not forwarded)",
     ).int()
 
     private val port by option(
@@ -111,10 +111,11 @@ internal class RunCommand : CliktCommand(name = "run") {
                 else -> MigrationPolicy.AcceptIfFingerprintMatches
             }
 
+        val scriptText = script.readText()
         val manager = RunSessionManager()
         val startResult =
             manager.start(
-                scriptText = script.readText(),
+                scriptText = scriptText,
                 scriptName = script.name,
                 restoreFrom = restoreFrom,
                 migrationPolicy = policy,
@@ -160,7 +161,31 @@ internal class RunCommand : CliktCommand(name = "run") {
                             fromBlock = fromBlock,
                             chainId = chainId,
                         )
-                    ChainEvmAdapterRunner(manager, options, script.readText()).run()
+                    // Guard: kuml-runtime-chain-evm is JVM-only (web3j). The Native Image binary
+                    // does not include it. Load EvmChainAdapter via reflection so that this class
+                    // (RunCommand) can be compiled into the native image without web3j on the
+                    // classpath. Identical pattern to ImportCommand.kt:133 and ExportCommand.kt:211.
+                    val evmAdapterClass =
+                        try {
+                            Class.forName("dev.kuml.runtime.chain.evm.EvmChainAdapter")
+                        } catch (_: ClassNotFoundException) {
+                            System.err.println(
+                                "chain-evm adapter requires the kUML Fat-JAR distribution.\n" +
+                                    "Native Image binary does not include web3j (JVM-only).\n" +
+                                    "Download the Fat-JAR from https://kuml.dev/releases",
+                            )
+                            throw ProgramResult(ExitCodes.FORMAT_NOT_AVAILABLE)
+                        }
+                    ChainEvmAdapterRunner(
+                        manager = manager,
+                        options = options,
+                        scriptText = scriptText,
+                        adapterFactory = {
+                            @Suppress("UNCHECKED_CAST")
+                            evmAdapterClass.getDeclaredConstructor().newInstance()
+                                as dev.kuml.runtime.chain.KumlChainAdapter
+                        },
+                    ).run()
                 }
 
                 "batch" -> {
