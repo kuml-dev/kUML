@@ -54,6 +54,14 @@ internal class RenderCommand : CliktCommand(name = "render") {
     private val configFile by option("--config", help = "Path to kuml.config.kts")
         .file(mustExist = true, canBeDir = false)
 
+    private val animated by option(
+        "--animated",
+        help =
+            "Emit an animated SMIL SVG for BPMN diagrams when a trace file is supplied " +
+                "(wired in V3.1.31). Currently accepted as a flag but not yet threaded into " +
+                "the render pipeline.",
+    ).flag()
+
     private val latexStandalone by option(
         "--latex-standalone",
         help =
@@ -66,6 +74,10 @@ internal class RenderCommand : CliktCommand(name = "render") {
     override fun run() {
         try {
             val resolvedFormat = FormatResolver.resolve(format, output, input)
+            // --animated is only meaningful for SVG output (BPMN SMIL wiring in V3.1.31)
+            if (animated && resolvedFormat != "svg") {
+                throw UsageError("--animated is only valid with --format=svg (current format: $resolvedFormat)")
+            }
             // --latex-standalone is only meaningful for latex output
             if (latexStandalone && resolvedFormat != "latex" && resolvedFormat != "tex") {
                 throw UsageError("--latex-standalone is only valid with --format=latex (current format: $resolvedFormat)")

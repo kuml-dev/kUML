@@ -38,9 +38,10 @@ internal fun renderBpmnGateway(
     val hh = h / 2f
 
     builder.tag("g", mapOf("id" to xmlEscapeAttr(gw.id))) {
-        // Raute
+        // Raute — id on the polygon so SMIL fill animations can target it directly
         rawXml(
-            """<polygon points="${fmtF(cx)},${fmtF(cy - hh)} ${fmtF(cx + hw)},${fmtF(cy)} """ +
+            """<polygon id="${xmlEscapeAttr(gw.id)}-diamond" """ +
+                """points="${fmtF(cx)},${fmtF(cy - hh)} ${fmtF(cx + hw)},${fmtF(cy)} """ +
                 """${fmtF(cx)},${fmtF(cy + hh)} ${fmtF(cx - hw)},${fmtF(cy)}" """ +
                 """fill="white" stroke="#333" stroke-width="1.5"/>""",
         )
