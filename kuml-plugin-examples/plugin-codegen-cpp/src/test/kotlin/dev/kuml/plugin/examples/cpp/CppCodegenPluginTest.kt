@@ -15,6 +15,7 @@ import dev.kuml.uml.UmlEnumerationLiteral
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInterface
 import dev.kuml.uml.UmlOperation
+import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlProperty
 import dev.kuml.uml.UmlTypeRef
 import io.kotest.core.spec.style.FunSpec
@@ -358,5 +359,120 @@ class CppCodegenPluginTest :
             val out = tempDir()
             generator.generate(diagram(cls), out, emptyMap())
             File(out, "Foo.hpp").readText() shouldNotContain "namespace"
+        }
+
+        // ── Inheritance includes ───────────────────────────────────────────────
+
+        test("Generalization erzeugt #include für Basisklasse in Derived.hpp") {
+            val base = UmlClass(id = "Base", name = "Base")
+            val derived = UmlClass(id = "Derived", name = "Derived")
+            val gen = UmlGeneralization(id = "g1", specificId = "Derived", generalId = "Base")
+            val out = tempDir()
+            generator.generate(diagram(base, derived, gen), out, emptyMap())
+            val content = File(out, "Derived.hpp").readText()
+            content shouldContain "#include \"Base.hpp\""
+        }
+
+        test("Klasse ohne Basisklasse enthält kein Basis-Include") {
+            val cls = UmlClass(id = "Solo", name = "Solo")
+            val out = tempDir()
+            generator.generate(diagram(cls), out, emptyMap())
+            File(out, "Solo.hpp").readText() shouldNotContain "#include \"Solo.hpp\""
+        }
+
+        // ── Forward declarations ──────────────────────────────────────────────
+
+        test("Association 0..1 erzeugt Forward-Declaration für Pointer-Target") {
+            val customer = UmlClass(id = "Customer", name = "Customer")
+            val order = UmlClass(id = "Order", name = "Order")
+            val assoc =
+                UmlAssociation(
+                    id = "a1",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(1, 1), navigable = false),
+                            UmlAssociationEnd(
+                                typeId = "Order",
+                                role = "order",
+                                multiplicity = Multiplicity(0, 1),
+                                navigable = true,
+                            ),
+                        ),
+                )
+            val out = tempDir()
+            generator.generate(diagram(customer, order, assoc), out, emptyMap())
+            val content = File(out, "Customer.hpp").readText()
+            content shouldContain "class Order;"
+        }
+
+        test("Association 0..* erzeugt #include statt Forward-Declaration (vector braucht vollständigen Typ)") {
+            val customer = UmlClass(id = "Customer", name = "Customer")
+            val order = UmlClass(id = "Order", name = "Order")
+            val assoc =
+                UmlAssociation(
+                    id = "a1",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "Customer", multiplicity = Multiplicity(1, 1), navigable = false),
+                            UmlAssociationEnd(
+                                typeId = "Order",
+                                role = "orders",
+                                multiplicity = Multiplicity(0, null),
+                                navigable = true,
+                            ),
+                        ),
+                )
+            val out = tempDir()
+            generator.generate(diagram(customer, order, assoc), out, emptyMap())
+            val content = File(out, "Customer.hpp").readText()
+            content shouldContain "#include \"Order.hpp\""
+        }
+
+        // ── UmlPackage → namespace mapping ────────────────────────────────────
+
+        test("UmlPackage-Mitglieder erhalten Namespace aus Package-Name") {
+            val pkg =
+                UmlPackage(
+                    id = "model",
+                    name = "model",
+                    members = listOf(UmlClass(id = "Foo", name = "Foo")),
+                )
+            val out = tempDir()
+            generator.generate(diagram(pkg), out, mapOf("namespaceStyle" to "flat"))
+            val content = File(out, "Foo.hpp").readText()
+            content shouldContain "namespace model {"
+        }
+
+        test("Verschachtelter UmlPackage erzeugt geschachtelten Namespace") {
+            val inner =
+                UmlPackage(
+                    id = "inner",
+                    name = "inner",
+                    members = listOf(UmlClass(id = "Bar", name = "Bar")),
+                )
+            val outer = UmlPackage(id = "outer", name = "outer", members = listOf(inner))
+            val out = tempDir()
+            generator.generate(diagram(outer), out, mapOf("namespaceStyle" to "nested"))
+            val content = File(out, "Bar.hpp").readText()
+            content shouldContain "namespace outer {"
+            content shouldContain "namespace inner {"
+        }
+
+        test("Package-Namespace hat Vorrang vor globalem namespace-Option") {
+            val pkg =
+                UmlPackage(
+                    id = "domain",
+                    name = "domain",
+                    members = listOf(UmlClass(id = "Entity", name = "Entity")),
+                )
+            val out = tempDir()
+            generator.generate(
+                diagram(pkg),
+                out,
+                mapOf("namespace" to "global", "namespaceStyle" to "flat"),
+            )
+            val content = File(out, "Entity.hpp").readText()
+            content shouldContain "namespace domain {"
+            content shouldNotContain "namespace global {"
         }
     })

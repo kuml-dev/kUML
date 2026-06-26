@@ -8,7 +8,9 @@ import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlEnumeration
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInterface
+import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlOperation
+import dev.kuml.uml.UmlPackage
 import java.io.File
 
 /**
@@ -30,9 +32,15 @@ public class CppCodeGenerator : KumlCodeGenerator {
         val opts = CppGeneratorOptions.from(options)
         outputDir.mkdirs()
 
+        // Flatten all named elements, collecting package membership along the way.
+        // elementNamespace[elementId] = namespace derived from its owning UmlPackage (if any).
+        val elementNamespace = mutableMapOf<String, String>()
+        val umlNamedElements = diagram.elements.filterIsInstance<UmlNamedElement>()
+        val flatElements = flattenElements(umlNamedElements, namespace = null, elementNamespace)
+
         // Pre-build index: element id → class name
         val idToName = mutableMapOf<String, String>()
-        for (el in diagram.elements) {
+        for (el in flatElements) {
             when (el) {
                 is UmlClass -> idToName[el.id] = el.name
                 is UmlInterface -> idToName[el.id] = el.name
@@ -42,6 +50,7 @@ public class CppCodeGenerator : KumlCodeGenerator {
         }
 
         // Pre-collect generalizations: specificId → generalId
+        // UmlGeneralization is a UmlRelationship (not UmlNamedElement) so read from raw elements.
         val generalizations = mutableMapOf<String, String>()
         for (el in diagram.elements) {
             if (el is UmlGeneralization) {
@@ -49,7 +58,7 @@ public class CppCodeGenerator : KumlCodeGenerator {
             }
         }
 
-        // Pre-collect associations
+        // Pre-collect associations (also UmlRelationship, not UmlNamedElement).
         val associations = mutableListOf<UmlAssociation>()
         for (el in diagram.elements) {
             if (el is UmlAssociation) {
@@ -58,28 +67,34 @@ public class CppCodeGenerator : KumlCodeGenerator {
         }
 
         val generated = mutableListOf<File>()
-        for (el in diagram.elements) {
+        for (el in flatElements) {
+            // Effective namespace: package-derived namespace takes precedence over global option.
+            val effectiveNs =
+                elementNamespace[el.id]
+                    ?: opts.namespaceName
+            val effectiveOpts = opts.copy(namespaceName = effectiveNs)
             when (el) {
                 is UmlClass -> {
-                    val hppContent = generateClassHeader(el, generalizations, associations, idToName, opts)
+                    val hppContent =
+                        generateClassHeader(el, generalizations, associations, idToName, effectiveOpts)
                     val hppFile = File(outputDir, "${el.name}.hpp")
                     hppFile.writeText(hppContent)
                     generated += hppFile
                     if (opts.generateCpp) {
-                        val cppContent = generateClassSource(el, opts)
+                        val cppContent = generateClassSource(el, effectiveOpts)
                         val cppFile = File(outputDir, "${el.name}.cpp")
                         cppFile.writeText(cppContent)
                         generated += cppFile
                     }
                 }
                 is UmlInterface -> {
-                    val hppContent = generateInterfaceHeader(el, opts)
+                    val hppContent = generateInterfaceHeader(el, effectiveOpts)
                     val hppFile = File(outputDir, "${el.name}.hpp")
                     hppFile.writeText(hppContent)
                     generated += hppFile
                 }
                 is UmlEnumeration -> {
-                    val hppContent = generateEnumHeader(el, opts)
+                    val hppContent = generateEnumHeader(el, effectiveOpts)
                     val hppFile = File(outputDir, "${el.name}.hpp")
                     hppFile.writeText(hppContent)
                     generated += hppFile
@@ -88,6 +103,34 @@ public class CppCodeGenerator : KumlCodeGenerator {
             }
         }
         return generated
+    }
+
+    /**
+     * Recursively flattens [elements], descending into [UmlPackage.members].
+     * For each element inside a package the owning package name is accumulated
+     * into a `::` namespace string and stored in [elementNamespace].
+     */
+    private fun flattenElements(
+        elements: List<UmlNamedElement>,
+        namespace: String?,
+        elementNamespace: MutableMap<String, String>,
+    ): List<UmlNamedElement> {
+        val result = mutableListOf<UmlNamedElement>()
+        for (el in elements) {
+            when (el) {
+                is UmlPackage -> {
+                    val childNs = if (namespace != null) "$namespace::${el.name}" else el.name
+                    result += flattenElements(el.members, childNs, elementNamespace)
+                }
+                else -> {
+                    if (namespace != null) {
+                        elementNamespace[el.id] = namespace
+                    }
+                    result += el
+                }
+            }
+        }
+        return result
     }
 
     private fun generateClassHeader(
@@ -108,18 +151,56 @@ public class CppCodeGenerator : KumlCodeGenerator {
         val allTypes = attrTypes + assocMembers.map { extractTypeName(it) }
         val includes = mapper.headerIncludesFor(allTypes, opts.useSmartPointers, hasVectorMembers)
 
+        val baseClass = generalizations[cls.id]?.let { idToName[it] }
+
+        // Collect the user-defined target types of association pointer members (not vectors)
+        // for which we can emit forward declarations instead of full includes.
+        val assocTargetNames = buildAssocTargetNames(cls.id, associations, idToName)
+        // Pointer-only targets (single pointer, not via vector) can be forward-declared.
+        val pointerOnlyTargets =
+            assocTargetNames.filter { name ->
+                assocMembers.any { it.contains("$name*") || it.contains("<$name>") } &&
+                    !assocMembers.any { it.contains("std::vector") && it.contains(name) }
+            }
+        // Vector targets need the full type visible → #include; pointer-only → forward declare.
+        val vectorTargetNames =
+            assocTargetNames.filter { name ->
+                assocMembers.any { it.contains("std::vector") && it.contains(name) }
+            }
+
         val sb = StringBuilder()
         sb.appendLine("// Generated by kUML C++ Code Generator")
         sb.appendLine("#pragma once")
+
+        // System/stdlib includes
         if (includes.isNotEmpty()) {
             sb.appendLine()
             for (inc in includes) {
                 sb.appendLine("#include $inc")
             }
         }
+
+        // Include for base class (needed for inheritance — full definition required)
+        if (baseClass != null) {
+            sb.appendLine()
+            sb.appendLine("#include \"$baseClass.hpp\"")
+        }
+
+        // Includes for vector association targets (full type required for vector elements)
+        for (name in vectorTargetNames.sorted()) {
+            sb.appendLine("#include \"$name.hpp\"")
+        }
+
         sb.appendLine()
 
-        val baseClass = generalizations[cls.id]?.let { idToName[it] }
+        // Forward declarations for pointer-only association targets
+        if (pointerOnlyTargets.isNotEmpty()) {
+            for (name in pointerOnlyTargets.sorted()) {
+                sb.appendLine("class $name;")
+            }
+            sb.appendLine()
+        }
+
         val inheritance = if (baseClass != null) " : public $baseClass" else ""
 
         openNamespace(sb, opts)
@@ -239,6 +320,29 @@ public class CppCodeGenerator : KumlCodeGenerator {
         closeNamespace(sb, opts)
 
         return sb.toString()
+    }
+
+    /**
+     * Returns the set of user-defined type names that appear as association targets for [ownerId].
+     * These are the names of classes/interfaces on the "other end" of navigable associations.
+     */
+    private fun buildAssocTargetNames(
+        ownerId: String,
+        associations: List<UmlAssociation>,
+        idToName: Map<String, String>,
+    ): List<String> {
+        val names = mutableListOf<String>()
+        for (assoc in associations) {
+            if (assoc.ends.size != 2) continue
+            val ownerEndIndex = assoc.ends.indexOfFirst { it.typeId == ownerId }
+            if (ownerEndIndex < 0) continue
+            val otherEndIndex = 1 - ownerEndIndex
+            val otherEnd = assoc.ends[otherEndIndex]
+            if (!otherEnd.navigable) continue
+            val targetName = idToName[otherEnd.typeId] ?: continue
+            names += targetName
+        }
+        return names
     }
 
     /**
