@@ -458,6 +458,32 @@ class CppCodegenPluginTest :
             content shouldContain "namespace inner {"
         }
 
+        // ── Security: path-traversal sanitization ─────────────────────────────
+
+        test("Elementname mit Pfad-Traversal-Sequenz wird sanitisiert (kein Schreiben außerhalb outputDir)") {
+            // A UML element named "../../evil" must NOT produce a file outside outputDir.
+            val cls = UmlClass(id = "evil", name = "../../evil")
+            val out = tempDir()
+            val files = generator.generate(diagram(cls), out, emptyMap())
+            // The generated file must be a direct child of outputDir.
+            files.forEach { file ->
+                file.canonicalPath.startsWith(out.canonicalPath) shouldBe true
+            }
+            // The file name must not contain path separators or traversal sequences.
+            files.forEach { file ->
+                file.name shouldNotContain "/"
+                file.name shouldNotContain "\\"
+                file.name shouldNotContain ".."
+            }
+        }
+
+        test("Elementname mit Schrägstrich wird zu Unterstrich") {
+            val cls = UmlClass(id = "myclass", name = "my/class")
+            val out = tempDir()
+            val files = generator.generate(diagram(cls), out, emptyMap())
+            files.map { it.name } shouldContain "my_class.hpp"
+        }
+
         test("Package-Namespace hat Vorrang vor globalem namespace-Option") {
             val pkg =
                 UmlPackage(
