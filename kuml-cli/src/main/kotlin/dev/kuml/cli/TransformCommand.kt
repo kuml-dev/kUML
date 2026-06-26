@@ -9,12 +9,14 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.help
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.file
+import dev.kuml.bpmn.model.BpmnProcess
 import dev.kuml.codegen.m2m.GeneratedFile
 import dev.kuml.codegen.m2m.TransformContext
 import dev.kuml.codegen.m2m.TransformResult
 import dev.kuml.codegen.m2m.TransformerRegistry
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.script.DiagramExtractor
+import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -47,6 +49,12 @@ internal class TransformCommand : CliktCommand(name = "transform") {
     private val outputDir by option("--output", "-o")
         .help("Output directory for generated files")
 
+    private val fromFormat by option("--from")
+        .help("Source format shorthand: 'bpmn' or 'uml-activity'. Sugar for --transformer.")
+
+    private val toFormat by option("--to")
+        .help("Target format shorthand: 'uml-activity' or 'bpmn'. Sugar for --transformer.")
+
     private val listTransformers by option("--list-transformers")
         .flag()
         .help("List all available transformers and exit")
@@ -73,10 +81,19 @@ internal class TransformCommand : CliktCommand(name = "transform") {
             return
         }
 
+        // ── Resolve transformer id from --from/--to sugar ────────────────────
+        val resolvedTransformerId: String? =
+            when {
+                fromFormat != null && toFormat != null -> resolveFromTo(fromFormat!!, toFormat!!)
+                transformerOption != null -> transformerOption
+                else -> null
+            }
+
         // ── Validate required options ─────────────────────────────────────────
         val transformerId =
-            transformerOption ?: throw UsageError(
-                "Missing required option --transformer. Use --list-transformers to see available transformers.",
+            resolvedTransformerId ?: throw UsageError(
+                "Missing required option --transformer (or --from/--to). " +
+                    "Use --list-transformers to see available transformers.",
             )
         val outDir =
             outputDir ?: throw UsageError(
@@ -85,12 +102,6 @@ internal class TransformCommand : CliktCommand(name = "transform") {
 
         // ── Load transformers ─────────────────────────────────────────────────
         TransformerRegistry.loadFromClasspath()
-        val t =
-            TransformerRegistry.get<KumlDiagram, List<GeneratedFile>>(transformerId)
-                ?: throw UsageError(
-                    "Unknown transformer: '$transformerId'. " +
-                        "Use --list-transformers to see available transformers.",
-                )
 
         // ── Evaluate the script ───────────────────────────────────────────────
         val evalResult = KumlScriptHost.eval(input)
@@ -107,15 +118,6 @@ internal class TransformCommand : CliktCommand(name = "transform") {
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                 }
 
-        val diagram =
-            try {
-                DiagramExtractor.extract(success.value.returnValue, input)
-            } catch (e: ScriptEvaluationException) {
-                System.err.println(e.message)
-                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
-            }
-
-        // ── Transform ─────────────────────────────────────────────────────────
         val ctx =
             TransformContext(
                 options =
@@ -124,7 +126,62 @@ internal class TransformCommand : CliktCommand(name = "transform") {
                     },
             )
 
-        when (val result = t.transform(diagram, ctx)) {
+        // ── Dispatch: BPMN source requires extractAny → ExtractedDiagram.Bpmn ─
+        val isBpmnSource =
+            transformerId == "bpmn-to-uml-activity" ||
+                (fromFormat == "bpmn" && toFormat != null)
+
+        val transformResult: TransformResult<List<GeneratedFile>> =
+            if (isBpmnSource) {
+                val extracted =
+                    try {
+                        DiagramExtractor.extractAny(success.value.returnValue, input)
+                    } catch (e: ScriptEvaluationException) {
+                        System.err.println(e.message)
+                        throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                    }
+                val bpmnExtracted =
+                    extracted as? ExtractedDiagram.Bpmn
+                        ?: run {
+                            System.err.println(
+                                "Transformer '$transformerId' requires a BPMN script. " +
+                                    "The script did not produce a BpmnModel.",
+                            )
+                            throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                        }
+                val bpmnProcess =
+                    bpmnExtracted.model.processes.firstOrNull()
+                        ?: run {
+                            System.err.println("BPMN model contains no processes.")
+                            throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                        }
+                val t =
+                    TransformerRegistry.get<BpmnProcess, List<GeneratedFile>>(transformerId)
+                        ?: throw UsageError(
+                            "Unknown transformer: '$transformerId'. " +
+                                "Use --list-transformers to see available transformers.",
+                        )
+                t.transform(bpmnProcess, ctx)
+            } else {
+                // Standard UML path
+                val t =
+                    TransformerRegistry.get<KumlDiagram, List<GeneratedFile>>(transformerId)
+                        ?: throw UsageError(
+                            "Unknown transformer: '$transformerId'. " +
+                                "Use --list-transformers to see available transformers.",
+                        )
+                val diagram =
+                    try {
+                        DiagramExtractor.extract(success.value.returnValue, input)
+                    } catch (e: ScriptEvaluationException) {
+                        System.err.println(e.message)
+                        throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                    }
+                t.transform(diagram, ctx)
+            }
+
+        // ── Transform ─────────────────────────────────────────────────────────
+        when (val result = transformResult) {
             is TransformResult.Success -> {
                 val dir = File(outDir).also { it.mkdirs() }
                 for (file in result.output) {
@@ -145,6 +202,21 @@ internal class TransformCommand : CliktCommand(name = "transform") {
             }
         }
     }
+
+    // ── --from/--to sugar resolution ─────────────────────────────────────────
+
+    private fun resolveFromTo(
+        from: String,
+        to: String,
+    ): String =
+        when {
+            from == "bpmn" && to == "uml-activity" -> "bpmn-to-uml-activity"
+            from == "uml-activity" && to == "bpmn" -> "uml-activity-to-bpmn"
+            else -> throw UsageError(
+                "Unsupported --from/$from --to/$to combination. " +
+                    "Supported: (bpmn → uml-activity) and (uml-activity → bpmn).",
+            )
+        }
 
     // ── Serialization shim for trace JSON output ──────────────────────────────
 

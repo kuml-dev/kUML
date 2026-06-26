@@ -8,6 +8,56 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**V3.1.43 — M2M Bridge: BPMN Process ⇌ UML Activity**
+
+New module `kuml-codegen/kuml-transform-bpmn-to-uml` providing a bidirectional model-to-model
+bridge between BPMN Process models and UML Activity diagrams. Both share the same Petri-net /
+token-flow foundation (ADR-0015), making a structurally lossless bridge possible.
+
+New files in `kuml-codegen/kuml-transform-bpmn-to-uml/src/main/kotlin/dev/kuml/transform/bpmnuml/`:
+- `BpmnToUmlActivityTransformer` — transformer id `"bpmn-to-uml-activity"`. Converts a
+  `BpmnProcess` to a kUML Activity diagram script. `BpmnTask` → `ACTION`, `startEvent` →
+  `INITIAL`, `endEvent` → `ACTIVITY_FINAL`, `exclusiveGateway` → `DECISION`/`MERGE`,
+  `parallelGateway` → `FORK`/`JOIN`, `inclusiveGateway` → `DECISION` (best-effort, marked in
+  metadata). `conditionExpression` → edge `guard`.
+- `BpmnToUmlActivityMapper` — pure structural mapping; handles the central pitfall: BPMN
+  gateways with both multiple-incoming AND multiple-outgoing (MIXED) are split into two UML
+  nodes (MERGE→DECISION or JOIN→FORK) sharing the same `"bpmn.sourceId"` metadata for
+  round-trip reconstruction.
+- `UmlActivityModel` — typed intermediate holder (`name`, `nodes: List<UmlActivityNode>`,
+  `edges: List<UmlActivityEdge>`) decoupling the mapper from the script renderer.
+- `UmlActivityScriptRenderer` — emits `activityDiagram(name = "…") { … }` script using the
+  kUML Activity DSL.
+- `UmlActivityToBpmnTransformer` — transformer id `"uml-activity-to-bpmn"`. Reverses a
+  `KumlDiagram` (type = ACTIVITY) back to a `BpmnProcess` script. Collapses DECISION+MERGE (and
+  FORK+JOIN) pairs sharing the same `"bpmn.sourceId"` back into a single MIXED gateway.
+  Fails with `TransformResult.Failure` for non-ACTIVITY diagrams.
+- `UmlActivityToBpmnMapper` — reverse mapping; populates `incoming`/`outgoing` lists by
+  scanning sequence flows; detects split-pair collapse via metadata.
+- `BpmnProcessScriptRenderer` — emits `bpmnModel { process { … } }` scripts per kUML BPMN DSL.
+- `BpmnUmlBridgeRegistry` — convenience `registerAll()` for programmatic (non-ServiceLoader)
+  registration, mirrors `AutosarProfile.registerAll()` pattern.
+- `BpmnToUmlActivityTransformerProvider` / `UmlActivityToBpmnTransformerProvider` — ServiceLoader
+  providers registered via `META-INF/services/dev.kuml.codegen.m2m.KumlTransformerProvider`.
+
+Modified:
+- `settings.gradle.kts` — added `kuml-codegen:kuml-transform-bpmn-to-uml` include.
+- `kuml-cli/build.gradle.kts` — added `implementation` dependency so ServiceLoader discovers
+  both providers at runtime.
+- `TransformCommand.kt` — added `--from` / `--to` options (`bpmn`/`uml-activity`) as sugar for
+  `--transformer`; added BPMN dispatch branch using `DiagramExtractor.extractAny()` →
+  `ExtractedDiagram.Bpmn` → `BpmnProcess` source.
+
+Limitation: Pool/Lane → ActivityPartition is best-effort only. Lane names are recorded in node
+metadata key `"uml.partition"` and emitted as Kotlin comments. The kUML UML Activity metamodel
+has no PARTITION node kind.
+
+Tests: 29 tests across 4 suites (all green):
+`BpmnToUmlActivityTransformerTest` (11), `BpmnUmlRoundTripTest` (5),
+`UmlActivityToBpmnTransformerTest` (8), `BpmnUmlBridgeRegistryTest` (5).
+
+Vault example: `03 Bereiche/kUML/Beispiele/10 BPMN zu UML-Aktivität – PdV Prozess.md`.
+
 **V3.1.42 — `kuml run --adapter chain-evm`: Wire EVM Chain Adapter into the Run Command**
 
 New files in `kuml-cli/src/main/kotlin/dev/kuml/cli/run/`:

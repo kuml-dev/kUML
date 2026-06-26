@@ -64,6 +64,7 @@ include(
     "kuml-codegen:kuml-gen-kotlin",   // Phase 1 — Built-in Kotlin code generator
     "kuml-codegen:kuml-gen-java",     // V1.1.4 — Java POJO/Records/Lombok generator
     "kuml-codegen:kuml-gen-sql",      // V1.1.4 — SQL DDL generator (Postgres/MySQL/H2/SQLite)
+    "kuml-codegen:kuml-transform-bpmn-to-uml",  // V3.1.43 — M2M Bridge BPMN Process ⇌ UML Activity
 )
 
 // ── Plugin API ──────────────────────────────────────────────── V3.0.27 ──
