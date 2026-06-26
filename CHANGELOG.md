@@ -8,6 +8,34 @@ All notable changes to this project are documented here. Format follows
 
 ### Added
 
+**V3.1.41 — EMF Profile Conversion: kUML Profile ⇌ Eclipse UML2 `.profile.uml`**
+
+New source files in `kuml-io/kuml-io-emf`:
+- `KumlProfileToEmfConverter` — converts a `KumlProfile` (from `kuml-profile-api`) into
+  an Eclipse UML2 `Profile` model. Encodes each stereotype's `targetMetaclass` as a
+  sentinel owned attribute (`_kuml_metaclass_<Name>`) because the Eclipse P2 resource
+  `org.eclipse.uml2.uml.resources` (required for real metaclass proxies) is not available
+  on Maven Central. All metadata (namespace, version, description, extendsProfiles, property
+  required/default/min) is preserved via EAnnotations with source `dev.kuml.profile`.
+- `EmfProfileToKumlConverter` — reads an Eclipse UML2 `Profile` back into a `KumlProfile`
+  via the existing profile DSL builder. Recovers metaclass from the sentinel attribute,
+  tag properties from remaining owned attributes, and types via explicit `when`-dispatch
+  (String/Int/Long/Double/Boolean). Enum-typed properties fall back to `String::class`
+  (documented limitation — enum class may not be on the classpath at import time).
+- `ProfileXmiExporter` — writes a `KumlProfile` to a `.profile.uml` XMI file with a
+  `uml:Profile` root element (distinct from `XmiWriter` which uses `uml:Model`). Public
+  no-arg constructor enables CLI reflection-loading.
+- `ProfileXmiImporter` — reads a `.profile.uml` XMI file via `ResourceSetImpl` and delegates
+  to `EmfProfileToKumlConverter`. Provides `import(File): KumlProfile` (throws) and
+  `importResult(File): ProfileResult` (catches all `Throwable` → `ProfileResult.Failure`).
+- `ProfileResult` — sealed class `Success(profile)` / `Failure(message, cause)` for
+  safe error handling on malformed files.
+- `build.gradle.kts` of `kuml-io-emf` gains `implementation(project(":kuml-profile:kuml-profile-api"))`
+  and test deps on `kuml-profile-autosar`, `-spring`, `-javaee` for round-trip tests.
+- 47 new tests across `KumlProfileToEmfConverterTest`, `EmfProfileToKumlConverterTest`,
+  `AutosarProfileRoundtripTest`, `SpringProfileRoundtripTest`, `JavaEeProfileRoundtripTest`,
+  `ProfileXmiExporterTest`, `ProfileXmiImporterTest`, `ProfileXmiSerializationTest`.
+
 **V3.1.40 — C# Reverse-Engineering Plugin (Handwritten Structural Parser)**
 
 New Drittanbieter-Plugin `kuml-plugin-examples/plugin-reverse-csharp`:
