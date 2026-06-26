@@ -298,8 +298,38 @@ public class CppCodeGenerator : KumlCodeGenerator {
         return "$returnType ${opts.naming.apply(op.name)}($params)"
     }
 
-    /** Extracts a rough type name from a member declaration line for include analysis. */
-    private fun extractTypeName(memberDecl: String): String = memberDecl
+    /**
+     * Extracts the C++ type name from a member declaration line.
+     *
+     * Examples:
+     * - `"std::vector<Order*> orders_;"` → `"std::vector<Order*>"`
+     * - `"Order* order_;"` → `"Order*"`
+     * - `"std::shared_ptr<Item> item_;"` → `"std::shared_ptr<Item>"`
+     *
+     * The strategy: strip trailing semicolon, then take everything before the last whitespace
+     * token (which is the variable name). Template types like `std::vector<Foo*>` contain no
+     * unbalanced whitespace before the variable name token.
+     */
+    private fun extractTypeName(memberDecl: String): String {
+        val stripped = memberDecl.trimEnd().removeSuffix(";").trim()
+        // Find the last whitespace that separates type from variable name.
+        // We scan from the end, respecting angle-bracket depth so that
+        // template parameters are not mistaken for variable names.
+        var depth = 0
+        var splitIdx = -1
+        for (i in stripped.indices.reversed()) {
+            when (stripped[i]) {
+                '>' -> depth++
+                '<' -> depth--
+                ' ', '\t' ->
+                    if (depth == 0) {
+                        splitIdx = i
+                        break
+                    }
+            }
+        }
+        return if (splitIdx > 0) stripped.substring(0, splitIdx).trim() else stripped
+    }
 
     private fun openNamespace(
         sb: StringBuilder,

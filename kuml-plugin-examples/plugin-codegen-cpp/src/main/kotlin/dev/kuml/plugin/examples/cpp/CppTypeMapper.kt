@@ -14,7 +14,7 @@ public class CppTypeMapper(
      *
      * Unknown types are passed through unchanged (user-defined types stay PascalCase).
      */
-    internal fun mapType(kumlType: String): String =
+    public fun mapType(kumlType: String): String =
         when (kumlType.lowercase()) {
             "string" -> "std::string"
             "int", "integer" -> "int"
@@ -40,7 +40,7 @@ public class CppTypeMapper(
      * @param useSmartPointers Whether smart pointer types are in use (adds `<memory>`).
      * @param hasVectorMembers Whether any `std::vector` member is present (adds `<vector>`).
      */
-    internal fun headerIncludesFor(
+    public fun headerIncludesFor(
         typeNames: Collection<String>,
         useSmartPointers: Boolean = false,
         hasVectorMembers: Boolean = false,
