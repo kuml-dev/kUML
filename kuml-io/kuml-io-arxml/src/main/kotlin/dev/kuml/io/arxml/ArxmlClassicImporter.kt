@@ -10,7 +10,6 @@ import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlPort
-import dev.kuml.uml.UmlStateMachine
 import org.jdom2.Element
 import org.jdom2.Namespace
 import java.io.File
@@ -41,7 +40,8 @@ import java.util.UUID
  * - `SENDER-RECEIVER-INTERFACE`     → [UmlInterface] + stereotype "ComInterface"
  * - `CLIENT-SERVER-INTERFACE`       → [UmlInterface] + stereotype "ComInterface", metadata `isService=true`
  * - `RUNNABLE-ENTITY`               → [UmlOperation] + stereotype "Runnable"; trigger joined from EVENTS block
- * - `BEHAVIOR-SPEC`                 → [UmlStateMachine] + stereotype "BehaviorSpec"
+ * - `BEHAVIOR-SPEC`                 → stored as component metadata `behaviorSpec` (SHORT-NAME value); no separate model element is created
+ * - `SWC-INTERNAL-BEHAVIOR SHORT-NAME` → stored as component metadata `internalBehaviorName` to preserve the original name across export→re-import roundtrips
  *
  * @property version When non-null, overrides auto-detection from the root element.
  *
@@ -273,7 +273,12 @@ public class ArxmlClassicImporter(
 
         // Build runnables — join with trigger events from EVENTS block
         val operations = mutableListOf<UmlOperation>()
-        val stateMachines = mutableListOf<UmlStateMachine>()
+        // BehaviorSpec is represented as component metadata ("behaviorSpec" → SHORT-NAME value).
+        // The SWC-INTERNAL-BEHAVIOR SHORT-NAME is stored as "internalBehaviorName" so the exporter
+        // can reproduce the original name instead of synthesising "${compName}_InternalBehavior",
+        // preventing data-loss on export→re-import when the vendor ARXML uses a non-standard name.
+        var behaviorSpecName: String? = null
+        var internalBehaviorName: String? = null
         val behaviorsEl =
             el.getChild(ArxmlSchema.ELEM_INTERNAL_BEHAVIORS, arNs)
                 ?: el.getChild(ArxmlSchema.ELEM_INTERNAL_BEHAVIORS, Namespace.NO_NAMESPACE)
@@ -282,6 +287,11 @@ public class ArxmlClassicImporter(
                 val behaviorName =
                     behaviorEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs)
                         ?: "${shortName}_InternalBehavior"
+                // Capture the first internal-behavior name encountered so the exporter can
+                // reproduce the original SHORT-NAME instead of synthesising a new one.
+                if (internalBehaviorName == null) {
+                    internalBehaviorName = behaviorName
+                }
                 val behaviorPath = ArxmlPath.append(swcPath, behaviorName)
 
                 // Build a trigger map: runnablePath → RunnableTrigger
@@ -316,21 +326,17 @@ public class ArxmlClassicImporter(
                     )
                 }
 
-                // BehaviorSpec / state machine
-                val behaviorSpecEl =
-                    behaviorEl.getChild(ArxmlSchema.ELEM_BEHAVIOR_SPEC, arNs)
-                        ?: behaviorEl.getChild(ArxmlSchema.ELEM_BEHAVIOR_SPEC, Namespace.NO_NAMESPACE)
-                if (behaviorSpecEl != null) {
-                    val smName =
-                        behaviorSpecEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs)
-                            ?: "${shortName}_BehaviorSpec"
-                    stateMachines.add(
-                        UmlStateMachine(
-                            id = UUID.randomUUID().toString(),
-                            name = smName,
-                            stereotypes = listOf(ArxmlSchema.STEREOTYPE_BEHAVIOR_SPEC),
-                        ),
-                    )
+                // BehaviorSpec: record name in metadata so it survives roundtrip.
+                // Only the first BEHAVIOR-SPEC encountered per SWC-INTERNAL-BEHAVIOR is retained.
+                if (behaviorSpecName == null) {
+                    val behaviorSpecEl =
+                        behaviorEl.getChild(ArxmlSchema.ELEM_BEHAVIOR_SPEC, arNs)
+                            ?: behaviorEl.getChild(ArxmlSchema.ELEM_BEHAVIOR_SPEC, Namespace.NO_NAMESPACE)
+                    if (behaviorSpecEl != null) {
+                        behaviorSpecName =
+                            behaviorSpecEl.getTextDual(ArxmlSchema.ELEM_SHORT_NAME, arNs)
+                                ?: "${shortName}_BehaviorSpec"
+                    }
                 }
             }
         }
@@ -339,8 +345,11 @@ public class ArxmlClassicImporter(
             mutableMapOf<String, KumlMetaValue>(
                 "kind" to KumlMetaValue.Text(kind),
             )
-        if (stateMachines.isNotEmpty()) {
-            componentMetadata["behaviorSpec"] = KumlMetaValue.Text(stateMachines[0].name)
+        if (behaviorSpecName != null) {
+            componentMetadata["behaviorSpec"] = KumlMetaValue.Text(behaviorSpecName)
+        }
+        if (internalBehaviorName != null) {
+            componentMetadata["internalBehaviorName"] = KumlMetaValue.Text(internalBehaviorName)
         }
 
         return UmlComponent(
@@ -463,20 +472,18 @@ public class ArxmlClassicImporter(
             warnings.add("Root element does not carry AUTOSAR R4.x namespace; defaulting to R22_11")
             return ArxmlVersion.R22_11
         }
+        // Namespace-based detection succeeded — trust it.
+        // Optionally cross-check with xsi:schemaLocation for an informational warning only;
+        // the detected version is returned regardless (schemaLocation is optional in AUTOSAR).
         val schemaLocation =
             root.getAttributeValue(
                 "schemaLocation",
                 Namespace.getNamespace("xsi", ArxmlSchema.XSI_NS),
             )
-        val recognised =
-            schemaLocation != null &&
-                ArxmlVersion.entries.any { v -> schemaLocation.contains(v.schemaLabel) }
-        if (!recognised) {
+        if (schemaLocation == null) {
             warnings.add(
-                "xsi:schemaLocation absent — cannot determine exact AUTOSAR release; " +
-                    "defaulting to ${ArxmlVersion.R22_11.name}",
+                "xsi:schemaLocation absent — version determined from namespace as ${detected.name}",
             )
-            return ArxmlVersion.R22_11
         }
         return detected
     }

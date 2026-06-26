@@ -241,6 +241,111 @@ class ArxmlClassicRoundtripTest :
             (importedComp.metadata["behaviorSpec"] as? KumlMetaValue.Text)?.value shouldBe "SafetyStateMachine"
         }
 
+        test("BehaviorSpec name survives import → export → import roundtrip") {
+            // Verifies that the importer's metadata-based representation of BehaviorSpec
+            // (component.metadata["behaviorSpec"]) is preserved through a full export→import cycle.
+            val xml =
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                    "<AUTOSAR xmlns=\"http://autosar.org/schema/r4.0\"\n" +
+                    "         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n" +
+                    "         xsi:schemaLocation=\"http://autosar.org/schema/r4.0 ${ArxmlVersion.R22_11.schemaLabel}.xsd\">\n" +
+                    "  <AR-PACKAGES>\n" +
+                    "    <AR-PACKAGE>\n" +
+                    "      <SHORT-NAME>Safety</SHORT-NAME>\n" +
+                    "      <ELEMENTS>\n" +
+                    "        <APPLICATION-SW-COMPONENT-TYPE>\n" +
+                    "          <SHORT-NAME>SafetyMgr</SHORT-NAME>\n" +
+                    "          <INTERNAL-BEHAVIORS>\n" +
+                    "            <SWC-INTERNAL-BEHAVIOR>\n" +
+                    "              <SHORT-NAME>SafetyMgr_IB</SHORT-NAME>\n" +
+                    "              <BEHAVIOR-SPEC>\n" +
+                    "                <SHORT-NAME>MySafetyMachine</SHORT-NAME>\n" +
+                    "              </BEHAVIOR-SPEC>\n" +
+                    "            </SWC-INTERNAL-BEHAVIOR>\n" +
+                    "          </INTERNAL-BEHAVIORS>\n" +
+                    "        </APPLICATION-SW-COMPONENT-TYPE>\n" +
+                    "      </ELEMENTS>\n" +
+                    "    </AR-PACKAGE>\n" +
+                    "  </AR-PACKAGES>\n" +
+                    "</AUTOSAR>"
+
+            // import → export → import
+            val result1 = importer.importFromString(xml)
+            val xml2 = exporter.export(result1.model)
+            val result2 = importer.importFromString(xml2)
+
+            val root = result2.model.root.shouldBeInstanceOf<UmlPackage>()
+            val safetyPkg = root.members[0].shouldBeInstanceOf<UmlPackage>()
+            val comp = safetyPkg.members[0].shouldBeInstanceOf<UmlComponent>()
+            (comp.metadata["behaviorSpec"] as? KumlMetaValue.Text)?.value shouldBe "MySafetyMachine"
+        }
+
+        test("vendor internal behavior name preserved across import→export→import roundtrip") {
+            // When ARXML uses a non-synthesised SWC-INTERNAL-BEHAVIOR SHORT-NAME (e.g. "BrakeCtrl_Ib"
+            // instead of the synthesised "BrakeCtrl_InternalBehavior"), the exporter must reproduce
+            // the original name so that START-ON-EVENT-REF paths remain valid after re-import.
+            val vendorXml =
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                    "<AUTOSAR xmlns=\"http://autosar.org/schema/r4.0\"\n" +
+                    "         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n" +
+                    "         xsi:schemaLocation=\"http://autosar.org/schema/r4.0 ${ArxmlVersion.R22_11.schemaLabel}.xsd\">\n" +
+                    "  <AR-PACKAGES>\n" +
+                    "    <AR-PACKAGE>\n" +
+                    "      <SHORT-NAME>Brakes</SHORT-NAME>\n" +
+                    "      <ELEMENTS>\n" +
+                    "        <APPLICATION-SW-COMPONENT-TYPE>\n" +
+                    "          <SHORT-NAME>BrakeCtrl</SHORT-NAME>\n" +
+                    "          <INTERNAL-BEHAVIORS>\n" +
+                    "            <SWC-INTERNAL-BEHAVIOR>\n" +
+                    "              <SHORT-NAME>BrakeCtrl_Ib</SHORT-NAME>\n" +
+                    "              <RUNNABLES>\n" +
+                    "                <RUNNABLE-ENTITY><SHORT-NAME>Cyclic10ms</SHORT-NAME></RUNNABLE-ENTITY>\n" +
+                    "              </RUNNABLES>\n" +
+                    "              <EVENTS>\n" +
+                    "                <TIMING-EVENT>\n" +
+                    "                  <SHORT-NAME>TimingEvent_Cyclic10ms</SHORT-NAME>\n" +
+                    "                  <START-ON-EVENT-REF DEST=\"RUNNABLE-ENTITY\">" +
+                    "/Brakes/BrakeCtrl/BrakeCtrl_Ib/Cyclic10ms" +
+                    "</START-ON-EVENT-REF>\n" +
+                    "                </TIMING-EVENT>\n" +
+                    "              </EVENTS>\n" +
+                    "            </SWC-INTERNAL-BEHAVIOR>\n" +
+                    "          </INTERNAL-BEHAVIORS>\n" +
+                    "        </APPLICATION-SW-COMPONENT-TYPE>\n" +
+                    "      </ELEMENTS>\n" +
+                    "    </AR-PACKAGE>\n" +
+                    "  </AR-PACKAGES>\n" +
+                    "</AUTOSAR>"
+
+            // import → export → import
+            val result1 = importer.importFromString(vendorXml)
+
+            // internalBehaviorName must be captured
+            val root1 = result1.model.root.shouldBeInstanceOf<UmlPackage>()
+            val comp1 =
+                root1.members[0]
+                    .shouldBeInstanceOf<UmlPackage>()
+                    .members[0]
+                    .shouldBeInstanceOf<UmlComponent>()
+            (comp1.metadata["internalBehaviorName"] as? KumlMetaValue.Text)?.value shouldBe "BrakeCtrl_Ib"
+
+            // export must reproduce vendor name, not synthesise "BrakeCtrl_InternalBehavior"
+            val xml2 = exporter.export(result1.model)
+            xml2.contains("BrakeCtrl_Ib") shouldBe true
+            xml2.contains("BrakeCtrl_InternalBehavior") shouldBe false
+
+            // re-import must resolve the trigger (START-ON-EVENT-REF path still valid)
+            val result2 = importer.importFromString(xml2)
+            val root2 = result2.model.root.shouldBeInstanceOf<UmlPackage>()
+            val comp2 =
+                root2.members[0]
+                    .shouldBeInstanceOf<UmlPackage>()
+                    .members[0]
+                    .shouldBeInstanceOf<UmlComponent>()
+            comp2.operations shouldHaveSize 1
+            (comp2.operations[0].metadata["trigger"] as? KumlMetaValue.Text)?.value shouldBe "TIMING"
+        }
+
         test("string→export→string XML is equivalent to a fresh export of the same model") {
             val original = buildFullTestModel()
             val xml1 = exporter.export(original)

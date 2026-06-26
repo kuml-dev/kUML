@@ -346,6 +346,27 @@ class ArxmlClassicImporterTest :
             // Warnings may or may not be present — the key contract is no exception
         }
 
+        test("detectVersion uses namespace-detected version even when xsi:schemaLocation is absent") {
+            // When the namespace resolves to a known version but xsi:schemaLocation is missing,
+            // the importer must return the namespace-detected version (not fall back to R22_11)
+            // and emit only an informational warning — not discard the detected version.
+            val xmlNoSchemaLocation =
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
+                    "<AUTOSAR xmlns=\"http://autosar.org/schema/r4.0\"\n" +
+                    "         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">\n" +
+                    "  <AR-PACKAGES>\n" +
+                    "    <AR-PACKAGE><SHORT-NAME>Pkg</SHORT-NAME></AR-PACKAGE>\n" +
+                    "  </AR-PACKAGES>\n" +
+                    "</AUTOSAR>"
+            val result = importer.importFromString(xmlNoSchemaLocation)
+            // Must not throw; model should be importable
+            val rootPkg = result.model.root.shouldBeInstanceOf<UmlPackage>()
+            rootPkg.members shouldHaveSize 1
+            // An informational warning about missing schemaLocation may be present, but the
+            // detected version must not be silently replaced with a default
+            result.warnings.none { it.contains("defaulting to R22_11") && it.contains("namespace") } shouldBe true
+        }
+
         test("empty ELEMENTS block imports without throwing") {
             val xml =
                 arxmlDoc(

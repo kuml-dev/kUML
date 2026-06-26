@@ -47,7 +47,15 @@ public class ArxmlClassicExporter(
         val rootPackage = requireRootPackage(model)
         // Build a path index: element name → absolute AUTOSAR path (for TREF emission)
         val pathIndex = buildPathIndex(rootPackage, "/")
-        val doc = buildDocument(rootPackage, pathIndex)
+        // Build a dest index: absolute interface path → ARXML element name (for DEST attribute).
+        // The synthetic root UmlPackage ("AUTOSAR") does not appear in emitted AR-PACKAGES, so we
+        // index the root's direct children starting from "/" — matching the paths stored by the
+        // importer which also starts indexing from "/" below the AR-PACKAGES root element.
+        val interfaceDestIndex = mutableMapOf<String, String>()
+        for (child in rootPackage.members.filterIsInstance<UmlPackage>()) {
+            interfaceDestIndex.putAll(buildInterfaceDestIndex(child, "/"))
+        }
+        val doc = buildDocument(rootPackage, pathIndex, interfaceDestIndex)
         val sw = StringWriter()
         XMLOutputter(Format.getPrettyFormat()).output(doc, sw)
         return sw.toString()
@@ -72,8 +80,12 @@ public class ArxmlClassicExporter(
             )
 
     /**
-     * Builds a map from element name to its absolute AUTOSAR path.
-     * Used to resolve port interface TREFs (interfaceRef metadata = target path).
+     * Builds a map from **absolute AUTOSAR path** to itself (for existence checks).
+     *
+     * Keys are absolute paths (e.g. `/Interfaces/IBrake`), which matches the `interfaceRef`
+     * metadata stored on ports by the importer. Keying by short-name would cause silent
+     * collisions when two interfaces in different packages share the same name — the second
+     * would overwrite the first, producing invalid cross-references without any warning.
      */
     private fun buildPathIndex(
         pkg: UmlPackage,
@@ -81,12 +93,48 @@ public class ArxmlClassicExporter(
     ): Map<String, String> {
         val result = mutableMapOf<String, String>()
         val pkgPath = ArxmlPath.append(parentPath, pkg.name)
-        result[pkg.name] = pkgPath
+        result[pkgPath] = pkgPath
         for (member in pkg.members) {
             when (member) {
                 is UmlPackage -> result.putAll(buildPathIndex(member, pkgPath))
-                is UmlComponent -> result[member.name] = ArxmlPath.append(pkgPath, member.name)
-                is UmlInterface -> result[member.name] = ArxmlPath.append(pkgPath, member.name)
+                is UmlComponent -> {
+                    val path = ArxmlPath.append(pkgPath, member.name)
+                    result[path] = path
+                }
+                is UmlInterface -> {
+                    val path = ArxmlPath.append(pkgPath, member.name)
+                    result[path] = path
+                }
+                else -> { /* other element types: skip */ }
+            }
+        }
+        return result
+    }
+
+    /**
+     * Builds a map from the absolute AUTOSAR path of each [UmlInterface] to its ARXML element
+     * name (e.g. `"SENDER-RECEIVER-INTERFACE"` or `"CLIENT-SERVER-INTERFACE"`).
+     * Used to emit the correct `DEST` attribute on `*-INTERFACE-TREF` elements.
+     */
+    private fun buildInterfaceDestIndex(
+        pkg: UmlPackage,
+        parentPath: String,
+    ): Map<String, String> {
+        val result = mutableMapOf<String, String>()
+        val pkgPath = ArxmlPath.append(parentPath, pkg.name)
+        for (member in pkg.members) {
+            when (member) {
+                is UmlPackage -> result.putAll(buildInterfaceDestIndex(member, pkgPath))
+                is UmlInterface -> {
+                    val path = ArxmlPath.append(pkgPath, member.name)
+                    val isService = (member.metadata["isService"] as? KumlMetaValue.Text)?.value == "true"
+                    result[path] =
+                        if (isService) {
+                            ArxmlSchema.ELEM_CLIENT_SERVER_INTERFACE
+                        } else {
+                            ArxmlSchema.ELEM_SENDER_RECEIVER_INTERFACE
+                        }
+                }
                 else -> { /* other element types: skip */ }
             }
         }
@@ -96,6 +144,7 @@ public class ArxmlClassicExporter(
     private fun buildDocument(
         rootPackage: UmlPackage,
         pathIndex: Map<String, String>,
+        interfaceDestIndex: Map<String, String>,
     ): Document {
         val arNs = ArxmlSchema.arNamespace(version)
         val xsiNs = Namespace.getNamespace("xsi", ArxmlSchema.XSI_NS)
@@ -113,7 +162,7 @@ public class ArxmlClassicExporter(
 
         for (member in rootPackage.members) {
             if (member is UmlPackage) {
-                arPackages.addContent(buildPackageElement(member, arNs, pathIndex, "/"))
+                arPackages.addContent(buildPackageElement(member, arNs, pathIndex, interfaceDestIndex, "/"))
             }
         }
 
@@ -124,6 +173,7 @@ public class ArxmlClassicExporter(
         pkg: UmlPackage,
         arNs: Namespace,
         pathIndex: Map<String, String>,
+        interfaceDestIndex: Map<String, String>,
         parentPath: String,
     ): Element {
         val pkgPath = ArxmlPath.append(parentPath, pkg.name)
@@ -134,7 +184,7 @@ public class ArxmlClassicExporter(
         if (nestedPkgs.isNotEmpty()) {
             val nestedArPkgs = el(ArxmlSchema.ELEM_AR_PACKAGES, arNs)
             for (nested in nestedPkgs) {
-                nestedArPkgs.addContent(buildPackageElement(nested, arNs, pathIndex, pkgPath))
+                nestedArPkgs.addContent(buildPackageElement(nested, arNs, pathIndex, interfaceDestIndex, pkgPath))
             }
             pkgEl.addContent(nestedArPkgs)
         }
@@ -143,7 +193,7 @@ public class ArxmlClassicExporter(
         if (nonPkgMembers.isNotEmpty()) {
             val elementsEl = el(ArxmlSchema.ELEM_ELEMENTS, arNs)
             for (member in nonPkgMembers) {
-                val childEl = buildMemberElement(member, arNs, pathIndex, pkgPath)
+                val childEl = buildMemberElement(member, arNs, pathIndex, interfaceDestIndex, pkgPath)
                 if (childEl != null) elementsEl.addContent(childEl)
             }
             pkgEl.addContent(elementsEl)
@@ -156,10 +206,11 @@ public class ArxmlClassicExporter(
         member: UmlNamedElement,
         arNs: Namespace,
         pathIndex: Map<String, String>,
+        interfaceDestIndex: Map<String, String>,
         pkgPath: String,
     ): Element? =
         when (member) {
-            is UmlComponent -> buildComponentElement(member, arNs, pathIndex, pkgPath)
+            is UmlComponent -> buildComponentElement(member, arNs, pathIndex, interfaceDestIndex, pkgPath)
             is UmlInterface -> buildInterfaceElement(member, arNs)
             else -> null
         }
@@ -168,6 +219,7 @@ public class ArxmlClassicExporter(
         component: UmlComponent,
         arNs: Namespace,
         pathIndex: Map<String, String>,
+        interfaceDestIndex: Map<String, String>,
         pkgPath: String,
     ): Element {
         val compPath = ArxmlPath.append(pkgPath, component.name)
@@ -179,18 +231,24 @@ public class ArxmlClassicExporter(
         if (component.ports.isNotEmpty()) {
             val portsEl = el(ArxmlSchema.ELEM_PORTS, arNs)
             for (port in component.ports) {
-                portsEl.addContent(buildPortElement(port, arNs, pathIndex))
+                portsEl.addContent(buildPortElement(port, arNs, interfaceDestIndex))
             }
             compEl.addContent(portsEl)
         }
 
         val runnables = component.operations.filter { ArxmlSchema.STEREOTYPE_RUNNABLE in it.stereotypes }
-        if (runnables.isNotEmpty()) {
+        val behaviorSpecName = (component.metadata["behaviorSpec"] as? KumlMetaValue.Text)?.value
+        if (runnables.isNotEmpty() || behaviorSpecName != null) {
             val behaviorsEl = el(ArxmlSchema.ELEM_INTERNAL_BEHAVIORS, arNs)
             val behaviorEl = el(ArxmlSchema.ELEM_SWC_INTERNAL_BEHAVIOR, arNs)
+            // Use the original internal behavior name stored during import (preserves vendor names).
+            // Falls back to the synthesised "${compName}_InternalBehavior" for models built in-memory.
+            val behaviorName =
+                (component.metadata["internalBehaviorName"] as? KumlMetaValue.Text)?.value
+                    ?: "${component.name}_InternalBehavior"
             behaviorEl.addContent(
                 el(ArxmlSchema.ELEM_SHORT_NAME, arNs).also {
-                    it.text = "${component.name}_InternalBehavior"
+                    it.text = behaviorName
                 },
             )
 
@@ -207,7 +265,6 @@ public class ArxmlClassicExporter(
                     (it.metadata["trigger"] as? KumlMetaValue.Text) != null
                 }
             if (eventsWithTrigger.isNotEmpty()) {
-                val behaviorName = "${component.name}_InternalBehavior"
                 val behaviorPath = ArxmlPath.append(compPath, behaviorName)
                 val eventsEl = el(ArxmlSchema.ELEM_EVENTS, arNs)
                 for (runnable in eventsWithTrigger) {
@@ -231,7 +288,6 @@ public class ArxmlClassicExporter(
             }
 
             // BEHAVIOR-SPEC from component metadata
-            val behaviorSpecName = (component.metadata["behaviorSpec"] as? KumlMetaValue.Text)?.value
             if (behaviorSpecName != null) {
                 val behaviorSpecEl = el(ArxmlSchema.ELEM_BEHAVIOR_SPEC, arNs)
                 behaviorSpecEl.addContent(
@@ -259,7 +315,7 @@ public class ArxmlClassicExporter(
     private fun buildPortElement(
         port: UmlPort,
         arNs: Namespace,
-        pathIndex: Map<String, String>,
+        interfaceDestIndex: Map<String, String>,
     ): Element {
         val direction = (port.metadata["direction"] as? KumlMetaValue.Text)?.value ?: "provided"
         val tagName = if (direction == "required") ArxmlSchema.ELEM_R_PORT_PROTOTYPE else ArxmlSchema.ELEM_P_PORT_PROTOTYPE
@@ -275,12 +331,14 @@ public class ArxmlClassicExporter(
                 } else {
                     ArxmlSchema.ELEM_REQUIRED_INTERFACE_TREF
                 }
-            // Determine DEST attribute value from the last segment of the path
-            // (the interface type — e.g. SENDER-RECEIVER-INTERFACE or CLIENT-SERVER-INTERFACE)
-            // We store the DEST best-guess based on convention; default to SENDER-RECEIVER-INTERFACE
+            // Determine DEST attribute value by looking up the target interface in the index.
+            // Falls back to SENDER-RECEIVER-INTERFACE when the path is not found (e.g. external ref).
+            val destValue =
+                interfaceDestIndex[interfaceRefPath]
+                    ?: ArxmlSchema.ELEM_SENDER_RECEIVER_INTERFACE
             val trefEl = el(trefElemName, arNs)
             trefEl.text = interfaceRefPath
-            trefEl.setAttribute(ArxmlSchema.ATTR_DEST, "SENDER-RECEIVER-INTERFACE")
+            trefEl.setAttribute(ArxmlSchema.ATTR_DEST, destValue)
             portEl.addContent(trefEl)
         }
 
