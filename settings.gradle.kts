@@ -106,6 +106,7 @@ include(
     "kuml-io:kuml-io-latex",        // V2.0.2 — LaTeX/TikZ-Export (MVP: Klassendiagramme, plain theme, snippet)
     // "kuml-io:kuml-io-structurizr",  // V1.1 — C4 ⇌ Structurizr DSL
     "kuml-io:kuml-io-emf",             // V3.0.15 — OPTIONAL XMI ⇌ Eclipse UML2 (JVM-only)
+    "kuml-io:kuml-io-arxml",           // V3.1.33 — AUTOSAR Classic ARXML (XML) Import/Export, JVM-only (JDOM2), NICHT in Native-Image-CLI
     "kuml-io:kuml-io-bpmn",            // V3.1.7 — BPMN 2.0 XML Import/Export
     "kuml-io:kuml-render-smil",        // V3.1.29 — SMIL timeline API (Trace -> animated SVG, post-render injection)
 )
