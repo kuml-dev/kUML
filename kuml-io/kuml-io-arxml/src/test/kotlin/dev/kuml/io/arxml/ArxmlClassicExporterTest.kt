@@ -293,6 +293,59 @@ class ArxmlClassicExporterTest :
             xml shouldContain """DEST="${ArxmlSchema.ELEM_CLIENT_SERVER_INTERFACE}""""
         }
 
+        test("emitAdaptiveManifests=true with kind=Manifest emits SERVICE-MANIFEST and MACHINE-MANIFEST elements") {
+            val serviceManifest =
+                UmlComponent(
+                    id = "m1",
+                    name = "MyServiceManifest",
+                    stereotypes = listOf(ArxmlSchema.STEREOTYPE_MANIFEST),
+                    metadata =
+                        mapOf(
+                            "kind" to KumlMetaValue.Text(ArxmlSchema.STEREOTYPE_MANIFEST),
+                            "manifestKind" to KumlMetaValue.Text("service"),
+                        ),
+                )
+            val machineManifest =
+                UmlComponent(
+                    id = "m2",
+                    name = "MyMachineManifest",
+                    stereotypes = listOf(ArxmlSchema.STEREOTYPE_MANIFEST),
+                    metadata =
+                        mapOf(
+                            "kind" to KumlMetaValue.Text(ArxmlSchema.STEREOTYPE_MANIFEST),
+                            "manifestKind" to KumlMetaValue.Text("machine"),
+                        ),
+                )
+            val pkg = UmlPackage(id = "p1", name = "Manifests", members = listOf(serviceManifest, machineManifest))
+            val adaptiveExporter = ArxmlClassicExporter(version = ArxmlVersion.R22_11, emitAdaptiveManifests = true)
+            val xml = adaptiveExporter.export(buildModel(ArxmlVersion.R22_11, pkg))
+            xml shouldContain ArxmlSchema.ELEM_SERVICE_MANIFEST
+            xml shouldContain "MyServiceManifest"
+            xml shouldContain ArxmlSchema.ELEM_MACHINE_MANIFEST
+            xml shouldContain "MyMachineManifest"
+            // Classic component element must NOT be emitted for manifest kinds
+            xml shouldNotContain ArxmlSchema.ELEM_APPLICATION_SWC
+        }
+
+        test("emitAdaptiveManifests=true: kind=Manifest without manifestKind defaults to SERVICE-MANIFEST") {
+            val manifestNoKind =
+                UmlComponent(
+                    id = "m3",
+                    name = "DefaultManifest",
+                    stereotypes = listOf(ArxmlSchema.STEREOTYPE_MANIFEST),
+                    metadata =
+                        mapOf(
+                            "kind" to KumlMetaValue.Text(ArxmlSchema.STEREOTYPE_MANIFEST),
+                            // manifestKind absent → should default to service
+                        ),
+                )
+            val pkg = UmlPackage(id = "p1", name = "Manifests", members = listOf(manifestNoKind))
+            val adaptiveExporter = ArxmlClassicExporter(version = ArxmlVersion.R22_11, emitAdaptiveManifests = true)
+            val xml = adaptiveExporter.export(buildModel(ArxmlVersion.R22_11, pkg))
+            xml shouldContain ArxmlSchema.ELEM_SERVICE_MANIFEST
+            xml shouldContain "DefaultManifest"
+        }
+
         test("AR-PACKAGE nesting matches UmlPackage hierarchy, xmlns and xsi:schemaLocation match version") {
             val inner = UmlPackage(id = "p2", name = "InnerPkg", members = emptyList())
             val outer = UmlPackage(id = "p1", name = "OuterPkg", members = listOf(inner))

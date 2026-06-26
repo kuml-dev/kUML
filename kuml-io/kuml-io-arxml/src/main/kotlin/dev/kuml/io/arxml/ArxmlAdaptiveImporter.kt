@@ -8,6 +8,7 @@ import dev.kuml.kerml.KermlFeature
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.PartDefinition
 import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlPackage
 import org.jdom2.Element
 import org.jdom2.Namespace
@@ -96,13 +97,24 @@ public class ArxmlAdaptiveImporter(
 
         // Also expose as a KumlModel (language=UML, level=PIM) wrapping the root package
         // so callers that only work with KumlModel can still access the import result.
+        // Each PartDefinition is mapped to a UmlComponent carrying the same metadata
+        // so that KumlModel-only consumers get the full element set.
+        val kumlComponents =
+            definitions.map { part ->
+                UmlComponent(
+                    id = part.id,
+                    name = part.name,
+                    stereotypes = listOfNotNull((part.metadata["stereotype"] as? KumlMetaValue.Text)?.value),
+                    metadata = part.metadata,
+                )
+            }
         val kumlModel =
             KumlModel(
                 root =
                     UmlPackage(
                         id = UUID.randomUUID().toString(),
                         name = "AUTOSAR-Adaptive",
-                        members = emptyList(),
+                        members = kumlComponents,
                     ),
                 language = ModelingLanguage.UML,
                 level = ModelLevel.PIM,

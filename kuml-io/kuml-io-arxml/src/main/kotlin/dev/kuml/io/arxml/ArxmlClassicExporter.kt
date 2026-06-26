@@ -253,6 +253,14 @@ public class ArxmlClassicExporter(
                 buildAdaptiveManifestElement(component, arNs, ArxmlSchema.ELEM_ADAPTIVE_APPLICATION_SWC)
             ArxmlSchema.STEREOTYPE_MACHINE ->
                 buildAdaptiveManifestElement(component, arNs, ArxmlSchema.ELEM_MACHINE_DESIGN)
+            ArxmlSchema.STEREOTYPE_MANIFEST -> {
+                // manifestKind metadata determines the concrete element: "service" → SERVICE-MANIFEST,
+                // "machine" → MACHINE-MANIFEST, default → SERVICE-MANIFEST.
+                val manifestKind = (component.metadata["manifestKind"] as? KumlMetaValue.Text)?.value ?: "service"
+                val tagName =
+                    if (manifestKind == "machine") ArxmlSchema.ELEM_MACHINE_MANIFEST else ArxmlSchema.ELEM_SERVICE_MANIFEST
+                buildAdaptiveManifestElement(component, arNs, tagName)
+            }
             else ->
                 buildComponentElement(component, arNs, pathIndex, interfaceDestIndex, pkgPath)
         }

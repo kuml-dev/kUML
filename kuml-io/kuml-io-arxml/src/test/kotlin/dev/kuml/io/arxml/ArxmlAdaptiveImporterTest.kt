@@ -3,6 +3,8 @@ package dev.kuml.io.arxml
 import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.PartDefinition
+import dev.kuml.uml.UmlComponent
+import dev.kuml.uml.UmlPackage
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldHaveSize
@@ -190,5 +192,28 @@ class ArxmlAdaptiveImporterTest :
                 )
             val result = fixedImporter.importFromString(xml)
             result.version shouldBe ArxmlAdaptiveVersion.R21_11
+        }
+
+        "kumlModel root package contains UmlComponent for every imported definition" {
+            val xml =
+                adaptiveXml(
+                    """
+                    <SERVICE-INSTANCE>
+                      <SHORT-NAME>SvcA</SHORT-NAME>
+                    </SERVICE-INSTANCE>
+                    <MACHINE-DESIGN>
+                      <SHORT-NAME>MachB</SHORT-NAME>
+                    </MACHINE-DESIGN>
+                    """,
+                )
+            val result = importer.importFromString(xml)
+            val rootPkg = result.kumlModel.root as? UmlPackage
+            rootPkg.shouldNotBeNull()
+            val members = rootPkg.members
+            members shouldHaveSize 2
+            val svc = members.filterIsInstance<UmlComponent>().first { it.name == "SvcA" }
+            (svc.metadata["kind"] as? KumlMetaValue.Text)?.value shouldBe ArxmlSchema.STEREOTYPE_SERVICE_INSTANCE
+            val mach = members.filterIsInstance<UmlComponent>().first { it.name == "MachB" }
+            (mach.metadata["kind"] as? KumlMetaValue.Text)?.value shouldBe ArxmlSchema.STEREOTYPE_MACHINE
         }
     })

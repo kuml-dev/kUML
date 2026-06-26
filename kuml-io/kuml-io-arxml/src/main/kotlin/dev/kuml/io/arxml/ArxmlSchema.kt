@@ -116,10 +116,13 @@ public object ArxmlSchema {
     /**
      * Returns `true` when the given schema-location token identifies an AUTOSAR Adaptive Platform schema.
      *
-     * An Adaptive Platform schema label contains the substring `AP` (e.g. `AUTOSAR_AP_00052`).
-     * Classic Platform schema labels do NOT contain `AP` (e.g. `AUTOSAR_00051`).
+     * An Adaptive Platform schema label matches the pattern `AUTOSAR_AP_<digits>` (e.g. `AUTOSAR_AP_00052`).
+     * Classic Platform schema labels do NOT contain `_AP_` (e.g. `AUTOSAR_00051`).
+     *
+     * The check is intentionally specific to avoid false-positives on Classic schema labels or
+     * compound xsi:schemaLocation values containing tokens such as `CAPABILITY`, `CAPTURE`, or `MAP`.
      */
-    public fun isAdaptiveSchemaLabel(label: String): Boolean = label.contains("AP")
+    public fun isAdaptiveSchemaLabel(label: String): Boolean = label.contains("AUTOSAR_AP_")
 
     /**
      * Returns a JDOM2 [Namespace] for the given [ArxmlVersion].

@@ -141,6 +141,16 @@ class ArxmlAdaptiveVersionTest :
             ArxmlSchema.isAdaptiveSchemaLabel("AUTOSAR_00052").shouldBeFalse()
         }
 
+        test("isAdaptiveSchemaLabel returns false for compound Classic tokens containing AP as substring") {
+            // Regression: old label.contains("AP") caused false-positives on tokens like CAPABILITY, MAP, WEBAPP.
+            ArxmlSchema.isAdaptiveSchemaLabel("CAPABILITY").shouldBeFalse()
+            ArxmlSchema.isAdaptiveSchemaLabel("CAPTURE").shouldBeFalse()
+            ArxmlSchema.isAdaptiveSchemaLabel("MAP").shouldBeFalse()
+            ArxmlSchema.isAdaptiveSchemaLabel("WEBAPP").shouldBeFalse()
+            // Only the precise AUTOSAR_AP_ prefix must match
+            ArxmlSchema.isAdaptiveSchemaLabel("AUTOSAR_AP_00052").shouldBeTrue()
+        }
+
         test("detect returns R19_03 for AUTOSAR_AP_00047 schema label") {
             val xml =
                 """
