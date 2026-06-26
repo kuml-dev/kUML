@@ -2,8 +2,10 @@ package dev.kuml.transform.bpmnuml
 
 import dev.kuml.bpmn.model.BpmnEvent
 import dev.kuml.bpmn.model.BpmnGateway
+import dev.kuml.bpmn.model.BpmnLane
 import dev.kuml.bpmn.model.BpmnProcess
 import dev.kuml.bpmn.model.BpmnTask
+import dev.kuml.bpmn.model.EventDefinition
 import dev.kuml.bpmn.model.EventPosition
 import dev.kuml.bpmn.model.GatewayType
 import dev.kuml.bpmn.model.SequenceFlow
@@ -18,7 +20,8 @@ import dev.kuml.uml.UmlActivityNodeKind
  * Mapping rules:
  * - [BpmnTask] → [UmlActivityNodeKind.ACTION]
  * - [BpmnEvent] (START) → [UmlActivityNodeKind.INITIAL]
- * - [BpmnEvent] (END) → [UmlActivityNodeKind.ACTIVITY_FINAL]
+ * - [BpmnEvent] (END, definition=TERMINATE) → [UmlActivityNodeKind.ACTIVITY_FINAL]
+ * - [BpmnEvent] (END, definition≠TERMINATE) → [UmlActivityNodeKind.FLOW_FINAL]
  * - [BpmnGateway] (EXCLUSIVE / INCLUSIVE), diverging → [UmlActivityNodeKind.DECISION]
  * - [BpmnGateway] (EXCLUSIVE / INCLUSIVE), converging → [UmlActivityNodeKind.MERGE]
  * - [BpmnGateway] (PARALLEL), diverging → [UmlActivityNodeKind.FORK]
@@ -35,8 +38,23 @@ import dev.kuml.uml.UmlActivityNodeKind
  */
 internal object BpmnToUmlActivityMapper {
     private const val META_BPMN_SOURCE_ID = "bpmn.sourceId"
+    private const val META_UML_PARTITION = "uml.partition"
 
-    fun map(process: BpmnProcess): UmlActivityModel {
+    /**
+     * Maps a [BpmnProcess] to a [UmlActivityModel].
+     *
+     * @param process The BPMN process to map.
+     * @param lanes Optional list of [BpmnLane]s from the enclosing [dev.kuml.bpmn.model.BpmnParticipant].
+     *   When provided, each flow node's lane membership is recorded in its metadata under
+     *   the key [META_UML_PARTITION].
+     */
+    fun map(
+        process: BpmnProcess,
+        lanes: List<BpmnLane> = emptyList(),
+    ): UmlActivityModel {
+        // Build a reverse index: flowNodeId → lane name (first matching lane wins)
+        val nodeIdToPartition = buildNodeIdToPartitionMap(lanes)
+
         val nodes = mutableListOf<UmlActivityNode>()
         val edges = mutableListOf<UmlActivityEdge>()
 
@@ -62,7 +80,7 @@ internal object BpmnToUmlActivityMapper {
                             id = node.id,
                             name = node.name ?: node.id,
                             kind = UmlActivityNodeKind.ACTION,
-                            metadata = mapOf(META_BPMN_SOURCE_ID to KumlMetaValue.Text(node.id)),
+                            metadata = baseMeta(node.id, nodeIdToPartition),
                         )
                     nodes += umlNode
                     bpmnIdToUmlIds[node.id] = listOf(node.id)
@@ -72,7 +90,12 @@ internal object BpmnToUmlActivityMapper {
                     val kind =
                         when (node.position) {
                             EventPosition.START -> UmlActivityNodeKind.INITIAL
-                            EventPosition.END -> UmlActivityNodeKind.ACTIVITY_FINAL
+                            EventPosition.END ->
+                                if (node.definition == EventDefinition.TERMINATE) {
+                                    UmlActivityNodeKind.ACTIVITY_FINAL
+                                } else {
+                                    UmlActivityNodeKind.FLOW_FINAL
+                                }
                             EventPosition.INTERMEDIATE -> UmlActivityNodeKind.ACTION
                         }
                     val umlNode =
@@ -80,7 +103,7 @@ internal object BpmnToUmlActivityMapper {
                             id = node.id,
                             name = node.name ?: "",
                             kind = kind,
-                            metadata = mapOf(META_BPMN_SOURCE_ID to KumlMetaValue.Text(node.id)),
+                            metadata = baseMeta(node.id, nodeIdToPartition),
                         )
                     nodes += umlNode
                     bpmnIdToUmlIds[node.id] = listOf(node.id)
@@ -102,12 +125,10 @@ internal object BpmnToUmlActivityMapper {
                         val decisionId = "${node.id}_decision"
                         val inclusiveMeta =
                             if (node.gatewayType == GatewayType.INCLUSIVE) {
-                                mapOf(
-                                    META_BPMN_SOURCE_ID to KumlMetaValue.Text(node.id),
-                                    "bpmn.gatewayType" to KumlMetaValue.Text("INCLUSIVE"),
-                                )
+                                baseMeta(node.id, nodeIdToPartition) +
+                                    mapOf("bpmn.gatewayType" to KumlMetaValue.Text("INCLUSIVE"))
                             } else {
-                                mapOf(META_BPMN_SOURCE_ID to KumlMetaValue.Text(node.id))
+                                baseMeta(node.id, nodeIdToPartition)
                             }
 
                         nodes +=
@@ -145,12 +166,10 @@ internal object BpmnToUmlActivityMapper {
                             }
                         val meta =
                             if (node.gatewayType == GatewayType.INCLUSIVE) {
-                                mapOf(
-                                    META_BPMN_SOURCE_ID to KumlMetaValue.Text(node.id),
-                                    "bpmn.gatewayType" to KumlMetaValue.Text("INCLUSIVE"),
-                                )
+                                baseMeta(node.id, nodeIdToPartition) +
+                                    mapOf("bpmn.gatewayType" to KumlMetaValue.Text("INCLUSIVE"))
                             } else {
-                                mapOf(META_BPMN_SOURCE_ID to KumlMetaValue.Text(node.id))
+                                baseMeta(node.id, nodeIdToPartition)
                             }
                         nodes +=
                             UmlActivityNode(
@@ -170,7 +189,7 @@ internal object BpmnToUmlActivityMapper {
                             id = node.id,
                             name = node.name ?: node.id,
                             kind = UmlActivityNodeKind.ACTION,
-                            metadata = mapOf(META_BPMN_SOURCE_ID to KumlMetaValue.Text(node.id)),
+                            metadata = baseMeta(node.id, nodeIdToPartition),
                         )
                     nodes += umlNode
                     bpmnIdToUmlIds[node.id] = listOf(node.id)
@@ -202,5 +221,43 @@ internal object BpmnToUmlActivityMapper {
 
         val diagramName = process.name ?: process.id
         return UmlActivityModel(name = diagramName, nodes = nodes, edges = edges)
+    }
+
+    /**
+     * Builds a map from flow node ID to its lane name.
+     * Flattens nested child lanes recursively. First matching lane wins.
+     */
+    private fun buildNodeIdToPartitionMap(lanes: List<BpmnLane>): Map<String, String> {
+        val result = mutableMapOf<String, String>()
+
+        fun collect(lane: BpmnLane) {
+            val name = lane.name ?: lane.id
+            for (nodeId in lane.flowNodeRefs) {
+                result.putIfAbsent(nodeId, name)
+            }
+            for (child in lane.childLanes) {
+                collect(child)
+            }
+        }
+        for (lane in lanes) {
+            collect(lane)
+        }
+        return result
+    }
+
+    /**
+     * Returns the base metadata map for a flow node: always includes [META_BPMN_SOURCE_ID],
+     * and conditionally includes [META_UML_PARTITION] when the node belongs to a lane.
+     */
+    private fun baseMeta(
+        nodeId: String,
+        nodeIdToPartition: Map<String, String>,
+    ): Map<String, KumlMetaValue> {
+        val meta = mutableMapOf<String, KumlMetaValue>(META_BPMN_SOURCE_ID to KumlMetaValue.Text(nodeId))
+        val partition = nodeIdToPartition[nodeId]
+        if (partition != null) {
+            meta[META_UML_PARTITION] = KumlMetaValue.Text(partition)
+        }
+        return meta
     }
 }
