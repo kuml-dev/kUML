@@ -77,6 +77,33 @@ private val NESTED_PACKAGES_ARXML =
     </AUTOSAR>
     """.trimIndent()
 
+private val R19_11_ARXML =
+    """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <AUTOSAR xmlns="http://autosar.org/schema/r4.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://autosar.org/schema/r4.0 AUTOSAR_00048.xsd">
+      <AR-PACKAGES>
+        <AR-PACKAGE>
+          <SHORT-NAME>MyPackage</SHORT-NAME>
+        </AR-PACKAGE>
+      </AR-PACKAGES>
+    </AUTOSAR>
+    """.trimIndent()
+
+private val NO_SCHEMA_LOCATION_ARXML =
+    """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <AUTOSAR xmlns="http://autosar.org/schema/r4.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+      <AR-PACKAGES>
+        <AR-PACKAGE>
+          <SHORT-NAME>MyPackage</SHORT-NAME>
+        </AR-PACKAGE>
+      </AR-PACKAGES>
+    </AUTOSAR>
+    """.trimIndent()
+
 private val UNKNOWN_ELEMENT_ARXML =
     """
     <?xml version="1.0" encoding="UTF-8"?>
@@ -198,5 +225,17 @@ class ArxmlReaderTest :
         test("parser collects no warnings for well-formed schemaLocation ARXML") {
             val result = reader.readFromString(MINIMAL_ARXML)
             result.warnings.none { it.contains("schemaLocation") } shouldBe true
+        }
+
+        test("genuine R19_11 file with AUTOSAR_00048 schemaLocation is detected as R19_11 not R22_11") {
+            val result = reader.readFromString(R19_11_ARXML)
+            result.version shouldBe ArxmlVersion.R19_11
+            result.warnings.none { it.contains("schemaLocation") } shouldBe true
+        }
+
+        test("ARXML without xsi:schemaLocation defaults to R22_11 and emits warning") {
+            val result = reader.readFromString(NO_SCHEMA_LOCATION_ARXML)
+            result.version shouldBe ArxmlVersion.R22_11
+            result.warnings.any { it.contains("xsi:schemaLocation absent") } shouldBe true
         }
     })

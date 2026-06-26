@@ -4,6 +4,7 @@ import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlInterface
 import dev.kuml.uml.UmlNamedElement
+import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlPort
 import org.jdom2.Document
@@ -146,7 +147,33 @@ public class ArxmlWriter(
             compEl.addContent(portsEl)
         }
 
+        // INTERNAL-BEHAVIORS → emit RUNNABLE-ENTITY elements for operations with "Runnable" stereotype
+        val runnables = component.operations.filter { ArxmlSchema.STEREOTYPE_RUNNABLE in it.stereotypes }
+        if (runnables.isNotEmpty()) {
+            val behaviorsEl = el(ArxmlSchema.ELEM_INTERNAL_BEHAVIORS, arNs)
+            val behaviorEl = el(ArxmlSchema.ELEM_SWC_INTERNAL_BEHAVIOR, arNs)
+            behaviorEl.addContent(
+                el(ArxmlSchema.ELEM_SHORT_NAME, arNs).also { it.text = "${component.name}_InternalBehavior" },
+            )
+            val runnablesEl = el(ArxmlSchema.ELEM_RUNNABLES, arNs)
+            for (runnable in runnables) {
+                runnablesEl.addContent(buildRunnableElement(runnable, arNs))
+            }
+            behaviorEl.addContent(runnablesEl)
+            behaviorsEl.addContent(behaviorEl)
+            compEl.addContent(behaviorsEl)
+        }
+
         return compEl
+    }
+
+    private fun buildRunnableElement(
+        operation: UmlOperation,
+        arNs: Namespace,
+    ): Element {
+        val runnableEl = el(ArxmlSchema.ELEM_RUNNABLE_ENTITY, arNs)
+        runnableEl.addContent(el(ArxmlSchema.ELEM_SHORT_NAME, arNs).also { it.text = operation.name })
+        return runnableEl
     }
 
     private fun buildPortElement(

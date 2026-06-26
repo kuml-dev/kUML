@@ -89,20 +89,30 @@ public class ArxmlReader(
                 if (detected == null) {
                     warnings.add("Root element does not carry AUTOSAR R4.x namespace; defaulting to R22_11")
                     ArxmlVersion.R22_11
-                } else if (detected.schemaLabel == ArxmlVersion.R19_11.schemaLabel &&
-                    root.getAttributeValue(
-                        "schemaLocation",
-                        Namespace.getNamespace("xsi", ArxmlSchema.XSI_NS),
-                    ) == null
-                ) {
-                    // fromNamespace fallback — schemaLocation was absent
-                    warnings.add(
-                        "xsi:schemaLocation absent — cannot determine exact AUTOSAR release; " +
-                            "defaulting to ${ArxmlVersion.R22_11.name}",
-                    )
-                    ArxmlVersion.R22_11
                 } else {
-                    detected
+                    // Check whether xsi:schemaLocation was actually present in the document.
+                    // ArxmlVersion.detect() falls back to fromNamespace() (which returns R19_11,
+                    // the first enum entry) when schemaLocation is absent or unrecognised. We must
+                    // NOT re-interpret a genuine R19_11 file (schemaLocation present with
+                    // AUTOSAR_00048.xsd) as the fallback case — so we test the attribute directly.
+                    val schemaLocation =
+                        root.getAttributeValue(
+                            "schemaLocation",
+                            Namespace.getNamespace("xsi", ArxmlSchema.XSI_NS),
+                        )
+                    val schemaLocationRecognised =
+                        schemaLocation != null &&
+                            ArxmlVersion.entries.any { v -> schemaLocation.contains(v.schemaLabel) }
+                    if (!schemaLocationRecognised) {
+                        // fromNamespace fallback — schemaLocation was absent or unrecognised
+                        warnings.add(
+                            "xsi:schemaLocation absent — cannot determine exact AUTOSAR release; " +
+                                "defaulting to ${ArxmlVersion.R22_11.name}",
+                        )
+                        ArxmlVersion.R22_11
+                    } else {
+                        detected
+                    }
                 }
             }
 
@@ -232,10 +242,15 @@ public class ArxmlReader(
                 ?: el.getChild(ArxmlSchema.ELEM_INTERNAL_BEHAVIORS, Namespace.NO_NAMESPACE)
         if (behaviorsEl != null) {
             for (behaviorEl in behaviorsEl.children) {
+                // Try RUNNABLES wrapper first (AUTOSAR schema canonical form), then direct children (flat form)
+                val runnablesContainer =
+                    behaviorEl.getChild(ArxmlSchema.ELEM_RUNNABLES, arNs)
+                        ?: behaviorEl.getChild(ArxmlSchema.ELEM_RUNNABLES, Namespace.NO_NAMESPACE)
+                val runnableSource = runnablesContainer ?: behaviorEl
                 for (
-                runnableEl in behaviorEl
+                runnableEl in runnableSource
                     .getChildren(ArxmlSchema.ELEM_RUNNABLE_ENTITY, arNs)
-                    .ifEmpty { behaviorEl.getChildren(ArxmlSchema.ELEM_RUNNABLE_ENTITY, Namespace.NO_NAMESPACE) }
+                    .ifEmpty { runnableSource.getChildren(ArxmlSchema.ELEM_RUNNABLE_ENTITY, Namespace.NO_NAMESPACE) }
                 ) {
                     operations.add(parseRunnable(runnableEl, arNs))
                 }
@@ -247,7 +262,7 @@ public class ArxmlReader(
             name = shortName,
             ports = ports,
             operations = operations,
-            stereotypes = listOf("SoftwareComponent"),
+            stereotypes = listOf(ArxmlSchema.STEREOTYPE_SOFTWARE_COMPONENT),
             metadata =
                 mapOf(
                     "kind" to
@@ -269,7 +284,7 @@ public class ArxmlReader(
         return UmlPort(
             id = UUID.randomUUID().toString(),
             name = shortName,
-            stereotypes = listOf("AutosarPort"),
+            stereotypes = listOf(ArxmlSchema.STEREOTYPE_AUTOSAR_PORT),
             metadata =
                 mapOf(
                     "direction" to
@@ -291,7 +306,7 @@ public class ArxmlReader(
         return UmlInterface(
             id = UUID.randomUUID().toString(),
             name = shortName,
-            stereotypes = listOf("ComInterface"),
+            stereotypes = listOf(ArxmlSchema.STEREOTYPE_COM_INTERFACE),
             metadata =
                 if (isService) {
                     mapOf(
@@ -316,7 +331,7 @@ public class ArxmlReader(
         return UmlOperation(
             id = UUID.randomUUID().toString(),
             name = shortName,
-            stereotypes = listOf("Runnable"),
+            stereotypes = listOf(ArxmlSchema.STEREOTYPE_RUNNABLE),
         )
     }
 }

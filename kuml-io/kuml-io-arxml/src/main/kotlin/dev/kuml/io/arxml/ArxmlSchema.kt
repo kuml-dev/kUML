@@ -34,7 +34,17 @@ public object ArxmlSchema {
     public const val ELEM_SENDER_RECEIVER_INTERFACE: String = "SENDER-RECEIVER-INTERFACE"
     public const val ELEM_CLIENT_SERVER_INTERFACE: String = "CLIENT-SERVER-INTERFACE"
     public const val ELEM_INTERNAL_BEHAVIORS: String = "INTERNAL-BEHAVIORS"
+    public const val ELEM_SWC_INTERNAL_BEHAVIOR: String = "SWC-INTERNAL-BEHAVIOR"
+    public const val ELEM_RUNNABLES: String = "RUNNABLES"
     public const val ELEM_RUNNABLE_ENTITY: String = "RUNNABLE-ENTITY"
+
+    // ── AUTOSAR profile stereotype names ─────────────────────────────────────
+    // Single source of truth — ArxmlReader and ArxmlWriter reference these
+    // constants so that a rename in the profile is caught at compile time.
+    public const val STEREOTYPE_SOFTWARE_COMPONENT: String = "SoftwareComponent"
+    public const val STEREOTYPE_COM_INTERFACE: String = "ComInterface"
+    public const val STEREOTYPE_AUTOSAR_PORT: String = "AutosarPort"
+    public const val STEREOTYPE_RUNNABLE: String = "Runnable"
 
     /**
      * Returns a JDOM2 [Namespace] for the given [ArxmlVersion].

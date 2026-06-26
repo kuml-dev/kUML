@@ -3,11 +3,13 @@ package dev.kuml.io.arxml
 import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlInterface
+import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlPort
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 
 private fun buildTestModel(version: ArxmlVersion): UmlPackage {
@@ -115,6 +117,65 @@ class ArxmlRoundtripTest :
             parentPkg.name shouldBe "ParentPkg"
             val childPkg = parentPkg.members[0].shouldBeInstanceOf<UmlPackage>()
             childPkg.name shouldBe "ChildPkg"
+        }
+
+        test("roundtrip preserves runnables via INTERNAL-BEHAVIORS") {
+            val swcWithRunnables =
+                UmlComponent(
+                    id = "comp-r",
+                    name = "EngineController",
+                    stereotypes = listOf(ArxmlSchema.STEREOTYPE_SOFTWARE_COMPONENT),
+                    metadata = mapOf("kind" to KumlMetaValue.Text("application")),
+                    operations =
+                        listOf(
+                            UmlOperation(
+                                id = "op-1",
+                                name = "Init",
+                                stereotypes = listOf(ArxmlSchema.STEREOTYPE_RUNNABLE),
+                            ),
+                            UmlOperation(
+                                id = "op-2",
+                                name = "Cyclic10ms",
+                                stereotypes = listOf(ArxmlSchema.STEREOTYPE_RUNNABLE),
+                            ),
+                        ),
+                )
+            val root =
+                UmlPackage(
+                    id = "root-r",
+                    name = "AUTOSAR",
+                    members =
+                        listOf(
+                            UmlPackage(
+                                id = "pkg-r",
+                                name = "Engine",
+                                members = listOf(swcWithRunnables),
+                            ),
+                        ),
+                )
+
+            val writer = ArxmlWriter(version = ArxmlVersion.R22_11)
+            val reader = ArxmlReader()
+
+            val xml = writer.write(root)
+
+            // Structural check: XML must contain runnable element names
+            xml shouldContain ArxmlSchema.ELEM_INTERNAL_BEHAVIORS
+            xml shouldContain ArxmlSchema.ELEM_RUNNABLE_ENTITY
+            xml shouldContain "Init"
+            xml shouldContain "Cyclic10ms"
+
+            // Roundtrip check: reader must reconstruct runnables as operations
+            val result = reader.readFromString(xml)
+            val pkg = result.rootPackage.members[0].shouldBeInstanceOf<UmlPackage>()
+            val comp = pkg.members.filterIsInstance<UmlComponent>()[0]
+            comp.name shouldBe "EngineController"
+            comp.operations shouldHaveSize 2
+            val names = comp.operations.map { it.name }.toSet()
+            names shouldBe setOf("Init", "Cyclic10ms")
+            comp.operations.forEach { op ->
+                op.stereotypes shouldBe listOf(ArxmlSchema.STEREOTYPE_RUNNABLE)
+            }
         }
 
         test("roundtrip preserves AUTOSAR version") {
