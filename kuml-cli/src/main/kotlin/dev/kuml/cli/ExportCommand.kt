@@ -13,26 +13,31 @@ import dev.kuml.core.model.KumlModel
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlPackage
 import java.io.File
 import java.io.IOException
 import java.util.UUID
+import kotlin.script.experimental.api.ResultValue
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
 
 /**
- * The `export` subcommand — V3.1.36.
+ * The `export` subcommand — V3.1.41.
  *
  * Writes a kUML script in an external format.
  * - `--format structurizr` (V1.1): exports C4 models to Structurizr DSL.
  * - `--format xmi` (V3.0.17): exports UML models to XMI via EMF (Fat-JAR only).
  * - `--format arxml` (V3.1.36): exports UML/AUTOSAR models to ARXML (Fat-JAR only).
+ * - `--format profile-uml` (V3.1.41): exports a KumlProfile to Eclipse UML2 `.profile.uml`
+ *   XMI format (Fat-JAR only). The script must return a [KumlProfile] as its last expression.
  *
  * Usage:
  *   kuml export --format structurizr <script> [-o output.dsl]
  *   kuml export --format xmi <script> [-o output.xmi]
  *   kuml export --format arxml <script> [-o output.arxml]
+ *   kuml export --format profile-uml <script> [-o output.profile.uml]
  *
  * Exit codes:
  *   0  success
@@ -45,7 +50,7 @@ internal class ExportCommand : CliktCommand(name = "export") {
         .file(mustExist = true, canBeDir = false)
 
     private val format by option("--format", help = "Target format")
-        .choice("structurizr", "xmi", "arxml")
+        .choice("structurizr", "xmi", "arxml", "profile-uml")
         .default("structurizr")
 
     private val output by option(
@@ -54,7 +59,8 @@ internal class ExportCommand : CliktCommand(name = "export") {
         help = "Output file (default: input filename with format-appropriate extension)",
     ).file()
 
-    override fun help(context: Context): String = "Export a kUML model to another format (Structurizr DSL, XMI, ARXML)."
+    override fun help(context: Context): String =
+        "Export a kUML model to another format (Structurizr DSL, XMI, ARXML, Eclipse UML2 profile)."
 
     override fun run() {
         val scriptFile = input
@@ -71,6 +77,25 @@ internal class ExportCommand : CliktCommand(name = "export") {
                 System.err.println("Script evaluation produced no result")
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
+
+        // profile-uml format: the script must return a KumlProfile — bypass DiagramExtractor.
+        if (format == "profile-uml") {
+            val retVal = success.value.returnValue
+            val profileValue =
+                (retVal as? ResultValue.Value)?.value as? KumlProfile
+                    ?: run {
+                        System.err.println(
+                            "kuml export --format profile-uml requires the script to return a KumlProfile " +
+                                "as its last expression.\n" +
+                                "The script '${scriptFile.name}' returned: " +
+                                "${(retVal as? ResultValue.Value)?.value?.let { it::class.simpleName } ?: "nothing"}.",
+                        )
+                        throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                    }
+            exportProfileUml(profileValue, scriptFile, outputFile)
+            return
+        }
+
         val extracted = DiagramExtractor.extractAny(success.value.returnValue, scriptFile)
 
         when (format) {
@@ -235,6 +260,7 @@ internal class ExportCommand : CliktCommand(name = "export") {
                 "structurizr" -> "dsl"
                 "xmi" -> "xmi"
                 "arxml" -> "arxml"
+                "profile-uml" -> "profile.uml"
                 else -> "txt"
             }
         return File(inputFile.parentFile, "$base.$ext")
@@ -363,5 +389,38 @@ internal class ExportCommand : CliktCommand(name = "export") {
             throw e
         }
         echo("Exported ARXML: ${scriptFile.name} → ${outputFile.path}")
+    }
+
+    private fun exportProfileUml(
+        profile: KumlProfile,
+        scriptFile: File,
+        outputFile: File,
+    ) {
+        // Load ProfileXmiExporter via Reflection — kuml-io-emf is JVM-only and not bundled
+        // in the GraalVM Native Image binary. The Fat-JAR includes it at runtime.
+        val exporter =
+            try {
+                Class
+                    .forName("dev.kuml.io.emf.ProfileXmiExporter")
+                    .getDeclaredConstructor()
+                    .newInstance()
+            } catch (_: ClassNotFoundException) {
+                System.err.println(
+                    "profile-uml format requires the kUML Fat-JAR distribution.\n" +
+                        "Native Image binary does not include EMF (JVM-only).\n" +
+                        "Download the Fat-JAR from https://kuml.dev/releases",
+                )
+                throw ProgramResult(ExitCodes.FORMAT_NOT_AVAILABLE)
+            }
+
+        outputFile.parentFile?.mkdirs()
+        val exportMethod =
+            exporter.javaClass.getMethod(
+                "export",
+                KumlProfile::class.java,
+                File::class.java,
+            )
+        exportMethod.invoke(exporter, profile, outputFile)
+        echo("Exported profile UML: ${scriptFile.name} → ${outputFile.path}")
     }
 }

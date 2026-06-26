@@ -96,6 +96,10 @@ dependencies {
     // MUST remain testRuntimeOnly — kuml-io-arxml is JVM-only (JDOM2) and must NEVER become
     // a compile-time or implementation dep of kuml-cli (that would break the GraalVM native image).
     testRuntimeOnly(project(":kuml-io:kuml-io-arxml"))
+    // V3.1.41 — profile-uml CLI tests: ExportCommandProfileUmlCliTest.
+    // MUST remain testRuntimeOnly — kuml-io-emf is JVM-only (Eclipse EMF) and must NEVER become
+    // a compile-time or implementation dep of kuml-cli (that would break the GraalVM native image).
+    testRuntimeOnly(project(":kuml-io:kuml-io-emf"))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

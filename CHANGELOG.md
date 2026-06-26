@@ -35,6 +35,13 @@ New source files in `kuml-io/kuml-io-emf`:
 - 47 new tests across `KumlProfileToEmfConverterTest`, `EmfProfileToKumlConverterTest`,
   `AutosarProfileRoundtripTest`, `SpringProfileRoundtripTest`, `JavaEeProfileRoundtripTest`,
   `ProfileXmiExporterTest`, `ProfileXmiImporterTest`, `ProfileXmiSerializationTest`.
+- `kuml export --format profile-uml <script>` CLI hook — script must return a `KumlProfile`
+  as its last expression; the profile is written to a `.profile.uml` XMI file via
+  `ProfileXmiExporter` (loaded via reflection; Fat-JAR only, degrades to exit code 24 on
+  Native Image). `ExportCommandProfileUmlCliTest` covers the happy path, wrong-type-script,
+  default output extension, and FORMAT_NOT_AVAILABLE degradation.
+- `kuml-cli/build.gradle.kts` gains `testRuntimeOnly(project(":kuml-io:kuml-io-emf"))` for
+  the profile-uml CLI tests.
 
 **V3.1.40 — C# Reverse-Engineering Plugin (Handwritten Structural Parser)**
 
