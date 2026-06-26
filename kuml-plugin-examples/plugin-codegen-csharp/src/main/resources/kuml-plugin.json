@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "dev.kuml.plugin.codegen.csharp",
+  "name": "C# Code Generator",
+  "version": "1.0.0",
+  "kumlVersionRange": ">=0.12.0",
+  "extensions": [
+    {
+      "category": "codegen",
+      "implementation": "dev.kuml.plugin.examples.csharp.CsharpCodegenPlugin",
+      "id": "csharp-codegen-plugin"
+    }
+  ],
+  "permissions": ["fs.write"],
+  "licenseSpdx": "Apache-2.0"
+}
