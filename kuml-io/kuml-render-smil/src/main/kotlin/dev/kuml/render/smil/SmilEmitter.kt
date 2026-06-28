@@ -70,11 +70,12 @@ public class SmilEmitter {
         if (timeline.animations.isEmpty()) return svg
 
         val fragment = renderElements(timeline)
-        val closeIndex = svg.lastIndexOf(SVG_CLOSE)
+        val svgWithNs = ensureXlinkNamespace(svg)
+        val closeIndex = svgWithNs.lastIndexOf(SVG_CLOSE)
         return if (closeIndex >= 0) {
-            svg.substring(0, closeIndex) + fragment + SVG_CLOSE
+            svgWithNs.substring(0, closeIndex) + fragment + SVG_CLOSE
         } else {
-            svg + fragment
+            svgWithNs + fragment
         }
     }
 
@@ -102,7 +103,7 @@ public class SmilEmitter {
     private fun renderElement(anim: SmilAnimation): String {
         val begin = anim.beginMs
         val dur = anim.durationMs
-        val href = SmilXml.attr("href", "#${anim.elementId}")
+        val href = SmilXml.attr("xlink:href", "#${anim.elementId}")
         val beginAttr = SmilXml.attr("begin", "${begin}ms")
         val durAttr = SmilXml.attr("dur", "${dur}ms")
         val fillAttr = SmilXml.attr("fill", FILL_FREEZE)
@@ -147,4 +148,26 @@ public class SmilEmitter {
      * forms. The operation is idempotent — calling it on an already-clean SVG is a no-op.
      */
     private fun stripSmil(svg: String): String = SMIL_ELEMENT_REGEX.replace(svg, "")
+
+    /**
+     * Ensure the SVG root element declares the `xlink` namespace required for
+     * `xlink:href` references on SMIL animation elements.
+     *
+     * Inserts `xmlns:xlink="http://www.w3.org/1999/xlink"` into the first `<svg ...>`
+     * opening tag if not already present. This is a no-op for SVGs that already carry
+     * the namespace declaration.
+     *
+     * Background: SMIL animation elements reference their target via `xlink:href` (SVG 1.1
+     * standard, supported in Chrome, Firefox and Safari). The SVG-2 bare `href` attribute
+     * has inconsistent SMIL support across browser engines and is intentionally avoided
+     * here (see ADR-0014).
+     */
+    private fun ensureXlinkNamespace(svg: String): String {
+        if ("xmlns:xlink" in svg) return svg
+        return if ("<svg " in svg) {
+            svg.replaceFirst("<svg ", "<svg xmlns:xlink=\"http://www.w3.org/1999/xlink\" ")
+        } else {
+            svg.replaceFirst("<svg>", "<svg xmlns:xlink=\"http://www.w3.org/1999/xlink\">")
+        }
+    }
 }

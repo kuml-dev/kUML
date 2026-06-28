@@ -173,8 +173,39 @@ class SmilEmitterTest :
             val afterFirst = emitter.inject(svg, first)
             val afterSecond = emitter.inject(afterFirst, second)
             // Both animations must be present — inject is additive in ANIMATED mode
-            afterSecond shouldContain "href=\"#n1\""
-            afterSecond shouldContain "href=\"#n2\""
+            afterSecond shouldContain "xlink:href=\"#n1\""
+            afterSecond shouldContain "xlink:href=\"#n2\""
             afterSecond shouldEndWith "</svg>"
+        }
+
+        "inject adds xmlns:xlink namespace to svg root for browser SMIL compatibility" {
+            val svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"><rect id=\"n1\"/></svg>"
+            val timeline = singleTimeline(SmilAnimation.Fill("n1", "#ffd54a", 0, 600))
+            val result = emitter.inject(svg, timeline)
+            result shouldContain "xmlns:xlink=\"http://www.w3.org/1999/xlink\""
+        }
+
+        "inject does not duplicate xmlns:xlink if already present" {
+            val svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\"><rect id=\"n1\"/></svg>"
+            val timeline = singleTimeline(SmilAnimation.Fill("n1", "#ffd54a", 0, 600))
+            val result = emitter.inject(svg, timeline)
+            val count = result.split("xmlns:xlink").size - 1
+            count shouldBe 1
+        }
+
+        "all emitted SMIL elements reference targets via xlink:href not bare href" {
+            val timeline =
+                SmilTimeline(
+                    listOf(
+                        SmilAnimation.Fill("n1", "#ffd54a", 0, 600),
+                        SmilAnimation.Animate("n2", "opacity", "0", "1", 600, 600),
+                        SmilAnimation.AnimateTransform("n3", TransformType.TRANSLATE, "0 0", "50 0", 1200, 600),
+                        SmilAnimation.AnimateMotion("n4", "M 0 0 L 10 10", 1800, 600),
+                        SmilAnimation.Set("n5", "display", "inline", 2400, 600),
+                    ),
+                )
+            val fragment = emitter.renderElements(timeline)
+            fragment shouldContain "xlink:href="
+            fragment shouldNotContain " href="
         }
     })
