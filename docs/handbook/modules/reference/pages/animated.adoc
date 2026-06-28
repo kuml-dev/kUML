@@ -156,6 +156,14 @@ Animated kUML SVGs play back in all evergreen browsers (Chrome 88+, Firefox 63+,
 Safari 13.1+). The `<animateMotion>` and `<animate>` elements used are part of the
 SVG/SMIL subset that all major browsers support. Internet Explorer is not supported.
 
+NOTE: Full cross-browser support (Chrome and Safari in addition to Firefox) requires
+*v0.20.1 or later*. Earlier releases used the SVG-2 bare `href` attribute on SMIL
+elements; browser SMIL implementations are based on SVG 1.1 and require `xlink:href`
+together with the `xmlns:xlink` namespace declaration on the `<svg>` root. Firefox
+played animations correctly in all versions; Chrome and Safari silently ignored the
+SMIL elements until the fix in v0.20.1 (`SmilEmitter` now emits `xlink:href` and
+injects `xmlns:xlink` into the root tag automatically).
+
 == See also
 
 * xref:simulate.adoc[State-Machine Simulation] — how to produce traces

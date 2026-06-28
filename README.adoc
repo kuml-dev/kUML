@@ -99,13 +99,13 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 | `sdk install kuml` — *not available yet*; SDKMAN! vendor onboarding (API keys) is still pending. Planned platforms: Linux x86_64, Linux ARM64, macOS, Windows x86_64. Use Homebrew or the native installers in the meantime.
 
 | *Docker*
-| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.20.0` — minimal CLI image.
+| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.20.1` — minimal CLI image.
 
 | *Native installers*
-| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.20.0). Download from the GitHub Releases page.
+| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.20.1). Download from the GitHub Releases page.
 
 | *Maven Central* (library modules)
-| `implementation("dev.kuml:kuml-core-dsl:0.20.0")` — library modules published to Maven Central.
+| `implementation("dev.kuml:kuml-core-dsl:0.20.1")` — library modules published to Maven Central.
 |===
 
 == Features
@@ -185,6 +185,9 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 
 | *SMIL Animation (`--animated`)*
 | Render any state machine (UML STM, SysML 2 STM, UML Activity) or BPMN process diagram as an animated SVG that plays back an execution trace in the browser. Pure SMIL — no JavaScript. `BpmnSmilRenderer`, `StmSmilRenderer`, `ActivitySmilRenderer` in `kuml-render-smil`. `--speed` factor, `StaticSnapshotMode.STRIPPED` for PNG pipelines. (v0.20.0)
+
+| *SMIL cross-browser fix (v0.20.1)*
+| Animated SVGs now play in Chrome and Safari in addition to Firefox. `SmilEmitter` now emits `xlink:href` (instead of bare `href`) on all SMIL elements and injects `xmlns:xlink` into the `<svg>` root tag — required by browser SMIL implementations based on SVG 1.1. (v0.20.1)
 
 | *AUTOSAR / ARXML I/O*
 | `kuml export --format arxml` writes AUTOSAR Classic ARXML R22-11 from any `componentDiagram` or `UmlPackage`-returning script. `kuml reverse --format arxml ./dir/` imports and merges multiple `.arxml` files with recursive package deduplication. Supports R19-11 through R23-11 schema versions. (v0.20.0)
