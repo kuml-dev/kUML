@@ -22,6 +22,8 @@ import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SvgRenderOptions
 import dev.kuml.io.svg.activity.smil.ActivityAnimationContext
 import dev.kuml.io.svg.activity.smil.ActivitySmilRenderer
+import dev.kuml.io.svg.bpmn.smil.BpmnAnimationContext
+import dev.kuml.io.svg.bpmn.smil.BpmnSmilRenderer
 import dev.kuml.io.svg.stm.smil.StmAnimationContext
 import dev.kuml.io.svg.stm.smil.StmSmilRenderer
 import dev.kuml.layout.DiagramKind
@@ -222,7 +224,7 @@ internal object RenderPipeline {
                     renderUml(extracted, output, format, width, theme, layoutEngineOverride, latexStandalone, animated, traceFile, speed)
                 is ExtractedDiagram.C4 -> renderC4(extracted, output, format, width, theme)
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme, animated, traceFile, speed)
-                is ExtractedDiagram.Bpmn -> renderBpmn(extracted, output, format, width, theme)
+                is ExtractedDiagram.Bpmn -> renderBpmn(extracted, output, format, width, theme, animated, traceFile, speed)
                 is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, output, format, width, theme, latexStandalone)
             }
         } catch (e: IOException) {
@@ -779,6 +781,9 @@ internal object RenderPipeline {
         format: String,
         width: Int,
         theme: dev.kuml.renderer.theme.core.KumlTheme,
+        animated: Boolean = false,
+        traceFile: File? = null,
+        speed: Double = 1.0,
     ) {
         val model = extracted.model
         val bpmnDiagram = extracted.diagram
@@ -811,7 +816,25 @@ internal object RenderPipeline {
                 val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
-                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(kumlDiagram, layoutResult, theme))
+                    "svg" -> {
+                        if (animated) {
+                            // BPMN animated rendering — trace-driven via BpmnSmilRenderer.
+                            // Unlike STM/Activity, no demo trace is synthesised for BPMN without a
+                            // trace file; passing null falls back to static output (same as non-animated).
+                            val trace = traceFile?.let { TraceFileLoader.load(it) }
+                            if (trace == null) {
+                                System.err.println(
+                                    "[kuml] WARNING: --animated requested for BPMN but no --trace file provided. " +
+                                        "BPMN animation requires a kuml.trace.v1 JSON file. Falling back to static SVG.",
+                                )
+                            }
+                            val ctx = BpmnAnimationContext(speedFactor = SpeedFactor(speed))
+                            val result = BpmnSmilRenderer.render(kumlDiagram, layoutResult, theme, trace = trace, context = ctx)
+                            writeText(output, result.svg)
+                        } else {
+                            writeText(output, KumlSvgRenderer.toSvg(kumlDiagram, layoutResult, theme))
+                        }
+                    }
                     "png" -> {
                         val pngBytes =
                             KumlPngRenderer.toPng(kumlDiagram, layoutResult, theme, PngRenderOptions(widthPx = width))

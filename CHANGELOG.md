@@ -6,6 +6,26 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.20.2] — 2026-06-28
+
+### Fixed
+
+**fix(bpmn): `kuml render --animated --trace` now works for BPMN process diagrams**
+
+`BpmnSmilRenderer` was fully implemented and tested but never wired into the CLI render
+pipeline: `RenderPipeline.renderBpmn()` did not accept `animated`/`traceFile`/`speed`
+parameters, and `BpmnSmilRenderer.render()` was never called from the CLI path.
+
+Changes:
+- `RenderPipeline.renderBpmn()`: added `animated`, `traceFile`, `speed` parameters.
+- Call site updated: `is ExtractedDiagram.Bpmn -> renderBpmn(…, animated, traceFile, speed)`.
+- When `animated=true` and a `--trace` file is supplied, `BpmnSmilRenderer.render()` is called
+  with the loaded `TraceFile` and a `BpmnAnimationContext` that honours `--speed`.
+- When `animated=true` but no `--trace` is given, a clear warning is emitted and the output
+  falls back to static SVG (BPMN does not synthesise a demo trace without a trace file, unlike
+  STM/Activity diagrams).
+- Imports: `BpmnSmilRenderer` and `BpmnAnimationContext` added to `RenderPipeline.kt`.
+
 ## [0.20.1] — 2026-06-28
 
 ### Fixed
