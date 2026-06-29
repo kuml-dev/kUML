@@ -45,9 +45,24 @@ c4Model(name = "Internet Banking — Components") {
         }
     }
 
-    // Auflösen der C4Container-Instanz aus dem Modell-Scope
+    // Auflösen der Instanzen aus dem Modell-Scope
     val webApp = elements.filterIsInstance<C4Container>()
         .first { it.name == "Web Application" }
+    val apiServer = elements.filterIsInstance<C4Container>()
+        .first { it.name == "API Server" }
+    val database = elements.filterIsInstance<C4Container>()
+        .first { it.name == "Database" }
+    val accountHandler = elements.filterIsInstance<C4Component>()
+        .first { it.name == "AccountHandler" }
+    val transactionMapper = elements.filterIsInstance<C4Component>()
+        .first { it.name == "TransactionMapper" }
+
+    relationship(source = accountHandler, target = apiServer) {
+        description = "REST-Aufrufe"
+    }
+    relationship(source = transactionMapper, target = database) {
+        description = "Datenbankzugriff"
+    }
 
     componentDiagram(name = "Web App — Components") {
         container = webApp

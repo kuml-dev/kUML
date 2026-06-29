@@ -11,7 +11,38 @@ date: 2026-06-26
 > [!info] Worum es geht
 > Ein **animiertes BPMN-Prozessdiagramm** mit SMIL-Tokenanimation zeigt, wie ein PdV-Mitgliedsantrag von der Einreichung bis zur Bestätigung oder Nachforderung durchläuft. Das Token wandert sichtbar durch den Prozess — Start → Antrag-Prüfung → Entscheidung → Bestätigung → Ende.
 
-## Diagramm
+## Animiertes Diagramm (kuml-animated)
+
+> [!tip] Obsidian Plugin v0.3.0+
+> Der `kuml-animated`-Code-Block mit `// trace:` Direktive rendert den BPMN-Prozess mit token-getriebenem SMIL-Token, der durch den Happy-Path wandert. Die Animation läuft automatisch **5× in Schleife** (~32 Sekunden gesamt), dann stoppt sie. Plugin-Reload oder Notiz-Wechsel startet sie neu.
+
+```kuml-animated
+// trace: 07 Anhänge/kUML/traces/bpmn-pdv-mitgliedsantrag.kuml.trace.v1.json
+import dev.kuml.bpmn.dsl.*
+import dev.kuml.bpmn.model.*
+
+bpmnModel(name = "PdV Mitgliedsantrag") {
+    process(id = "p_antrag", name = "Mitgliedsantrag-Prozess") {
+        val start        = startEvent(name = "Antrag eingegangen")
+        val pruefung     = task(name = "Antrag-Prüfung", type = TaskType.SERVICE)
+        val gw           = gateway(type = GatewayType.EXCLUSIVE, name = "Vollständig?")
+        val bestaetigung = task(name = "Bestätigung", type = TaskType.SEND)
+        val nachforderung = task(name = "Nachforderung", type = TaskType.SEND)
+        val endOk        = endEvent(name = "Mitglied bestätigt")
+        val endNachf     = endEvent(name = "Nachforderung gesendet")
+
+        sequenceFlow(from = start, to = pruefung)
+        sequenceFlow(from = pruefung, to = gw)
+        sequenceFlow(from = gw, to = bestaetigung, condition = "vollständig == true", name = "Ja")
+        sequenceFlow(from = gw, to = nachforderung, condition = "vollständig == false", name = "Nein")
+        sequenceFlow(from = bestaetigung, to = endOk)
+        sequenceFlow(from = nachforderung, to = endNachf)
+    }
+    diagram(name = "PdV Mitgliedsantrag", processId = "p_antrag")
+}
+```
+
+## Statisches Diagramm (Referenz)
 
 ```kuml
 import dev.kuml.bpmn.dsl.*

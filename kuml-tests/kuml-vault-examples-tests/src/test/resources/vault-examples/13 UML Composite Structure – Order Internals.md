@@ -55,6 +55,8 @@ compositeStructureDiagram(name = "OrderService Internals") {
     connect(end1 = service,    port1 = "api", end2 = validator,   port2 = "in")
     // Assembly-Connector: Part-Port → Part-Port
     connect(end1 = validator,  port1 = "out", end2 = persistence, port2 = "in")
+    // Delegation-Connector: innerer Part-Port → Boundary-Port (nach außen)
+    connect(end1 = persistence, port1 = "db", end2 = service,     port2 = "db")
 }
 ```
 
@@ -68,8 +70,9 @@ compositeStructureDiagram(name = "OrderService Internals") {
 | Geschachtelte `component(…)`-Blöcke | Parts (typisierte Properties) — hier `Validator` und `Persistence`, gerendert als Boxen *im Inneren* von `OrderService`. Die Blöcke geben `UmlComponent` zurück. |
 | `lateinit var validator: UmlComponent` | Hoisting der Part-Referenz vor den Parent-Block, damit `connect()` auf Diagramm-Ebene darauf zugreift. |
 | `provides` / `requires` | Schnittstellenbindung an externen Ports. |
-| `connect(end1 = service, port1 = "api", end2 = validator, port2 = "in")` | **Delegation-Connector**: Boundary-Port des äußeren Klassifikators → Port eines inneren Parts. Wird als SVG-Linie gezeichnet, ohne ELK-Routing. |
+| `connect(end1 = service, port1 = "api", end2 = validator, port2 = "in")` | **Delegation-Connector (einwärts)**: Boundary-Port des äußeren Klassifikators → Port eines inneren Parts. Wird als SVG-Linie gezeichnet, ohne ELK-Routing. |
 | `connect(end1 = validator, port1 = "out", end2 = persistence, port2 = "in")` | **Assembly-Connector**: Port eines inneren Parts → Port eines anderen inneren Parts. Gleiche Syntax wie Delegation-Connector. |
+| `connect(end1 = persistence, port1 = "db", end2 = service, port2 = "db")` | **Delegation-Connector (auswärts)**: Port eines inneren Parts → Boundary-Port des äußeren Klassifikators. Leitet z. B. den DB-Zugriff nach außen durch. |
 
 ## Display-Optionen
 

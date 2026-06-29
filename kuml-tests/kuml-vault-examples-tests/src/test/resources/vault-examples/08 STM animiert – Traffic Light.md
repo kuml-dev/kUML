@@ -11,7 +11,41 @@ date: 2026-06-26
 > [!info] Worum es geht
 > Ein **animiertes UML-Zustandsdiagramm** mit SMIL-Zustandsanimation zeigt eine Ampel-Steuerung. Die Zustände Red → Green → Yellow wechseln sichtbar — zwei vollständige Zyklen werden in der Trace erfasst. Das Diagramm nutzt die UML `stateDiagram`-DSL (nicht SysML 2), da `StmSmilRenderer` eine `UmlStateMachine` benötigt.
 
-## Diagramm
+## Animiertes Diagramm (kuml-animated)
+
+> [!tip] Obsidian Plugin v0.3.0+
+> Der `kuml-animated`-Code-Block rendert das SVG mit SMIL-Animation direkt inline — kein `<img>`-Sandbox, volle Chromium-SMIL-Unterstützung.
+> Die erste Zeile `// trace:` verweist auf die Trace-JSON im Vault. Ohne sie läuft eine synthetisierte Demo-Animation.
+
+```kuml-animated
+// trace: 07 Anhänge/kUML/traces/traffic-light.kuml.trace.v1.json
+stateDiagram(name = "Traffic Light") {
+    val initial  = initialState()
+    val red      = state(name = "Red")   { entry = "activateRed()" }
+    val green    = state(name = "Green") { entry = "activateGreen()" }
+    val yellow   = state(name = "Yellow") { entry = "activateYellow()" }
+    val off      = finalState(name = "Off")
+
+    transition(source = initial, target = red)
+    transition(source = red, target = green) {
+        trigger = "timerGreen"
+        guard   = "[cycleActive]"
+    }
+    transition(source = green, target = yellow) {
+        trigger = "timerYellow"
+    }
+    transition(source = yellow, target = red) {
+        trigger = "timerRed"
+        guard   = "[cycleActive]"
+    }
+    transition(source = yellow, target = off) {
+        trigger = "powerOff"
+        guard   = "[!cycleActive]"
+    }
+}
+```
+
+## Statisches Diagramm (Referenz)
 
 ```kuml
 stateDiagram(name = "Traffic Light") {
