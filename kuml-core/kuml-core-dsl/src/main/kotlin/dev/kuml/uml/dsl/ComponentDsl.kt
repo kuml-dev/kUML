@@ -123,6 +123,36 @@ fun UmlComponentScope.port(
     return port
 }
 
+/** Port overload — type by name string. */
+fun UmlComponentScope.port(
+    name: String,
+    type: String,
+    isConjugated: Boolean = false,
+    visibility: Visibility = Visibility.PUBLIC,
+    id: String? = null,
+    block: PortBuilder.() -> Unit = {},
+): UmlPort = port(name, typeRef(type), isConjugated, visibility, id, block)
+
+/** Port overload — type by classifier handle (class, interface, etc). */
+fun UmlComponentScope.port(
+    name: String,
+    type: dev.kuml.uml.UmlClassifier,
+    isConjugated: Boolean = false,
+    visibility: Visibility = Visibility.PUBLIC,
+    id: String? = null,
+    block: PortBuilder.() -> Unit = {},
+): UmlPort = port(name, typeRef(type), isConjugated, visibility, id, block)
+
+/**
+ * Accesses a port on a [UmlComponent] by name.
+ * Useful for connections at diagram level: `connect(compA.port("p1"), compB.port("p2"))`.
+ *
+ * @throws IllegalStateException if no port with the given name exists.
+ */
+fun UmlComponent.port(name: String): UmlPort =
+    ports.find { it.name == name }
+        ?: error("Port '$name' not found in component '${this.name}' (available: ${ports.map { it.name }})")
+
 @KumlDsl
 class PortBuilder internal constructor(
     /** The enclosing container scope — used to look up applied profiles. */
@@ -150,8 +180,18 @@ class PortBuilder internal constructor(
  *
  * The interface ID is stored in [UmlComponent.providedInterfaceIds] and rendered
  * as a "lollipop" / ball symbol at diagram time.
+ *
+ * @param iface The interface being provided.
+ * @param name Optional port name; if provided, a [UmlPort] of the given interface type
+ *   is automatically created on the component.
  */
-fun UmlComponentScope.provides(iface: UmlInterface): Unit = addProvidedInterface(iface.id)
+fun UmlComponentScope.provides(
+    iface: UmlInterface,
+    name: String? = null,
+) {
+    if (name != null) port(name = name, type = iface)
+    addProvidedInterface(iface.id)
+}
 
 fun UmlComponentScope.providesById(interfaceId: String): Unit = addProvidedInterface(interfaceId)
 
@@ -159,8 +199,18 @@ fun UmlComponentScope.providesById(interfaceId: String): Unit = addProvidedInter
  * Declares that the enclosing component requires (uses) the given interface.
  *
  * Rendered as a "socket" / half-circle symbol at diagram time.
+ *
+ * @param iface The interface being required.
+ * @param name Optional port name; if provided, a [UmlPort] of the given interface type
+ *   is automatically created on the component.
  */
-fun UmlComponentScope.requires(iface: UmlInterface): Unit = addRequiredInterface(iface.id)
+fun UmlComponentScope.requires(
+    iface: UmlInterface,
+    name: String? = null,
+) {
+    if (name != null) port(name = name, type = iface, isConjugated = true)
+    addRequiredInterface(iface.id)
+}
 
 fun UmlComponentScope.requiresById(interfaceId: String): Unit = addRequiredInterface(interfaceId)
 

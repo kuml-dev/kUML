@@ -84,6 +84,19 @@ fun UmlElementScope.stereotype(
     addStereotype(app)
 }
 
+/**
+ * Convenience for applying multiple stereotypes without configuration blocks.
+ *
+ * ```kotlin
+ * classOf("Order") {
+ *     applyStereotypes("Entity", "OrderLogic")
+ * }
+ * ```
+ */
+fun UmlElementScope.applyStereotypes(vararg names: String) {
+    names.forEach { stereotype(it) }
+}
+
 // ── StereotypeApplicationBuilder ──────────────────────────────────────────────
 
 /**

@@ -61,5 +61,13 @@ object KumlScriptCompilationConfiguration : ScriptCompilationConfiguration({
         "dev.kuml.blueprint.dsl.*",
         // Blueprint metamodel types (BlueprintLayer, Sentiment, ChannelKind, …)
         "dev.kuml.blueprint.model.*",
+        // BPMN DSL builders — V3.1.25
+        "dev.kuml.bpmn.dsl.*",
+        // BPMN metamodel types
+        "dev.kuml.bpmn.model.*",
+        // SysML 2 DSL builders
+        "dev.kuml.sysml2.dsl.*",
+        // SysML 2 metamodel types
+        "dev.kuml.sysml2.*",
     )
 })
