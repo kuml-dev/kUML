@@ -12,10 +12,10 @@ without forking the renderer.
 | Name | Character
 
 | `plain`
-| Black-on-white, no decoration. Default for documentation that should not look styled.
+| Black-on-white, no decoration. Pass `--theme plain` for documentation that should not look styled. (Was the default before v0.20.5.)
 
 | `kuml`
-| Brand colours, blue accents, Inter font. The "house" theme used in marketing screenshots.
+| Brand colours, blue accents, Inter font. The "house" theme used in marketing screenshots. *Default since v0.20.5* — applied across CLI, Web/Server (Obsidian auto mode), the Gradle plugin, and the Desktop app when no `--theme` flag or `kuml.config.kts` is present.
 
 | `elegant`
 | Muted warm greys with dusty-rose accents, serif typeface, restrained corner radii.

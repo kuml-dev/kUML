@@ -1,8 +1,9 @@
 package dev.kuml.io.svg.bpmn.edge
 
 import dev.kuml.bpmn.model.MessageFlow
+import dev.kuml.io.svg.EdgeLabelGeometry
 import dev.kuml.io.svg.SvgBuilder
-import dev.kuml.io.svg.xmlEscapeContent
+import dev.kuml.io.svg.renderEdgeLabelWithHalo
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
 
@@ -28,8 +29,6 @@ internal fun renderBpmnMessageFlow(
 
     val edgeColor = theme.colors.edge.toHex()
     val nodeFill = theme.colors.effectiveNodeFill.toHex()
-    val labelColor = theme.colors.muted.toHex()
-    val fontFamily = theme.typography.body.family
 
     // Build path data from route
     val pathD =
@@ -73,35 +72,30 @@ internal fun renderBpmnMessageFlow(
         """<circle cx="${fmtF(src.x)}" cy="${fmtF(src.y)}" r="4" fill="$nodeFill" stroke="$edgeColor" stroke-width="1"/>""",
     )
 
-    // Optional label at the midpoint of the route
+    // Optional label placed on the *longest* polyline segment (not the array
+    // midpoint / corner kink), offset perpendicular to that segment, with a
+    // halo so it stays readable even where it crosses the dashed line.
+    //
+    // Fix: the previous implementation anchored the label at `allPts[size/2]`
+    // — for an L-shaped two-pool message flow that is the bend corner, so the
+    // label was crammed 4 px next to the line and the "Purchase Order" glyphs
+    // collided with the dashed edge. Reusing [EdgeLabelGeometry] (same path
+    // C4/UML edges take) puts the label in the open whitespace beside the long
+    // vertical run with proper clearance.
     val flowName = flow.name
     if (!flowName.isNullOrBlank()) {
-        val midX: Float
-        val midY: Float
-        when (route) {
-            is EdgeRoute.OrthogonalRounded -> {
-                val allPts = listOf(src) + route.waypoints + listOf(tgt)
-                val mid = allPts[allPts.size / 2]
-                midX = mid.x
-                midY = mid.y
+        val anchor = EdgeLabelGeometry.midAnchor(route)
+        val (labelX, labelY, textAnchor) =
+            when (anchor.direction) {
+                EdgeLabelGeometry.SegmentDirection.Horizontal ->
+                    // Label centred a few px above the horizontal segment.
+                    Triple(anchor.x, anchor.y - 4f, "middle")
+                EdgeLabelGeometry.SegmentDirection.Vertical ->
+                    // Label to the right of the vertical segment, left-aligned,
+                    // with enough gap that the halo edge clears the line.
+                    Triple(anchor.x + 10f, anchor.y + 4f, "start")
             }
-
-            is EdgeRoute.TreeRounded -> {
-                val allPts = listOf(src) + route.waypoints + listOf(tgt)
-                val mid = allPts[allPts.size / 2]
-                midX = mid.x
-                midY = mid.y
-            }
-
-            else -> {
-                midX = (src.x + tgt.x) / 2f
-                midY = (src.y + tgt.y) / 2f
-            }
-        }
-        builder.rawXml(
-            """<text x="${fmtF(midX + 4f)}" y="${fmtF(midY - 4f)}" """ +
-                """font-family="$fontFamily" font-size="10" fill="$labelColor">${xmlEscapeContent(flowName)}</text>""",
-        )
+        builder.renderEdgeLabelWithHalo(flowName, labelX, labelY, textAnchor)
     }
 }
 

@@ -6,6 +6,86 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.20.5] — 2026-06-29
+
+### Changed
+
+**Default theme switched from `plain` to `kuml` across all render pipelines**
+
+Rendering without an explicit `--theme` flag or `kuml.config.kts` now uses the full-featured
+`kuml` house theme (brand colours, blue accents, Inter font) instead of the minimal grayscale
+`plain` theme. This affects the CLI (`RenderPipeline`), Web/Server pipeline (`WebRenderPipeline`,
+used by the Obsidian plugin's auto mode), the Gradle plugin (`KumlExtension` convention), and the
+Desktop app (`AppSettings`, `DesktopRenderPipeline`). The Obsidian plugin's server-mode default
+(`KumlServerRenderer.ts`) was aligned to `kuml` as well, so CLI and server render paths now share
+the same default. Set `--theme plain` (or `theme.set("plain")`) to restore the old grayscale look.
+
+### Fixed
+
+**fix(bpmn): MessageFlow label overlapped by the dashed edge line**
+
+MessageFlow labels (e.g. "Purchase Order" in the `32 BPMN Collaboration – Customer und Supplier`
+vault example) were anchored at the array midpoint of the route — for an L-shaped two-pool flow
+that is the bend corner, so the label was crammed 4 px next to the line and its glyphs collided
+with the dashed edge. `renderBpmnMessageFlow` now reuses `EdgeLabelGeometry.midAnchor` (the same
+path C4/UML edges take): the label is placed at the midpoint of the *longest* polyline segment,
+offset perpendicular to it (10 px beside a vertical run, above a horizontal run), and drawn with a
+background halo so it stays readable even where it crosses the line.
+
+**fix(bpmn): event and gateway labels covered by ELK-routed edges**
+
+Events and gateways render labels below their shape (`y + shapeH + 12 px`); ELK routed edges from
+the node bounds, ending directly in the label area. Layout bounds are now inflated to include label
+space (`DEFAULT_EVENT_SIZE` 36×36→36×56, `DEFAULT_GATEWAY_SIZE` 50×50→50×70) so ELK routes edges
+safely below the labels. Affected the `31 BPMN Process – Sub-Process Loop` example ("Start Review",
+"OK?" now fully readable).
+
+**fix(bpmn): SVG renderer respects the active theme instead of hardcoded colours**
+
+All BPMN node/edge renderers were suppressing the `KumlTheme` parameter and writing hardcoded
+`fill="white"`/`stroke="#333"` into the SVG, so BPMN diagrams always rendered black-and-white
+regardless of the selected theme — visually inconsistent next to UML diagrams. All BPMN renderers
+(`BpmnActivitySvg`, `BpmnEventSvg`, `BpmnGatewaySvg`, `BpmnDataSvg`, `BpmnPoolSvg`,
+`BpmnTaskMarkersSvg`, `BpmnSequenceFlowSvg`, `BpmnMessageFlowSvg`, `EdgeRendererDispatcher`) now
+read fill/stroke/text/font from `theme.colors` and `theme.typography`.
+
+**fix(c4): boundary label (name + stereotype) now rendered in Component and Container diagrams**
+
+The C4 group rendering loop drew only a plain `<rect>` for Container/System boundaries — the 36 px
+top inset reserved by `C4LayoutBridge.C4_BOUNDARY_INSETS` was never filled with text. Component
+diagrams now show `[Container: <technology>]` + container name; Container diagrams show
+`[Software System]` + system name at the top of the boundary box.
+
+**fix(stm): back-edge labels repositioned to avoid node overlap and border overflow**
+
+In a top-to-bottom UML state machine, ELK routes back-edges (e.g. Yellow→Red in the Traffic Light
+STM) as a U-shape around the left side; placing the label at the longest-segment midpoint overlapped
+an intermediate state and could overflow the SVG viewBox. Back-edges are now detected in
+`renderUmlStateDiagram` (`source.y > target.y`) and their labels anchored at 8 % of the arc length
+from the source via `EdgeLabelGeometry.anchorAt(route, 0.08f)` — in the short upward stub that exits
+the source state, always inside the diagram frame.
+
+## [0.20.4] — 2026-06-29
+
+### Added
+
+**BPMN Animation v3.1.33 — Variant B highlighting, infinite loop, ID-targeting fixes**
+
+Comprehensive overhaul of BPMN animated rendering: type-specific node highlighting for tasks
+(light-blue `#e3f2fd` fill) and events (light-green start / light-red end fill), gateway amber
+highlight with automatic reset, infinite looping (`loopCount = LOOP_INFINITE`, practical cap
+`LOOP_PRACTICAL_MAX = 200` ≈ 23 min at 1× speed), and corrected SVG ID-targeting so fill animations
+actually recolour the shapes (Task-rect and Event-circles now carry unique `-box`/`-circle` IDs;
+child `fill="white"` no longer blocks parent-group fill propagation). 307 SMIL animation tests, full
+clean check + ktlint green.
+
+**Vault example 35 — AUTOSAR Classic SW-Komponenten**
+
+New AUTOSAR Classic SWC diagram with a staircase grid layout that prevents U-routes through component
+boxes and frame clipping. Plus vault-example sync: examples 07/08 (BPMN/STM) gained `kuml-animated`
+blocks, example 13 (Composite Structure) an outward delegation connector, example 24 (C4 Component)
+completed REST and DB relationships.
+
 ## [0.20.3] — 2026-06-29
 
 ### Fixed
