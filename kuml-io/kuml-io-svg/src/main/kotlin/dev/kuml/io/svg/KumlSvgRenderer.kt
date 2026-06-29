@@ -6,8 +6,10 @@ import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
+import dev.kuml.c4.model.C4SoftwareSystem
 import dev.kuml.c4.model.ComponentDiagram
 import dev.kuml.c4.model.ContainerDiagram
 import dev.kuml.c4.model.DeploymentDiagram
@@ -541,6 +543,9 @@ public object KumlSvgRenderer {
                 val gy = groupLayout.bounds.origin.y + padding
                 val gw = groupLayout.bounds.size.width
                 val gh = groupLayout.bounds.size.height
+                // Resolve the anchor element so we can render its name label
+                // in the 36px top-inset that C4LayoutBridge.C4_BOUNDARY_INSETS reserves.
+                val anchorElement = elementIndex[groupId.value]
                 nodesBuilder.tag(
                     "g",
                     mapOf(
@@ -558,6 +563,53 @@ public object KumlSvgRenderer {
                             "ry" to fmt(theme.borders.cornerRadiusPx),
                         ),
                     )
+                    // Render boundary label inside the top inset area.
+                    // ContainerDiagram anchor = C4SoftwareSystem → "[Software System]" + name
+                    // ComponentDiagram anchor = C4Container → "[Container: <technology>]" + name
+                    when (anchorElement) {
+                        is C4Container -> {
+                            val tech = anchorElement.technology?.let { " $it" } ?: ""
+                            tag(
+                                "text",
+                                mapOf(
+                                    "class" to "kuml-stereotype",
+                                    "x" to fmt(gw / 2f),
+                                    "y" to "14",
+                                    "text-anchor" to "middle",
+                                ),
+                            ) { text(xmlEscapeText("[Container:$tech]")) }
+                            tag(
+                                "text",
+                                mapOf(
+                                    "class" to "kuml-title",
+                                    "x" to fmt(gw / 2f),
+                                    "y" to "30",
+                                    "text-anchor" to "middle",
+                                ),
+                            ) { text(xmlEscapeText(anchorElement.name)) }
+                        }
+                        is C4SoftwareSystem -> {
+                            tag(
+                                "text",
+                                mapOf(
+                                    "class" to "kuml-stereotype",
+                                    "x" to fmt(gw / 2f),
+                                    "y" to "14",
+                                    "text-anchor" to "middle",
+                                ),
+                            ) { text(xmlEscapeText("[Software System]")) }
+                            tag(
+                                "text",
+                                mapOf(
+                                    "class" to "kuml-title",
+                                    "x" to fmt(gw / 2f),
+                                    "y" to "30",
+                                    "text-anchor" to "middle",
+                                ),
+                            ) { text(xmlEscapeText(anchorElement.name)) }
+                        }
+                        else -> Unit // Unknown anchor type — boundary rect only, no label
+                    }
                 }
             }
 
