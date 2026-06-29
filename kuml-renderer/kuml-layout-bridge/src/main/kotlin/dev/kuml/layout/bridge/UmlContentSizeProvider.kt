@@ -22,6 +22,7 @@ import dev.kuml.uml.UmlLink
 import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlProperty
+import dev.kuml.uml.UmlStereotype
 import dev.kuml.uml.Visibility
 
 /**
@@ -96,6 +97,7 @@ public class UmlContentSizeProvider
         ) {
             for (e in elements) {
                 when (e) {
+                    is UmlStereotype -> out[e.id] = stereotypeSize(e)
                     is UmlClass -> out[e.id] = classSize(e)
                     is UmlInterface -> out[e.id] = interfaceSize(e)
                     is UmlEnumeration -> out[e.id] = enumSize(e)
@@ -193,9 +195,44 @@ public class UmlContentSizeProvider
 
         // ── Size computations ─────────────────────────────────────────────────────
 
+        /**
+         * Größe eines `UmlStereotype`-Knotens in einem Profildiagramm.
+         *
+         * Der Renderer [dev.kuml.io.svg.uml.renderUmlStereotype] zeigt:
+         *   - `«stereotype»`-Header bei y=18 (STEREO_CHAR_PX — italic 10pt)
+         *   - Stereotyp-Name bei y=34 (TITLE_CHAR_PX — bold 14pt)
+         *
+         * Vor diesem Fix fiel [UmlStereotype] durch den `else`-Zweig in [collect]
+         * und erhielt immer `DEFAULT_W × DEFAULT_H` (160 × 80). Lange Namen wie
+         * `AtomicSoftwareComponent` (22 Zeichen → ~209 px) und
+         * `SenderReceiverInterface` (23 Zeichen → ~217 px) liefen damit aus der Box.
+         */
+        private fun stereotypeSize(s: UmlStereotype): Size {
+            val w = boxWidth(nameLine = s.name, stereoLine = "«stereotype»", bodyLines = emptyList())
+            val (wExtra, hExtra) = connectionPuffer(s.id)
+            return Size(w + wExtra, DEFAULT_H + hExtra)
+        }
+
         private fun classSize(c: UmlClass): Size {
             val nameLine = c.name
-            val stereoLine = stereoLabel(c.appliedStereotypes) ?: if (c.isAbstract) "«abstract»" else ""
+            // V2.x: stereoLabel() only covered appliedStereotypes (typed, via profiles).
+            // Plain `stereotypes: List<String>` (e.g. "metaclass" set by ProfileDiagramBuilder)
+            // was silently dropped from the width estimate even though StereotypeHelper renders
+            // it. We now combine both — same merging logic as StereotypeHelper.headerLabel().
+            val appliedLabel = stereoLabel(c.appliedStereotypes)
+            val plainNames = c.stereotypes.filter { it.isNotBlank() }
+            val stereoLine =
+                when {
+                    appliedLabel != null && plainNames.isEmpty() -> appliedLabel
+                    appliedLabel == null && plainNames.isNotEmpty() ->
+                        "«" + plainNames.joinToString(", ") + "»"
+                    appliedLabel != null && plainNames.isNotEmpty() -> {
+                        val merged =
+                            (c.appliedStereotypes.map { it.stereotypeName } + plainNames).distinct()
+                        "«" + merged.joinToString(", ") + "»"
+                    }
+                    else -> if (c.isAbstract) "«abstract»" else ""
+                }
 
             val attrLines = c.attributes.map { it.toFormattedLine() }
             val opLines = c.operations.map { it.toFormattedLine() }
