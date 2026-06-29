@@ -249,10 +249,12 @@ internal fun renderUmlTimingLifeline(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
     val labelW = 80f
+    val padR = 16f // right padding so the step-line doesn't touch the frame border
     val plotX = labelW
-    val plotW = w - labelW
+    val plotW = w - labelW - padR
     val stateCount = element.states.size.coerceAtLeast(1)
-    val rowH = (h - 20f) / stateCount
+    val axisH = 20f // reserved height at the bottom for the X (time) axis
+    val rowH = (h - 20f - axisH) / stateCount
     builder.tag(
         "g",
         mapOf("id" to xmlEscapeAttr(element.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
@@ -274,7 +276,7 @@ internal fun renderUmlTimingLifeline(
             mapOf("class" to "kuml-title", "x" to fmt(labelW / 2f), "y" to "14", "text-anchor" to "middle"),
         ) { text(xmlEscapeText(element.name)) }
 
-        // Step-line through ticks
+        // Step-line through ticks + X-axis
         if (element.timeline.isNotEmpty()) {
             val stateIndex = element.states.withIndex().associate { (i, s) -> s to i }
             val maxT = (element.timeline.maxOf { it.t }).coerceAtLeast(1)
@@ -298,6 +300,48 @@ internal fun renderUmlTimingLifeline(
                 }
             }
             tag("path", mapOf("d" to path.toString(), "class" to "kuml-timing-line"))
+
+            // X-axis: horizontal separator line + per-tick marks and labels
+            val axisY = h - axisH
+            tag(
+                "line",
+                mapOf(
+                    "x1" to fmt(plotX),
+                    "y1" to fmt(axisY),
+                    "x2" to fmt(w),
+                    "y2" to fmt(axisY),
+                    "class" to "kuml-edge",
+                ),
+            )
+            val tValues =
+                element.timeline
+                    .map { it.t }
+                    .distinct()
+                    .sorted()
+            tValues.forEachIndexed { idx, t ->
+                val px = sx(t)
+                tag(
+                    "line",
+                    mapOf(
+                        "x1" to fmt(px),
+                        "y1" to fmt(axisY),
+                        "x2" to fmt(px),
+                        "y2" to fmt(axisY + 4f),
+                        "class" to "kuml-edge",
+                    ),
+                )
+                // Shift anchor to "end" for the rightmost tick so label stays inside frame
+                val anchor = if (idx == tValues.lastIndex) "end" else "middle"
+                tag(
+                    "text",
+                    mapOf(
+                        "class" to "kuml-small",
+                        "x" to fmt(px),
+                        "y" to fmt(h - 4f),
+                        "text-anchor" to anchor,
+                    ),
+                ) { text("$t") }
+            }
         }
     }
 }
