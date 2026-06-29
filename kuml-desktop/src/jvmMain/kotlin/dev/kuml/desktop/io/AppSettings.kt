@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class AppSettings(
     val schemaVersion: Int = 1,
-    val theme: String = "plain",
+    val theme: String = "kuml",
     val language: String = "en",
     val recentFiles: List<String> = emptyList(),
     val lastDir: String? = null,

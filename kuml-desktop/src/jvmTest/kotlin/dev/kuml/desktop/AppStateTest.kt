@@ -19,8 +19,8 @@ class AppStateTest : FunSpec({
         AppState.WELCOME_SCRIPT.shouldNotBeBlank()
     }
 
-    test("default theme is plain") {
-        AppState().theme shouldBe "plain"
+    test("default theme is kuml") {
+        AppState().theme shouldBe "kuml"
     }
 
     test("default language is en") {
@@ -67,8 +67,8 @@ class AppStateTest : FunSpec({
 
     // --- V3.0.12 new tests ---
 
-    test("no-arg AppState() has theme=plain via DEFAULT") {
-        AppState().theme shouldBe "plain"
+    test("no-arg AppState() has theme=kuml via DEFAULT") {
+        AppState().theme shouldBe "kuml"
     }
 
     test("AppState(initialSettings) adopts theme, language and recentFiles from settings") {

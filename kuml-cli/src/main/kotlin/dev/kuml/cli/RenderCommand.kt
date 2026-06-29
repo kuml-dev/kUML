@@ -41,7 +41,7 @@ internal class RenderCommand : CliktCommand(name = "render") {
         .int()
         .default(1024)
 
-    private val themeName by option("--theme", help = "Theme name (e.g. plain, kuml); overrides config file")
+    private val themeName by option("--theme", help = "Theme name (e.g. kuml, plain); default is 'kuml'. Overrides config file")
 
     private val layoutEngine by
         option(

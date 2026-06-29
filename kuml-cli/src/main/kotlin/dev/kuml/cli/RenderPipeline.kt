@@ -198,14 +198,14 @@ internal object RenderPipeline {
 
         val extracted = DiagramExtractor.extractAny(successResult.value.returnValue, input)
 
-        // 3. Theme — layering: CLI flag > config file > built-in default "plain"
+        // 3. Theme — layering: CLI flag > config file > built-in default "kuml"
         if (ThemeRegistry.names().isEmpty()) {
             ThemeRegistry.loadFromClasspath()
         }
         val resolvedThemeName =
             themeName
                 ?: config.render.themeName
-                ?: "plain"
+                ?: "kuml"
         val baseTheme: KumlTheme =
             ThemeRegistry.get(resolvedThemeName)
                 ?: throw ScriptEvaluationException(

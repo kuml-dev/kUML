@@ -16,7 +16,7 @@ class AppSettingsTest : FunSpec({
     test("DEFAULT values are correct") {
         val s = AppSettings.DEFAULT
         s.schemaVersion shouldBe 1
-        s.theme shouldBe "plain"
+        s.theme shouldBe "kuml"
         s.language shouldBe "en"
         s.recentFiles shouldBe emptyList()
         s.lastDir shouldBe null

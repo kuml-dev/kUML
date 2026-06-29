@@ -38,8 +38,8 @@ public abstract class KumlExtension
         /** Render-Format: `"svg"` (Default) oder `"png"`. */
         public val format: Property<String> = objects.property(String::class.java).convention("svg")
 
-        /** Theme-Name (siehe `ThemeRegistry`). Default `"plain"`. */
-        public val theme: Property<String> = objects.property(String::class.java).convention("plain")
+        /** Theme-Name (siehe `ThemeRegistry`). Default `"kuml"`. */
+        public val theme: Property<String> = objects.property(String::class.java).convention("kuml")
 
         /** Pixelbreite fuer PNG-Render. Default 1024. */
         public val widthPx: Property<Int> = objects.property(Int::class.java).convention(1024)

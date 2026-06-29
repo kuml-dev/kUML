@@ -85,7 +85,7 @@ internal object WebRenderPipeline {
      *
      * @param script kUML script source code
      * @param format "svg" or "png"
-     * @param themeName optional theme name; falls back to "plain"
+     * @param themeName optional theme name; falls back to "kuml"
      * @param layoutOverride optional engine override: "grid", "elk", or null/"auto"
      * @param widthPx PNG width in pixels (ignored for SVG)
      */
@@ -112,7 +112,7 @@ internal object WebRenderPipeline {
 
             val extracted = DiagramExtractor.extractAny(successResult.value.returnValue, java.io.File("inline.kuml.kts"))
 
-            val resolvedThemeName = themeName ?: "plain"
+            val resolvedThemeName = themeName ?: "kuml"
             val theme: KumlTheme =
                 ThemeRegistry.get(resolvedThemeName)
                     ?: return WebRenderResult.Error(

@@ -50,7 +50,7 @@ internal object DesktopRenderPipeline {
             )
 
             val theme = ThemeRegistry.get(themeName)
-                ?: ThemeRegistry.get("plain")
+                ?: ThemeRegistry.get("kuml")
                 ?: return DesktopRenderResult.Error("Theme '$themeName' nicht gefunden")
 
             val elkEngine = LayoutEngineRegistry.get("elk.layered")
