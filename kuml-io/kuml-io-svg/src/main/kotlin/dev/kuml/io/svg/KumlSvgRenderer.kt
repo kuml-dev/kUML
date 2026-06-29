@@ -31,6 +31,7 @@ import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
+import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
@@ -229,15 +230,42 @@ public object KumlSvgRenderer {
                             id in layoutNodeIdSet
                         }
                 }
+
+        // V2.0.48 — Port-Connector-Routen werden vom [ComponentPortEdgeClipper]
+        // erst NACH der Canvas-Größen-Berechnung gebaut und ragen mit ihren
+        // seitlichen Stubs bis zu OUTWARD_EXTENT_PX über die Layout-Bounding-Box
+        // hinaus. Ohne Korrektur laufen diese Stubs bei den äußersten
+        // Komponenten auf bzw. über den Diagrammrahmen (Vault-Beispiel
+        // [[35 AUTOSAR Classic – SW-Komponenten]]: linker Stub auf x=2 = Rahmen,
+        // rechter Stub jenseits der viewBox). Das Canvas-Padding wird deshalb so
+        // weit aufgezogen, dass die Stubs einen Spalt zum Rahmen behalten.
+        // FRAME_GAP_PX deckt den 2-px-Rahmen-Inset aus DiagramFrameSvg plus
+        // sichtbaren Abstand ab.
+        val needsPortStubPadding =
+            diagram.type == DiagramType.COMPONENT &&
+                elementIndex.values.any {
+                    it is UmlConnector &&
+                        dev.kuml.io.svg.uml.ComponentPortEdgeClipper
+                            .bindsPorts(it.end1Id, it.end2Id)
+                }
+        val frameGapPx = 10f
+        val requiredPadding =
+            maxOf(
+                options.paddingPx,
+                if (needsContractPadding) {
+                    dev.kuml.io.svg.uml.UmlComponentContracts.TOTAL_UPWARD_EXTENT_PX + 4f
+                } else {
+                    0f
+                },
+                if (needsPortStubPadding) {
+                    dev.kuml.io.svg.uml.ComponentPortEdgeClipper.OUTWARD_EXTENT_PX + frameGapPx
+                } else {
+                    0f
+                },
+            )
         val effectiveOptions =
-            if (needsContractPadding) {
-                options.copy(
-                    paddingPx =
-                        maxOf(
-                            options.paddingPx,
-                            dev.kuml.io.svg.uml.UmlComponentContracts.TOTAL_UPWARD_EXTENT_PX + 4f,
-                        ),
-                )
+            if (requiredPadding > options.paddingPx) {
+                options.copy(paddingPx = requiredPadding)
             } else {
                 options
             }
@@ -1839,19 +1867,27 @@ public object KumlSvgRenderer {
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /**
-     * Post-processes inter-package dependency routes so arrowheads land on the
-     * **body** rectangle of the target package, not on the narrow folder-tab top.
+     * Post-processes inter-package dependency routes so they (a) land on the
+     * **body** rectangle of the target package — not on the narrow folder-tab
+     * top — and (b) **never cross an intermediate package** that sits between
+     * client and supplier.
      *
-     * Root cause: ELK anchors inter-compound edges at the compound node's outer
-     * boundary, which is the very top of the tab area (y = groupOrigin.y). The
-     * folder tab is narrower than the body — so the arrowhead's X position is
+     * Root cause of (a): ELK anchors inter-compound edges at the compound node's
+     * outer boundary, which is the very top of the tab area (y = groupOrigin.y).
+     * The folder tab is narrower than the body — so the arrowhead's X position is
      * often outside the tab, landing in the empty "notch" between tab end and
      * body start. Visually the arrow appears to float before touching the box.
      *
-     * Fix: replace every package-dependency route with a [EdgeRoute.Direct] line
-     * from the client body boundary to the supplier body boundary. The body
-     * rectangle starts at [PACKAGE_TAB_HEIGHT] below the group origin and spans
-     * the full package width, so it is always visually reachable.
+     * Root cause of (b): the previous fix replaced every route with a single
+     * straight [EdgeRoute.Direct] from client body to supplier body. In a
+     * vertical stack (e.g. `payment` → `shop` → `shared`) the long
+     * `payment → shared` edge then runs as a diagonal straight through the
+     * `shop` box in the middle.
+     *
+     * Fix: anchor both ends on the package **body** boundary as before, but if
+     * the straight segment would cross any other package body, detour it around
+     * that obstacle band with an orthogonal route through the side (vertical
+     * stack) or top/bottom (horizontal row) gutter.
      */
     private fun snapPackageEdgesToBodyBoundary(
         elementIndex: Map<String, dev.kuml.core.model.KumlElement>,
@@ -1860,26 +1896,59 @@ public object KumlSvgRenderer {
         val fixedEdges = linkedMapOf<EdgeId, EdgeRoute>()
         fixedEdges.putAll(layoutResult.edges)
 
+        val packageBounds: List<Pair<GroupId, Rect>> =
+            layoutResult.groups.map { (id, group) -> id to group.bounds }
+
         for ((edgeId, _) in layoutResult.edges) {
             val dep = elementIndex[edgeId.value] as? UmlDependency ?: continue
-            val clientGroup = layoutResult.groups[GroupId(dep.clientId)] ?: continue
-            val supplierGroup = layoutResult.groups[GroupId(dep.supplierId)] ?: continue
-            fixedEdges[edgeId] = directRouteBetweenPackageBodyBounds(clientGroup.bounds, supplierGroup.bounds)
+            val clientId = GroupId(dep.clientId)
+            val supplierId = GroupId(dep.supplierId)
+            val clientGroup = layoutResult.groups[clientId] ?: continue
+            val supplierGroup = layoutResult.groups[supplierId] ?: continue
+
+            val endpoints = packageBodyEndpoints(clientGroup.bounds, supplierGroup.bounds)
+
+            // Obstacles = every other package body. Skip the two endpoints and
+            // any package that *contains* an endpoint (a nesting parent), which
+            // a child→outside edge would legitimately pass through.
+            val crossed =
+                packageBounds
+                    .asSequence()
+                    .filter { (id, _) -> id != clientId && id != supplierId }
+                    .map { it.second }
+                    .filterNot { rectContains(it, endpoints.source) || rectContains(it, endpoints.target) }
+                    .filter { segmentIntersectsRect(endpoints.source, endpoints.target, it) }
+                    .toList()
+
+            fixedEdges[edgeId] =
+                if (crossed.isEmpty()) {
+                    EdgeRoute.Direct(source = endpoints.source, target = endpoints.target)
+                } else {
+                    routeAroundPackages(endpoints, crossed, layoutResult.canvas)
+                }
         }
         return layoutResult.copy(edges = fixedEdges)
     }
 
+    /** Endpoints of a package-dependency route on the two package **body** boundaries. */
+    private data class PackageEndpoints(
+        val source: Point,
+        val target: Point,
+        /** `true` when the connection is vertical-dominant (stack), `false` for a horizontal row. */
+        val vertical: Boolean,
+    )
+
     /**
-     * Computes a [EdgeRoute.Direct] between the **body boundaries** of two
-     * package groups. When the connection is vertical (most common), the source
-     * exits at the body bottom and the target is entered at the body top
-     * (`y = groupOrigin.y + PACKAGE_TAB_HEIGHT`). Horizontal connections use
-     * the full body-left/right edges without tab adjustment.
+     * Computes the [PackageEndpoints] on the **body boundaries** of two package
+     * groups. When the connection is vertical (most common), the source exits at
+     * the body bottom and the target is entered at the body top
+     * (`y = groupOrigin.y + PACKAGE_TAB_HEIGHT`). Horizontal connections use the
+     * full body-left/right edges without tab adjustment.
      */
-    private fun directRouteBetweenPackageBodyBounds(
+    private fun packageBodyEndpoints(
         client: Rect,
         supplier: Rect,
-    ): EdgeRoute.Direct {
+    ): PackageEndpoints {
         val clientCx = client.origin.x + client.size.width / 2f
         val clientBodyTop = client.origin.y + PACKAGE_TAB_HEIGHT
         val clientBodyBottom = client.origin.y + client.size.height
@@ -1893,32 +1962,181 @@ public object KumlSvgRenderer {
         val dx = supplierCx - clientCx
         val dy = supplierBodyCy - clientBodyCy
 
-        val source: Point
-        val target: Point
-
-        if (kotlin.math.abs(dy) >= kotlin.math.abs(dx)) {
+        return if (kotlin.math.abs(dy) >= kotlin.math.abs(dx)) {
             if (dy > 0f) {
                 // supplier is below client
-                source = Point(clientCx, clientBodyBottom)
-                target = Point(supplierCx, supplierBodyTop)
+                PackageEndpoints(Point(clientCx, clientBodyBottom), Point(supplierCx, supplierBodyTop), vertical = true)
             } else {
                 // supplier is above client
-                source = Point(clientCx, clientBodyTop)
-                target = Point(supplierCx, supplierBodyBottom)
+                PackageEndpoints(Point(clientCx, clientBodyTop), Point(supplierCx, supplierBodyBottom), vertical = true)
             }
         } else {
             if (dx > 0f) {
                 // supplier is to the right
-                source = Point(client.origin.x + client.size.width, clientBodyCy)
-                target = Point(supplier.origin.x, supplierBodyCy)
+                PackageEndpoints(
+                    Point(client.origin.x + client.size.width, clientBodyCy),
+                    Point(supplier.origin.x, supplierBodyCy),
+                    vertical = false,
+                )
             } else {
                 // supplier is to the left
-                source = Point(client.origin.x, clientBodyCy)
-                target = Point(supplier.origin.x + supplier.size.width, supplierBodyCy)
+                PackageEndpoints(
+                    Point(client.origin.x, clientBodyCy),
+                    Point(supplier.origin.x + supplier.size.width, supplierBodyCy),
+                    vertical = false,
+                )
             }
         }
-        return EdgeRoute.Direct(source = source, target = target)
     }
+
+    /**
+     * Builds an orthogonal [EdgeRoute.OrthogonalRounded] that leaves the source
+     * body boundary, detours through a gutter past the [obstacles] band and
+     * re-enters the target body boundary — so it never crosses an intervening
+     * package. The gutter side is chosen on whichever flank of the obstacle band
+     * stays inside the [canvas] and is closest to the source/target centre line.
+     */
+    private fun routeAroundPackages(
+        ep: PackageEndpoints,
+        obstacles: List<Rect>,
+        canvas: Size,
+    ): EdgeRoute {
+        val gutter = PACKAGE_OBSTACLE_GUTTER
+        val margin = PACKAGE_OBSTACLE_MARGIN
+        val obsLeft = obstacles.minOf { it.origin.x }
+        val obsRight = obstacles.maxOf { it.origin.x + it.size.width }
+        val obsTop = obstacles.minOf { it.origin.y }
+        val obsBottom = obstacles.maxOf { it.origin.y + it.size.height }
+
+        val waypoints: List<Point> =
+            if (ep.vertical) {
+                val center = (ep.source.x + ep.target.x) / 2f
+                val leftX = obsLeft - gutter
+                val rightX = obsRight + gutter
+                val leftOk = leftX >= margin
+                val rightOk = rightX <= canvas.width - margin
+                val corridorX =
+                    when {
+                        leftOk && rightOk -> if (kotlin.math.abs(leftX - center) <= kotlin.math.abs(rightX - center)) leftX else rightX
+                        leftOk -> leftX
+                        rightOk -> rightX
+                        else ->
+                            if (kotlin.math.abs(leftX - center) <= kotlin.math.abs(rightX - center)) {
+                                leftX.coerceAtLeast(margin)
+                            } else {
+                                rightX.coerceAtMost(canvas.width - margin)
+                            }
+                    }
+                val downward = ep.target.y >= ep.source.y
+                val edgeNearSource = if (downward) obsTop else obsBottom
+                val edgeNearTarget = if (downward) obsBottom else obsTop
+                val yA = (ep.source.y + edgeNearSource) / 2f
+                val yB = (ep.target.y + edgeNearTarget) / 2f
+                listOf(
+                    Point(ep.source.x, yA),
+                    Point(corridorX, yA),
+                    Point(corridorX, yB),
+                    Point(ep.target.x, yB),
+                )
+            } else {
+                val center = (ep.source.y + ep.target.y) / 2f
+                val topY = obsTop - gutter
+                val bottomY = obsBottom + gutter
+                val topOk = topY >= margin
+                val bottomOk = bottomY <= canvas.height - margin
+                val corridorY =
+                    when {
+                        topOk && bottomOk -> if (kotlin.math.abs(topY - center) <= kotlin.math.abs(bottomY - center)) topY else bottomY
+                        topOk -> topY
+                        bottomOk -> bottomY
+                        else ->
+                            if (kotlin.math.abs(topY - center) <= kotlin.math.abs(bottomY - center)) {
+                                topY.coerceAtLeast(margin)
+                            } else {
+                                bottomY.coerceAtMost(canvas.height - margin)
+                            }
+                    }
+                val rightward = ep.target.x >= ep.source.x
+                val edgeNearSource = if (rightward) obsLeft else obsRight
+                val edgeNearTarget = if (rightward) obsRight else obsLeft
+                val xA = (ep.source.x + edgeNearSource) / 2f
+                val xB = (ep.target.x + edgeNearTarget) / 2f
+                listOf(
+                    Point(xA, ep.source.y),
+                    Point(xA, corridorY),
+                    Point(xB, corridorY),
+                    Point(xB, ep.target.y),
+                )
+            }
+
+        // cornerRadiusPx = 0f: the edge renderer applies its own rounding (Spec Z4),
+        // mirroring the ELK ResultMapper convention.
+        return EdgeRoute.OrthogonalRounded(
+            source = ep.source,
+            target = ep.target,
+            waypoints = waypoints,
+            cornerRadiusPx = 0f,
+        )
+    }
+
+    /** `true` when [p] lies inside (or on the border of) the axis-aligned [r]. */
+    private fun rectContains(
+        r: Rect,
+        p: Point,
+    ): Boolean =
+        p.x >= r.origin.x &&
+            p.x <= r.origin.x + r.size.width &&
+            p.y >= r.origin.y &&
+            p.y <= r.origin.y + r.size.height
+
+    /**
+     * Liang–Barsky segment/AABB clip test: `true` when the segment `p0→p1`
+     * intersects the interior of the axis-aligned rectangle [r].
+     */
+    private fun segmentIntersectsRect(
+        p0: Point,
+        p1: Point,
+        r: Rect,
+    ): Boolean {
+        val xMin = r.origin.x
+        val yMin = r.origin.y
+        val xMax = r.origin.x + r.size.width
+        val yMax = r.origin.y + r.size.height
+        val dx = p1.x - p0.x
+        val dy = p1.y - p0.y
+        var t0 = 0f
+        var t1 = 1f
+        val edges =
+            arrayOf(
+                -dx to (p0.x - xMin),
+                dx to (xMax - p0.x),
+                -dy to (p0.y - yMin),
+                dy to (yMax - p0.y),
+            )
+        for ((p, q) in edges) {
+            if (p == 0f) {
+                if (q < 0f) return false // parallel and outside this slab
+            } else {
+                val t = q / p
+                if (p < 0f) {
+                    if (t > t1) return false
+                    if (t > t0) t0 = t
+                } else {
+                    if (t < t0) return false
+                    if (t < t1) t1 = t
+                }
+            }
+        }
+        return t0 < t1
+    }
+
+    /** Abstand des Umweg-Korridors zur Hindernis-Paketbande, wenn eine
+     *  Paket-Abhängigkeit ein dazwischenliegendes Paket umrouten muss. */
+    private const val PACKAGE_OBSTACLE_GUTTER: Float = 24f
+
+    /** Mindestabstand des Umweg-Korridors zum Canvas-Rand, damit die Kante
+     *  nicht aus dem Diagramm-Rahmen herausläuft. */
+    private const val PACKAGE_OBSTACLE_MARGIN: Float = 8f
 
     /** Höhe der Folder-Tab-Lasche eines UML-Pakets. Muss mit dem Top-Padding
      *  in `UmlLayoutBridge.PACKAGE_GROUP_INSETS` zusammenpassen (18 px Tab +

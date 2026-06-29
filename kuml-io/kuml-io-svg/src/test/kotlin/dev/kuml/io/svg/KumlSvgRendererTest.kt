@@ -231,6 +231,96 @@ class KumlSvgRendererTest :
             SampleOutput.write("uml/package-diagram-domain-modules.svg", svg)
         }
 
+        test("KumlSvgRenderer routes a package dependency around an intervening package instead of through it") {
+            // Regression guard for the vault feedback on
+            // `11 UML Paket – Domain Modules.md`: with three vertically stacked
+            // packages (payment → shop → shared) the long `payment → shared`
+            // «import» edge used to be a straight diagonal that cut right through
+            // the middle `shop` box. The renderer must now detour the edge around
+            // the obstacle via an orthogonal side gutter.
+            val money = UmlClass(id = "Money", name = "Money")
+            val customer = UmlClass(id = "Customer", name = "Customer")
+            val invoice = UmlClass(id = "Invoice", name = "Invoice")
+            val shared = UmlPackage(id = "shared", name = "shared", members = listOf(money))
+            val shop = UmlPackage(id = "shop", name = "shop", members = listOf(customer))
+            val payment = UmlPackage(id = "payment", name = "payment", members = listOf(invoice))
+            val crossingDep =
+                UmlDependency(id = "dep1", clientId = "payment", supplierId = "shared", name = "«import»")
+
+            val diagram =
+                KumlDiagram(
+                    name = "Domain Modules",
+                    type = DiagramType.PACKAGE,
+                    elements = listOf(shared, shop, payment, crossingDep),
+                    config = PackageDiagramConfig(),
+                )
+
+            // Vertical stack: payment (top) · shop (middle, narrower) · shared (bottom).
+            val shopRect = Rect(Point(120f, 180f), Size(160f, 100f))
+            val layoutResult =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = null,
+                    canvas = Size(400f, 460f),
+                    nodes =
+                        mapOf(
+                            NodeId("Invoice") to NodeLayout(bounds = Rect(Point(40f, 60f), Size(120f, 50f))),
+                            NodeId("Customer") to NodeLayout(bounds = Rect(Point(140f, 200f), Size(120f, 50f))),
+                            NodeId("Money") to NodeLayout(bounds = Rect(Point(40f, 380f), Size(120f, 50f))),
+                        ),
+                    edges =
+                        mapOf(
+                            EdgeId("dep1") to
+                                EdgeRoute.Direct(source = Point(200f, 120f), target = Point(200f, 358f)),
+                        ),
+                    groups =
+                        mapOf(
+                            GroupId("payment") to GroupLayout(bounds = Rect(Point(20f, 20f), Size(360f, 100f))),
+                            GroupId("shop") to GroupLayout(bounds = shopRect),
+                            GroupId("shared") to GroupLayout(bounds = Rect(Point(20f, 340f), Size(360f, 100f))),
+                        ),
+                )
+
+            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+
+            // The crossing edge must now be an orthogonal multi-segment dashed
+            // path (a detour), not a single straight `<line>`.
+            val dashedPath =
+                Regex("""<path d="([^"]*)"[^>]*class="kuml-edge-dashed"""").find(svg)
+            (dashedPath != null) shouldBe true
+
+            // Parse the path vertices and assert no segment crosses the shop box.
+            val coords =
+                Regex("""[ML]\s*(-?[\d.]+)\s+(-?[\d.]+)""")
+                    .findAll(dashedPath!!.groupValues[1])
+                    .map { Point(it.groupValues[1].toFloat(), it.groupValues[2].toFloat()) }
+                    .toList()
+            (coords.size >= 3) shouldBe true
+
+            fun segmentHitsShop(
+                a: Point,
+                b: Point,
+            ): Boolean {
+                // Sample the segment densely; flag if any sample lands inside shop.
+                val steps = 50
+                for (i in 0..steps) {
+                    val t = i / steps.toFloat()
+                    val x = a.x + (b.x - a.x) * t
+                    val y = a.y + (b.y - a.y) * t
+                    val inside =
+                        x > shopRect.origin.x &&
+                            x < shopRect.origin.x + shopRect.size.width &&
+                            y > shopRect.origin.y &&
+                            y < shopRect.origin.y + shopRect.size.height
+                    if (inside) return true
+                }
+                return false
+            }
+
+            val anyCrossing = (1 until coords.size).any { segmentHitsShop(coords[it - 1], coords[it]) }
+            anyCrossing shouldBe false
+        }
+
         test("KumlSvgRenderer renders a C4 dynamic diagram with numbered interactions and dashed responses") {
             // Regression guard for the vault feedback in
             // "26 C4 Dynamic – Checkout Flow.md": before this fix the C4
