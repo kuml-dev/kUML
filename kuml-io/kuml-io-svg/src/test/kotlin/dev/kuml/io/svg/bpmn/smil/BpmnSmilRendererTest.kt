@@ -319,7 +319,7 @@ class BpmnSmilRendererTest :
 
         test("two adjacent token steps produce two animateMotion with increasing begin times") {
             val trace = simpleTrace("start1", "task1", "gw1", "end1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = BpmnAnimationContext(loopCount = 1))
 
             result.hasAnimation.shouldBeTrue()
             val motionBeginTimes =
@@ -330,6 +330,34 @@ class BpmnSmilRendererTest :
 
             motionBeginTimes.size shouldBe 3 // flow1, flow2, flow3
             motionBeginTimes.zipWithNext().all { (a, b) -> b > a }.shouldBeTrue()
+        }
+
+        // ── (12b) loopCount=3 triples the number of animateMotion elements ──
+
+        test("loopCount=3 triples the number of animateMotion elements") {
+            val trace = simpleTrace("start1", "task1", "gw1", "end1")
+            val ctx = BpmnAnimationContext(loopCount = 3)
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+
+            result.hasAnimation.shouldBeTrue()
+            val motionCount = Regex("""<animateMotion""").findAll(result.svg).count()
+            motionCount shouldBe 9 // 3 flows × 3 loops
+        }
+
+        // ── (12c) Gateway activation emits both highlight and reset fill animations ──
+
+        test("gateway activation emits both highlight and reset fill animations") {
+            val trace = simpleTrace("start1", "task1", "gw1")
+            val ctx = BpmnAnimationContext(loopCount = 1)
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+
+            result.hasAnimation.shouldBeTrue()
+            // Should contain 2 fill animations on gw1-diamond: highlight + reset
+            val fillAnimsOnGateway =
+                Regex("""<animate[^>]+xlink:href="#gw1-diamond"[^>]+attributeName="fill"[^>]*/>""")
+                    .findAll(result.svg)
+                    .count()
+            fillAnimsOnGateway shouldBe 2
         }
 
         // ── (13) Trace nodeId pair with no connecting SequenceFlow is skipped ──
@@ -488,8 +516,13 @@ class BpmnSmilRendererTest :
             val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
-            // Find all circle ids
-            val circleIds = Regex("""<circle id="([^"]+)"""").findAll(result.svg).map { it.groupValues[1] }.toList()
+            // Find all token-circle ids (prefix "kuml-token-circle-"); event rings also carry
+            // "-circle" ids now, so restrict the match to the moving token circles.
+            val circleIds =
+                Regex("""<circle id="(kuml-token-circle-[^"]+)"""")
+                    .findAll(result.svg)
+                    .map { it.groupValues[1] }
+                    .toList()
             // Must be distinct (no duplicate id attributes)
             circleIds.size shouldBe circleIds.distinct().size
             circleIds.size shouldBe 2 // two motion legs: start1→task1 twice
@@ -621,5 +654,109 @@ class BpmnSmilRendererTest :
 
             result.hasAnimation.shouldBeTrue()
             result.svg.length shouldBeGreaterThan baseSvg.length
+        }
+
+        // ── (25) Task emits fill highlight animation (light blue) ──
+
+        test("task execution emits fill highlight animation with taskHighlightColor") {
+            val trace = simpleTrace("start1", "task1")
+            // loopCount=1 to count exactly 2 fill animations (fill-on + fill-off per pass)
+            val ctx = BpmnAnimationContext(loopCount = 1)
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+
+            result.hasAnimation.shouldBeTrue()
+            // Default taskHighlightColor is #e3f2fd — must appear as a fill to/from value
+            result.svg shouldContain "#e3f2fd"
+            // Fill targets the inner "-box" rect (not the <g>) so it actually recolors the shape.
+            // Both fill-on and fill-off: exactly 2 fill animations on task1-box per loop pass.
+            val fillAnimsOnTask =
+                Regex("""<animate[^>]+xlink:href="#task1-box"[^>]+attributeName="fill"[^>]*/>""")
+                    .findAll(result.svg)
+                    .count()
+            fillAnimsOnTask shouldBe 2
+        }
+
+        // ── (26) Start event emits fill highlight (light green) ──
+
+        test("start event emits fill highlight with startEventColor") {
+            val trace = simpleTrace("start1", "task1")
+            val ctx = BpmnAnimationContext(loopCount = 1)
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+
+            result.hasAnimation.shouldBeTrue()
+            // Default startEventColor is #e8f5e9
+            result.svg shouldContain "#e8f5e9"
+            // Fill targets the inner "-circle" ring (not the <g>) so it actually recolors the shape.
+            val fillAnimsOnStart =
+                Regex("""<animate[^>]+xlink:href="#start1-circle"[^>]+attributeName="fill"[^>]*/>""")
+                    .findAll(result.svg)
+                    .count()
+            fillAnimsOnStart shouldBe 2
+        }
+
+        // ── (27) End event emits fill highlight (light red) ──
+
+        test("end event emits fill highlight with endEventColor") {
+            val trace = simpleTrace("start1", "task1", "gw1", "end1")
+            val ctx = BpmnAnimationContext(loopCount = 1)
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+
+            result.hasAnimation.shouldBeTrue()
+            // Default endEventColor is #ffebee
+            result.svg shouldContain "#ffebee"
+            // Fill targets the inner "-circle" ring (not the <g>) so it actually recolors the shape.
+            val fillAnimsOnEnd =
+                Regex("""<animate[^>]+xlink:href="#end1-circle"[^>]+attributeName="fill"[^>]*/>""")
+                    .findAll(result.svg)
+                    .count()
+            fillAnimsOnEnd shouldBe 2
+        }
+
+        // ── (28) taskHighlightColor override appears in SVG ──
+
+        test("taskHighlightColor override appears in task fill animation") {
+            val ctx = BpmnAnimationContext(taskHighlightColor = "#bbdefb")
+            val trace = simpleTrace("start1", "task1")
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+
+            result.hasAnimation.shouldBeTrue()
+            result.svg shouldContain "#bbdefb"
+        }
+
+        // ── (29) startEventColor / endEventColor overrides appear in SVG ──
+
+        test("startEventColor and endEventColor overrides appear in event fill animations") {
+            val ctx = BpmnAnimationContext(startEventColor = "#c8e6c9", endEventColor = "#ffcdd2")
+            val trace = simpleTrace("start1", "task1", "gw1", "end1")
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+
+            result.hasAnimation.shouldBeTrue()
+            result.svg shouldContain "#c8e6c9"
+            result.svg shouldContain "#ffcdd2"
+        }
+
+        // ── (30) New color params validated — injection rejected ──
+
+        test("LOOP_INFINITE tiles LOOP_PRACTICAL_MAX times (not Int.MAX_VALUE)") {
+            val trace = simpleTrace("start1", "task1", "gw1", "end1")
+            val ctx = BpmnAnimationContext(loopCount = BpmnAnimationContext.LOOP_INFINITE)
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+
+            result.hasAnimation.shouldBeTrue()
+            val motionCount = Regex("""<animateMotion""").findAll(result.svg).count()
+            // 3 flows × LOOP_PRACTICAL_MAX loops (not Int.MAX_VALUE)
+            motionCount shouldBe 3 * BpmnAnimationContext.LOOP_PRACTICAL_MAX
+        }
+
+        test("BpmnAnimationContext rejects injection in taskHighlightColor, startEventColor, endEventColor") {
+            shouldThrow<IllegalArgumentException> {
+                BpmnAnimationContext(taskHighlightColor = "javascript:void(0)")
+            }
+            shouldThrow<IllegalArgumentException> {
+                BpmnAnimationContext(startEventColor = "\"/><script>")
+            }
+            shouldThrow<IllegalArgumentException> {
+                BpmnAnimationContext(endEventColor = "rgb(255,0,0)")
+            }
         }
     })

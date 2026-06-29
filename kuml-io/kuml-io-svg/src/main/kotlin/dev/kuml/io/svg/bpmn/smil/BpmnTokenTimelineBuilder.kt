@@ -33,9 +33,11 @@ internal data class TokenCircle(
  *
  * - [SmilAnimation.AnimateMotion] — token circle travels along the edge path.
  * - [SmilAnimation.Animate] opacity — circle fades in/out for its travel leg.
- * - [SmilAnimation.Fill] — gateway diamond highlights on activation.
- * - [SmilAnimation.Animate] stroke-width — task rect pulses on execution.
- * - [SmilAnimation.Animate] opacity — start/end events dim on visit.
+ * - [SmilAnimation.Fill] — gateway diamond highlights on activation (amber).
+ * - [SmilAnimation.Fill] — task rect fills light-blue on execution, plus stroke-width pulse.
+ * - [SmilAnimation.Fill] — start event fills light-green, end event fills light-red on visit.
+ * - [SmilAnimation.Animate] stroke-width — task rect border pulse (retained alongside fill).
+ * - [SmilAnimation.Animate] opacity — start/end events dim on visit (retained alongside fill).
  *
  * Only [TraceEntry.TokenPlaced] and [TraceEntry.TokenConsumed] entries are
  * meaningful for BPMN animation. Other entry types (STM-style StateEntered,
@@ -153,12 +155,42 @@ internal object BpmnTokenTimelineBuilder {
                             fromColor = "white",
                         )
                     animations += gatewayAnim
+                    // Reset gateway diamond back to white after the highlight fades
+                    val gatewayReset =
+                        SmilAnimation.Fill(
+                            elementId = "${xmlEscapeId(nodeId)}-diamond",
+                            color = "white",
+                            beginMs = beginMs + GATEWAY_HIGHLIGHT_MS,
+                            durationMs = GATEWAY_HIGHLIGHT_MS,
+                            fromColor = context.highlightColor,
+                        )
+                    animations += gatewayReset
                 }
                 is BpmnTask -> {
-                    // Task execution: stroke-width pulse (1.5 → 4 → 1.5)
+                    // Task execution: fill highlight (light blue) + stroke-width pulse (1.5 → 4 → 1.5).
+                    // Both target the "-box" <rect> id, NOT the parent <g>: animating fill or
+                    // stroke-width on the <g> does not override the child <rect>'s own attributes.
+                    val boxId = "${xmlEscapeId(nodeId)}-box"
+                    // Fill covers the full pulse duration (on + off = 2 × TASK_PULSE_MS).
+                    val fillOn =
+                        SmilAnimation.Fill(
+                            elementId = boxId,
+                            color = context.taskHighlightColor,
+                            beginMs = beginMs,
+                            durationMs = TASK_PULSE_MS * 2,
+                            fromColor = "white",
+                        )
+                    val fillOff =
+                        SmilAnimation.Fill(
+                            elementId = boxId,
+                            color = "white",
+                            beginMs = beginMs + TASK_PULSE_MS * 2,
+                            durationMs = TASK_PULSE_MS,
+                            fromColor = context.taskHighlightColor,
+                        )
                     val pulseOn =
                         SmilAnimation.Animate(
-                            elementId = xmlEscapeId(nodeId),
+                            elementId = boxId,
                             attribute = "stroke-width",
                             from = "1.5",
                             to = "4",
@@ -167,19 +199,48 @@ internal object BpmnTokenTimelineBuilder {
                         )
                     val pulseOff =
                         SmilAnimation.Animate(
-                            elementId = xmlEscapeId(nodeId),
+                            elementId = boxId,
                             attribute = "stroke-width",
                             from = "4",
                             to = "1.5",
                             beginMs = beginMs + TASK_PULSE_MS,
                             durationMs = TASK_PULSE_MS,
                         )
+                    animations += fillOn
+                    animations += fillOff
                     animations += pulseOn
                     animations += pulseOff
                 }
                 is BpmnEvent -> {
-                    // Start/End events: opacity dim
-                    if (element.position == EventPosition.START || element.position == EventPosition.END) {
+                    // Start/End events: type-specific fill highlight + opacity dim (both retained).
+                    // Start events fill light-green, end events fill light-red.
+                    val fillColor =
+                        when (element.position) {
+                            EventPosition.START -> context.startEventColor
+                            EventPosition.END -> context.endEventColor
+                            else -> null
+                        }
+                    if (fillColor != null) {
+                        // Fill targets the "-circle" <circle> id, NOT the parent <g>:
+                        // the circle carries its own fill="white" which the group fill cannot override.
+                        // The opacity dim below stays on the <g> so the whole event group fades.
+                        val circleId = "${xmlEscapeId(nodeId)}-circle"
+                        val fillOn =
+                            SmilAnimation.Fill(
+                                elementId = circleId,
+                                color = fillColor,
+                                beginMs = beginMs,
+                                durationMs = EVENT_DIM_MS,
+                                fromColor = "white",
+                            )
+                        val fillOff =
+                            SmilAnimation.Fill(
+                                elementId = circleId,
+                                color = "white",
+                                beginMs = beginMs + EVENT_DIM_MS,
+                                durationMs = EVENT_DIM_MS,
+                                fromColor = fillColor,
+                            )
                         val dimDown =
                             SmilAnimation.Animate(
                                 elementId = xmlEscapeId(nodeId),
@@ -198,6 +259,8 @@ internal object BpmnTokenTimelineBuilder {
                                 beginMs = beginMs + EVENT_DIM_MS,
                                 durationMs = EVENT_DIM_MS,
                             )
+                        animations += fillOn
+                        animations += fillOff
                         animations += dimDown
                         animations += dimUp
                     }
@@ -255,7 +318,27 @@ internal object BpmnTokenTimelineBuilder {
         }
 
         val rawTimeline = SmilTimeline(animations)
-        val scaledTimeline = rawTimeline.scaledBy(context.speedFactor)
+        // Loop the sequence `context.loopCount` times with `context.loopGapMs` pause between passes.
+        // loopGapMs is applied BEFORE speed scaling so the gap compresses consistently with content.
+        // LOOP_INFINITE is capped at LOOP_PRACTICAL_MAX to keep the SVG size manageable while
+        // still providing ~23 minutes of seamless animation (effectively infinite for presentations).
+        val effectiveLoopCount =
+            if (context.loopCount == BpmnAnimationContext.LOOP_INFINITE) {
+                BpmnAnimationContext.LOOP_PRACTICAL_MAX
+            } else {
+                context.loopCount
+            }
+        val scaledTimeline =
+            if (effectiveLoopCount <= 1 || rawTimeline.animations.isEmpty()) {
+                rawTimeline.scaledBy(context.speedFactor)
+            } else {
+                val onePassMs = rawTimeline.totalDurationMs + context.loopGapMs
+                val loopedAnimations = rawTimeline.animations.toMutableList()
+                for (i in 1 until effectiveLoopCount) {
+                    loopedAnimations += rawTimeline.shiftedBy(i * onePassMs).animations
+                }
+                SmilTimeline(loopedAnimations).scaledBy(context.speedFactor)
+            }
         return Pair(scaledTimeline, circles)
     }
 

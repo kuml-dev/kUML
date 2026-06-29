@@ -42,8 +42,10 @@ internal fun renderBpmnEvent(
     builder.tag("g", mapOf("id" to xmlEscapeAttr(event.id))) {
         when (event.position) {
             EventPosition.START -> {
+                // "-circle" id lets SMIL fill animations target the ring directly;
+                // animating fill on the parent <g> does not override the circle's own fill.
                 rawXml(
-                    """<circle cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r)}" """ +
+                    """<circle id="${xmlEscapeAttr(event.id)}-circle" cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r)}" """ +
                         """fill="white" stroke="#333" stroke-width="1.5"$dashAttr/>""",
                 )
             }
@@ -61,7 +63,7 @@ internal fun renderBpmnEvent(
 
             EventPosition.END -> {
                 rawXml(
-                    """<circle cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r)}" """ +
+                    """<circle id="${xmlEscapeAttr(event.id)}-circle" cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r)}" """ +
                         """fill="white" stroke="#333" stroke-width="3"/>""",
                 )
             }

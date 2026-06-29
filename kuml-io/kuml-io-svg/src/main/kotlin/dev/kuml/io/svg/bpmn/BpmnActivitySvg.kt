@@ -25,7 +25,10 @@ internal fun renderBpmnTask(
     builder: SvgBuilder,
 ) {
     builder.tag("g", mapOf("id" to xmlEscapeAttr(task.id))) {
-        renderActivityBox(layout, this, strokeWidth = 1.5f, label = task.name)
+        // boxId gives the inner <rect> its own id so SMIL fill/stroke-width animations
+        // can target the shape directly. Animating fill on the parent <g> does NOT
+        // propagate to a child <rect> that carries its own explicit fill="white".
+        renderActivityBox(layout, this, strokeWidth = 1.5f, label = task.name, boxId = "${task.id}-box")
         renderBpmnTaskMarkers(task, layout, this)
         renderTaskTypeIcon(task.taskType, layout, this)
     }
@@ -115,14 +118,16 @@ private fun renderActivityBox(
     strokeWidth: Float,
     label: String?,
     rx: Float = 6f,
+    boxId: String? = null,
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
 
+    val idAttr = if (boxId != null) """id="${xmlEscapeAttr(boxId)}" """ else ""
     builder.rawXml(
-        """<rect x="${fmtF(x)}" y="${fmtF(y)}" width="${fmtF(w)}" height="${fmtF(h)}" """ +
+        """<rect ${idAttr}x="${fmtF(x)}" y="${fmtF(y)}" width="${fmtF(w)}" height="${fmtF(h)}" """ +
             """rx="${fmtF(rx)}" fill="white" stroke="#333" stroke-width="${fmtF(strokeWidth)}"/>""",
     )
 
@@ -174,6 +179,9 @@ private fun renderTaskTypeIcon(
                 "y" to fmtF(iy + 10f),
                 "text-anchor" to "middle",
                 "font-size" to "10",
+                // Explicit fill prevents inheritance from parent <g> when SMIL
+                // animates the group fill (e.g. task highlight animation).
+                "fill" to "#333",
             ),
         ) { text(iconLabel) }
     }

@@ -14,7 +14,7 @@ date: 2026-06-26
 ## Animiertes Diagramm (kuml-animated)
 
 > [!tip] Obsidian Plugin v0.3.0+
-> Der `kuml-animated`-Code-Block mit `// trace:` Direktive rendert den BPMN-Prozess mit token-getriebenem SMIL-Token, der durch den Happy-Path wandert. Die Animation läuft automatisch **5× in Schleife** (~32 Sekunden gesamt), dann stoppt sie. Plugin-Reload oder Notiz-Wechsel startet sie neu.
+> Der `kuml-animated`-Code-Block mit `// trace:` Direktive rendert den BPMN-Prozess mit token-getriebenem SMIL-Token, der durch den Happy-Path wandert. Die Animation läuft **endlos in Schleife** (~7 Sekunden pro Durchlauf). Plugin-Reload oder Notiz-Wechsel startet sie neu.
 
 ```kuml-animated
 // trace: 07 Anhänge/kUML/traces/bpmn-pdv-mitgliedsantrag.kuml.trace.v1.json
