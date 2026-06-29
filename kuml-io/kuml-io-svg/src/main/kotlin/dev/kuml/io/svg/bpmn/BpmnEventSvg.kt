@@ -8,6 +8,8 @@ import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 
+private const val BPMN_EVENT_SHAPE_H = 36f
+
 /**
  * Rendert ein [BpmnEvent] als BPMN-Standard-Kreis-Symbol.
  *
@@ -31,8 +33,8 @@ internal fun renderBpmnEvent(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
     val cx = x + w / 2f
-    val cy = y + h / 2f
-    val r = minOf(w, h) / 2f - 2f
+    val cy = y + BPMN_EVENT_SHAPE_H / 2f
+    val r = BPMN_EVENT_SHAPE_H / 2f - 2f
 
     val nodeFill = theme.colors.effectiveNodeFill.toHex()
     val borderColor = theme.colors.border.toHex()
@@ -97,7 +99,7 @@ internal fun renderBpmnEvent(
                 "text",
                 mapOf(
                     "x" to fmtF(cx),
-                    "y" to fmtF(y + h + 12f),
+                    "y" to fmtF(y + BPMN_EVENT_SHAPE_H + 12f),
                     "text-anchor" to "middle",
                     "font-family" to fontFamily,
                     "font-size" to "11",

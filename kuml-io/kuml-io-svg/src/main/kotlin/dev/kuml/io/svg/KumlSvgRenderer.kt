@@ -2589,11 +2589,18 @@ public object KumlSvgRenderer {
             if (name.isNullOrBlank()) continue
             val b = nodeLayout.bounds
             val cx = b.origin.x + b.size.width / 2f
-            val nodeBottom = b.origin.y + b.size.height
+            // The label is rendered at y + SHAPE_H + 12, not y + bounds.h + 12.
+            // Use the actual shape height so the margin reflects the true label position.
+            val shapeH =
+                when (elementIndex[nodeId.value]) {
+                    is dev.kuml.bpmn.model.BpmnEvent -> 36f
+                    is dev.kuml.bpmn.model.BpmnGateway -> 50f
+                    else -> b.size.height
+                }
             val halfTextW = name.length * BPMN_LABEL_CHAR_PX / 2f
             val labelLeft = cx - halfTextW
             val labelRight = cx + halfTextW
-            val labelBottom = nodeBottom + BPMN_LABEL_BELOW_PX + BPMN_LABEL_DESCENT_PX
+            val labelBottom = b.origin.y + shapeH + BPMN_LABEL_BELOW_PX + BPMN_LABEL_DESCENT_PX
             if (-labelLeft > left) left = -labelLeft
             if (labelRight - w > right) right = labelRight - w
             if (labelBottom - h > bottom) bottom = labelBottom - h
@@ -3104,6 +3111,10 @@ public object KumlSvgRenderer {
             }
 
             // 3. Edges LAST — SequenceFlows and any other BPMN edges render on top.
+            // Note: no endpoint clipper here. Events and gateways use enlarged layout
+            // bounds (shape height + 20 px label space below) so ELK already routes
+            // edges from below the label area. Applying a clipper would snap the route
+            // start back into the label space, re-introducing the coverage issue.
             for ((edgeId, route) in renderLayout.edges) {
                 val element = elementIndex[edgeId.value] ?: continue
                 val shiftedRoute = shiftRoute(route, padding)

@@ -53,10 +53,16 @@ public object BpmnLayoutBridge {
     public val DEFAULT_TASK_SIZE: Size = Size(120f, 60f)
 
     /** Standard-Knotengröße für BPMN-Gateways (Breite × Höhe). */
-    public val DEFAULT_GATEWAY_SIZE: Size = Size(50f, 50f)
+    public val DEFAULT_GATEWAY_SIZE: Size = Size(50f, 70f) // 50 shape + 20 label space
 
     /** Standard-Knotengröße für BPMN-Events (Breite × Höhe). */
-    public val DEFAULT_EVENT_SIZE: Size = Size(36f, 36f)
+    public val DEFAULT_EVENT_SIZE: Size = Size(36f, 56f) // 36 shape + 20 label space
+
+    /** Tatsächliche Formhöhe eines Gateway-Diamonds (obere 50 px der 70 px-Bounds). */
+    public const val BPMN_GATEWAY_SHAPE_H: Float = 50f
+
+    /** Tatsächliche Formhöhe eines Event-Kreises (obere 36 px der 56 px-Bounds). */
+    public const val BPMN_EVENT_SHAPE_H: Float = 36f
 
     /** Standard-Knotengröße für BPMN-DataObjects (Breite × Höhe). */
     public val DEFAULT_DATA_OBJECT_SIZE: Size = Size(40f, 55f)

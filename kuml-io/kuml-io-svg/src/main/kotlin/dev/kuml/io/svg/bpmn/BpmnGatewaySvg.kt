@@ -9,6 +9,8 @@ import dev.kuml.renderer.theme.core.KumlTheme
 import kotlin.math.cos
 import kotlin.math.sin
 
+private const val BPMN_GATEWAY_SHAPE_H = 50f
+
 /**
  * Rendert einen [BpmnGateway] als BPMN-Standard-Raute mit Typ-Symbol.
  *
@@ -33,9 +35,9 @@ internal fun renderBpmnGateway(
     val w = layout.bounds.size.width
     val h = layout.bounds.size.height
     val cx = x + w / 2f
-    val cy = y + h / 2f
+    val cy = y + BPMN_GATEWAY_SHAPE_H / 2f
     val hw = w / 2f
-    val hh = h / 2f
+    val hh = BPMN_GATEWAY_SHAPE_H / 2f
 
     val nodeFill = theme.colors.effectiveNodeFill.toHex()
     val borderColor = theme.colors.border.toHex()
@@ -127,7 +129,7 @@ internal fun renderBpmnGateway(
                 "text",
                 mapOf(
                     "x" to fmtF(cx),
-                    "y" to fmtF(y + h + 12f),
+                    "y" to fmtF(y + BPMN_GATEWAY_SHAPE_H + 12f),
                     "text-anchor" to "middle",
                     "font-family" to fontFamily,
                     "font-size" to "11",
