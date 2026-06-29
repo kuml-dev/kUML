@@ -319,7 +319,7 @@ class BpmnSmilRendererTest :
 
         test("two adjacent token steps produce two animateMotion with increasing begin times") {
             val trace = simpleTrace("start1", "task1", "gw1", "end1")
-            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = BpmnAnimationContext(loopCount = 1))
 
             result.hasAnimation.shouldBeTrue()
             val motionBeginTimes =
@@ -330,6 +330,34 @@ class BpmnSmilRendererTest :
 
             motionBeginTimes.size shouldBe 3 // flow1, flow2, flow3
             motionBeginTimes.zipWithNext().all { (a, b) -> b > a }.shouldBeTrue()
+        }
+
+        // ── (12b) loopCount=3 triples the number of animateMotion elements ──
+
+        test("loopCount=3 triples the number of animateMotion elements") {
+            val trace = simpleTrace("start1", "task1", "gw1", "end1")
+            val ctx = BpmnAnimationContext(loopCount = 3)
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+
+            result.hasAnimation.shouldBeTrue()
+            val motionCount = Regex("""<animateMotion""").findAll(result.svg).count()
+            motionCount shouldBe 9 // 3 flows × 3 loops
+        }
+
+        // ── (12c) Gateway activation emits both highlight and reset fill animations ──
+
+        test("gateway activation emits both highlight and reset fill animations") {
+            val trace = simpleTrace("start1", "task1", "gw1")
+            val ctx = BpmnAnimationContext(loopCount = 1)
+            val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace, context = ctx)
+
+            result.hasAnimation.shouldBeTrue()
+            // Should contain 2 fill animations on gw1-diamond: highlight + reset
+            val fillAnimsOnGateway =
+                Regex("""<animate[^>]+xlink:href="#gw1-diamond"[^>]+attributeName="fill"[^>]*/>""")
+                    .findAll(result.svg)
+                    .count()
+            fillAnimsOnGateway shouldBe 2
         }
 
         // ── (13) Trace nodeId pair with no connecting SequenceFlow is skipped ──

@@ -55,6 +55,35 @@ internal object ComponentPortEdgeClipper {
      */
     private const val STUB_PX = 24f
 
+    /**
+     * Gesamte seitliche Ausladung einer geclippten Port-Route **über die
+     * Komponenten-Box hinaus**: halbe Port-Breite (das Quadrat sitzt halb
+     * überlappend auf dem Rand) plus die Stub-Länge des Korridors.
+     *
+     * [clip] läuft erst **nach** der Canvas-Größen-Berechnung
+     * ([dev.kuml.layout.elk.ResultMapper] bzw. das `SvgDocument`-Padding) — die
+     * so erzeugten Korridore ragen also bis zu diesem Betrag über die
+     * Layout-Bounding-Box hinaus, von der weder das Canvas noch der
+     * Diagrammrahmen etwas wissen. Der Renderer addiert diesen Wert deshalb
+     * (plus einem kleinen Rahmen-Spalt) auf das Canvas-Padding von
+     * Komponentendiagrammen, damit die Stubs nicht auf bzw. über den
+     * Diagrammrahmen laufen. Analog zur vertikalen Korrektur
+     * [UmlComponentContracts.TOTAL_UPWARD_EXTENT_PX] für ungebundene Contracts.
+     */
+    const val OUTWARD_EXTENT_PX: Float = PORT_SIZE / 2f + STUB_PX
+
+    /**
+     * Prüft, ob ein Connector mit diesen beiden Endpunkt-IDs von [clip] zu
+     * einer Port-Route mit seitlichen Stubs umgebaut würde — also ob beide
+     * Enden qualifizierte `componentId::portName`-Endpunkte sind und nicht
+     * identisch (kein Self-Loop). Der Renderer nutzt das für die
+     * Padding-Entscheidung, bevor [clip] tatsächlich läuft.
+     */
+    fun bindsPorts(
+        end1Id: String,
+        end2Id: String,
+    ): Boolean = end1Id != end2Id && splitEndpoint(end1Id) != null && splitEndpoint(end2Id) != null
+
     private enum class Side { LEFT, RIGHT }
 
     private data class PortAnchor(
@@ -118,10 +147,21 @@ internal object ComponentPortEdgeClipper {
     /**
      * Baut eine orthogonale Route zwischen zwei [PortAnchor]s. Die Form
      * hängt von den Port-Seiten ab — siehe Klassen-KDoc.
+     *
+     * Für die **Z-Form** (gegenüberliegende Seiten) wird der Korridor
+     * obstacle-aware gewählt: liegen die beiden Komponentenboxen vertikal
+     * getrennt (eine über der anderen) und überlappen sich horizontal, läuft
+     * der Mittelkorridor **horizontal durch die vertikale Lücke** zwischen den
+     * Boxen statt vertikal — sonst stürzt die senkrechte Mittelstrecke mitten
+     * durch die Zielbox (Vault-Beispiel [[35 AUTOSAR Classic – SW-Komponenten]]:
+     * `BrakeControllerSwc::DiagOut → DiagActuatorSwc::DiagIn`). In allen anderen
+     * Fällen (Boxen nebeneinander) bleibt der vertikale Mittelkorridor.
      */
     private fun buildOrthogonalRoute(
         src: PortAnchor,
         tgt: PortAnchor,
+        srcBounds: Rect,
+        tgtBounds: Rect,
     ): EdgeRoute {
         val sStub = if (src.side == Side.LEFT) -STUB_PX else STUB_PX
         val tStub = if (tgt.side == Side.LEFT) -STUB_PX else STUB_PX
@@ -145,11 +185,40 @@ internal object ComponentPortEdgeClipper {
             waypoints.add(Point(cornerX, tgt.y))
             waypoints.add(Point(tx, tgt.y))
         } else {
-            // Z-Form: horizontale Mittelstrecke zwischen den beiden Stub-x.
-            val midX = (sx + tx) / 2f
-            waypoints.add(Point(midX, src.y))
-            waypoints.add(Point(midX, tgt.y))
-            waypoints.add(Point(tx, tgt.y))
+            val sLeft = srcBounds.origin.x
+            val sRight = srcBounds.origin.x + srcBounds.size.width
+            val sTop = srcBounds.origin.y
+            val sBottom = srcBounds.origin.y + srcBounds.size.height
+            val tLeft = tgtBounds.origin.x
+            val tRight = tgtBounds.origin.x + tgtBounds.size.width
+            val tTop = tgtBounds.origin.y
+            val tBottom = tgtBounds.origin.y + tgtBounds.size.height
+
+            val horizontallySeparated = sRight < tLeft || tRight < sLeft
+            val verticallySeparated = sBottom < tTop || tBottom < sTop
+
+            if (!horizontallySeparated && verticallySeparated) {
+                // Z-Form mit HORIZONTALEM Mittelkorridor durch die vertikale
+                // Lücke zwischen den Boxen — vermeidet das Durchstoßen der
+                // Zielbox, wenn die Boxen übereinander statt nebeneinander
+                // liegen.
+                val corridorY =
+                    if (sBottom <= tTop) {
+                        (sBottom + tTop) / 2f
+                    } else {
+                        (tBottom + sTop) / 2f
+                    }
+                waypoints.add(Point(sx, corridorY))
+                waypoints.add(Point(tx, corridorY))
+                waypoints.add(Point(tx, tgt.y))
+            } else {
+                // Z-Form: vertikaler Mittelkorridor zwischen den beiden Stub-x
+                // (Boxen liegen nebeneinander).
+                val midX = (sx + tx) / 2f
+                waypoints.add(Point(midX, src.y))
+                waypoints.add(Point(midX, tgt.y))
+                waypoints.add(Point(tx, tgt.y))
+            }
         }
         return EdgeRoute.OrthogonalRounded(
             source = Point(src.x, src.y),
@@ -188,6 +257,6 @@ internal object ComponentPortEdgeClipper {
         val tgtBounds = boundsLookup(s2Id) ?: return route
         val srcAnchor = portAnchor(srcComp, srcBounds, s1Port) ?: return route
         val tgtAnchor = portAnchor(tgtComp, tgtBounds, s2Port) ?: return route
-        return buildOrthogonalRoute(srcAnchor, tgtAnchor)
+        return buildOrthogonalRoute(srcAnchor, tgtAnchor, srcBounds, tgtBounds)
     }
 }

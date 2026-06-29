@@ -200,7 +200,15 @@ private fun drawComponentBox(
         // [UmlContentSizeProvider.componentSize] computation reserves enough
         // horizontal width (left + right port-label widths) so the inside labels
         // never overlap the centred title.
-        renderPorts(element, w, h)
+        // When internal connectors are present, port squares are drawn here and
+        // labels are deferred to AFTER the connectors so that labels sit on top
+        // in SVG z-order. Without internal connectors the combined renderPorts is fine.
+        val hasInternalConnectors = element.nestedComponents.isNotEmpty() && internalConnectors.isNotEmpty()
+        if (hasInternalConnectors) {
+            renderPortSquares(element, w, h)
+        } else {
+            renderPorts(element, w, h)
+        }
 
         // V3.x — Composite-Structure: verschachtelte Parts als Innenstruktur.
         // Parts werden vertikal gestapelt und füllen die Innenbreite uniform
@@ -289,6 +297,9 @@ private fun drawComponentBox(
                 }
 
                 drawInternalConnectors(internalConnectors, partRects, componentById, this)
+
+                // Port labels drawn LAST so they appear on top of connector polylines.
+                renderPortLabels(element, w, h)
             }
         }
     }
@@ -388,7 +399,74 @@ private fun compositeHeight(
     return chrome + NESTED_TOP_GAP + stack + NESTED_BOTTOM_PAD
 }
 
+/**
+ * Renders port squares AND labels in one pass.
+ * Use for inner parts where no internal connectors can overlap the labels.
+ */
 private fun SvgBuilder.renderPorts(
+    element: UmlComponent,
+    w: Float,
+    h: Float,
+) {
+    renderPortSquares(element, w, h)
+    renderPortLabels(element, w, h)
+}
+
+/**
+ * Renders only the filled port squares (black rects on the component border).
+ * Called first so connectors are drawn on top of squares but below labels.
+ */
+private fun SvgBuilder.renderPortSquares(
+    element: UmlComponent,
+    w: Float,
+    h: Float,
+) {
+    if (element.ports.isEmpty()) return
+
+    val portSize = 12f
+    val leftPorts = element.ports.filterIndexed { idx, _ -> idx % 2 == 0 }
+    val rightPorts = element.ports.filterIndexed { idx, _ -> idx % 2 == 1 }
+
+    leftPorts.forEachIndexed { i, _ ->
+        val py = h * (i + 1) / (leftPorts.size + 1) - portSize / 2f
+        tag(
+            "rect",
+            mapOf(
+                "x" to fmt(-portSize / 2f),
+                "y" to fmt(py),
+                "width" to fmt(portSize),
+                "height" to fmt(portSize),
+                "class" to "kuml-port",
+            ),
+        )
+    }
+
+    rightPorts.forEachIndexed { i, _ ->
+        val py = h * (i + 1) / (rightPorts.size + 1) - portSize / 2f
+        tag(
+            "rect",
+            mapOf(
+                "x" to fmt(w - portSize / 2f),
+                "y" to fmt(py),
+                "width" to fmt(portSize),
+                "height" to fmt(portSize),
+                "class" to "kuml-port",
+            ),
+        )
+    }
+}
+
+/**
+ * Renders only the port name labels. Called AFTER internal connectors so that
+ * labels always appear on top of connector polylines in the SVG z-order.
+ *
+ * Each label is emitted as two sibling `<text>` elements:
+ *  1. `kuml-port-label-halo` — white stroke, no fill → acts as a background
+ *     that masks the connector line behind the text without relying on
+ *     `paint-order` (not supported by Batik / PNG export).
+ *  2. `kuml-port-label` — black fill, no stroke → the visible text.
+ */
+private fun SvgBuilder.renderPortLabels(
     element: UmlComponent,
     w: Float,
     h: Float,
@@ -402,48 +480,26 @@ private fun SvgBuilder.renderPorts(
 
     leftPorts.forEachIndexed { i, port ->
         val py = h * (i + 1) / (leftPorts.size + 1) - portSize / 2f
-        tag(
-            "rect",
+        val baseAttrs =
             mapOf(
-                "x" to fmt(-portSize / 2f),
-                "y" to fmt(py),
-                "width" to fmt(portSize),
-                "height" to fmt(portSize),
-                "class" to "kuml-port",
-            ),
-        )
-        tag(
-            "text",
-            mapOf(
-                "class" to "kuml-port-label",
                 "x" to fmt(portSize / 2f + labelGap),
                 "y" to fmt(py + portSize / 2f + 3f),
                 "text-anchor" to "start",
-            ),
-        ) { text(port.name) }
+            )
+        tag("text", baseAttrs + mapOf("class" to "kuml-port-label-halo")) { text(port.name) }
+        tag("text", baseAttrs + mapOf("class" to "kuml-port-label")) { text(port.name) }
     }
 
     rightPorts.forEachIndexed { i, port ->
         val py = h * (i + 1) / (rightPorts.size + 1) - portSize / 2f
-        tag(
-            "rect",
+        val baseAttrs =
             mapOf(
-                "x" to fmt(w - portSize / 2f),
-                "y" to fmt(py),
-                "width" to fmt(portSize),
-                "height" to fmt(portSize),
-                "class" to "kuml-port",
-            ),
-        )
-        tag(
-            "text",
-            mapOf(
-                "class" to "kuml-port-label",
                 "x" to fmt(w - portSize / 2f - labelGap),
                 "y" to fmt(py + portSize / 2f + 3f),
                 "text-anchor" to "end",
-            ),
-        ) { text(port.name) }
+            )
+        tag("text", baseAttrs + mapOf("class" to "kuml-port-label-halo")) { text(port.name) }
+        tag("text", baseAttrs + mapOf("class" to "kuml-port-label")) { text(port.name) }
     }
 }
 
@@ -551,10 +607,43 @@ private fun buildInternalRoute(
     p2: PortAnchor,
     partRects: Map<String, Rect>,
 ): List<Pair<Float, Float>> {
-    val s1x = if (p1.isLeft) p1.cx - INTERNAL_STUB_PX else p1.cx + INTERNAL_STUB_PX
-    val s2x = if (p2.isLeft) p2.cx - INTERNAL_STUB_PX else p2.cx + INTERNAL_STUB_PX
+    // Determine whether one endpoint sits on a box that geometrically CONTAINS
+    // the other endpoint's box — i.e. a delegation connector from the composite's
+    // own boundary port to an inner part's port. The containing box's port lies
+    // ON the composite boundary, so its stub must leave INWARD (into the
+    // composite); routing it outward like an inner-part port would push the line
+    // — and any shared corridor derived from it — past the composite edge.
+    val r1 = partRects[p1.compId]
+    val r2 = partRects[p2.compId]
+    val distinctBoxes = p1.compId != p2.compId && r1 != null && r2 != null
+    val p1IsOuter = distinctBoxes && r1 != null && r2 != null && rectContains(r1, r2)
+    val p2IsOuter = distinctBoxes && r1 != null && r2 != null && rectContains(r2, r1)
 
-    return if (p1.isLeft == p2.isLeft) {
+    // Stub x: inner-part ports leave outward (away from their box body); an outer
+    // boundary port leaves inward (its open face points into the composite).
+    fun stubX(
+        p: PortAnchor,
+        isOuter: Boolean,
+    ): Float {
+        val pointsLeft = if (isOuter) !p.isLeft else p.isLeft
+        return if (pointsLeft) p.cx - INTERNAL_STUB_PX else p.cx + INTERNAL_STUB_PX
+    }
+    val s1x = stubX(p1, p1IsOuter)
+    val s2x = stubX(p2, p2IsOuter)
+
+    return if (p1.isLeft == p2.isLeft && p1IsOuter != p2IsOuter) {
+        // Delegation on the same physical side: one boundary port + one inner
+        // part port. Their stubs point TOWARD each other, so a shared outside
+        // corridor would either backtrack or leave the composite. Route a simple
+        // Z through the margin strip between the boundary and the part edge.
+        val corridorX = (p1.cx + p2.cx) / 2f
+        listOf(
+            p1.cx to p1.cy,
+            corridorX to p1.cy,
+            corridorX to p2.cy,
+            p2.cx to p2.cy,
+        )
+    } else if (p1.isLeft == p2.isLeft) {
         // U-shape: corridor on the outside of the shared side.
         val cornerX =
             if (p1.isLeft) minOf(s1x, s2x) else maxOf(s1x, s2x)
@@ -646,6 +735,20 @@ private fun resolvePortAnchor(
 
     return PortAnchor(cx = cxLocal, cy = by + cyLocal, isLeft = isLeft, compId = componentId)
 }
+
+/**
+ * True if [outer] fully encloses [inner] (inclusive bounds). Used to detect a
+ * composite-boundary port whose box contains the inner part it delegates to, so
+ * its connector stub can be routed inward instead of across the composite edge.
+ */
+private fun rectContains(
+    outer: Rect,
+    inner: Rect,
+): Boolean =
+    outer.origin.x <= inner.origin.x &&
+        outer.origin.y <= inner.origin.y &&
+        outer.origin.x + outer.size.width >= inner.origin.x + inner.size.width &&
+        outer.origin.y + outer.size.height >= inner.origin.y + inner.size.height
 
 private fun fmt(v: Float): String {
     val i = v.toInt()

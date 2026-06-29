@@ -18,6 +18,8 @@ import dev.kuml.render.smil.SpeedFactor
  * @param speedFactor Playback speed. Values > 1.0 compress the timeline (faster animation).
  * @param tokenColor Fill colour of the token circle travelling along SequenceFlow paths.
  * @param highlightColor Fill colour applied to gateway diamonds when the token passes through.
+ * @param loopCount How many times the full animation sequence plays. Minimum 1 (single pass).
+ * @param loopGapMs Pause in milliseconds between loop repetitions (before speedFactor scaling).
  *
  * V3.1.30 — BPMN SMIL Renderer
  */
@@ -25,10 +27,14 @@ public data class BpmnAnimationContext(
     val speedFactor: SpeedFactor = SpeedFactor.DEFAULT,
     val tokenColor: String = "#2962ff",
     val highlightColor: String = "#ffd54a",
+    val loopCount: Int = 5,
+    val loopGapMs: Long = 2_000L,
 ) {
     init {
         requireSafeCssColor(tokenColor, "tokenColor")
         requireSafeCssColor(highlightColor, "highlightColor")
+        require(loopCount >= 1) { "loopCount must be >= 1, got: $loopCount" }
+        require(loopGapMs >= 0) { "loopGapMs must be >= 0, got: $loopGapMs" }
     }
 
     public companion object {

@@ -184,6 +184,12 @@ internal object SvgDocument {
                 append(" stroke-width: ${bo.thinPx}; }\n")
                 append(".kuml-port-label { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
                 append(" fill: ${c.foreground.toHex()}; }\n")
+                // Halo class: white stroke drawn before the fill copy of port labels so that
+                // connector polylines behind the label don't bleed through. Uses two sibling
+                // <text> elements (halo first, label second) because paint-order is not
+                // supported by all SVG renderers (e.g. Batik used for PNG export).
+                append(".kuml-port-label-halo { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" fill: none; stroke: ${c.background.toHex()}; stroke-width: 3.5px; stroke-linejoin: round; }\n")
                 // V3.x — UML 2.x Composite-Structure internal connector (delegation or assembly).
                 // Drawn as a plain line inside the parent component's local frame — no ELK routing.
                 // Uses the same stroke style as a kuml-divider (thin, border colour) so it blends

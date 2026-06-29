@@ -21,31 +21,31 @@ componentDiagram("AUTOSAR Classic – Sensor/Brake/Diag") {
 
     // ── Interfaces (Sender-Receiver und Client-Server) ─────────────────────
     val iSpeed = interfaceOf("ISpeed") {
-        stereotypes("ComInterface")
+        stereotypes += "ComInterface"
         operation("getSpeedKmh(): Float")
     }
     val iDiag = interfaceOf("IDiag") {
-        stereotypes("ComInterface")
+        stereotypes += "ComInterface"
         operation("reportFault(code: Int)")
     }
 
     // ── SpeedSensorSwc ─────────────────────────────────────────────────────
     val speedSensor = component("SpeedSensorSwc") {
-        stereotypes("SoftwareComponent")
+        stereotypes += "SoftwareComponent"
         provides(iSpeed, name = "SpeedOut")
         requires(iDiag, name = "DiagIn")
     }
 
     // ── BrakeControllerSwc ─────────────────────────────────────────────────
     val brakeCtrl = component("BrakeControllerSwc") {
-        stereotypes("SoftwareComponent")
+        stereotypes += "SoftwareComponent"
         requires(iSpeed, name = "SpeedIn")
         provides(iDiag, name = "DiagOut")
     }
 
     // ── DiagActuatorSwc ────────────────────────────────────────────────────
     val diagActuator = component("DiagActuatorSwc") {
-        stereotypes("SoftwareComponent")
+        stereotypes += "SoftwareComponent"
         requires(iDiag, name = "DiagIn")
         provides(iDiag, name = "DiagOut")
     }
@@ -67,7 +67,7 @@ componentDiagram("AUTOSAR Classic – Sensor/Brake/Diag") {
 | `provides(iface, name = "…")` | Angebotener Port (AUTOSAR: P-PORT-PROTOTYPE) |
 | `requires(iface, name = "…")` | Benötigter Port (AUTOSAR: R-PORT-PROTOTYPE) |
 | `connect(portA, portB)` | Assembly-Connector zwischen SWCs |
-| `stereotypes("SoftwareComponent")` | AUTOSAR-Profil-Stereotyp für Exportvorbereitung |
+| `stereotypes += "SoftwareComponent"` | AUTOSAR-Profil-Stereotyp für Exportvorbereitung (fügt zur MutableList hinzu) |
 
 ## ARXML-Export
 

@@ -153,6 +153,16 @@ internal object BpmnTokenTimelineBuilder {
                             fromColor = "white",
                         )
                     animations += gatewayAnim
+                    // Reset gateway diamond back to white after the highlight fades
+                    val gatewayReset =
+                        SmilAnimation.Fill(
+                            elementId = "${xmlEscapeId(nodeId)}-diamond",
+                            color = "white",
+                            beginMs = beginMs + GATEWAY_HIGHLIGHT_MS,
+                            durationMs = GATEWAY_HIGHLIGHT_MS,
+                            fromColor = context.highlightColor,
+                        )
+                    animations += gatewayReset
                 }
                 is BpmnTask -> {
                     // Task execution: stroke-width pulse (1.5 → 4 → 1.5)
@@ -255,7 +265,19 @@ internal object BpmnTokenTimelineBuilder {
         }
 
         val rawTimeline = SmilTimeline(animations)
-        val scaledTimeline = rawTimeline.scaledBy(context.speedFactor)
+        // Loop the sequence `context.loopCount` times with `context.loopGapMs` pause between passes.
+        // loopGapMs is applied BEFORE speed scaling so the gap compresses consistently with content.
+        val scaledTimeline =
+            if (context.loopCount <= 1 || rawTimeline.animations.isEmpty()) {
+                rawTimeline.scaledBy(context.speedFactor)
+            } else {
+                val onePassMs = rawTimeline.totalDurationMs + context.loopGapMs
+                val loopedAnimations = rawTimeline.animations.toMutableList()
+                for (i in 1 until context.loopCount) {
+                    loopedAnimations += rawTimeline.shiftedBy(i * onePassMs).animations
+                }
+                SmilTimeline(loopedAnimations).scaledBy(context.speedFactor)
+            }
         return Pair(scaledTimeline, circles)
     }
 
