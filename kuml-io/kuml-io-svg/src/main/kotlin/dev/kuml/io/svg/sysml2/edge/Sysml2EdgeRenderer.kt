@@ -80,6 +80,7 @@ internal object Sysml2EdgeRenderer {
         theme: KumlTheme,
         builder: SvgBuilder,
         labelStackIndex: Int = 0,
+        overrideLabelAnchor: Pair<Float, Float>? = null,
     ) {
         // 1. Line + dash pattern.
         val (tag, attrs) = EdgePathBuilder.build(route)
@@ -106,7 +107,11 @@ internal object Sysml2EdgeRenderer {
         val stereotype = metadata.stereotype
         val label = metadata.label
         if (stereotype == null && label == null) return
-        val (mx, my) = labelAnchor(route)
+        // V3.x — Back-edge override: callers can supply an explicit anchor
+        // (e.g. a point near the source state) to avoid the default
+        // longest-segment midpoint landing inside an unrelated node or
+        // outside the diagram frame.
+        val (mx, my) = overrideLabelAnchor ?: labelAnchor(route)
         // V11.x — Parallel-Sibling-Versatz: Index 0 sitzt auf der Standard-
         // Position oberhalb der Linie; jeder weitere Sibling rutscht um eine
         // Bandbreite nach unten, damit die White-Background-Rects einander

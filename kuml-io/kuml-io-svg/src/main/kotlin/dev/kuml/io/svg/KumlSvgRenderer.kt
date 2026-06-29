@@ -909,6 +909,28 @@ public object KumlSvgRenderer {
                         dashArray = null,
                         arrowHead = dev.kuml.sysml2.edge.Sysml2ArrowHead.OpenAngle,
                     )
+
+                // V3.x — Back-edge label repositioning: in a top-to-bottom STM
+                // the longest segment of a back-edge (e.g. Yellow→Red) is the
+                // long vertical run on the left side of the diagram.  Its
+                // midpoint sits at the y-level of an intermediate state and far
+                // to the left, which causes the label to overlap that state and
+                // protrude outside the diagram frame.  Instead we anchor the
+                // label at 8 % of the arc length from the source — this lands
+                // in the short upward stub that exits the source state, which
+                // is always in the whitespace BELOW the nearest intermediate
+                // node and ABOVE the source state, well inside the SM frame.
+                val isBackEdge =
+                    label.isNotEmpty() &&
+                        shiftedRoute.source.y > shiftedRoute.target.y + 5f
+                val backEdgeLabelAnchor: Pair<Float, Float>? =
+                    if (isBackEdge) {
+                        val a = EdgeLabelGeometry.anchorAt(shiftedRoute, 0.08f)
+                        a.x to a.y
+                    } else {
+                        null
+                    }
+
                 dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
                     .render(
                         shiftedRoute,
@@ -916,6 +938,7 @@ public object KumlSvgRenderer {
                         theme,
                         edgesBuilder,
                         labelStackIndex = stmStackIndices[edgeId] ?: 0,
+                        overrideLabelAnchor = backEdgeLabelAnchor,
                     )
             }
         }
