@@ -6,6 +6,57 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.20.3] — 2026-06-29
+
+### Fixed
+
+**fix(bpmn): edge piercing expanded SubProcess frame + event/gateway labels clipped at canvas edge**
+
+Two visual rendering bugs in BPMN Process diagrams, both affecting the `31 BPMN Process – Sub-Process Loop`
+vault example (and any BPMN diagram with expanded sub-processes or events/gateways near the canvas boundary).
+
+#### Bug 1 — Edge routed through SubProcess frame interior
+
+Outer `SequenceFlow` edges whose `sourceRef`/`targetRef` was the ID of an expanded `SubProcess` were
+routed straight through the interior of the subprocess frame instead of connecting to its border.
+
+Root cause: `BpmnLayoutBridge` emitted a 0×0 "phantom" `LayoutNode` *inside* the ELK compound group
+for every expanded SubProcess and wired outer edges to that phantom. ELK then routed the edge to the
+interior coordinate rather than the frame boundary.
+
+Fix: phantom node removed entirely. Outer edges now resolve to the compound group boundary via the
+existing ELK `groupMap` fallback in `ElkGraphBuilder.resolveEndpoint()` — the same convention already
+used for C4 container/system boundaries. `expandedSubProcessGroupIds` are added to `nodeIdSet` so the
+outer SequenceFlow edges are still emitted into the layout graph and ELK connects them to the compound
+group border.
+
+#### Bug 2 — Event/gateway labels and SubProcess name clipped at canvas edge
+
+Two sub-causes:
+
+1. **Canvas size ignored external label extents.** BPMN event and gateway labels render *below and
+   outside* the node bounds (at `y + h + 12 px`). `ResultMapper.computeNormalizedCanvas()` computed
+   the viewBox from node/group/edge geometry only, so labels near the bottom or sides were cut off.
+   Fix: `renderBpmnProcess` now calls `bpmnLabelMargins()` before rendering to estimate per-side
+   overflow, then `applyCanvasMargins()` inflates the `LayoutResult` canvas and shifts all node/group/
+   edge geometry accordingly. Result: all event and gateway labels are fully visible with comfortable
+   padding on all sides.
+
+2. **Expanded SubProcess name centred vertically (collided with child nodes).** The subprocess frame
+   name was drawn at the vertical centre of the frame — the same position occupied by child flow-nodes.
+   BPMN convention places the expanded subprocess name at the *top* of the frame.
+   Fix: `renderBpmnSubProcess` now branches on `sp.expanded`. If expanded: draw the frame without a
+   label, then emit a separate `<text>` element at `y + 16 px`. If collapsed: keep the existing
+   vertically centred behaviour.
+
+#### Test alignment
+
+- `VaultExampleRenderer.kt`: switched from `process.flowNodes + process.sequenceFlows + process.dataObjects`
+  to `process.renderableElements()`, which recursively flattens expanded SubProcess children into the
+  element index — matching the CLI `RenderPipeline.renderBpmn()` path exactly.
+- `BpmnLayoutBridgeTest.kt`: updated assertion from `phantomNode shouldNotBe null` to
+  `phantomNode shouldBe null`, with explanatory comment describing the group-boundary approach.
+
 ## [0.20.2] — 2026-06-28
 
 ### Fixed

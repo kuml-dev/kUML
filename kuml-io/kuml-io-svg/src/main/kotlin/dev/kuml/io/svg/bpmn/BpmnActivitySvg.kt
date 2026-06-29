@@ -38,13 +38,34 @@ internal fun renderBpmnSubProcess(
     builder: SvgBuilder,
 ) {
     builder.tag("g", mapOf("id" to xmlEscapeAttr(sp.id))) {
-        renderActivityBox(layout, this, strokeWidth = 1.5f, label = sp.name, rx = 8f)
-        renderBpmnTaskMarkers(sp, layout, this)
-
         val x = layout.bounds.origin.x
         val y = layout.bounds.origin.y
         val w = layout.bounds.size.width
         val h = layout.bounds.size.height
+
+        if (sp.expanded) {
+            // Expanded SubProcess: the frame contains its child flow-nodes, so
+            // the name must NOT be centred (it would collide with the children).
+            // BPMN convention places the name at the top of the frame.
+            renderActivityBox(layout, this, strokeWidth = 1.5f, label = null, rx = 8f)
+            if (!sp.name.isNullOrBlank()) {
+                tag(
+                    "text",
+                    mapOf(
+                        "x" to fmtF(x + w / 2f),
+                        "y" to fmtF(y + 16f),
+                        "text-anchor" to "middle",
+                        "dominant-baseline" to "middle",
+                        "font-family" to "sans-serif",
+                        "font-size" to "12",
+                        "fill" to "#333",
+                    ),
+                ) { text(sp.name!!) }
+            }
+        } else {
+            renderActivityBox(layout, this, strokeWidth = 1.5f, label = sp.name, rx = 8f)
+        }
+        renderBpmnTaskMarkers(sp, layout, this)
 
         if (!sp.expanded) {
             // Collapsed: + Symbol in der Mitte unten

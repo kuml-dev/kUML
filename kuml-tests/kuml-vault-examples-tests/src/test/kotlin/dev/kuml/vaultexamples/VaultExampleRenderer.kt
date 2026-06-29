@@ -238,12 +238,12 @@ object VaultExampleRenderer {
                             is ProcessDiagram -> {
                                 val process =
                                     extracted.model.processes.firstOrNull { it.id == diagram.processId }
+                                // renderableElements() flattens expanded SubProcess
+                                // children into the element list — without it the inner
+                                // flow-nodes are laid out but silently dropped at render
+                                // time (mirrors the CLI RenderPipeline.renderBpmn path).
                                 val elements =
-                                    if (process != null) {
-                                        process.flowNodes + process.sequenceFlows + process.dataObjects
-                                    } else {
-                                        emptyList()
-                                    }
+                                    process?.renderableElements() ?: emptyList()
                                 val kumlDiagram =
                                     KumlDiagram(
                                         name = diagram.name,

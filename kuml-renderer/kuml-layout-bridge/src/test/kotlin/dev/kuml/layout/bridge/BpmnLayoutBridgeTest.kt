@@ -87,21 +87,20 @@ class BpmnLayoutBridgeTest :
             innerNode shouldNotBe null
             innerNode!!.groupId shouldBe GroupId("sp1")
 
-            // The expanded SubProcess must appear as a phantom node (0×0) with
-            // groupId pointing to itself so that outer SequenceFlows whose
-            // sourceRef/targetRef equals "sp1" can be wired into the layout graph.
-            // The SVG renderer uses the LayoutGroup frame for visual rendering and
-            // ignores the phantom node's size.
+            // The expanded SubProcess is represented ONLY by the LayoutGroup
+            // (compound) — no phantom node is emitted. Outer SequenceFlows whose
+            // sourceRef/targetRef equals "sp1" are still wired into the graph as
+            // edges; the ELK graph builder resolves the "sp1" endpoint to the
+            // compound group via its groupMap fallback (same convention as C4
+            // container/system boundaries). Emitting a 0×0 phantom *inside* the
+            // group used to make outer flows pierce straight through the frame.
             val phantomNode = graph.nodes.find { it.id == NodeId("sp1") }
-            phantomNode shouldNotBe null
-            phantomNode!!.groupId shouldBe GroupId("sp1")
-            phantomNode.intrinsicSize.width shouldBe 0f
-            phantomNode.intrinsicSize.height shouldBe 0f
+            phantomNode shouldBe null
 
             // Edges: inner self-edge (inner-sf1) + outer edge (outer-sf1).
             graph.edges shouldHaveSize 2
 
-            // The outer edge must connect outer-t1 → sp1 (phantom node).
+            // The outer edge must connect outer-t1 → sp1 (resolved to the group).
             val outerEdge = graph.edges.find { it.id.value == "outer-sf1" }
             outerEdge shouldNotBe null
             outerEdge!!.source.nodeId shouldBe NodeId("outer-t1")

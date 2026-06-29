@@ -170,12 +170,17 @@ public object BpmnLayoutBridge {
                 ),
             )
 
-            // Phantom node for the expanded SubProcess boundary so that outer
-            // SequenceFlows (whose sourceRef or targetRef equals sp.id) can be
-            // wired to a real NodeId rather than being silently dropped.
-            // The node has a 0×0 intrinsic size; the SVG renderer uses the
-            // LayoutGroup frame for visual rendering and ignores this node.
-            nodes.add(LayoutNode(id = NodeId(sp.id), intrinsicSize = Size(0f, 0f), groupId = groupId))
+            // NOTE: No phantom node is emitted for the expanded SubProcess.
+            // Outer SequenceFlows whose sourceRef/targetRef equals sp.id are
+            // wired to the LayoutGroup *compound* instead: the ELK graph builder
+            // resolves an edge endpoint via nodeMap first, then falls back to
+            // groupMap[GroupId(id)] (same convention as C4 container/system
+            // boundaries). Connecting to the compound makes ELK route the edge
+            // to the SubProcess frame border, rather than to an interior 0×0
+            // phantom — the latter caused outer flows to pierce straight through
+            // the frame and overlap the inner nodes / the "Review Cycle" label.
+            // sp.id is registered as a valid edge endpoint via
+            // `expandedSubProcessGroupIds` further below (see nodeIdSet).
 
             // Child flow-nodes inside the expanded SubProcess.
             // filterIds == null (leere elementIds) ⇒ alle Kinder anzeigen.
@@ -229,7 +234,10 @@ public object BpmnLayoutBridge {
         }
 
         // SequenceFlows → LayoutEdges
-        val nodeIdSet = nodes.map { it.id.value }.toSet()
+        // Expanded SubProcess ids are valid edge endpoints even though they are
+        // not emitted as LayoutNodes — they resolve to the compound LayoutGroup
+        // boundary in the ELK graph builder (groupMap fallback).
+        val nodeIdSet = nodes.map { it.id.value }.toSet() + expandedSubProcessGroupIds
         for (flowId in allSeqFlowIds) {
             val flow = seqFlowIndex[flowId] ?: continue
             // Nur emittieren, wenn beide Endpunkte im Graphen vorhanden sind

@@ -2224,9 +2224,10 @@ public object KumlSvgRenderer {
 
     private fun shiftRoute(
         route: dev.kuml.layout.EdgeRoute,
-        padding: Float,
+        dx: Float,
+        dy: Float = dx,
     ): dev.kuml.layout.EdgeRoute {
-        fun dev.kuml.layout.Point.shift() = dev.kuml.layout.Point(x + padding, y + padding)
+        fun dev.kuml.layout.Point.shift() = dev.kuml.layout.Point(x + dx, y + dy)
         return when (route) {
             is dev.kuml.layout.EdgeRoute.Direct ->
                 route.copy(source = route.source.shift(), target = route.target.shift())
@@ -2254,6 +2255,85 @@ public object KumlSvgRenderer {
     private fun fmt(v: Float): String {
         val i = v.toInt()
         return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
+    }
+
+    // ── BPMN label-overflow margins ────────────────────────────────────────────
+    // Approx. width of a BPMN label glyph (11px sans-serif, ~0.56 em + slack).
+    private const val BPMN_LABEL_CHAR_PX: Float = 6.2f
+
+    // y-offset of the label baseline below the shape (matches BpmnEventSvg /
+    // BpmnGatewaySvg) plus the descent below the baseline.
+    private const val BPMN_LABEL_BELOW_PX: Float = 12f
+    private const val BPMN_LABEL_DESCENT_PX: Float = 4f
+
+    /**
+     * BPMN events and gateways render their text label *below and centred on*
+     * the shape — i.e. OUTSIDE the node footprint that
+     * [dev.kuml.layout.LayoutResult.canvas] is sized from (ResultMapper only
+     * sees node/group/edge geometry, never text). A node near the canvas edge
+     * therefore has its wider/taller label clipped by the viewBox. This computes
+     * how far those labels overflow the layout canvas on each side.
+     *
+     * @return `[left, top, right, bottom]` overflow in px (each ≥ 0).
+     */
+    private fun bpmnLabelMargins(
+        elements: List<dev.kuml.core.model.KumlElement>,
+        layoutResult: LayoutResult,
+    ): FloatArray {
+        val elementIndex = elements.associateBy { it.id }
+        var left = 0f
+        var right = 0f
+        var bottom = 0f
+        val w = layoutResult.canvas.width
+        val h = layoutResult.canvas.height
+        for ((nodeId, nodeLayout) in layoutResult.nodes) {
+            val name =
+                when (val el = elementIndex[nodeId.value]) {
+                    is dev.kuml.bpmn.model.BpmnEvent -> el.name
+                    is dev.kuml.bpmn.model.BpmnGateway -> el.name
+                    else -> null
+                }
+            if (name.isNullOrBlank()) continue
+            val b = nodeLayout.bounds
+            val cx = b.origin.x + b.size.width / 2f
+            val nodeBottom = b.origin.y + b.size.height
+            val halfTextW = name.length * BPMN_LABEL_CHAR_PX / 2f
+            val labelLeft = cx - halfTextW
+            val labelRight = cx + halfTextW
+            val labelBottom = nodeBottom + BPMN_LABEL_BELOW_PX + BPMN_LABEL_DESCENT_PX
+            if (-labelLeft > left) left = -labelLeft
+            if (labelRight - w > right) right = labelRight - w
+            if (labelBottom - h > bottom) bottom = labelBottom - h
+        }
+        return floatArrayOf(maxOf(left, 0f), 0f, maxOf(right, 0f), maxOf(bottom, 0f))
+    }
+
+    /**
+     * Returns a copy of [layoutResult] with all content shifted by ([left], [top])
+     * and the canvas inflated by the per-side margins, so out-of-footprint labels
+     * fit inside the viewBox. The symmetric [SvgRenderOptions.paddingPx] is still
+     * applied on top by the caller / [SvgDocument].
+     */
+    private fun applyCanvasMargins(
+        layoutResult: LayoutResult,
+        left: Float,
+        top: Float,
+        right: Float,
+        bottom: Float,
+    ): LayoutResult {
+        if (left == 0f && top == 0f && right == 0f && bottom == 0f) return layoutResult
+
+        fun Rect.shifted() = copy(origin = Point(origin.x + left, origin.y + top))
+        return layoutResult.copy(
+            canvas =
+                dev.kuml.layout.Size(
+                    layoutResult.canvas.width + left + right,
+                    layoutResult.canvas.height + top + bottom,
+                ),
+            nodes = layoutResult.nodes.mapValues { (_, n) -> n.copy(bounds = n.bounds.shifted()) },
+            groups = layoutResult.groups.mapValues { (_, g) -> g.copy(bounds = g.bounds.shifted()) },
+            edges = layoutResult.edges.mapValues { (_, r) -> shiftRoute(r, left, top) },
+        )
     }
 
     /**
@@ -2627,8 +2707,13 @@ public object KumlSvgRenderer {
                 .map { it.id }
                 .toSet()
 
+        // Inflate the canvas so event/gateway labels rendered outside the node
+        // footprint (below + horizontally centred) are not clipped at the edge.
+        val (mLeft, mTop, mRight, mBottom) = bpmnLabelMargins(diagram.elements, layoutResult)
+        val renderLayout = applyCanvasMargins(layoutResult, mLeft, mTop, mRight, mBottom)
+
         return SvgDocument.render(
-            layoutResult,
+            renderLayout,
             theme,
             options,
             frameName = diagram.name,
@@ -2639,7 +2724,7 @@ public object KumlSvgRenderer {
             // 1. Groups FIRST — render expanded SubProcess frames behind their contents.
             //    Any group whose id matches an expanded SubProcess is rendered as a
             //    SubProcess background rect; unknown groups get the generic kuml-system rect.
-            for ((groupId, groupLayout) in layoutResult.groups) {
+            for ((groupId, groupLayout) in renderLayout.groups) {
                 val gx = groupLayout.bounds.origin.x + padding
                 val gy = groupLayout.bounds.origin.y + padding
                 val gw = groupLayout.bounds.size.width
@@ -2709,7 +2794,7 @@ public object KumlSvgRenderer {
             // 2. Nodes SECOND — all flow nodes (events, gateways, tasks, collapsed
             //    sub-processes, call activities, data objects, boundary events) are
             //    rendered on top of the group backgrounds.
-            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+            for ((nodeId, nodeLayout) in renderLayout.nodes) {
                 val element = elementIndex[nodeId.value] ?: continue
                 val shifted =
                     nodeLayout.copy(
@@ -2726,7 +2811,7 @@ public object KumlSvgRenderer {
             }
 
             // 3. Edges LAST — SequenceFlows and any other BPMN edges render on top.
-            for ((edgeId, route) in layoutResult.edges) {
+            for ((edgeId, route) in renderLayout.edges) {
                 val element = elementIndex[edgeId.value] ?: continue
                 val shiftedRoute = shiftRoute(route, padding)
                 EdgeRendererDispatcher.dispatch(element, shiftedRoute, theme, edgesBuilder)
