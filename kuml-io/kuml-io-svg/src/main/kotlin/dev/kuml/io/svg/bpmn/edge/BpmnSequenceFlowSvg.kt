@@ -3,6 +3,7 @@ package dev.kuml.io.svg.bpmn.edge
 import dev.kuml.bpmn.model.SequenceFlow
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.layout.EdgeRoute
+import dev.kuml.renderer.theme.core.KumlTheme
 import kotlin.math.sqrt
 
 /**
@@ -18,9 +19,14 @@ internal fun renderBpmnSequenceFlow(
     flow: SequenceFlow,
     route: EdgeRoute,
     builder: SvgBuilder,
+    theme: KumlTheme,
 ) {
     val src = route.source
     val tgt = route.target
+
+    val edgeColor = theme.colors.edge.toHex()
+    val labelColor = theme.colors.muted.toHex()
+    val fontFamily = theme.typography.body.family
 
     // Pfad-Daten
     val pathD =
@@ -50,12 +56,12 @@ internal fun renderBpmnSequenceFlow(
     builder.rawXml(
         """<defs><marker id="$markerId" markerWidth="8" markerHeight="6" """ +
             """refX="7" refY="3" orient="auto">""" +
-            """<polygon points="0,0 8,3 0,6" fill="#333"/></marker></defs>""",
+            """<polygon points="0,0 8,3 0,6" fill="$edgeColor"/></marker></defs>""",
     )
 
     // Sequence-Flow-Linie
     builder.rawXml(
-        """<path d="$pathD" fill="none" stroke="#333" stroke-width="1.5" """ +
+        """<path d="$pathD" fill="none" stroke="$edgeColor" stroke-width="1.5" """ +
             """marker-end="url(#$markerId)"/>""",
     )
 
@@ -79,7 +85,7 @@ internal fun renderBpmnSequenceFlow(
             builder.rawXml(
                 """<line x1="${fmtF(mx - nx * 5f)}" y1="${fmtF(my - ny * 5f)}" """ +
                     """x2="${fmtF(mx + nx * 5f)}" y2="${fmtF(my + ny * 5f)}" """ +
-                    """stroke="#333" stroke-width="1.5"/>""",
+                    """stroke="$edgeColor" stroke-width="1.5"/>""",
             )
         }
     }
@@ -114,9 +120,9 @@ internal fun renderBpmnSequenceFlow(
             mapOf(
                 "x" to fmtF(midX + 4f),
                 "y" to fmtF(midY - 4f),
-                "font-family" to "sans-serif",
+                "font-family" to fontFamily,
                 "font-size" to "10",
-                "fill" to "#555",
+                "fill" to labelColor,
             ),
         ) { text(label) }
     }

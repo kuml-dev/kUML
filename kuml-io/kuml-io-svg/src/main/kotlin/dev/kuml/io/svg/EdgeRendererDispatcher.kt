@@ -61,9 +61,9 @@ internal object EdgeRendererDispatcher {
             is UmlActivityEdge -> renderUmlActivityEdge(relationship, route, theme, builder)
             is C4Relationship -> renderC4Relationship(relationship, route, theme, builder)
             // BPMN — V3.1.3
-            is SequenceFlow -> renderBpmnSequenceFlow(relationship, route, builder)
+            is SequenceFlow -> renderBpmnSequenceFlow(relationship, route, builder, theme)
             // BPMN — V3.1.5 Collaboration
-            is MessageFlow -> renderBpmnMessageFlow(relationship, route, builder)
+            is MessageFlow -> renderBpmnMessageFlow(relationship, route, builder, theme)
             else -> renderFallbackEdge(route, builder)
         }
     }

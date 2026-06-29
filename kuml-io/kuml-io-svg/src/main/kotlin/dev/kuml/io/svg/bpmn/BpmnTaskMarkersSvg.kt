@@ -5,6 +5,7 @@ import dev.kuml.bpmn.model.MultiInstanceLoop
 import dev.kuml.bpmn.model.StandardLoop
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.layout.NodeLayout
+import dev.kuml.renderer.theme.core.KumlTheme
 
 /**
  * Rendert Loop/Multi-Instance-Marker am unteren Rand einer BPMN-Activity-Box.
@@ -19,6 +20,7 @@ internal fun renderBpmnTaskMarkers(
     activity: BpmnActivity,
     layout: NodeLayout,
     builder: SvgBuilder,
+    theme: KumlTheme,
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
@@ -27,19 +29,21 @@ internal fun renderBpmnTaskMarkers(
     val markerY = y + h - 16f
     val markerCx = x + w / 2f
 
+    val markerColor = theme.colors.border.toHex()
+
     when (val lc = activity.loopCharacteristics) {
         is StandardLoop -> {
             // Pfeil-Kreis ↻
             builder.rawXml(
                 """<path d="M ${fmtF(markerCx - 6f)},${fmtF(markerY + 8f)} """ +
                     """A 6,6 0 1,1 ${fmtF(markerCx + 5f)},${fmtF(markerY + 3f)}" """ +
-                    """fill="none" stroke="#333" stroke-width="1.5"/>""",
+                    """fill="none" stroke="$markerColor" stroke-width="1.5"/>""",
             )
             builder.rawXml(
                 """<polyline points="${fmtF(markerCx + 5f)},${fmtF(markerY)} """ +
                     """${fmtF(markerCx + 5f)},${fmtF(markerY + 3f)} """ +
                     """${fmtF(markerCx + 8f)},${fmtF(markerY + 3f)}" """ +
-                    """fill="none" stroke="#333" stroke-width="1.5"/>""",
+                    """fill="none" stroke="$markerColor" stroke-width="1.5"/>""",
             )
         }
 
@@ -50,7 +54,7 @@ internal fun renderBpmnTaskMarkers(
                     builder.rawXml(
                         """<line x1="${fmtF(markerCx - 5f)}" y1="${fmtF(markerY + 8f + dy)}" """ +
                             """x2="${fmtF(markerCx + 5f)}" y2="${fmtF(markerY + 8f + dy)}" """ +
-                            """stroke="#333" stroke-width="1.5"/>""",
+                            """stroke="$markerColor" stroke-width="1.5"/>""",
                     )
                 }
             } else {
@@ -59,7 +63,7 @@ internal fun renderBpmnTaskMarkers(
                     builder.rawXml(
                         """<line x1="${fmtF(markerCx + dx)}" y1="${fmtF(markerY + 2f)}" """ +
                             """x2="${fmtF(markerCx + dx)}" y2="${fmtF(markerY + 14f)}" """ +
-                            """stroke="#333" stroke-width="1.5"/>""",
+                            """stroke="$markerColor" stroke-width="1.5"/>""",
                     )
                 }
             }

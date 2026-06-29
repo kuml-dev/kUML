@@ -4,6 +4,7 @@ import dev.kuml.bpmn.model.MessageFlow
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeContent
 import dev.kuml.layout.EdgeRoute
+import dev.kuml.renderer.theme.core.KumlTheme
 
 /**
  * Rendert einen [MessageFlow] als gestrichelte BPMN-Nachrichtenpfeil-Linie.
@@ -20,9 +21,15 @@ internal fun renderBpmnMessageFlow(
     flow: MessageFlow,
     route: EdgeRoute,
     builder: SvgBuilder,
+    theme: KumlTheme,
 ) {
     val src = route.source
     val tgt = route.target
+
+    val edgeColor = theme.colors.edge.toHex()
+    val nodeFill = theme.colors.effectiveNodeFill.toHex()
+    val labelColor = theme.colors.muted.toHex()
+    val fontFamily = theme.typography.body.family
 
     // Build path data from route
     val pathD =
@@ -48,22 +55,22 @@ internal fun renderBpmnMessageFlow(
     val safeId = flow.id.replace(Regex("[^a-zA-Z0-9]"), "_")
     val markerId = "bpmn-msg-arrow-$safeId"
 
-    // Open arrowhead definition (white fill + dark stroke = "open" style)
+    // Open arrowhead definition (node fill + edge stroke = "open" style)
     builder.rawXml(
         """<defs><marker id="$markerId" markerWidth="8" markerHeight="6" """ +
             """refX="7" refY="3" orient="auto">""" +
-            """<polygon points="0,0 8,3 0,6" fill="white" stroke="#333" stroke-width="1"/></marker></defs>""",
+            """<polygon points="0,0 8,3 0,6" fill="$nodeFill" stroke="$edgeColor" stroke-width="1"/></marker></defs>""",
     )
 
     // Dashed line with open arrowhead
     builder.rawXml(
-        """<path d="$pathD" fill="none" stroke="#333" stroke-width="1.2" """ +
+        """<path d="$pathD" fill="none" stroke="$edgeColor" stroke-width="1.2" """ +
             """stroke-dasharray="5,3" marker-end="url(#$markerId)"/>""",
     )
 
     // Small initiating circle at the source point
     builder.rawXml(
-        """<circle cx="${fmtF(src.x)}" cy="${fmtF(src.y)}" r="4" fill="white" stroke="#333" stroke-width="1"/>""",
+        """<circle cx="${fmtF(src.x)}" cy="${fmtF(src.y)}" r="4" fill="$nodeFill" stroke="$edgeColor" stroke-width="1"/>""",
     )
 
     // Optional label at the midpoint of the route
@@ -93,7 +100,7 @@ internal fun renderBpmnMessageFlow(
         }
         builder.rawXml(
             """<text x="${fmtF(midX + 4f)}" y="${fmtF(midY - 4f)}" """ +
-                """font-family="sans-serif" font-size="10" fill="#555">${xmlEscapeContent(flowName)}</text>""",
+                """font-family="$fontFamily" font-size="10" fill="$labelColor">${xmlEscapeContent(flowName)}</text>""",
         )
     }
 }

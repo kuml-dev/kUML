@@ -25,7 +25,7 @@ import kotlin.math.sin
 internal fun renderBpmnGateway(
     gw: BpmnGateway,
     layout: NodeLayout,
-    @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
+    theme: KumlTheme,
     builder: SvgBuilder,
 ) {
     val x = layout.bounds.origin.x
@@ -37,13 +37,18 @@ internal fun renderBpmnGateway(
     val hw = w / 2f
     val hh = h / 2f
 
+    val nodeFill = theme.colors.effectiveNodeFill.toHex()
+    val borderColor = theme.colors.border.toHex()
+    val textColor = theme.colors.foreground.toHex()
+    val fontFamily = theme.typography.body.family
+
     builder.tag("g", mapOf("id" to xmlEscapeAttr(gw.id))) {
         // Raute — id on the polygon so SMIL fill animations can target it directly
         rawXml(
             """<polygon id="${xmlEscapeAttr(gw.id)}-diamond" """ +
                 """points="${fmtF(cx)},${fmtF(cy - hh)} ${fmtF(cx + hw)},${fmtF(cy)} """ +
                 """${fmtF(cx)},${fmtF(cy + hh)} ${fmtF(cx - hw)},${fmtF(cy)}" """ +
-                """fill="white" stroke="#333" stroke-width="1.5"/>""",
+                """fill="$nodeFill" stroke="$borderColor" stroke-width="1.5"/>""",
         )
 
         // Typ-Symbol in der Mitte
@@ -54,18 +59,18 @@ internal fun renderBpmnGateway(
                 val d = symbolSize * 0.6f
                 rawXml(
                     """<line x1="${fmtF(cx - d)}" y1="${fmtF(cy - d)}" """ +
-                        """x2="${fmtF(cx + d)}" y2="${fmtF(cy + d)}" stroke="#333" stroke-width="2"/>""",
+                        """x2="${fmtF(cx + d)}" y2="${fmtF(cy + d)}" stroke="$borderColor" stroke-width="2"/>""",
                 )
                 rawXml(
                     """<line x1="${fmtF(cx + d)}" y1="${fmtF(cy - d)}" """ +
-                        """x2="${fmtF(cx - d)}" y2="${fmtF(cy + d)}" stroke="#333" stroke-width="2"/>""",
+                        """x2="${fmtF(cx - d)}" y2="${fmtF(cy + d)}" stroke="$borderColor" stroke-width="2"/>""",
                 )
             }
 
             GatewayType.INCLUSIVE -> {
                 rawXml(
                     """<circle cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(symbolSize * 0.7f)}" """ +
-                        """fill="none" stroke="#333" stroke-width="2"/>""",
+                        """fill="none" stroke="$borderColor" stroke-width="2"/>""",
                 )
             }
 
@@ -73,11 +78,11 @@ internal fun renderBpmnGateway(
                 val arm = symbolSize * 0.8f
                 rawXml(
                     """<line x1="${fmtF(cx)}" y1="${fmtF(cy - arm)}" """ +
-                        """x2="${fmtF(cx)}" y2="${fmtF(cy + arm)}" stroke="#333" stroke-width="2"/>""",
+                        """x2="${fmtF(cx)}" y2="${fmtF(cy + arm)}" stroke="$borderColor" stroke-width="2"/>""",
                 )
                 rawXml(
                     """<line x1="${fmtF(cx - arm)}" y1="${fmtF(cy)}" """ +
-                        """x2="${fmtF(cx + arm)}" y2="${fmtF(cy)}" stroke="#333" stroke-width="2"/>""",
+                        """x2="${fmtF(cx + arm)}" y2="${fmtF(cy)}" stroke="$borderColor" stroke-width="2"/>""",
                 )
             }
 
@@ -85,10 +90,10 @@ internal fun renderBpmnGateway(
                 val r1 = symbolSize * 0.8f
                 val r2 = symbolSize * 0.6f
                 rawXml(
-                    """<circle cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r1)}" fill="none" stroke="#333" stroke-width="1"/>""",
+                    """<circle cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r1)}" fill="none" stroke="$borderColor" stroke-width="1"/>""",
                 )
                 rawXml(
-                    """<circle cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r2)}" fill="none" stroke="#333" stroke-width="1"/>""",
+                    """<circle cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r2)}" fill="none" stroke="$borderColor" stroke-width="1"/>""",
                 )
                 val pr = symbolSize * 0.4f
                 val pts =
@@ -98,7 +103,7 @@ internal fun renderBpmnGateway(
                         val py = cy + pr * sin(angle).toFloat()
                         "${fmtF(px)},${fmtF(py)}"
                     }
-                rawXml("""<polygon points="$pts" fill="none" stroke="#333" stroke-width="1"/>""")
+                rawXml("""<polygon points="$pts" fill="none" stroke="$borderColor" stroke-width="1"/>""")
             }
 
             GatewayType.COMPLEX -> {
@@ -109,7 +114,7 @@ internal fun renderBpmnGateway(
                     val dy = (armR * sin(rad)).toFloat()
                     rawXml(
                         """<line x1="${fmtF(cx - dx)}" y1="${fmtF(cy - dy)}" """ +
-                            """x2="${fmtF(cx + dx)}" y2="${fmtF(cy + dy)}" stroke="#333" stroke-width="2"/>""",
+                            """x2="${fmtF(cx + dx)}" y2="${fmtF(cy + dy)}" stroke="$borderColor" stroke-width="2"/>""",
                     )
                 }
             }
@@ -124,9 +129,9 @@ internal fun renderBpmnGateway(
                     "x" to fmtF(cx),
                     "y" to fmtF(y + h + 12f),
                     "text-anchor" to "middle",
-                    "font-family" to "sans-serif",
+                    "font-family" to fontFamily,
                     "font-size" to "11",
-                    "fill" to "#333",
+                    "fill" to textColor,
                 ),
             ) { text(label) }
         }

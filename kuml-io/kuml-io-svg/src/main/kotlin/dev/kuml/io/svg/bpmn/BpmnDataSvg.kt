@@ -17,7 +17,7 @@ import dev.kuml.renderer.theme.core.KumlTheme
 internal fun renderBpmnDataObject(
     data: BpmnDataObject,
     layout: NodeLayout,
-    @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
+    theme: KumlTheme,
     builder: SvgBuilder,
 ) {
     val x = layout.bounds.origin.x
@@ -26,18 +26,23 @@ internal fun renderBpmnDataObject(
     val h = layout.bounds.size.height
     val foldSize = 10f
 
+    val nodeFill = theme.colors.effectiveNodeFill.toHex()
+    val borderColor = theme.colors.border.toHex()
+    val textColor = theme.colors.foreground.toHex()
+    val fontFamily = theme.typography.body.family
+
     builder.tag("g", mapOf("id" to xmlEscapeAttr(data.id))) {
         // Dokumenten-Pfad mit geknickter oberer rechter Ecke
         rawXml(
             """<path d="M${fmtF(x)},${fmtF(y)} L${fmtF(x + w - foldSize)},${fmtF(y)} """ +
                 """L${fmtF(x + w)},${fmtF(y + foldSize)} L${fmtF(x + w)},${fmtF(y + h)} """ +
-                """L${fmtF(x)},${fmtF(y + h)} Z" fill="white" stroke="#333" stroke-width="1.5"/>""",
+                """L${fmtF(x)},${fmtF(y + h)} Z" fill="$nodeFill" stroke="$borderColor" stroke-width="1.5"/>""",
         )
         // Fold-Dreieck: die überstehende Ecke
         rawXml(
             """<polyline points="${fmtF(x + w - foldSize)},${fmtF(y)} """ +
                 """${fmtF(x + w - foldSize)},${fmtF(y + foldSize)} """ +
-                """${fmtF(x + w)},${fmtF(y + foldSize)}" fill="none" stroke="#333" stroke-width="1"/>""",
+                """${fmtF(x + w)},${fmtF(y + foldSize)}" fill="none" stroke="$borderColor" stroke-width="1"/>""",
         )
 
         if (data.collection) {
@@ -48,7 +53,7 @@ internal fun renderBpmnDataObject(
                 rawXml(
                     """<line x1="${fmtF(cx + dx)}" y1="${fmtF(my)}" """ +
                         """x2="${fmtF(cx + dx)}" y2="${fmtF(my + 6f)}" """ +
-                        """stroke="#333" stroke-width="1"/>""",
+                        """stroke="$borderColor" stroke-width="1"/>""",
                 )
             }
         }
@@ -62,9 +67,9 @@ internal fun renderBpmnDataObject(
                     "x" to fmtF(x + w / 2f),
                     "y" to fmtF(y + h + 12f),
                     "text-anchor" to "middle",
-                    "font-family" to "sans-serif",
+                    "font-family" to fontFamily,
                     "font-size" to "10",
-                    "fill" to "#333",
+                    "fill" to textColor,
                 ),
             ) { text(label) }
         }

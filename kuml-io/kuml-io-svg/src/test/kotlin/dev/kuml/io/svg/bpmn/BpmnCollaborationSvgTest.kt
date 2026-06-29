@@ -119,11 +119,12 @@ class BpmnCollaborationSvgTest :
 
             val svg = KumlSvgRenderer.toSvg(model, diagram, singleGroupLayout("buyer"), PlainTheme())
 
-            // Outer pool frame
-            svg shouldContain "stroke=\"#333\""
+            // Outer pool frame — PlainTheme border = Black = #000000
+            svg shouldContain "stroke=\"#000000\""
             // Title band on the left side (width = POOL_TITLE_BAND_WIDTH = 30)
             svg shouldContain "width=\"30\""
-            svg shouldContain "fill=\"#f0f0f0\""
+            // PlainTheme effectiveNodeFill = White = #FFFFFF
+            svg shouldContain "fill=\"#FFFFFF\""
         }
 
         test("horizontal pool: title text is rotated -90 degrees") {
@@ -149,7 +150,8 @@ class BpmnCollaborationSvgTest :
             // For vertical pool there is no rotate(-90) on the title
             svg shouldNotContain "rotate(-90,"
             svg shouldContain "Vertical Pool"
-            svg shouldContain "fill=\"#f0f0f0\""
+            // PlainTheme effectiveNodeFill = White = #FFFFFF
+            svg shouldContain "fill=\"#FFFFFF\""
         }
 
         test("black-box pool renders frame without internal flow content") {
@@ -161,8 +163,8 @@ class BpmnCollaborationSvgTest :
             val layout = singleGroupLayout("ext")
             val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
 
-            // Pool border present
-            svg shouldContain "stroke=\"#333\""
+            // Pool border present — PlainTheme border = Black = #000000
+            svg shouldContain "stroke=\"#000000\""
             // Pool title present
             svg shouldContain "External"
         }
@@ -175,8 +177,8 @@ class BpmnCollaborationSvgTest :
 
             val svg = KumlSvgRenderer.toSvg(model, diagram, singleGroupLayout("anon"), PlainTheme())
 
-            // The pool rect is there but no text element
-            svg shouldContain "stroke=\"#333\""
+            // The pool rect is there but no text element — PlainTheme border = #000000
+            svg shouldContain "stroke=\"#000000\""
             // No font-weight=bold text (title text)
             svg shouldNotContain "font-weight=\"bold\""
         }
@@ -192,12 +194,12 @@ class BpmnCollaborationSvgTest :
 
             val svg = KumlSvgRenderer.toSvg(model, diagram, participantWithLaneLayout("pool1", "lane1"), PlainTheme())
 
-            // Lane border (stroke="#999")
-            svg shouldContain "stroke=\"#999\""
+            // Lane border — PlainTheme border = Black = #000000
+            svg shouldContain "stroke=\"#000000\""
             // Lane title text
             svg shouldContain "Pre-Sales"
-            // Lane title band fill
-            svg shouldContain "fill=\"#fafafa\""
+            // Lane title band fill — PlainTheme effectiveNodeFill = White = #FFFFFF
+            svg shouldContain "fill=\"#FFFFFF\""
         }
 
         test("horizontal lane: title text is rotated -90 degrees") {
@@ -268,8 +270,8 @@ class BpmnCollaborationSvgTest :
 
             val svg = KumlSvgRenderer.toSvg(model, diagram, twoGroupOneEdgeLayout("buyer", "seller", "mf1"), PlainTheme())
 
-            // Open arrowhead: polygon with fill=white
-            svg shouldContain "fill=\"white\""
+            // Open arrowhead: polygon with fill = PlainTheme effectiveNodeFill = #FFFFFF
+            svg shouldContain "fill=\"#FFFFFF\""
             svg shouldContain "<polygon"
             svg shouldContain "marker-end"
         }
@@ -362,8 +364,8 @@ class BpmnCollaborationSvgTest :
             svg shouldContain "stroke-dasharray=\"5,3\""
             // MessageFlow label present
             svg shouldContain "Order"
-            // Open arrowhead present
-            svg shouldContain "fill=\"white\""
+            // Open arrowhead present — PlainTheme effectiveNodeFill = #FFFFFF
+            svg shouldContain "fill=\"#FFFFFF\""
             svg shouldContain "<polygon"
             // Initiating circle present
             svg shouldContain "<circle"

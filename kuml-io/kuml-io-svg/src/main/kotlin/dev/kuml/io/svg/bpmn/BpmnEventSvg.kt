@@ -23,7 +23,7 @@ import dev.kuml.renderer.theme.core.KumlTheme
 internal fun renderBpmnEvent(
     event: BpmnEvent,
     layout: NodeLayout,
-    @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
+    theme: KumlTheme,
     builder: SvgBuilder,
 ) {
     val x = layout.bounds.origin.x
@@ -33,6 +33,11 @@ internal fun renderBpmnEvent(
     val cx = x + w / 2f
     val cy = y + h / 2f
     val r = minOf(w, h) / 2f - 2f
+
+    val nodeFill = theme.colors.effectiveNodeFill.toHex()
+    val borderColor = theme.colors.border.toHex()
+    val textColor = theme.colors.foreground.toHex()
+    val fontFamily = theme.typography.body.family
 
     val nonInterrupting =
         !event.interrupting &&
@@ -46,25 +51,25 @@ internal fun renderBpmnEvent(
                 // animating fill on the parent <g> does not override the circle's own fill.
                 rawXml(
                     """<circle id="${xmlEscapeAttr(event.id)}-circle" cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r)}" """ +
-                        """fill="white" stroke="#333" stroke-width="1.5"$dashAttr/>""",
+                        """fill="$nodeFill" stroke="$borderColor" stroke-width="1.5"$dashAttr/>""",
                 )
             }
 
             EventPosition.INTERMEDIATE -> {
                 rawXml(
                     """<circle cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r)}" """ +
-                        """fill="white" stroke="#333" stroke-width="1.5"$dashAttr/>""",
+                        """fill="$nodeFill" stroke="$borderColor" stroke-width="1.5"$dashAttr/>""",
                 )
                 rawXml(
                     """<circle cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r - 3f)}" """ +
-                        """fill="none" stroke="#333" stroke-width="1"$dashAttr/>""",
+                        """fill="none" stroke="$borderColor" stroke-width="1"$dashAttr/>""",
                 )
             }
 
             EventPosition.END -> {
                 rawXml(
                     """<circle id="${xmlEscapeAttr(event.id)}-circle" cx="${fmtF(cx)}" cy="${fmtF(cy)}" r="${fmtF(r)}" """ +
-                        """fill="white" stroke="#333" stroke-width="3"/>""",
+                        """fill="$nodeFill" stroke="$borderColor" stroke-width="3"/>""",
                 )
             }
         }
@@ -79,7 +84,7 @@ internal fun renderBpmnEvent(
             val tx = cx - 12f * scale
             val ty = cy - 12f * scale
             rawXml(
-                """<g transform="translate(${fmtF(tx)},${fmtF(ty)}) scale(${fmtF(scale)})" color="#333">""",
+                """<g transform="translate(${fmtF(tx)},${fmtF(ty)}) scale(${fmtF(scale)})" color="$textColor">""",
             )
             rawXml(symbol)
             rawXml("</g>")
@@ -94,9 +99,9 @@ internal fun renderBpmnEvent(
                     "x" to fmtF(cx),
                     "y" to fmtF(y + h + 12f),
                     "text-anchor" to "middle",
-                    "font-family" to "sans-serif",
+                    "font-family" to fontFamily,
                     "font-size" to "11",
-                    "fill" to "#333",
+                    "fill" to textColor,
                 ),
             ) { text(label) }
         }

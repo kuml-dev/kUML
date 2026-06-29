@@ -20,7 +20,7 @@ import dev.kuml.renderer.theme.core.KumlTheme
 internal fun renderBpmnParticipant(
     participant: BpmnParticipant,
     layout: NodeLayout,
-    @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
+    theme: KumlTheme,
     builder: SvgBuilder,
 ) {
     val x = layout.bounds.origin.x
@@ -29,7 +29,7 @@ internal fun renderBpmnParticipant(
     val h = layout.bounds.size.height
 
     builder.tag("g", mapOf("id" to xmlEscapeAttr(participant.id))) {
-        renderPoolFrame(participant, x, y, w, h, this)
+        renderPoolFrame(participant, x, y, w, h, this, theme)
     }
 }
 
@@ -42,7 +42,7 @@ internal fun renderBpmnLane(
     lane: BpmnLane,
     layout: NodeLayout,
     horizontal: Boolean,
-    @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
+    theme: KumlTheme,
     builder: SvgBuilder,
 ) {
     val x = layout.bounds.origin.x
@@ -51,7 +51,7 @@ internal fun renderBpmnLane(
     val h = layout.bounds.size.height
 
     builder.tag("g", mapOf("id" to xmlEscapeAttr(lane.id))) {
-        renderLaneFrame(lane, x, y, w, h, horizontal, this)
+        renderLaneFrame(lane, x, y, w, h, horizontal, this, theme)
     }
 }
 
@@ -67,18 +67,24 @@ internal fun renderPoolFrame(
     w: Float,
     h: Float,
     builder: SvgBuilder,
+    theme: KumlTheme,
 ) {
+    val nodeFill = theme.colors.effectiveNodeFill.toHex()
+    val borderColor = theme.colors.border.toHex()
+    val textColor = theme.colors.foreground.toHex()
+    val fontFamily = theme.typography.body.family
+
     // Outer pool border
     builder.rawXml(
         """<rect x="${fmtF(x)}" y="${fmtF(y)}" width="${fmtF(w)}" height="${fmtF(h)}" """ +
-            """fill="white" stroke="#333" stroke-width="1.5" rx="3"/>""",
+            """fill="$nodeFill" stroke="$borderColor" stroke-width="1.5" rx="3"/>""",
     )
 
     if (participant.horizontal) {
         // Vertical title band on the left side
         builder.rawXml(
             """<rect x="${fmtF(x)}" y="${fmtF(y)}" width="${fmtF(POOL_TITLE_BAND_WIDTH)}" """ +
-                """height="${fmtF(h)}" fill="#f0f0f0" stroke="#333" stroke-width="1" rx="3"/>""",
+                """height="${fmtF(h)}" fill="$nodeFill" stroke="$borderColor" stroke-width="1" rx="3"/>""",
         )
         val poolName = participant.name
         if (!poolName.isNullOrBlank()) {
@@ -86,7 +92,7 @@ internal fun renderPoolFrame(
             val ty = y + h / 2f
             builder.rawXml(
                 """<text x="${fmtF(tx)}" y="${fmtF(ty)}" text-anchor="middle" dominant-baseline="middle" """ +
-                    """font-family="sans-serif" font-size="12" font-weight="bold" fill="#333" """ +
+                    """font-family="$fontFamily" font-size="12" font-weight="bold" fill="$textColor" """ +
                     """transform="rotate(-90,${fmtF(tx)},${fmtF(ty)})">${xmlEscapeContent(poolName)}</text>""",
             )
         }
@@ -94,7 +100,7 @@ internal fun renderPoolFrame(
         // Horizontal title band on top
         builder.rawXml(
             """<rect x="${fmtF(x)}" y="${fmtF(y)}" width="${fmtF(w)}" """ +
-                """height="${fmtF(POOL_TITLE_BAND_WIDTH)}" fill="#f0f0f0" stroke="#333" stroke-width="1"/>""",
+                """height="${fmtF(POOL_TITLE_BAND_WIDTH)}" fill="$nodeFill" stroke="$borderColor" stroke-width="1"/>""",
         )
         val poolName = participant.name
         if (!poolName.isNullOrBlank()) {
@@ -102,7 +108,9 @@ internal fun renderPoolFrame(
             val ty = y + POOL_TITLE_BAND_WIDTH / 2f + 4f
             builder.rawXml(
                 """<text x="${fmtF(tx)}" y="${fmtF(ty)}" text-anchor="middle" """ +
-                    """font-family="sans-serif" font-size="12" font-weight="bold" fill="#333">${xmlEscapeContent(poolName)}</text>""",
+                    """font-family="$fontFamily" font-size="12" font-weight="bold" fill="$textColor">${xmlEscapeContent(
+                        poolName,
+                    )}</text>""",
             )
         }
     }
@@ -116,18 +124,24 @@ internal fun renderLaneFrame(
     h: Float,
     horizontal: Boolean,
     builder: SvgBuilder,
+    theme: KumlTheme,
 ) {
+    val borderColor = theme.colors.border.toHex()
+    val mutedColor = theme.colors.muted.toHex()
+    val nodeFill = theme.colors.effectiveNodeFill.toHex()
+    val fontFamily = theme.typography.body.family
+
     // Lane border (divider lines)
     builder.rawXml(
         """<rect x="${fmtF(x)}" y="${fmtF(y)}" width="${fmtF(w)}" height="${fmtF(h)}" """ +
-            """fill="none" stroke="#999" stroke-width="1"/>""",
+            """fill="none" stroke="$borderColor" stroke-width="1"/>""",
     )
 
     if (horizontal) {
         // Small title band on the left within the lane
         builder.rawXml(
             """<rect x="${fmtF(x)}" y="${fmtF(y)}" width="${fmtF(LANE_TITLE_BAND_WIDTH)}" """ +
-                """height="${fmtF(h)}" fill="#fafafa" stroke="#999" stroke-width="0.5"/>""",
+                """height="${fmtF(h)}" fill="$nodeFill" stroke="$borderColor" stroke-width="0.5"/>""",
         )
         val laneName = lane.name
         if (!laneName.isNullOrBlank()) {
@@ -135,7 +149,7 @@ internal fun renderLaneFrame(
             val ty = y + h / 2f
             builder.rawXml(
                 """<text x="${fmtF(tx)}" y="${fmtF(ty)}" text-anchor="middle" dominant-baseline="middle" """ +
-                    """font-family="sans-serif" font-size="11" fill="#555" """ +
+                    """font-family="$fontFamily" font-size="11" fill="$mutedColor" """ +
                     """transform="rotate(-90,${fmtF(tx)},${fmtF(ty)})">${xmlEscapeContent(laneName)}</text>""",
             )
         }
@@ -143,7 +157,7 @@ internal fun renderLaneFrame(
         // Small title band on top
         builder.rawXml(
             """<rect x="${fmtF(x)}" y="${fmtF(y)}" width="${fmtF(w)}" """ +
-                """height="${fmtF(LANE_TITLE_BAND_WIDTH)}" fill="#fafafa" stroke="#999" stroke-width="0.5"/>""",
+                """height="${fmtF(LANE_TITLE_BAND_WIDTH)}" fill="$nodeFill" stroke="$borderColor" stroke-width="0.5"/>""",
         )
         val laneName = lane.name
         if (!laneName.isNullOrBlank()) {
@@ -151,7 +165,7 @@ internal fun renderLaneFrame(
             val ty = y + LANE_TITLE_BAND_WIDTH / 2f + 4f
             builder.rawXml(
                 """<text x="${fmtF(tx)}" y="${fmtF(ty)}" text-anchor="middle" """ +
-                    """font-family="sans-serif" font-size="11" fill="#555">${xmlEscapeContent(laneName)}</text>""",
+                    """font-family="$fontFamily" font-size="11" fill="$mutedColor">${xmlEscapeContent(laneName)}</text>""",
             )
         }
     }
