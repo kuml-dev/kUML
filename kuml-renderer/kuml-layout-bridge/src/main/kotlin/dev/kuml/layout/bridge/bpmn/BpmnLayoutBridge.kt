@@ -8,14 +8,17 @@ import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.bpmn.model.BpmnTask
+import dev.kuml.bpmn.model.CallConversation
 import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.ChoreographyEvent
 import dev.kuml.bpmn.model.ChoreographyGateway
 import dev.kuml.bpmn.model.ChoreographyTask
 import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.bpmn.model.MessageFlow
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.bpmn.model.SequenceFlow
+import dev.kuml.bpmn.model.SubConversation
 import dev.kuml.layout.EdgeHints
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EndpointRef
@@ -586,6 +589,89 @@ public object BpmnLayoutBridge {
                         id = EdgeId(sf.id),
                         source = EndpointRef(nodeId = NodeId(sf.sourceRef)),
                         target = EndpointRef(nodeId = NodeId(sf.targetRef)),
+                        hints = EdgeHints.NONE,
+                    ),
+                )
+            }
+        }
+
+        return LayoutGraph(nodes = nodes, edges = edges, groups = emptyList())
+    }
+
+    /** Standard-Knotengröße für BPMN-Conversation-Participants (Rechtecke). */
+    public val DEFAULT_CONVERSATION_PARTICIPANT_SIZE: Size = Size(100f, 60f)
+
+    /**
+     * Standard-Knotengröße für BPMN-Konversationsknoten (Hexagons).
+     *
+     * 50×44: 40 px für die Hexagon-Form + 4 px Label-Reserve oben und unten.
+     */
+    public val DEFAULT_CONVERSATION_NODE_SIZE: Size = Size(50f, 44f)
+
+    /**
+     * Übersetzt ein [ConversationDiagram] + [BpmnModel] in einen [LayoutGraph].
+     *
+     * Participants werden als echte Rechteck-Knoten emittiert (NICHT als Pseudo-Nodes
+     * mit 0×0 Größe), da sie im Conversation Diagram sichtbare Elemente sind.
+     * Konversationsknoten (Hexagons) werden ebenfalls als LayoutNodes emittiert.
+     * Conversation Links werden als ungerichtete Kanten ohne Pfeilkopf-Hinweis
+     * emittiert (die Pfeilkopf-Unterdrückung erfolgt im SVG-Renderer).
+     *
+     * @param model Das BPMN-Modell mit allen Konversationen.
+     * @param diagram Das [ConversationDiagram], das festlegt, welche Konversation angezeigt wird.
+     * @param sizeProvider Optionaler SizeProvider; überschreibt Standardgrößen falls angegeben.
+     *
+     * V3.2.3 — BPMN Conversation Diagram: Layout
+     */
+    public fun toLayoutGraph(
+        model: BpmnModel,
+        diagram: ConversationDiagram,
+        sizeProvider: SizeProvider? = null,
+    ): LayoutGraph {
+        val conversation =
+            model.conversations.firstOrNull { it.id == diagram.conversationId }
+                ?: return LayoutGraph(nodes = emptyList(), edges = emptyList(), groups = emptyList())
+
+        val filterIds = diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet()
+        val nodes = mutableListOf<LayoutNode>()
+        val edges = mutableListOf<LayoutEdge>()
+        val addedNodeIds = mutableSetOf<String>()
+
+        // 1. Participants als echte Rechteck-Knoten.
+        //    Participant-Namen dienen als Knoten-IDs (analog ConversationLink.participantRef).
+        for (participantName in conversation.participants) {
+            if (filterIds != null && participantName !in filterIds) continue
+            val size =
+                sizeProvider?.sizeOf(participantName, "ConversationParticipant")
+                    ?: DEFAULT_CONVERSATION_PARTICIPANT_SIZE
+            nodes.add(LayoutNode(id = NodeId(participantName), intrinsicSize = size, groupId = null))
+            addedNodeIds.add(participantName)
+        }
+
+        // 2. Konversationsknoten (Hexagons) — flach (SubConversation-Kinder werden in V3.2.3 nicht
+        //    als separate Top-Level-Nodes emittiert; nur der Sub-Conversation-Knoten selbst erscheint).
+        for (node in conversation.nodes) {
+            if (filterIds != null && node.id !in filterIds) continue
+            val kind =
+                when (node) {
+                    is CallConversation -> "CallConversation"
+                    is SubConversation -> "SubConversation"
+                    else -> "ConversationNode"
+                }
+            val size = sizeProvider?.sizeOf(node.id, kind) ?: DEFAULT_CONVERSATION_NODE_SIZE
+            nodes.add(LayoutNode(id = NodeId(node.id), intrinsicSize = size, groupId = null))
+            addedNodeIds.add(node.id)
+        }
+
+        // 3. Conversation Links als Kanten (Participant ↔ Konversationsknoten).
+        for (link in conversation.links) {
+            if (filterIds != null && link.id !in filterIds) continue
+            if (link.participantRef in addedNodeIds && link.conversationNodeRef in addedNodeIds) {
+                edges.add(
+                    LayoutEdge(
+                        id = EdgeId(link.id),
+                        source = EndpointRef(nodeId = NodeId(link.participantRef)),
+                        target = EndpointRef(nodeId = NodeId(link.conversationNodeRef)),
                         hints = EdgeHints.NONE,
                     ),
                 )

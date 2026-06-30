@@ -2,6 +2,7 @@ package dev.kuml.web.render
 
 import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.DiagramType
@@ -544,6 +545,18 @@ internal object WebRenderPipeline {
                 }
             }
             is ChoreographyDiagram -> {
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                when (format) {
+                    "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme), durationMs)
+                    "png" -> {
+                        val svg = KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme)
+                        WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
+                    }
+                    else -> WebRenderResult.Error("Unsupported format for BPMN: $format (svg, png supported)")
+                }
+            }
+            is ConversationDiagram -> {
                 val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {

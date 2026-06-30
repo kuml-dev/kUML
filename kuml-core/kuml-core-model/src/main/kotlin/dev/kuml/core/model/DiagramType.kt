@@ -34,6 +34,9 @@ enum class DiagramType {
     // ── BPMN 2.0 — V3.2.2 ───────────────────────────────────────────────────
     BPMN_CHOREOGRAPHY,
 
+    // ── BPMN 2.0 — V3.2.3 ───────────────────────────────────────────────────
+    BPMN_CONVERSATION,
+
     // ── Blueprint / Journey Map — V3.1.24 ───────────────────────────────────
     JOURNEY,
     BLUEPRINT,

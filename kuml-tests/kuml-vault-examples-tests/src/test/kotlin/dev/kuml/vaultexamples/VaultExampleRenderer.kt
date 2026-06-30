@@ -2,6 +2,7 @@ package dev.kuml.vaultexamples
 
 import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
@@ -267,6 +268,14 @@ object VaultExampleRenderer {
                                 KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                             }
                             is ChoreographyDiagram -> null // SVG rendering not yet implemented for choreography
+                            is ConversationDiagram -> {
+                                val layout =
+                                    elkEngine.layout(
+                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram),
+                                        LayoutHints.DEFAULT,
+                                    )
+                                KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                            }
                         }
                     RenderResult(svg, null, null)
                 }

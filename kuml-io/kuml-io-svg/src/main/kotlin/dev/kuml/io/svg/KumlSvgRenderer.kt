@@ -2,6 +2,7 @@ package dev.kuml.io.svg
 
 import dev.kuml.blueprint.model.BlueprintDiagram
 import dev.kuml.blueprint.model.BlueprintModel
+import dev.kuml.bpmn.model.BpmnConversation
 import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnSubProcess
@@ -11,6 +12,9 @@ import dev.kuml.bpmn.model.ChoreographyGateway
 import dev.kuml.bpmn.model.ChoreographySequenceFlow
 import dev.kuml.bpmn.model.ChoreographyTask
 import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ConversationDiagram
+import dev.kuml.bpmn.model.ConversationLink
+import dev.kuml.bpmn.model.ConversationNodeElement
 import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
@@ -30,6 +34,9 @@ import dev.kuml.io.svg.bpmn.renderChoreoSequenceFlow
 import dev.kuml.io.svg.bpmn.renderChoreographyEvent
 import dev.kuml.io.svg.bpmn.renderChoreographyGateway
 import dev.kuml.io.svg.bpmn.renderChoreographyTask
+import dev.kuml.io.svg.bpmn.renderConversationLink
+import dev.kuml.io.svg.bpmn.renderConversationNode
+import dev.kuml.io.svg.bpmn.renderConversationParticipant
 import dev.kuml.io.svg.c4.c4RelationshipLabel
 import dev.kuml.io.svg.c4.renderC4Interaction
 import dev.kuml.io.svg.c4.renderC4Relationship
@@ -3023,6 +3030,46 @@ public object KumlSvgRenderer {
     }
 
     /**
+     * Rendert ein BPMN-Conversation-Diagramm als SVG.
+     *
+     * Render-Reihenfolge (flach, keine Groups/Pools):
+     *  1. Participants als Rechtecke.
+     *  2. Konversationsknoten als Hexagons (ConversationNode / CallConversation / SubConversation).
+     *  3. Conversation Links als Linien OHNE Pfeilkopf (BPMN 2.0 §9.5.3).
+     *
+     * @param model Das BPMN-Modell mit der referenzierten Conversation.
+     * @param diagram Das [ConversationDiagram] mit dem Verweis auf eine Conversation.
+     * @param layoutResult Berechnete Positionen und Routing-Pfade.
+     * @param theme Visuelles Theme; Standard: [PlainTheme].
+     * @param options Renderer-Optionen; Standard: [SvgRenderOptions.DEFAULT].
+     *
+     * V3.2.3 — BPMN Conversation Diagram: SVG-Renderer
+     */
+    public fun toSvg(
+        model: BpmnModel,
+        diagram: ConversationDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String = renderBpmnConversation(model, diagram, layoutResult, theme, options)
+
+    /** [toSvg]-Variante für BPMN-Conversation-Diagramme, schreibt direkt auf Platte. */
+    public fun toSvgFile(
+        model: BpmnModel,
+        diagram: ConversationDiagram,
+        layoutResult: LayoutResult,
+        out: java.nio.file.Path,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): java.io.File {
+        val svg = toSvg(model, diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(svg, Charsets.UTF_8)
+        return file
+    }
+
+    /**
      * Dedizierter Render-Pfad für BPMN-Choreografie-Diagramme.
      *
      * Flache Struktur (keine Groups): Tasks, Gateways und Events werden direkt
@@ -3085,6 +3132,70 @@ public object KumlSvgRenderer {
                 val flow = flowById[edgeId.value] ?: continue
                 val shiftedRoute = shiftRoute(route, padding)
                 renderChoreoSequenceFlow(flow, shiftedRoute, edgesBuilder, theme)
+            }
+        }
+    }
+
+    /**
+     * Dedizierter Render-Pfad für BPMN-Conversation-Diagramme.
+     *
+     * Flache Struktur (keine Groups): Participants werden als Rechteck-Knoten
+     * gerendert, ConversationNodes (Hexagons) als Hexagon-Shapes, Conversation
+     * Links als ungerichtete Linien OHNE Pfeilkopf (BPMN 2.0 §9.5.3).
+     *
+     * V3.2.3 — BPMN Conversation Diagram: SVG-Renderer
+     */
+    private fun renderBpmnConversation(
+        model: BpmnModel,
+        diagram: ConversationDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+    ): String {
+        val conversation: BpmnConversation =
+            model.conversations.firstOrNull { it.id == diagram.conversationId }
+                ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> }
+
+        // Build element indexes
+        val participantNames: Set<String> = conversation.participants.toSet()
+        val nodeById: Map<String, ConversationNodeElement> = conversation.nodes.associateBy { it.id }
+        val linkById: Map<String, ConversationLink> = conversation.links.associateBy { it.id }
+
+        return SvgDocument.render(
+            layoutResult,
+            theme,
+            options,
+            frameName = diagram.name,
+            frameTypeLabel = "conversation",
+        ) { nodesBuilder, edgesBuilder ->
+            val padding = options.paddingPx
+
+            // Nodes — Participants (Rechtecke) und ConversationNodes (Hexagons)
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                when {
+                    nodeId.value in participantNames ->
+                        renderConversationParticipant(nodeId.value, shifted, theme, nodesBuilder)
+                    nodeById.containsKey(nodeId.value) ->
+                        renderConversationNode(nodeById[nodeId.value]!!, shifted, theme, nodesBuilder)
+                }
+            }
+
+            // Edges — Conversation Links (keine Pfeilköpfe)
+            for ((edgeId, route) in layoutResult.edges) {
+                val link = linkById[edgeId.value] ?: continue
+                val shiftedRoute = shiftRoute(route, padding)
+                renderConversationLink(link, shiftedRoute, edgesBuilder, theme)
             }
         }
     }

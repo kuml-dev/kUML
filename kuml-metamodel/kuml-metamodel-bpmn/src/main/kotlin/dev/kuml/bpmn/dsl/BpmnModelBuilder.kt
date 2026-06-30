@@ -34,6 +34,7 @@ class BpmnModelBuilder(
     private var dataStoreCounter: Int = 0
     private val collaborationBuilders: MutableList<CollaborationBuilder> = mutableListOf()
     private val choreographyBuilders: MutableList<ChoreographyBuilder> = mutableListOf()
+    private val conversationBuilders: MutableList<ConversationBuilder> = mutableListOf()
 
     /**
      * Declare a data store at root (model) level.
@@ -156,6 +157,40 @@ class BpmnModelBuilder(
         diagramBuilders += ChoreographyDiagramBuilder(name = name, choreographyId = choreographyId).apply(block)
     }
 
+    /**
+     * Declares a conversation (simplified interaction view without internal process logic).
+     *
+     * @param id Optional explicit conversation ID; defaults to `"conversation_<n>"`.
+     * @param name Optional human-readable conversation name.
+     * @param block Block to configure participants, nodes, and links via [ConversationBuilder].
+     * @return The stable conversation ID (use for [conversationDiagram] references).
+     */
+    fun conversation(
+        id: String? = null,
+        name: String? = null,
+        block: ConversationBuilder.() -> Unit,
+    ): String {
+        val cid = id ?: "conversation_${conversationBuilders.size + 1}"
+        conversationBuilders += ConversationBuilder(cid, name).apply(block)
+        return cid
+    }
+
+    /**
+     * Declares a diagram view scoped to a single conversation.
+     *
+     * @param name Human-readable diagram name.
+     * @param conversationId ID of the conversation this diagram visualises.
+     * @param block Optional block that restricts the visible elements via
+     *   [ConversationDiagramBuilder.include].
+     */
+    fun conversationDiagram(
+        name: String,
+        conversationId: String,
+        block: ConversationDiagramBuilder.() -> Unit = {},
+    ) {
+        diagramBuilders += ConversationDiagramBuilder(name = name, conversationId = conversationId).apply(block)
+    }
+
     fun build(): BpmnModel =
         BpmnModel(
             name = name,
@@ -163,12 +198,14 @@ class BpmnModelBuilder(
             dataStores = dataStoreList.toList(),
             collaborations = collaborationBuilders.map { it.build() },
             choreographies = choreographyBuilders.map { it.build() },
+            conversations = conversationBuilders.map { it.build() },
             diagrams =
                 diagramBuilders.map { builder ->
                     when (builder) {
                         is ProcessDiagramBuilder -> builder.build()
                         is CollaborationDiagramBuilder -> builder.build()
                         is ChoreographyDiagramBuilder -> builder.build()
+                        is ConversationDiagramBuilder -> builder.build()
                         else -> error("Unknown diagram builder type: ${builder::class}")
                     }
                 },

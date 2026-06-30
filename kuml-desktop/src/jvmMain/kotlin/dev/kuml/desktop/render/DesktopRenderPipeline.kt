@@ -2,6 +2,7 @@ package dev.kuml.desktop.render
 
 import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
@@ -169,6 +170,14 @@ internal object DesktopRenderPipeline {
                             throw ScriptEvaluationException(
                                 "Rendering für BPMN-Choreografie-Diagramme ist noch nicht implementiert.",
                             )
+                        is ConversationDiagram -> {
+                            val layout =
+                                elkEngine.layout(
+                                    BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram),
+                                    LayoutHints.DEFAULT,
+                                )
+                            KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        }
                     }
                 }
                 // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.

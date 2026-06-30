@@ -15,6 +15,7 @@ import kotlinx.serialization.Serializable
  * @property dataStores All data stores defined at model (root) level.
  * @property collaborations All collaborations (multi-pool containers) defined in this model.
  * @property choreographies All choreographies defined in this model.
+ * @property conversations All conversations (simplified interaction views) defined in this model.
  * @property diagrams All diagram views for the model.
  * @property metadata Arbitrary additional metadata.
  */
@@ -25,13 +26,14 @@ data class BpmnModel(
     val dataStores: List<BpmnDataStore> = emptyList(),
     val collaborations: List<BpmnCollaboration> = emptyList(),
     val choreographies: List<BpmnChoreography> = emptyList(),
+    val conversations: List<BpmnConversation> = emptyList(),
     val diagrams: List<BpmnDiagram> = emptyList(),
     val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) {
     /**
      * Looks up any element by ID across all processes, root-level data stores,
-     * and collaborations (including their participants, lanes, and message flows)
-     * in this model.
+     * collaborations (including their participants, lanes, and message flows),
+     * choreographies, and conversations in this model.
      *
      * @param id The element ID to look up.
      * @return The matching [BpmnElement], or `null` if not found.
@@ -43,6 +45,8 @@ data class BpmnModel(
             ?: collaborations.firstNotNullOfOrNull { collab -> collab.elementById(id) }
             ?: choreographies.firstOrNull { it.id == id }
             ?: choreographies.firstNotNullOfOrNull { it.elementById(id) }
+            ?: conversations.firstOrNull { it.id == id }
+            ?: conversations.firstNotNullOfOrNull { it.elementById(id) }
 
     /** Looks up an element within a specific collaboration by ID. */
     private fun BpmnCollaboration.elementById(id: String): BpmnElement? =

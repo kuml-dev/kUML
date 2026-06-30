@@ -2,6 +2,7 @@ package dev.kuml.gradle.internal
 
 import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
@@ -243,6 +244,10 @@ internal object GradlePipeline {
                         val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
                         KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                     }
+                    is ConversationDiagram -> {
+                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                    }
                 }
             }
             // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
@@ -292,6 +297,11 @@ internal object GradlePipeline {
                         KumlPngRenderer.toPng(svg, options)
                     }
                     is ChoreographyDiagram -> {
+                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlPngRenderer.toPng(svg, options)
+                    }
+                    is ConversationDiagram -> {
                         val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
                         val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                         KumlPngRenderer.toPng(svg, options)
