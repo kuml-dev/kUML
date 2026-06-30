@@ -179,5 +179,12 @@
         -->
         <renameHandler
             implementation="dev.kuml.jetbrains.rename.KumlRenameHandler"/>
+
+        <!--
+            kUML Export balloon notifications (SVG / PNG / TeX export results).
+        -->
+        <notificationGroup
+            id="kUML Export"
+            displayType="BALLOON"/>
     </extensions>
 </idea-plugin>

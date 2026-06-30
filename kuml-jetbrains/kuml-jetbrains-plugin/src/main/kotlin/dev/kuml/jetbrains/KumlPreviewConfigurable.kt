@@ -4,20 +4,23 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.util.ui.FormBuilder
+import javax.swing.DefaultComboBoxModel
+import javax.swing.JComboBox
 import javax.swing.JComponent
 import javax.swing.JLabel
 import javax.swing.JPanel
 
 /**
  * Settings page (Settings → Tools → kUML Preview) for configuring the path to
- * the external `kuml` CLI used by the live preview.
+ * the external `kuml` CLI used by the live preview, and the default render theme.
  *
- * Leaving the field empty enables auto-detection ([KumlCliLocator]): PATH,
- * common install locations, and a local Gradle build discovered by walking up
- * from the edited file.
+ * Leaving the CLI-path field empty enables auto-detection ([KumlCliLocator]):
+ * PATH, common install locations, and a local Gradle build discovered by walking
+ * up from the edited file.
  */
 internal class KumlPreviewConfigurable : Configurable {
     private var field: TextFieldWithBrowseButton? = null
+    private var themeCombo: JComboBox<String>? = null
 
     override fun getDisplayName(): String = "kUML Preview"
 
@@ -35,6 +38,13 @@ internal class KumlPreviewConfigurable : Configurable {
         tf.text = KumlPreviewSettings.cliPath().orEmpty()
         field = tf
 
+        val combo =
+            JComboBox(
+                DefaultComboBoxModel(KumlPreviewSettings.THEMES.toTypedArray()),
+            )
+        combo.selectedItem = KumlPreviewSettings.theme()
+        themeCombo = combo
+
         return FormBuilder
             .createFormBuilder()
             .addLabeledComponent(
@@ -43,21 +53,31 @@ internal class KumlPreviewConfigurable : Configurable {
                         "PATH / lokalen Gradle-Build):</html>",
                 ),
                 tf,
+            ).addLabeledComponent(
+                JLabel("Standard-Theme:"),
+                combo,
             ).addComponentFillVertically(JPanel(), 0)
             .panel
     }
 
-    override fun isModified(): Boolean = (field?.text?.trim() ?: "") != (KumlPreviewSettings.cliPath() ?: "")
+    override fun isModified(): Boolean {
+        val cliModified = (field?.text?.trim() ?: "") != (KumlPreviewSettings.cliPath() ?: "")
+        val themeModified = (themeCombo?.selectedItem as? String ?: "") != KumlPreviewSettings.theme()
+        return cliModified || themeModified
+    }
 
     override fun apply() {
         KumlPreviewSettings.setCliPath(field?.text?.trim())
+        KumlPreviewSettings.setTheme(themeCombo?.selectedItem as? String)
     }
 
     override fun reset() {
         field?.text = KumlPreviewSettings.cliPath().orEmpty()
+        themeCombo?.selectedItem = KumlPreviewSettings.theme()
     }
 
     override fun disposeUIResources() {
         field = null
+        themeCombo = null
     }
 }

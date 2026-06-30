@@ -48,7 +48,16 @@ class KumlSplitEditorProvider :
         file: VirtualFile,
     ): FileEditor {
         val textEditor = TextEditorProvider.getInstance().createEditor(project, file) as TextEditor
-        val previewPanel = KumlPreviewPanel()
+        val previewPanel = KumlPreviewPanel(initialTheme = KumlPreviewSettings.theme())
+        // Persist theme changes made via the combobox.
+        previewPanel.onThemeChanged = { KumlPreviewSettings.setTheme(it) }
+        // Inject export context so the Export button can access Project + VirtualFile.
+        previewPanel.exportContext =
+            KumlExportContext(
+                project = project,
+                sourceFile = file,
+                currentText = { textEditor.editor.document.text },
+            )
         // Create wrapper first so it can serve as the Disposable for the document
         // listener — avoids the deprecated single-arg addDocumentListener overload.
         val wrapper = KumlSplitEditorWrapper(textEditor, previewPanel)

@@ -82,7 +82,7 @@ class KumlPreviewPanelBatikTest :
 
         // ── 5. Toolbar has exactly 6 buttons ─────────────────────────────────
 
-        test("Panel: toolbar contains exactly 6 JButton components") {
+        test("Panel: toolbar contains at least 6 JButton components (zoom/fit + export)") {
             val panel = KumlPreviewPanel(debounceMs = 50L)
             try {
                 var buttonCount = 0
@@ -91,7 +91,8 @@ class KumlPreviewPanelBatikTest :
                         buttonCount++
                     }
                 }
-                buttonCount shouldBe 6
+                // 6 zoom/fit buttons + 1 export button = 7 minimum
+                (buttonCount >= 7) shouldBe true
             } finally {
                 panel.dispose()
             }

@@ -9,6 +9,7 @@ import java.awt.CardLayout
 import java.awt.Cursor
 import java.awt.Dimension
 import java.awt.Point
+import java.awt.event.ItemEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
 import java.awt.event.MouseWheelEvent
@@ -18,14 +19,17 @@ import java.util.TimerTask
 import java.util.concurrent.atomic.AtomicReference
 import javax.swing.Icon
 import javax.swing.JButton
+import javax.swing.JComboBox
 import javax.swing.JLabel
+import javax.swing.JMenuItem
 import javax.swing.JPanel
+import javax.swing.JPopupMenu
 import javax.swing.JScrollPane
 import javax.swing.JToolBar
 import javax.swing.SwingUtilities
 
 /**
- * Live SVG preview panel for `.kuml.kts` files (V2.0.31).
+ * Live SVG preview panel for `.kuml.kts` files.
  *
  * Renders the diagram declared in the currently edited script as a native SVG
  * inside the split editor, using Apache Batik's [JSVGCanvas] wrapped in a
@@ -67,17 +71,11 @@ import javax.swing.SwingUtilities
  *
  * ## Toolbar
  *
- * Six icon buttons above the canvas (with tooltip text):
- *  - **Fit to Window** — resets the canvas to the viewport size so the entire
- *    diagram fits without scrollbars.
- *  - **Fit Width** — scales so the diagram width equals the viewport width.
- *  - **Fit Height** — scales so the diagram height equals the viewport height.
- *  - **100%** — shows the diagram at its native 1:1 pixel scale; scrollbars
- *    appear automatically for diagrams that exceed the viewport.
- *  - **Zoom In** — enlarges the canvas by a fixed 1.25× factor.
- *  - **Zoom Out** — shrinks the canvas by a fixed 1.25× factor.
+ * Buttons above the canvas: Fit / Zoom buttons, a Theme combobox, and an
+ * Export dropdown. The theme combobox persists via [KumlPreviewSettings] (wired
+ * by the split-editor provider); the export button delegates to [KumlExportAction].
  *
- * Icons are loaded from [AllIcons.Graph] at first use, wrapped in [runCatching]
+ * Icons are loaded from AllIcons at first use, wrapped in [runCatching]
  * so that test environments without a running IntelliJ application context
  * degrade gracefully to labelled text buttons.
  *
@@ -86,12 +84,15 @@ import javax.swing.SwingUtilities
  * This panel is standalone Swing — it does not depend on IntelliJ Platform
  * classes in its constructor so it can be instantiated in unit tests without
  * a running IDE. The only IDE coupling is in [KumlSplitEditorProvider], which
- * wires the panel to an open `TextEditor` via a `DocumentListener`.
+ * wires the panel to an open `TextEditor` via a `DocumentListener` and injects
+ * [initialTheme], [onThemeChanged], and [exportContext].
  *
  * @param debounceMs Debounce delay in milliseconds. Overridable for tests.
+ * @param initialTheme Theme to pre-select in the combobox (default: "kuml").
  */
 class KumlPreviewPanel(
     private val debounceMs: Long = DEFAULT_DEBOUNCE_MS,
+    initialTheme: String = DEFAULT_THEME,
 ) : JPanel(BorderLayout()) {
     companion object {
         const val DEFAULT_DEBOUNCE_MS: Long = 300L
@@ -100,12 +101,18 @@ class KumlPreviewPanel(
         const val STATUS_READY: String = "Ready"
         const val DISABLE_SYSTEM_PROPERTY: String = "kuml.preview.disabled"
 
+        /** Default theme — must match [KumlPreviewSettings.DEFAULT_THEME]. */
+        const val DEFAULT_THEME: String = "kuml"
+
+        /** Valid theme names exposed for the toolbar combobox. */
+        val THEMES: List<String> = listOf("kuml", "plain", "elegant", "playful")
+
         private const val CARD_CANVAS = "canvas"
         private const val CARD_EMPTY = "empty"
         private const val ZOOM_STEP = 1.25
 
         // ── Toolbar icons ─────────────────────────────────────────────────────
-        // AllIcons.Graph.* are from the IntelliJ Platform — wrapped in runCatching
+        // AllIcons.* are from the IntelliJ Platform — wrapped in runCatching
         // so tests that run without a full application context still produce
         // functional (text-labelled) buttons instead of crashing at class init.
 
@@ -133,7 +140,44 @@ class KumlPreviewPanel(
         private val ICON_ZOOM_OUT: Icon? by lazy {
             runCatching { com.intellij.icons.AllIcons.General.ZoomOut }.getOrNull()
         }
+        private val ICON_EXPORT: Icon? by lazy {
+            runCatching { com.intellij.icons.AllIcons.ToolbarDecorator.Export }.getOrNull()
+        }
     }
+
+    // ── Theme state ───────────────────────────────────────────────────────────
+
+    /**
+     * Currently selected theme. Initialised from the constructor parameter,
+     * updated by the combobox ItemListener. Never reads PropertiesComponent
+     * directly — persistence is the provider's responsibility.
+     */
+    @Volatile
+    var currentTheme: String = if (initialTheme in THEMES) initialTheme else DEFAULT_THEME
+
+    /**
+     * Optional callback invoked whenever the user changes the theme.
+     * Set by [KumlSplitEditorProvider] to persist the selection via
+     * [KumlPreviewSettings.setTheme]. Left `null` in headless tests.
+     */
+    var onThemeChanged: ((String) -> Unit)? = null
+
+    // ── Export context ────────────────────────────────────────────────────────
+
+    /**
+     * IntelliJ platform context required for export (Project + VirtualFile +
+     * live text supplier). Set by [KumlSplitEditorProvider] after construction.
+     * `null` in headless test environments — the export button is a no-op then.
+     */
+    var exportContext: KumlExportContext? = null
+
+    // ── Script cache (for theme-triggered re-renders) ─────────────────────────
+
+    @Volatile
+    private var lastScriptText: String = ""
+
+    @Volatile
+    private var lastScriptName: String = "untitled.kuml.kts"
 
     // ── Internal state ────────────────────────────────────────────────────────
 
@@ -204,7 +248,7 @@ class KumlPreviewPanel(
 
     // ── Toolbar ───────────────────────────────────────────────────────────────
 
-    /** Toolbar with Fit / Zoom buttons. */
+    /** Toolbar with Fit / Zoom buttons, theme combobox, and export button. */
     val toolbar: JToolBar =
         JToolBar().also { bar ->
             bar.isFloatable = false
@@ -215,6 +259,11 @@ class KumlPreviewPanel(
             bar.addSeparator()
             bar.add(toolbarBtn(ICON_ZOOM_IN, "+", "Vergrößern") { zoomIn() })
             bar.add(toolbarBtn(ICON_ZOOM_OUT, "−", "Verkleinern") { zoomOut() })
+            bar.addSeparator()
+            bar.add(JLabel("Theme: "))
+            bar.add(buildThemeCombo())
+            bar.addSeparator()
+            bar.add(buildExportButton())
         }
 
     init {
@@ -240,6 +289,10 @@ class KumlPreviewPanel(
         scriptName: String = "untitled.kuml.kts",
     ) {
         if (disposed) return
+
+        // Cache for theme-triggered re-renders.
+        lastScriptText = scriptText
+        lastScriptName = scriptName
 
         // Cancel any pending render scheduled from the previous keystroke.
         pendingTask.getAndSet(null)?.cancel()
@@ -280,10 +333,11 @@ class KumlPreviewPanel(
         scriptText: String,
         scriptName: String,
     ) {
+        val theme = currentTheme
         setStatusOnEdt(STATUS_RENDERING)
         renderExecutor.submit {
             if (disposed) return@submit
-            val outcome = renderScript(scriptText, scriptName)
+            val outcome = renderScript(scriptText, scriptName, theme)
             if (disposed) return@submit
             SwingUtilities.invokeLater {
                 if (disposed) return@invokeLater
@@ -350,12 +404,13 @@ class KumlPreviewPanel(
     internal fun renderScript(
         scriptText: String,
         scriptName: String,
+        theme: String = currentTheme,
     ): KumlPreviewRenderer.Outcome {
         if (System.getProperty(DISABLE_SYSTEM_PROPERTY) != null) {
             return KumlPreviewRenderer.Outcome.Empty
         }
         return try {
-            KumlPreviewRenderer.renderOutcome(scriptText, scriptName)
+            KumlPreviewRenderer.renderOutcome(scriptText, scriptName, theme)
         } catch (t: Throwable) {
             // Throwable, nicht nur Exception: KumlScriptHost kann NoClassDefFoundError
             // (ein Error) werfen, wenn der Scripting-Host nicht im Plugin-Bundle liegt.
@@ -386,6 +441,63 @@ class KumlPreviewPanel(
         }
 
     // ── Toolbar helpers ───────────────────────────────────────────────────────
+
+    /**
+     * Build the theme-selection combobox.
+     *
+     * Populated from [THEMES] with [currentTheme] pre-selected. The ItemListener
+     * fires only on SELECTED events and only after the model is fully populated
+     * (listener is attached after setSelectedItem to avoid spurious initial fires).
+     */
+    private fun buildThemeCombo(): JComboBox<String> {
+        val combo = JComboBox<String>()
+        combo.isFocusable = false
+        combo.toolTipText = "Render-Theme auswählen"
+        // Populate model first, then set selection — BEFORE adding the listener.
+        THEMES.forEach { combo.addItem(it) }
+        combo.selectedItem = currentTheme
+        // Now attach listener so initial setSelectedItem does not fire it.
+        combo.addItemListener { e ->
+            if (e.stateChange == ItemEvent.SELECTED) {
+                val selected = e.item as? String ?: return@addItemListener
+                currentTheme = selected
+                onThemeChanged?.invoke(selected)
+                // Re-render the cached script with the new theme.
+                if (lastScriptText.isNotEmpty()) {
+                    scheduleUpdate(lastScriptText, lastScriptName)
+                }
+            }
+        }
+        return combo
+    }
+
+    /**
+     * Build the "Export As" toolbar button.
+     *
+     * Opens a [JPopupMenu] with entries for each [KumlExportFormat].
+     * When [exportContext] is null (headless tests), menu items are disabled.
+     */
+    private fun buildExportButton(): JButton {
+        val btn =
+            if (ICON_EXPORT != null) JButton(ICON_EXPORT) else JButton("Export")
+        btn.toolTipText = "Als SVG / PNG / TeX exportieren"
+        btn.isFocusable = false
+
+        val menu = JPopupMenu()
+        KumlExportFormat.entries.forEach { format ->
+            val item = JMenuItem(format.displayName)
+            item.addActionListener {
+                val ctx = exportContext ?: return@addActionListener
+                KumlExportAction.export(ctx, format, currentTheme)
+            }
+            menu.add(item)
+        }
+
+        btn.addActionListener { e ->
+            menu.show(btn, 0, btn.height)
+        }
+        return btn
+    }
 
     /**
      * Create a toolbar [JButton] with an optional icon.

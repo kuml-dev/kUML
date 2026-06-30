@@ -53,7 +53,8 @@ internal object KumlPreviewRenderer {
     fun render(
         scriptText: String,
         scriptName: String,
-    ): String? = (renderOutcome(scriptText, scriptName) as? Outcome.Svg)?.svg
+        theme: String = KumlPreviewSettings.DEFAULT_THEME,
+    ): String? = (renderOutcome(scriptText, scriptName, theme) as? Outcome.Svg)?.svg
 
     /**
      * Render [scriptText], returning a detailed [Outcome].
@@ -61,13 +62,14 @@ internal object KumlPreviewRenderer {
     fun renderOutcome(
         scriptText: String,
         scriptName: String,
+        theme: String = KumlPreviewSettings.DEFAULT_THEME,
     ): Outcome =
         try {
             val hintDir = File(scriptName).absoluteFile.parentFile
             val binary =
                 KumlCliLocator.resolve(hintDir)
                     ?: return Outcome.Failure(cliNotFoundMessage())
-            KumlCliRenderer.render(binary, scriptText, scriptName)
+            KumlCliRenderer.render(binary, scriptText, scriptName, theme)
         } catch (t: Throwable) {
             Outcome.Failure("Render-Ausnahme: ${t::class.java.name}: ${t.message ?: "(keine Meldung)"}")
         }
