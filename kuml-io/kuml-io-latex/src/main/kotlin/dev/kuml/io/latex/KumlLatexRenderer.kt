@@ -3,6 +3,7 @@ package dev.kuml.io.latex
 import dev.kuml.blueprint.model.BlueprintDiagram
 import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.bpmn.model.BpmnModel
+import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.c4.model.C4Diagram
@@ -846,6 +847,7 @@ public object KumlLatexRenderer {
         when (val first = model.diagrams.firstOrNull()) {
             is ProcessDiagram -> toLatex(model, first, options)
             is CollaborationDiagram -> toLatex(model, first, options)
+            is ChoreographyDiagram -> "" // LaTeX rendering for choreography diagrams is not yet implemented
             null -> ""
         }
 

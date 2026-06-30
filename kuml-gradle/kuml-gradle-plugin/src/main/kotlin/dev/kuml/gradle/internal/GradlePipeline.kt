@@ -1,5 +1,6 @@
 package dev.kuml.gradle.internal
 
+import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.core.model.DiagramType
@@ -238,6 +239,9 @@ internal object GradlePipeline {
                         val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
                         KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                     }
+                    is ChoreographyDiagram -> throw ScriptEvaluationException(
+                        "SVG-Rendering für BPMN-Choreografie-Diagramme ist noch nicht implementiert.",
+                    )
                 }
             }
             // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
@@ -286,6 +290,9 @@ internal object GradlePipeline {
                         val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                         KumlPngRenderer.toPng(svg, options)
                     }
+                    is ChoreographyDiagram -> throw ScriptEvaluationException(
+                        "PNG-Rendering für BPMN-Choreografie-Diagramme ist noch nicht implementiert.",
+                    )
                 }
             }
             // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.

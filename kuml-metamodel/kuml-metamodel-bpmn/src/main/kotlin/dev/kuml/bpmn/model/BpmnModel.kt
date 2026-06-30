@@ -13,6 +13,8 @@ import kotlinx.serialization.Serializable
  * @property name Human-readable model name.
  * @property processes All processes defined in this model.
  * @property dataStores All data stores defined at model (root) level.
+ * @property collaborations All collaborations (multi-pool containers) defined in this model.
+ * @property choreographies All choreographies defined in this model.
  * @property diagrams All diagram views for the model.
  * @property metadata Arbitrary additional metadata.
  */
@@ -22,6 +24,7 @@ data class BpmnModel(
     val processes: List<BpmnProcess> = emptyList(),
     val dataStores: List<BpmnDataStore> = emptyList(),
     val collaborations: List<BpmnCollaboration> = emptyList(),
+    val choreographies: List<BpmnChoreography> = emptyList(),
     val diagrams: List<BpmnDiagram> = emptyList(),
     val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) {
@@ -38,6 +41,8 @@ data class BpmnModel(
             ?: processes.firstNotNullOfOrNull { it.elementById(id) }
             ?: collaborations.firstOrNull { it.id == id }
             ?: collaborations.firstNotNullOfOrNull { collab -> collab.elementById(id) }
+            ?: choreographies.firstOrNull { it.id == id }
+            ?: choreographies.firstNotNullOfOrNull { it.elementById(id) }
 
     /** Looks up an element within a specific collaboration by ID. */
     private fun BpmnCollaboration.elementById(id: String): BpmnElement? =

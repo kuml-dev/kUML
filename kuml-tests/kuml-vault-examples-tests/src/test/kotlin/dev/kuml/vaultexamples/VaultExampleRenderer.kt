@@ -1,5 +1,6 @@
 package dev.kuml.vaultexamples
 
+import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.core.model.DiagramType
@@ -265,6 +266,7 @@ object VaultExampleRenderer {
                                     )
                                 KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                             }
+                            is ChoreographyDiagram -> null // SVG rendering not yet implemented for choreography
                         }
                     RenderResult(svg, null, null)
                 }

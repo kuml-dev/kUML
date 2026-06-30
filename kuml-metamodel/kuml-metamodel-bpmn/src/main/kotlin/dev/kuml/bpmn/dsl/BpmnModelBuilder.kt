@@ -33,6 +33,7 @@ class BpmnModelBuilder(
     private val dataStoreList: MutableList<BpmnDataStore> = mutableListOf()
     private var dataStoreCounter: Int = 0
     private val collaborationBuilders: MutableList<CollaborationBuilder> = mutableListOf()
+    private val choreographyBuilders: MutableList<ChoreographyBuilder> = mutableListOf()
 
     /**
      * Declare a data store at root (model) level.
@@ -120,17 +121,54 @@ class BpmnModelBuilder(
         diagramBuilders += CollaborationDiagramBuilder(name = name, collaborationId = collaborationId).apply(block)
     }
 
+    /**
+     * Declares a choreography (sequence of two-party interactions without internal process logic).
+     *
+     * @param id Optional explicit choreography ID; defaults to `"choreography_<n>"`.
+     * @param name Optional human-readable choreography name.
+     * @param block Block to configure tasks, gateways, events, and sequence flows via
+     *   [ChoreographyBuilder].
+     * @return The stable choreography ID (use for [choreographyDiagram] references).
+     */
+    fun choreography(
+        id: String? = null,
+        name: String? = null,
+        block: ChoreographyBuilder.() -> Unit,
+    ): String {
+        val cid = id ?: "choreography_${choreographyBuilders.size + 1}"
+        choreographyBuilders += ChoreographyBuilder(cid, name).apply(block)
+        return cid
+    }
+
+    /**
+     * Declares a diagram view scoped to a single choreography.
+     *
+     * @param name Human-readable diagram name.
+     * @param choreographyId ID of the choreography this diagram visualises.
+     * @param block Optional block that restricts the visible elements via
+     *   [ChoreographyDiagramBuilder.include].
+     */
+    fun choreographyDiagram(
+        name: String,
+        choreographyId: String,
+        block: ChoreographyDiagramBuilder.() -> Unit = {},
+    ) {
+        diagramBuilders += ChoreographyDiagramBuilder(name = name, choreographyId = choreographyId).apply(block)
+    }
+
     fun build(): BpmnModel =
         BpmnModel(
             name = name,
             processes = processBuilders.map { it.build() },
             dataStores = dataStoreList.toList(),
             collaborations = collaborationBuilders.map { it.build() },
+            choreographies = choreographyBuilders.map { it.build() },
             diagrams =
                 diagramBuilders.map { builder ->
                     when (builder) {
                         is ProcessDiagramBuilder -> builder.build()
                         is CollaborationDiagramBuilder -> builder.build()
+                        is ChoreographyDiagramBuilder -> builder.build()
                         else -> error("Unknown diagram builder type: ${builder::class}")
                     }
                 },

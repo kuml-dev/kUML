@@ -4,6 +4,7 @@ import dev.kuml.blueprint.model.BlueprintDiagram
 import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.bpmn.constraint.BpmnConstraintChecker
 import dev.kuml.bpmn.constraint.ViolationSeverity
+import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.core.config.KumlConfig
@@ -880,6 +881,10 @@ internal object RenderPipeline {
                     else -> throw ScriptEvaluationException("Unsupported format for BPMN: $format (supported: svg, png)")
                 }
             }
+            is ChoreographyDiagram ->
+                throw ScriptEvaluationException(
+                    "Rendering für BPMN-Choreografie-Diagramme ist noch nicht implementiert.",
+                )
         }
     }
 
