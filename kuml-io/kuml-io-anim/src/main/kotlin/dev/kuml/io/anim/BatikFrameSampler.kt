@@ -5,20 +5,18 @@ import org.apache.batik.anim.dom.SAXSVGDocumentFactory
 import org.apache.batik.bridge.BridgeContext
 import org.apache.batik.bridge.GVTBuilder
 import org.apache.batik.bridge.UserAgentAdapter
-import org.apache.batik.transcoder.TranscoderInput
-import org.apache.batik.transcoder.TranscoderOutput
-import org.apache.batik.transcoder.image.PNGTranscoder
 import org.apache.batik.util.XMLResourceDescriptor
 import org.w3c.dom.Document
 import java.awt.Color
+import java.awt.RenderingHints
+import java.awt.geom.AffineTransform
+import java.awt.image.BufferedImage
 import java.io.StringReader
-import java.io.StringWriter
-import javax.xml.transform.TransformerFactory
-import javax.xml.transform.dom.DOMSource
-import javax.xml.transform.stream.StreamResult
+import javax.imageio.ImageIO
 
 /**
- * Samples an SMIL-animated SVG into static PNG frames by freezing the Batik animation clock.
+ * Samples an SMIL-animated SVG into static PNG frames by advancing the Batik GVT
+ * animation clock and painting the GVT tree directly to a [BufferedImage] at each step.
  *
  * ## How it works
  *
@@ -27,25 +25,19 @@ import javax.xml.transform.stream.StreamResult
  *    SVGAnimationEngine on the document.
  * 3. For each frame i at time t = i * intervalMs / 1000.0 seconds:
  *    - Call `animationEngine.setCurrentTime(t)` to advance the SMIL clock.
- *      Batik applies all SMIL sandwich values to the live DOM at time t.
- *    - Serialize the live DOM to an SVG string (capturing the instantaneous state).
- *    - Rasterise the static SVG string via [PNGTranscoder] (no animation engine needed).
+ *      Batik applies all SMIL sandwich values to the live GVT tree at time t.
+ *    - Paint the root [org.apache.batik.gvt.GraphicsNode] directly onto a
+ *      [BufferedImage] scaled to [AnimRenderOptions.widthPx].
+ *    - Encode the [BufferedImage] to PNG bytes via [ImageIO].
  * 4. Return the list of PNG byte arrays.
  *
- * ## Why serialize + re-transcode?
+ * ## Why paint GVT directly?
  *
- * Passing the live animated `Document` to a new `PNGTranscoder` fails because the new
- * transcoder's `BridgeContext` is in STATIC mode — it encounters `<animate>` elements
- * and crashes trying to access uninitialized animation structures. By serializing the
- * DOM to a string first, we get a pure-static SVG that PNGTranscoder handles correctly.
- *
- * ## Performance
- *
- * [TransformerFactory] is created once per [sample] call (not per frame): the factory
- * is thread-safe after construction and the [javax.xml.transform.Transformer] instances
- * it produces are NOT thread-safe, so we create one Transformer per frame but reuse the
- * factory. Creating a new [TransformerFactory] on every frame would trigger a service-loader
- * lookup on each call — 500 lookups for a max-length animation.
+ * Batik's animation engine mutates the **GVT presentation values** (the visual state used
+ * for painting), NOT the underlying DOM attributes. Serialising the DOM with a Transformer
+ * and re-transcoding yields the original static attribute values for every frame — the
+ * animation is invisible in the output. Painting the GVT directly captures the animated
+ * state that `setCurrentTime` applied.
  *
  * ## DoS guards
  *
@@ -53,18 +45,9 @@ import javax.xml.transform.stream.StreamResult
  *
  * ## Headless
  *
- * `java.awt.headless=true` is set before any Batik call (required for CI without display).
+ * `java.awt.headless=true` is set before any Batik or AWT call (required for CI).
  */
 public object BatikFrameSampler {
-    /**
-     * Shared [TransformerFactory] instance.
-     *
-     * [TransformerFactory] is documented as thread-safe (the factory itself, not the
-     * Transformer instances it produces). Caching it avoids a service-loader lookup on
-     * every frame when sampling long animations (up to 500 frames at the default cap).
-     */
-    private val transformerFactory: TransformerFactory = TransformerFactory.newInstance()
-
     /**
      * Sample [svg] into PNG frames as specified by [budget] and [options].
      *
@@ -83,9 +66,7 @@ public object BatikFrameSampler {
     ): List<ByteArray> {
         System.setProperty("java.awt.headless", "true")
 
-        // Pre-parse SVG size check — reject oversized inputs before handing them to the
-        // XML parser.  A crafted billion-laughs entity expansion can exhaust heap before
-        // any frame-count cap fires; checking byte length is a cheap first-line guard.
+        // Pre-parse size check — reject oversized inputs before the XML parser sees them.
         val svgBytes = svg.toByteArray(Charsets.UTF_8)
         if (svgBytes.size.toLong() > options.maxSvgBytes) {
             val sizeMb = svgBytes.size / (1024 * 1024)
@@ -97,135 +78,139 @@ public object BatikFrameSampler {
         }
 
         val doc = parseSvgDocument(svg)
-        val ctx = buildDynamicGvt(doc)
 
-        val animEngine =
+        // Determine natural SVG dimensions from the viewBox attribute.
+        val (naturalW, naturalH) = svgDimensions(doc, svg)
+        val widthPx = options.widthPx
+        val heightPx = if (naturalW > 0f) (naturalH * widthPx / naturalW).toInt().coerceAtLeast(1) else widthPx
+
+        // Build GVT in DYNAMIC mode — this activates the SVGAnimationEngine.
+        val userAgent = UserAgentAdapter()
+        val ctx = BridgeContext(userAgent)
+        ctx.setDynamicState(BridgeContext.DYNAMIC)
+        val builder = GVTBuilder()
+        val rootGvt =
             try {
-                ctx.animationEngine
+                builder.build(ctx, doc)
             } catch (e: Exception) {
-                throw AnimEncoderException(
-                    "Batik animation engine not available. " +
-                        "Ensure batik-anim and batik-bridge are on the classpath. Cause: ${e.message}",
-                    e,
-                )
+                throw AnimEncoderException("Failed to build Batik GVT tree: ${e.message}", e)
             }
 
-        if (animEngine == null) {
-            throw AnimEncoderException(
-                "Batik SVGAnimationEngine is null after building GVT in DYNAMIC mode. " +
-                    "This may indicate a Batik version incompatibility.",
-            )
-        }
+        val animEngine =
+            ctx.animationEngine
+                ?: throw AnimEncoderException(
+                    "Batik SVGAnimationEngine is null after building GVT in DYNAMIC mode. " +
+                        "Ensure batik-anim is on the classpath.",
+                )
 
-        // Frame timestamps: i=0 samples t=0.0 s (first animation state); the last
-        // frame samples at (frameCount-1) * intervalMs / 1000.0 s, which is
-        // `totalDurationMs - intervalMs` ms — intentionally one interval before the
-        // end of the animation.  This avoids a duplicate start/end frame in looping
-        // animations (the frame at t=totalDuration would be identical to t=0 for a
-        // perfectly looping SMIL animation).  The gap is one frame's worth of time
-        // and is invisible to viewers.  See [SmilTimelineFrameSampler.sample] for
-        // the same convention in the Batik-free fallback path.
+        val bgColor = resolveBackground(options)
+        val scale = widthPx.toDouble() / naturalW.toDouble()
+
+        // Frame timestamps: i=0 → t=0.0 s; last frame → (frameCount-1)*intervalMs ms.
+        // Stopping one interval before totalDuration avoids a duplicate start/end frame
+        // in perfectly looping animations.
         return (0 until budget.frameCount).map { i ->
-            val timeSec = ((i.toLong() * budget.intervalMs) / 1000.0).toFloat()
+            val timeSec = (i.toLong() * budget.intervalMs / 1000.0).toFloat()
             animEngine.setCurrentTime(timeSec)
-            // Serialize the live DOM (with animation values applied) to a static SVG string,
-            // then rasterise that string — avoids the PNGTranscoder/DYNAMIC bridge conflict.
-            val staticSvg = documentToString(doc)
-            rasteriseString(staticSvg, options)
+            paintFrame(rootGvt, widthPx, heightPx, scale, bgColor, options)
         }
     }
 
     // ── Internal helpers ───────────────────────────────────────────────────────
 
     private fun parseSvgDocument(svg: String): Document {
+        System.setProperty("javax.xml.accessExternalDTD", "false")
+        System.setProperty("jdk.xml.entityExpansionLimit", "64000")
+        System.setProperty("jdk.xml.maxOccurLimit", "10000")
+
         val parser = XMLResourceDescriptor.getXMLParserClassName()
         val factory = SAXSVGDocumentFactory(parser)
-        // Harden the SAX parser against XXE and entity-expansion (billion-laughs) attacks.
-        // These system properties are recognised by the Apache Xerces parser that Batik
-        // bundles (org.apache.xerces.parsers.SAXParser) and by the JDK's built-in SAX
-        // parser used as the fallback.  We set them before every createDocument() call
-        // because SAXSVGDocumentFactory instantiates a new parser per invocation.
-        System.setProperty(
-            "org.xml.sax.driver",
-            "org.apache.xerces.parsers.SAXParser",
-        )
-        System.setProperty(
-            "javax.xml.accessExternalDTD",
-            "false",
-        )
-        // Limit entity expansion to 64 000 replacements — well above anything a legitimate
-        // SVG needs, but orders of magnitude below a billion-laughs payload.
-        System.setProperty(
-            "jdk.xml.entityExpansionLimit",
-            "64000",
-        )
-        System.setProperty(
-            "jdk.xml.maxOccurLimit",
-            "10000",
-        )
         return try {
-            factory.createDocument(
-                "file:///kuml-anim.svg",
-                StringReader(svg),
-            )
+            factory.createDocument("file:///kuml-anim.svg", StringReader(svg))
         } catch (e: Exception) {
             throw AnimEncoderException("Failed to parse SVG document: ${e.message}", e)
         }
     }
 
-    private fun buildDynamicGvt(doc: Document): BridgeContext {
-        val userAgent = UserAgentAdapter()
-        val ctx = BridgeContext(userAgent)
-        ctx.setDynamicState(BridgeContext.DYNAMIC)
-        val builder = GVTBuilder()
-        try {
-            builder.build(ctx, doc)
-        } catch (e: Exception) {
-            throw AnimEncoderException("Failed to build Batik GVT tree: ${e.message}", e)
+    /**
+     * Returns (width, height) of the SVG in user units.
+     *
+     * Priority: `viewBox` attribute → `width`/`height` attributes → fallback 800×600.
+     */
+    private fun svgDimensions(
+        doc: Document,
+        svg: String,
+    ): Pair<Float, Float> {
+        val root = doc.documentElement
+        val viewBox = root?.getAttribute("viewBox")?.trim()
+        if (!viewBox.isNullOrEmpty()) {
+            val parts = viewBox.split(Regex("\\s+|,")).mapNotNull { it.toFloatOrNull() }
+            if (parts.size >= 4 && parts[2] > 0f && parts[3] > 0f) {
+                return parts[2] to parts[3]
+            }
         }
-        return ctx
+        val wAttr = root?.getAttribute("width")?.trim()?.toFloatOrNull()
+        val hAttr = root?.getAttribute("height")?.trim()?.toFloatOrNull()
+        if (wAttr != null && hAttr != null && wAttr > 0f && hAttr > 0f) {
+            return wAttr to hAttr
+        }
+        // Fallback — parse from raw SVG string (handles percentage-based viewBox)
+        val vbMatch =
+            Regex("""viewBox=["']([^"']+)["']""").find(svg)
+        val vbParts =
+            vbMatch
+                ?.groupValues
+                ?.get(1)
+                ?.split(Regex("\\s+|,"))
+                ?.mapNotNull { it.toFloatOrNull() }
+        if (vbParts != null && vbParts.size >= 4 && vbParts[2] > 0f && vbParts[3] > 0f) {
+            return vbParts[2] to vbParts[3]
+        }
+        return 800f to 600f
     }
 
-    /** Serialise a DOM [Document] to an SVG string using the JDK XML transformer. */
-    private fun documentToString(doc: Document): String {
-        // Reuse the shared factory — createing a new TransformerFactory per frame triggers
-        // an expensive service-loader lookup each time (500x for a max-length animation).
-        // The Transformer itself is NOT thread-safe and must be created fresh per call.
-        val transformer = transformerFactory.newTransformer()
-        val writer = StringWriter()
-        transformer.transform(DOMSource(doc), StreamResult(writer))
-        return writer.toString()
-    }
+    private fun resolveBackground(options: AnimRenderOptions): Color? =
+        if (options.transparent) {
+            null
+        } else {
+            parseColor(options.backgroundColor)
+        }
 
-    /** Rasterise a static SVG string to PNG bytes via [PNGTranscoder]. */
-    private fun rasteriseString(
-        staticSvg: String,
+    /**
+     * Paint [rootGvt] at the current animation time onto a new [BufferedImage] and
+     * encode it to PNG bytes.
+     */
+    private fun paintFrame(
+        rootGvt: org.apache.batik.gvt.GraphicsNode,
+        widthPx: Int,
+        heightPx: Int,
+        scale: Double,
+        bgColor: Color?,
         options: AnimRenderOptions,
     ): ByteArray {
-        val transcoder = PNGTranscoder()
-        transcoder.addTranscodingHint(PNGTranscoder.KEY_WIDTH, options.widthPx.toFloat())
+        val imageType = if (options.transparent) BufferedImage.TYPE_INT_ARGB else BufferedImage.TYPE_INT_RGB
+        val image = BufferedImage(widthPx, heightPx, imageType)
+        val g2d = image.createGraphics()
+        try {
+            g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+            g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
 
-        if (!options.transparent) {
-            val bg =
-                try {
-                    parseColor(options.backgroundColor)
-                } catch (_: Exception) {
-                    Color.WHITE
-                }
-            transcoder.addTranscodingHint(PNGTranscoder.KEY_BACKGROUND_COLOR, bg)
+            if (bgColor != null) {
+                g2d.color = bgColor
+                g2d.fillRect(0, 0, widthPx, heightPx)
+            }
+
+            g2d.transform(AffineTransform.getScaleInstance(scale, scale))
+            rootGvt.paint(g2d)
+        } finally {
+            g2d.dispose()
         }
 
-        val input = TranscoderInput(StringReader(staticSvg))
-        // Use a size-capped stream so that a single large frame cannot exhaust heap.
-        // The per-frame limit is set to maxSizeBytes / max(1, maxFrames) — i.e. the
-        // total output budget divided evenly across frames — with a floor of 50 MiB so
-        // that a single-frame export at the warn threshold is always allowed.
-        val perFrameLimit =
-            maxOf(options.maxSizeBytes / options.maxFrames.toLong(), 52_428_800L)
+        val perFrameLimit = maxOf(options.maxSizeBytes / options.maxFrames.toLong(), 52_428_800L)
         val out = SizeLimitedByteArrayOutputStream(perFrameLimit)
-        val output = TranscoderOutput(out)
         try {
-            transcoder.transcode(input, output)
+            ImageIO.write(image, "PNG", out)
         } catch (e: SizeLimitExceededException) {
             val limitMb = perFrameLimit / (1024 * 1024)
             throw AnimEncoderException(
@@ -234,12 +219,11 @@ public object BatikFrameSampler {
                 e,
             )
         } catch (e: Exception) {
-            throw AnimEncoderException("Batik rasterisation failed: ${e.message}", e)
+            throw AnimEncoderException("Frame rasterisation failed: ${e.message}", e)
         }
         return out.toByteArray()
     }
 
-    /** Parse a CSS colour string to [Color]. Supports `"white"`, `"#rrggbb"`, `"#rgb"`. */
     private fun parseColor(css: String): Color =
         when (css.lowercase().trim()) {
             "white" -> Color.WHITE
