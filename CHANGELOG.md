@@ -6,6 +6,64 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.21.0] — 2026-06-30
+
+### Added
+
+**BPMN 2.0 Choreography diagrams — metamodel, DSL, and SVG renderer (V3.2.1–V3.2.2)**
+
+New BPMN Choreography notation: `ChoreographyTask`, `ChoreographyGateway`, and `ChoreographyEvent`
+nodes connected by `MessageFlow` and `ChoreographySequenceFlow`. The SVG renderer draws
+ChoreographyTasks with the characteristic double border and participant bands (initiator pinned to
+the top band, responder to the bottom band) per the BPMN 2.0 spec.
+
+**BPMN 2.0 Conversation diagrams — metamodel, DSL, and SVG renderer (V3.2.3)**
+
+New BPMN Conversation notation: `ConversationNode`, `ConversationLink`, and `CallConversation`,
+rendered with hexagon shapes for the conversation nodes.
+
+**BPMN Choreography + Conversation wired into the CLI with vault examples and tests (V3.2.4)**
+
+Both new BPMN sub-notations are now reachable through the CLI render pipeline, backed by new vault
+examples (`36 BPMN Conversation – PdV Kommunikation`, `37 BPMN Choreography – Bestellprozess`) and
+render smoke tests.
+
+**UML Sequence Diagram animation — animated message dots (SMIL)**
+
+`kuml render --animated` now animates UML sequence diagrams: messages travel as `animateMotion`
+dots along the message arrows. Built on a new `TraceEntry` model (`MessageSent` / `MessageReceived`
+sealed subclasses), `SequenceMessageTimelineBuilder`, `SequenceSmilRenderer`,
+`AnimatedSequenceRenderResult`, and `SequenceAnimationContext`. Includes a DoS-guard and injection
+tests. New vault example `19 UML Sequence animiert – API Submit`.
+
+**JetBrains plugin — theme selection and SVG/PNG/TeX export**
+
+The JetBrains preview toolbar gains a theme combobox (`kuml`, `plain`, `elegant`, `playful`),
+persisted via `PropertiesComponent` (key `dev.kuml.jetbrains.theme`, default `kuml`), and an export
+dropdown (SVG / PNG / TeX) that auto-saves the result via a background CLI invocation with balloon
+notifications (new `kUML Export` `NotificationGroup` in `plugin.xml`). Covered by
+`KumlPreviewPanelThemeTest` and `KumlExportActionTest`.
+
+### Fixed
+
+**fix(cli): wire `SequenceSmilRenderer` into the animated render dispatch**
+
+`RenderPipeline`'s animated dispatch now routes UML sequence diagrams to `SequenceSmilRenderer`;
+previously the renderer existed but was never invoked from the CLI path.
+
+**fix(smil): BPMN task pulse animation via overlay-rect**
+
+BPMN task highlighting now uses a dedicated transparent overlay rect (`fill=none`, `stroke-width=0`,
+`pointer-events=none`) targeting `-box-pulse` instead of `-box`, fixing browser-inconsistent SMIL
+`stroke-width` animation behaviour.
+
+### Changed
+
+**chore: dependency updates, divider refactor, and BPMN example refresh**
+
+Updated build dependencies, refactored divider rendering, replaced outdated `xmlEscapeText` calls,
+streamlined Gradle task registration, and refreshed several BPMN vault examples.
+
 ## [0.20.5] — 2026-06-29
 
 ### Changed
