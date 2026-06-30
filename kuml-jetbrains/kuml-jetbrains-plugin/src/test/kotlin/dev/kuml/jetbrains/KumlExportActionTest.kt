@@ -43,8 +43,13 @@ class KumlExportActionTest :
             KumlExportFormat.fromExtensionOrNull("unknown") shouldBe null
         }
 
-        test("KumlExportFormat has exactly three entries") {
-            KumlExportFormat.entries.size shouldBe 3
+        test("KumlExportFormat has exactly five entries") {
+            KumlExportFormat.entries.size shouldBe 5
+        }
+
+        test("KumlExportFormat fromExtensionOrNull resolves animated formats") {
+            KumlExportFormat.fromExtensionOrNull("apng") shouldBe KumlExportFormat.APNG
+            KumlExportFormat.fromExtensionOrNull("webp") shouldBe KumlExportFormat.WEBP
         }
 
         // ── KumlCliRenderer.buildRenderArgs ───────────────────────────────────

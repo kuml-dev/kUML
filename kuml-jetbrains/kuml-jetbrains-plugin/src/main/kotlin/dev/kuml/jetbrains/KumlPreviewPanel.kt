@@ -483,12 +483,24 @@ class KumlPreviewPanel(
         btn.toolTipText = "Als SVG / PNG / TeX exportieren"
         btn.isFocusable = false
 
+        val webpAvailable = KumlWebpSupport.isAvailable
         val menu = JPopupMenu()
         KumlExportFormat.entries.forEach { format ->
             val item = JMenuItem(format.displayName)
-            item.addActionListener {
-                val ctx = exportContext ?: return@addActionListener
-                KumlExportAction.export(ctx, format, currentTheme)
+            if (format == KumlExportFormat.WEBP && !webpAvailable) {
+                // Disable the Animated WebP entry when neither img2webp nor ffmpeg
+                // is on PATH.  A clear tooltip explains the missing prerequisite so
+                // users do not receive a cryptic CLI error deep in the export pipeline.
+                item.isEnabled = false
+                val webpTooltip =
+                    "Animated WebP requires img2webp (libwebp) or ffmpeg on PATH. " +
+                        "Install via 'brew install webp' (macOS) or 'apt-get install webp' (Debian/Ubuntu)."
+                item.toolTipText = webpTooltip
+            } else {
+                item.addActionListener {
+                    val ctx = exportContext ?: return@addActionListener
+                    KumlExportAction.export(ctx, format, currentTheme)
+                }
             }
             menu.add(item)
         }

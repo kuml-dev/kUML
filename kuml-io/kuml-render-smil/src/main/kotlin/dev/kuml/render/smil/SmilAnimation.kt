@@ -66,11 +66,31 @@ public sealed class SmilAnimation {
                     "legitimate SVG presentation attribute."
             }
         }
+
+        /**
+         * Sentinel value for [Animate.repeatCount] / [AnimateTransform.repeatCount] /
+         * [AnimateMotion.repeatCount] indicating an indefinitely repeating animation.
+         *
+         * Corresponds to SMIL `repeatCount="indefinite"`. When used in a [SmilTimeline],
+         * [dev.kuml.io.anim.SmilTimelineFrameSampler] will cycle the animation at the period
+         * boundary rather than freezing at the final value.
+         * [dev.kuml.io.anim.BatikFrameSampler] handles indefinite repeat automatically via the
+         * Batik animation engine when the emitted SVG carries `repeatCount="indefinite"`.
+         */
+        public const val REPEAT_INDEFINITE: Int = 0
+
+        /**
+         * Play the animation exactly once, then freeze at the end value (default).
+         * Corresponds to SMIL `fill="freeze"` with no explicit `repeatCount`.
+         */
+        public const val REPEAT_ONCE: Int = 1
     }
 
     /**
      * Generic attribute animation: `<animate attributeName=[attribute] from=[from] to=[to] .../>`.
      *
+     * @param repeatCount Number of times to repeat: 1 = play once (default, freeze at end),
+     *   [REPEAT_INDEFINITE] (0) = loop forever. Values > 1 play the animation that many times.
      * @throws IllegalArgumentException if [attribute] is not in [ALLOWED_ATTRIBUTE_NAMES].
      */
     public data class Animate(
@@ -80,14 +100,18 @@ public sealed class SmilAnimation {
         val to: String,
         override val beginMs: Long,
         override val durationMs: Long,
+        val repeatCount: Int = REPEAT_ONCE,
     ) : SmilAnimation() {
         init {
             requireValidAttributeName(attribute)
+            require(repeatCount >= 0) { "repeatCount must be >= 0 (use 0 for indefinite), got $repeatCount" }
         }
     }
 
     /**
      * Transform animation: `<animateTransform type=[type.svgToken] from=[from] to=[to] .../>`.
+     *
+     * @param repeatCount Number of times to repeat: 1 = play once (default), [REPEAT_INDEFINITE] = loop forever.
      */
     public data class AnimateTransform(
         override val elementId: String,
@@ -96,20 +120,32 @@ public sealed class SmilAnimation {
         val to: String,
         override val beginMs: Long,
         override val durationMs: Long,
-    ) : SmilAnimation()
+        val repeatCount: Int = REPEAT_ONCE,
+    ) : SmilAnimation() {
+        init {
+            require(repeatCount >= 0) { "repeatCount must be >= 0 (use 0 for indefinite), got $repeatCount" }
+        }
+    }
 
     /**
      * Motion animation along an SVG path: `<animateMotion path=[path] .../>`.
      *
      * [path] is the SVG path `d` attribute string. When the path is not available
      * (no resolver supplied), the builder skips emitting this animation.
+     *
+     * @param repeatCount Number of times to repeat: 1 = play once (default), [REPEAT_INDEFINITE] = loop forever.
      */
     public data class AnimateMotion(
         override val elementId: String,
         val path: String,
         override val beginMs: Long,
         override val durationMs: Long,
-    ) : SmilAnimation()
+        val repeatCount: Int = REPEAT_ONCE,
+    ) : SmilAnimation() {
+        init {
+            require(repeatCount >= 0) { "repeatCount must be >= 0 (use 0 for indefinite), got $repeatCount" }
+        }
+    }
 
     /**
      * Discrete property set: `<set attributeName=[attribute] to=[to] .../>`.

@@ -19,6 +19,8 @@ public data class SmilTimeline(
     /**
      * Returns a new timeline with all begin times shifted by [offsetMs].
      * Useful for compositing multiple timelines sequentially.
+     *
+     * All animation properties (including [SmilAnimation.Animate.repeatCount]) are preserved.
      */
     public fun shiftedBy(offsetMs: Long): SmilTimeline =
         SmilTimeline(

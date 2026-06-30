@@ -14,6 +14,7 @@ import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.path
 import dev.kuml.core.config.KumlConfig
+import dev.kuml.io.anim.AnimEncoderException
 import java.io.IOException
 
 /**
@@ -35,7 +36,7 @@ internal class RenderCommand : CliktCommand(name = "render") {
         .path()
 
     private val format by option("-f", "--format", help = "Output format")
-        .choice("svg", "png", "latex", "tex")
+        .choice("svg", "png", "latex", "tex", "apng", "webp")
 
     private val width by option("-w", "--width", help = "Width in pixels (PNG only)")
         .int()
@@ -87,9 +88,31 @@ internal class RenderCommand : CliktCommand(name = "render") {
     override fun run() {
         try {
             val resolvedFormat = FormatResolver.resolve(format, output, input)
-            // --animated is only meaningful for SVG output
-            if (animated && resolvedFormat != "svg") {
-                throw UsageError("--animated is only valid with --format=svg (current format: $resolvedFormat)")
+            // --animated is required for apng/webp, and only valid for svg/apng/webp
+            val animFormats = setOf("svg", "apng", "webp")
+            if (animated && resolvedFormat !in animFormats) {
+                throw UsageError("--animated is only valid with --format=svg|apng|webp (current format: $resolvedFormat)")
+            }
+            if (resolvedFormat in setOf("apng", "webp") && !animated) {
+                throw UsageError("--format=$resolvedFormat requires --animated")
+            }
+            // Warn when webp and no encoder binary available
+            if (resolvedFormat == "webp") {
+                val binAvailable =
+                    try {
+                        dev.kuml.io.anim.EncoderBinaryLocator
+                            .isWebpAvailable()
+                    } catch (_: Exception) {
+                        false
+                    }
+                if (!binAvailable) {
+                    System.err.println(
+                        "[kuml] WARNING: --format=webp selected but no WebP encoder found on PATH. " +
+                            "Install libwebp (provides img2webp) via 'brew install webp' on macOS, " +
+                            "'apt-get install webp' on Debian/Ubuntu, or ensure ffmpeg is on PATH. " +
+                            "The export will fail unless an encoder is installed.",
+                    )
+                }
             }
             // --speed must be positive
             if (speed <= 0.0) {
@@ -119,6 +142,9 @@ internal class RenderCommand : CliktCommand(name = "render") {
         } catch (e: ScriptEvaluationException) {
             System.err.println("Script error: ${e.message}")
             throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+        } catch (e: AnimEncoderException) {
+            System.err.println("Animated export error: ${e.message}")
+            throw ProgramResult(ExitCodes.IO_ERROR)
         } catch (e: IOException) {
             System.err.println("I/O error: ${e.message}")
             throw ProgramResult(ExitCodes.IO_ERROR)

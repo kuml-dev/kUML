@@ -34,6 +34,8 @@ internal object FormatResolver {
             if (name.endsWith(".svg")) return "svg"
             if (name.endsWith(".png")) return "png"
             if (name.endsWith(".tex")) return "latex"
+            if (name.endsWith(".apng")) return "apng"
+            if (name.endsWith(".webp")) return "webp"
         }
         return "svg"
     }

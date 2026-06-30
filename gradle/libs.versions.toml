@@ -95,6 +95,8 @@ ktor-server-test-host           = { module = "io.ktor:ktor-server-test-host",   
 batik-transcoder                = { module = "org.apache.xmlgraphics:batik-transcoder", version.ref = "batik" }
 batik-codec                     = { module = "org.apache.xmlgraphics:batik-codec",      version.ref = "batik" }
 batik-swing                     = { module = "org.apache.xmlgraphics:batik-swing",      version.ref = "batik" }
+batik-bridge                    = { module = "org.apache.xmlgraphics:batik-bridge",     version.ref = "batik" }
+batik-anim                      = { module = "org.apache.xmlgraphics:batik-anim",       version.ref = "batik" }
 
 # ── Testing ───────────────────────────────────────────────────────────────────
 kotlin-test                     = { module = "org.jetbrains.kotlin:kotlin-test",                    version.ref = "kotlin" }

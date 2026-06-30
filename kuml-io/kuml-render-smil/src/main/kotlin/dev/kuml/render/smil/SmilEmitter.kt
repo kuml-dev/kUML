@@ -113,18 +113,21 @@ public class SmilEmitter {
                 val attrName = SmilXml.attr("attributeName", anim.attribute)
                 val from = SmilXml.attr("from", anim.from)
                 val to = SmilXml.attr("to", anim.to)
-                "<animate $href $attrName $from $to $beginAttr $durAttr $fillAttr/>"
+                val repeatAttr = repeatCountAttr(anim.repeatCount)
+                "<animate $href $attrName $from $to $beginAttr $durAttr$repeatAttr $fillAttr/>"
             }
             is SmilAnimation.AnimateTransform -> {
                 val attrName = SmilXml.attr("attributeName", "transform")
                 val type = SmilXml.attr("type", anim.type.svgToken)
                 val from = SmilXml.attr("from", anim.from)
                 val to = SmilXml.attr("to", anim.to)
-                "<animateTransform $href $attrName $type $from $to $beginAttr $durAttr $fillAttr/>"
+                val repeatAttr = repeatCountAttr(anim.repeatCount)
+                "<animateTransform $href $attrName $type $from $to $beginAttr $durAttr$repeatAttr $fillAttr/>"
             }
             is SmilAnimation.AnimateMotion -> {
                 val path = SmilXml.attr("path", anim.path)
-                "<animateMotion $href $path $beginAttr $durAttr $fillAttr/>"
+                val repeatAttr = repeatCountAttr(anim.repeatCount)
+                "<animateMotion $href $path $beginAttr $durAttr$repeatAttr $fillAttr/>"
             }
             is SmilAnimation.Set -> {
                 val attrName = SmilXml.attr("attributeName", anim.attribute)
@@ -140,6 +143,22 @@ public class SmilEmitter {
             }
         }
     }
+
+    /**
+     * Returns a SMIL `repeatCount` attribute string (with a leading space) when [count]
+     * is [SmilAnimation.REPEAT_INDEFINITE], or an empty string for the default single-play case.
+     *
+     * SMIL semantics:
+     * - Omitted `repeatCount` → play once.
+     * - `repeatCount="indefinite"` → loop forever.
+     * - `repeatCount="N"` (N > 1) → play N times (supported but uncommon in kUML).
+     */
+    private fun repeatCountAttr(count: Int): String =
+        when {
+            count == SmilAnimation.REPEAT_INDEFINITE -> " " + SmilXml.attr("repeatCount", "indefinite")
+            count > SmilAnimation.REPEAT_ONCE -> " " + SmilXml.attr("repeatCount", count.toString())
+            else -> "" // REPEAT_ONCE: omit attribute (browser default)
+        }
 
     /**
      * Remove all SMIL animation elements from [svg].

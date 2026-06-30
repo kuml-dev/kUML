@@ -100,7 +100,7 @@ public object ActivitySmilRenderer {
         // Inject SMIL animations
         val animatedSvg = SmilEmitter().inject(svgWithCircles, timeline)
 
-        return AnimatedActivityRenderResult(svg = animatedSvg, hasAnimation = true)
+        return AnimatedActivityRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }
 
     /**
@@ -149,7 +149,7 @@ public object ActivitySmilRenderer {
 
         val svgWithCircles = injectCircles(baseSvg, circles)
         val animatedSvg = SmilEmitter().inject(svgWithCircles, timeline)
-        return AnimatedActivityRenderResult(svg = animatedSvg, hasAnimation = true)
+        return AnimatedActivityRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

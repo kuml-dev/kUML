@@ -141,7 +141,7 @@ public object SequenceSmilRenderer {
         // Inject SMIL animations via SmilEmitter
         val animatedSvg = SmilEmitter().inject(svgWithDots, timeline)
 
-        return AnimatedSequenceRenderResult(svg = animatedSvg, hasAnimation = true)
+        return AnimatedSequenceRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

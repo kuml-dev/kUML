@@ -114,7 +114,7 @@ public object StmSmilRenderer {
         // Inject SMIL animations
         val animatedSvg = SmilEmitter().inject(svgWithOverlays, timeline)
 
-        return AnimatedStmRenderResult(svg = animatedSvg, hasAnimation = true)
+        return AnimatedStmRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }
 
     /**
@@ -174,7 +174,7 @@ public object StmSmilRenderer {
 
         val svgWithOverlays = injectOverlays(baseSvg, stateOverlays, transitionOverlays)
         val animatedSvg = SmilEmitter().inject(svgWithOverlays, timeline)
-        return AnimatedStmRenderResult(svg = animatedSvg, hasAnimation = true)
+        return AnimatedStmRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

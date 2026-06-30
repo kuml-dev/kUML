@@ -208,4 +208,72 @@ class SmilEmitterTest :
             fragment shouldContain "xlink:href="
             fragment shouldNotContain " href="
         }
+
+        // ── REPEAT_INDEFINITE (repeatCount) ───────────────────────────────────────
+
+        "Animate with REPEAT_INDEFINITE emits repeatCount='indefinite'" {
+            val timeline =
+                singleTimeline(
+                    SmilAnimation.Animate(
+                        elementId = "el1",
+                        attribute = "opacity",
+                        from = "0",
+                        to = "1",
+                        beginMs = 0,
+                        durationMs = 1000,
+                        repeatCount = SmilAnimation.REPEAT_INDEFINITE,
+                    ),
+                )
+            val fragment = emitter.renderElements(timeline)
+            fragment shouldContain "repeatCount=\"indefinite\""
+        }
+
+        "Animate with REPEAT_ONCE (default) does not emit repeatCount attribute" {
+            val timeline =
+                singleTimeline(
+                    SmilAnimation.Animate(
+                        elementId = "el1",
+                        attribute = "opacity",
+                        from = "0",
+                        to = "1",
+                        beginMs = 0,
+                        durationMs = 1000,
+                        repeatCount = SmilAnimation.REPEAT_ONCE,
+                    ),
+                )
+            val fragment = emitter.renderElements(timeline)
+            fragment shouldNotContain "repeatCount"
+        }
+
+        "AnimateTransform with REPEAT_INDEFINITE emits repeatCount='indefinite'" {
+            val timeline =
+                singleTimeline(
+                    SmilAnimation.AnimateTransform(
+                        elementId = "t1",
+                        type = TransformType.SCALE,
+                        from = "1 1",
+                        to = "1.1 1.1",
+                        beginMs = 0,
+                        durationMs = 800,
+                        repeatCount = SmilAnimation.REPEAT_INDEFINITE,
+                    ),
+                )
+            val fragment = emitter.renderElements(timeline)
+            fragment shouldContain "repeatCount=\"indefinite\""
+        }
+
+        "AnimateMotion with REPEAT_INDEFINITE emits repeatCount='indefinite'" {
+            val timeline =
+                singleTimeline(
+                    SmilAnimation.AnimateMotion(
+                        elementId = "tok1",
+                        path = "M 0 0 L 100 100",
+                        beginMs = 0,
+                        durationMs = 800,
+                        repeatCount = SmilAnimation.REPEAT_INDEFINITE,
+                    ),
+                )
+            val fragment = emitter.renderElements(timeline)
+            fragment shouldContain "repeatCount=\"indefinite\""
+        }
     })

@@ -78,6 +78,7 @@ dependencies {
     implementation(project(path = ":kuml-io:kuml-io-svg"))
     implementation(project(path = ":kuml-io:kuml-render-smil")) // V3.1.31 — TraceFileLoader, SpeedFactor, StaticSnapshotMode
     implementation(project(path = ":kuml-io:kuml-io-png"))
+    implementation(project(path = ":kuml-io:kuml-io-anim")) // V3.2 — Animated APNG/WebP export (Fat-JAR only)
     implementation(project(path = ":kuml-io:kuml-io-latex")) // V2.0.2 — TikZ/LaTeX-Export
     implementation(project(path = ":kuml-metamodel:kuml-metamodel-uml"))
     implementation(project(path = ":kuml-metamodel:kuml-metamodel-c4"))

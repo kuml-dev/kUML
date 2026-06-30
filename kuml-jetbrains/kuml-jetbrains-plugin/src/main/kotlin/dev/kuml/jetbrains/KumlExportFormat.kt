@@ -18,6 +18,8 @@ enum class KumlExportFormat(
     SVG("svg", "svg", "SVG"),
     PNG("png", "png", "PNG"),
     TEX("latex", "tex", "TeX (LaTeX)"),
+    APNG("apng", "apng", "Animated PNG"),
+    WEBP("webp", "webp", "Animated WebP"),
     ;
 
     companion object {

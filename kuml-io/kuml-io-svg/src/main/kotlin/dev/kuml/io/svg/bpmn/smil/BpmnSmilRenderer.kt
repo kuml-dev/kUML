@@ -137,7 +137,7 @@ public object BpmnSmilRenderer {
         // Inject SMIL animations via SmilEmitter
         val animatedSvg = SmilEmitter().inject(svgWithCircles, timeline)
 
-        return AnimatedBpmnRenderResult(svg = animatedSvg, hasAnimation = true)
+        return AnimatedBpmnRenderResult(svg = animatedSvg, hasAnimation = true, timeline = timeline)
     }
 
     // ── private helpers ───────────────────────────────────────────────────────

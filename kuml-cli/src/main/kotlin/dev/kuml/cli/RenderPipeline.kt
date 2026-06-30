@@ -16,6 +16,10 @@ import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.io.anim.AnimEncoderException
+import dev.kuml.io.anim.AnimFormat
+import dev.kuml.io.anim.AnimRenderOptions
+import dev.kuml.io.anim.KumlAnimRenderer
 import dev.kuml.io.latex.KumlLatexRenderer
 import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.png.KumlPngRenderer
@@ -236,6 +240,7 @@ internal object RenderPipeline {
         } catch (e: Exception) {
             if (e is ScriptEvaluationException) throw e
             if (e is IllegalArgumentException) throw e
+            if (e is AnimEncoderException) throw e
             throw IOException("Failed to write output file: ${e.message}", e)
         }
     }
@@ -297,7 +302,7 @@ internal object RenderPipeline {
         val engine = pickEngine(diagram, layoutEngineOverride)
         val layoutResult: LayoutResult = engine.layout(layoutGraph, hints)
         when (format) {
-            "svg" -> {
+            "svg", "apng", "webp" -> {
                 when {
                     animated && diagram.type == DiagramType.STATE -> {
                         val sm = diagram.elements.filterIsInstance<dev.kuml.uml.UmlStateMachine>().firstOrNull()
@@ -314,7 +319,11 @@ internal object RenderPipeline {
                                     trace = trace,
                                     context = StmAnimationContext(speedFactor = SpeedFactor(speed)),
                                 )
-                            writeText(output, result.svg)
+                            if (format == "svg") {
+                                writeText(output, result.svg)
+                            } else {
+                                writeAnimated(output, result.svg, result.timeline, format, width)
+                            }
                         } else {
                             KumlSvgRenderer.toSvgFile(diagram, layoutResult, output, theme)
                         }
@@ -333,7 +342,11 @@ internal object RenderPipeline {
                                 trace = trace,
                                 context = ActivityAnimationContext(speedFactor = SpeedFactor(speed)),
                             )
-                        writeText(output, result.svg)
+                        if (format == "svg") {
+                            writeText(output, result.svg)
+                        } else {
+                            writeAnimated(output, result.svg, result.timeline, format, width)
+                        }
                     }
                     animated && diagram.type == DiagramType.SEQUENCE -> {
                         // Sequence Diagram animated rendering — trace-driven via SequenceSmilRenderer.
@@ -355,7 +368,17 @@ internal object RenderPipeline {
                                 trace = trace,
                                 context = SequenceAnimationContext(speedFactor = SpeedFactor(speed)),
                             )
-                        writeText(output, result.svg)
+                        if (format == "svg") {
+                            writeText(output, result.svg)
+                        } else {
+                            writeAnimated(output, result.svg, result.timeline, format, width)
+                        }
+                    }
+                    animated && format in setOf("apng", "webp") -> {
+                        throw ScriptEvaluationException(
+                            "Animated ${format.uppercase()} export is not supported for diagram type ${diagram.type}. " +
+                                "Supported types: STATE, ACTIVITY, SEQUENCE.",
+                        )
                     }
                     else -> KumlSvgRenderer.toSvgFile(diagram, layoutResult, output, theme)
                 }
@@ -561,26 +584,25 @@ internal object RenderPipeline {
                 val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, stmHints)
                 val stmOptions = SvgRenderOptions(paddingPx = 64f)
                 when (format) {
-                    "svg" -> {
+                    "svg", "apng", "webp" -> {
                         val baseSvg = KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, stmOptions)
-                        if (animated) {
-                            // Build UmlStateMachine via adapter for animation
-                            val umlSm =
-                                Sysml2StateMachineAdapter.toUmlStateMachine(model, diagram)
-                            val trace = loadOrSynthesiseStmTrace(traceFile, umlSm)
-                            val ctx = StmAnimationContext(speedFactor = SpeedFactor(speed))
-                            val result =
-                                StmSmilRenderer.renderWithBaseSvg(
-                                    baseSvg = baseSvg,
-                                    stateMachine = umlSm,
-                                    layoutResult = layoutResult,
-                                    options = stmOptions,
-                                    trace = trace,
-                                    context = ctx,
-                                )
-                            writeText(output, result.svg)
-                        } else {
-                            writeText(output, baseSvg)
+                        val umlSm = Sysml2StateMachineAdapter.toUmlStateMachine(model, diagram)
+                        val trace = loadOrSynthesiseStmTrace(traceFile, umlSm)
+                        val ctx = StmAnimationContext(speedFactor = SpeedFactor(speed))
+                        val result =
+                            StmSmilRenderer.renderWithBaseSvg(
+                                baseSvg = baseSvg,
+                                stateMachine = umlSm,
+                                layoutResult = layoutResult,
+                                options = stmOptions,
+                                trace = trace,
+                                context = ctx,
+                            )
+                        when {
+                            format in setOf("apng", "webp") ->
+                                writeAnimated(output, result.svg, result.timeline, format, width)
+                            animated -> writeText(output, result.svg)
+                            else -> writeText(output, baseSvg)
                         }
                     }
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
@@ -612,55 +634,56 @@ internal object RenderPipeline {
                 val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, actHints)
                 val actOptions = SvgRenderOptions(paddingPx = 64f)
                 when (format) {
-                    "svg" -> {
+                    "svg", "apng", "webp" -> {
                         val baseSvg = KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, actOptions)
-                        if (animated) {
-                            // Build UmlActivityEdge list from model for path resolution
-                            val visible = diagram.elementIds.toSet()
-                            val actEdges =
-                                buildList<dev.kuml.uml.UmlActivityEdge> {
-                                    for (usage in model.usages) {
-                                        when (usage) {
-                                            is dev.kuml.sysml2.ControlFlowUsage ->
-                                                if (usage.sourceNodeId in visible && usage.targetNodeId in visible) {
-                                                    add(
-                                                        dev.kuml.uml.UmlActivityEdge(
-                                                            id = usage.id,
-                                                            sourceId = usage.sourceNodeId,
-                                                            targetId = usage.targetNodeId,
-                                                            isObjectFlow = false,
-                                                        ),
-                                                    )
-                                                }
-                                            is dev.kuml.sysml2.ObjectFlowUsage ->
-                                                if (usage.sourceNodeId in visible && usage.targetNodeId in visible) {
-                                                    add(
-                                                        dev.kuml.uml.UmlActivityEdge(
-                                                            id = usage.id,
-                                                            sourceId = usage.sourceNodeId,
-                                                            targetId = usage.targetNodeId,
-                                                            isObjectFlow = true,
-                                                        ),
-                                                    )
-                                                }
-                                            else -> Unit
-                                        }
+                        // Build UmlActivityEdge list from model for path resolution
+                        val visible = diagram.elementIds.toSet()
+                        val actEdges =
+                            buildList<dev.kuml.uml.UmlActivityEdge> {
+                                for (usage in model.usages) {
+                                    when (usage) {
+                                        is dev.kuml.sysml2.ControlFlowUsage ->
+                                            if (usage.sourceNodeId in visible && usage.targetNodeId in visible) {
+                                                add(
+                                                    dev.kuml.uml.UmlActivityEdge(
+                                                        id = usage.id,
+                                                        sourceId = usage.sourceNodeId,
+                                                        targetId = usage.targetNodeId,
+                                                        isObjectFlow = false,
+                                                    ),
+                                                )
+                                            }
+                                        is dev.kuml.sysml2.ObjectFlowUsage ->
+                                            if (usage.sourceNodeId in visible && usage.targetNodeId in visible) {
+                                                add(
+                                                    dev.kuml.uml.UmlActivityEdge(
+                                                        id = usage.id,
+                                                        sourceId = usage.sourceNodeId,
+                                                        targetId = usage.targetNodeId,
+                                                        isObjectFlow = true,
+                                                    ),
+                                                )
+                                            }
+                                        else -> Unit
                                     }
                                 }
-                            val trace = loadOrSynthesiseActivityTrace(traceFile, actEdges)
-                            val ctx = ActivityAnimationContext(speedFactor = SpeedFactor(speed))
-                            val result =
-                                ActivitySmilRenderer.renderWithBaseSvg(
-                                    baseSvg = baseSvg,
-                                    activityEdges = actEdges,
-                                    layoutResult = layoutResult,
-                                    options = actOptions,
-                                    trace = trace,
-                                    context = ctx,
-                                )
-                            writeText(output, result.svg)
-                        } else {
-                            writeText(output, baseSvg)
+                            }
+                        val trace = loadOrSynthesiseActivityTrace(traceFile, actEdges)
+                        val ctx = ActivityAnimationContext(speedFactor = SpeedFactor(speed))
+                        val result =
+                            ActivitySmilRenderer.renderWithBaseSvg(
+                                baseSvg = baseSvg,
+                                activityEdges = actEdges,
+                                layoutResult = layoutResult,
+                                options = actOptions,
+                                trace = trace,
+                                context = ctx,
+                            )
+                        when {
+                            format in setOf("apng", "webp") ->
+                                writeAnimated(output, result.svg, result.timeline, format, width)
+                            animated -> writeText(output, result.svg)
+                            else -> writeText(output, baseSvg)
                         }
                     }
                     "latex" -> writeText(output, KumlLatexRenderer.toLatex(model, diagram, layoutResult, LatexRenderOptions.DEFAULT))
@@ -842,7 +865,7 @@ internal object RenderPipeline {
                 val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
-                    "svg" -> {
+                    "svg", "apng", "webp" -> {
                         if (animated) {
                             // BPMN animated rendering — trace-driven via BpmnSmilRenderer.
                             // Unlike STM/Activity, no demo trace is synthesised for BPMN without a
@@ -856,7 +879,11 @@ internal object RenderPipeline {
                             }
                             val ctx = BpmnAnimationContext(speedFactor = SpeedFactor(speed))
                             val result = BpmnSmilRenderer.render(kumlDiagram, layoutResult, theme, trace = trace, context = ctx)
-                            writeText(output, result.svg)
+                            if (format == "svg") {
+                                writeText(output, result.svg)
+                            } else {
+                                writeAnimated(output, result.svg, result.timeline, format, width)
+                            }
                         } else {
                             writeText(output, KumlSvgRenderer.toSvg(kumlDiagram, layoutResult, theme))
                         }
@@ -944,6 +971,31 @@ internal object RenderPipeline {
                 "Unsupported format for Blueprint: $format (supported: svg, png, latex)",
             )
         }
+    }
+
+    /**
+     * Encode [animatedSvg] + [timeline] to APNG or WebP and write to [output].
+     *
+     * @param format Must be `"apng"` or `"webp"`.
+     * @throws ScriptEvaluationException if the timeline is empty (no animations).
+     */
+    private fun writeAnimated(
+        output: Path,
+        animatedSvg: String,
+        timeline: dev.kuml.render.smil.SmilTimeline,
+        format: String,
+        width: Int,
+    ) {
+        if (!timeline.animations.any()) {
+            throw ScriptEvaluationException(
+                "Cannot export animated $format: the diagram produced no SMIL animations. " +
+                    "Check that the trace file contains relevant entries or that the diagram type supports animation.",
+            )
+        }
+        val animFormat = if (format == "apng") AnimFormat.APNG else AnimFormat.WEBP
+        val opts = AnimRenderOptions(format = animFormat, widthPx = width)
+        val bytes = KumlAnimRenderer.toAnimated(animatedSvg, timeline, opts)
+        writeBinary(output, bytes)
     }
 
     private fun writeBinary(
