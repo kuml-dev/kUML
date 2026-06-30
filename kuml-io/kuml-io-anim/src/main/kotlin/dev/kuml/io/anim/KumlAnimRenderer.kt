@@ -46,7 +46,7 @@ public object KumlAnimRenderer {
 
         val budget = FrameBudget.compute(totalMs, options)
 
-        val frames = BatikFrameSampler.sample(animatedSvg, timeline, budget, options)
+        val frames = SmilTimelineFrameSampler.sample(animatedSvg, timeline, budget, options)
 
         val encoded =
             when (options.format) {
