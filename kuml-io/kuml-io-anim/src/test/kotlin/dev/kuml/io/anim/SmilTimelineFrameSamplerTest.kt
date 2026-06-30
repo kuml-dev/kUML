@@ -6,6 +6,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotContain
 
 /**
  * Tests for [SmilTimelineFrameSampler].
@@ -166,5 +167,98 @@ class SmilTimelineFrameSamplerTest :
             frame shouldContain "<svg"
             frame shouldContain "</svg>"
             frame shouldNotBe null
+        }
+
+        // ── String-based attribute injection (no DTD needed) ──────────────────────
+        // Since the sampler now mutates the raw SVG string instead of using
+        // doc.getElementById(), plain id="..." attributes are resolved correctly.
+
+        test("buildStaticFrame injects the active animation value at time t") {
+            val anim =
+                SmilAnimation.Animate(
+                    elementId = "box",
+                    attribute = "opacity",
+                    from = "0",
+                    to = "1",
+                    beginMs = 0L,
+                    durationMs = 1000L,
+                )
+            val timeline = SmilTimeline(listOf(anim))
+            // t = 500ms → halfway → opacity 0.5 (lerp emits 4 decimals)
+            val frame = SmilTimelineFrameSampler.buildStaticFrame(baseSvg, timeline, 500L)
+            frame shouldContain "opacity=\"0.5000\""
+        }
+
+        // ── SMIL sandwich resolution ──────────────────────────────────────────────
+        // Two opacity animations on the same element in disjoint windows. A naive
+        // "apply every animation in order" loop lets the not-yet-started second cycle
+        // overwrite the first with its `from` value. The sandwich resolver must pick the
+        // latest-STARTED animation, so a future animation never masks the current one.
+
+        test("sandwich resolution: not-yet-started later animation does not overwrite the active one") {
+            val fadeIn =
+                SmilAnimation.Animate(
+                    elementId = "box",
+                    attribute = "opacity",
+                    from = "0",
+                    to = "0.4",
+                    beginMs = 0L,
+                    durationMs = 50L,
+                ) // ends at 50ms, freezes at 0.4
+            val laterCycle =
+                SmilAnimation.Animate(
+                    elementId = "box",
+                    attribute = "opacity",
+                    from = "0",
+                    to = "0.4",
+                    beginMs = 6000L,
+                    durationMs = 50L,
+                ) // not started at t=1000ms
+            val timeline = SmilTimeline(listOf(fadeIn, laterCycle))
+            // At t=1000ms: fadeIn ended (freeze → 0.4); laterCycle not started → ignored.
+            val frame = SmilTimelineFrameSampler.buildStaticFrame(baseSvg, timeline, 1000L)
+            frame shouldContain "opacity=\"0.4\""
+        }
+
+        test("sandwich resolution: latest-started animation wins inside its window") {
+            val fadeIn =
+                SmilAnimation.Animate(
+                    elementId = "box",
+                    attribute = "opacity",
+                    from = "0",
+                    to = "0.4",
+                    beginMs = 0L,
+                    durationMs = 50L,
+                )
+            val fadeOut =
+                SmilAnimation.Animate(
+                    elementId = "box",
+                    attribute = "opacity",
+                    from = "0.4",
+                    to = "0",
+                    beginMs = 600L,
+                    durationMs = 200L,
+                )
+            val timeline = SmilTimeline(listOf(fadeIn, fadeOut))
+            // At t=700ms: fadeOut active, halfway (100/200) → 0.2 (lerp emits 4 decimals).
+            val frame = SmilTimelineFrameSampler.buildStaticFrame(baseSvg, timeline, 700L)
+            frame shouldContain "opacity=\"0.2000\""
+        }
+
+        test("buildStaticFrame leaves base value untouched before any animation starts") {
+            val anim =
+                SmilAnimation.Animate(
+                    elementId = "box",
+                    attribute = "fill",
+                    from = "#ffffff",
+                    to = "#ffd54a",
+                    beginMs = 2000L,
+                    durationMs = 600L,
+                )
+            val timeline = SmilTimeline(listOf(anim))
+            // At t=500ms the fill animation has not started — base fill="red" must remain.
+            val frame = SmilTimelineFrameSampler.buildStaticFrame(baseSvg, timeline, 500L)
+            frame shouldContain "fill=\"red\""
+            frame shouldNotContain "#ffd54a"
         }
     })

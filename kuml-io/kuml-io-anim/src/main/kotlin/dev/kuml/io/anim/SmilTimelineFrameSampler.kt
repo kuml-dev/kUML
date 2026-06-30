@@ -5,47 +5,43 @@ import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.render.smil.SmilAnimation
 import dev.kuml.render.smil.SmilTimeline
 import dev.kuml.renderer.theme.core.KumlColor
-import org.w3c.dom.Document
 import java.awt.geom.AffineTransform
 import java.awt.geom.FlatteningPathIterator
 import java.awt.geom.GeneralPath
-import java.io.StringWriter
-import javax.xml.XMLConstants
-import javax.xml.parsers.DocumentBuilderFactory
-import javax.xml.transform.TransformerFactory
-import javax.xml.transform.dom.DOMSource
-import javax.xml.transform.stream.StreamResult
+import java.util.Locale
+import java.util.logging.Logger
 
 /**
  * Fallback frame sampler: reconstructs each frame by computing static attribute values
- * from [SmilTimeline] entries at time t and injecting them into a cloned DOM — no
- * Batik animation engine required.
+ * from [SmilTimeline] entries at time t and injecting them into the SVG string — no
+ * DOM parsing, no Batik animation engine required.
  *
- * This sampler is dep-free (only JDK + kuml-io-png + kuml-render-smil), deterministic,
- * and always produces correct results for the animation types kUML emits:
- * - [SmilAnimation.Animate]: linear interpolation between `from` and `to`.
- * - [SmilAnimation.AnimateTransform]: linear interpolation of numeric tokens.
- * - [SmilAnimation.AnimateMotion]: position along SVG path via [java.awt.geom].
- * - [SmilAnimation.Set]: threshold apply (value becomes `to` once `beginMs` is reached).
- * - [SmilAnimation.Fill]: linear colour lerp (from → color) for the active window,
- *   then freezes at `fromColor` (restore) after the animation ends.
+ * ## Why string-based instead of DOM?
  *
- * The sampler strips all `<animate>`, `<animateTransform>`, `<animateMotion>`, `<set>`
- * elements from the cloned DOM and injects computed static attribute values directly.
+ * JAXP's DOM parser with `isNamespaceAware=true` re-prefixes SVG namespace declarations
+ * when serialising back to XML (e.g. `<svg>` → `<ns0:svg xmlns:ns0="…">`). Batik's
+ * `PNGTranscoder` does not recognise the re-prefixed elements and silently produces a
+ * fully-transparent empty image. String manipulation avoids the round-trip entirely.
+ *
+ * ## Supported animation types
+ *
+ * - [SmilAnimation.Animate]: linear interpolation of a plain attribute (opacity, stroke-width, …).
+ * - [SmilAnimation.AnimateTransform]: linear interpolation of numeric transform tokens.
+ * - [SmilAnimation.AnimateMotion]: position along SVG path via [java.awt.geom] — sets cx/cy.
+ * - [SmilAnimation.Set]: threshold apply (value applied once beginMs is reached).
+ * - [SmilAnimation.Fill]: colour lerp for the active window then freeze.
  */
 public object SmilTimelineFrameSampler {
-    private val log: java.util.logging.Logger =
-        java.util.logging.Logger
-            .getLogger(SmilTimelineFrameSampler::class.java.name)
+    private val log: Logger = Logger.getLogger(SmilTimelineFrameSampler::class.java.name)
 
-    /**
-     * Sample [svg] into PNG frames using the dep-free timeline approach.
-     *
-     * @param svg SMIL-animated SVG string.
-     * @param timeline The [SmilTimeline] to evaluate per frame.
-     * @param budget Frame count, interval, and effective fps.
-     * @param options Export options.
-     */
+    // Self-closing SMIL animation elements (both inline and xlink:href form).
+    // DOT_MATCHES_ALL so multi-line attributes are captured.
+    private val SMIL_STRIP_PATTERN =
+        Regex(
+            """<(?:animate|animateTransform|animateMotion|set)\b[^>]*/>\n?""",
+            RegexOption.DOT_MATCHES_ALL,
+        )
+
     public fun sample(
         svg: String,
         timeline: SmilTimeline,
@@ -54,15 +50,12 @@ public object SmilTimelineFrameSampler {
     ): List<ByteArray> {
         System.setProperty("java.awt.headless", "true")
 
-        // Pre-parse SVG size guard (mirrors BatikFrameSampler) — reject oversized inputs
-        // before handing them to the XML parser to prevent entity-expansion attacks.
         val svgBytes = svg.toByteArray(Charsets.UTF_8)
         if (svgBytes.size.toLong() > options.maxSvgBytes) {
             val sizeMb = svgBytes.size / (1024 * 1024)
             val maxMb = options.maxSvgBytes / (1024 * 1024)
             throw AnimEncoderException(
-                "SVG input is $sizeMb MiB, which exceeds the $maxMb MiB limit " +
-                    "(maxSvgBytes=${options.maxSvgBytes}). Reduce diagram complexity.",
+                "SVG input is $sizeMb MiB, exceeds $maxMb MiB limit (maxSvgBytes=${options.maxSvgBytes}).",
             )
         }
 
@@ -88,182 +81,140 @@ public object SmilTimelineFrameSampler {
         return KumlPngRenderer.toPng(staticSvg, pngOpts)
     }
 
-    /**
-     * Strip all SMIL animation elements from [svg] and inject computed static
-     * attribute values for time [tMs].
-     */
     internal fun buildStaticFrame(
         svg: String,
         timeline: SmilTimeline,
         tMs: Long,
     ): String {
-        val dbf = DocumentBuilderFactory.newInstance()
-        dbf.isNamespaceAware = true
-        // Harden against XXE and entity-expansion attacks before any parsing occurs.
-        // FEATURE_SECURE_PROCESSING enforces implementation-defined limits on entity
-        // expansion, attributes per element, etc.  The access-external-* attributes
-        // prevent the parser from loading external DTDs or schemas over any protocol.
-        try {
-            dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
-        } catch (_: Exception) {
-            // Ignore: older JAXP implementations may not support the feature; the
-            // attribute-level guards below still apply.
-        }
-        try {
-            dbf.setAttribute("http://javax.xml.XMLConstants/property/accessExternalDTD", "")
-            dbf.setAttribute("http://javax.xml.XMLConstants/property/accessExternalSchema", "")
-        } catch (_: Exception) {
-            // Ignore: attribute may be unsupported on non-Xerces parsers.
-        }
-        val doc = dbf.newDocumentBuilder().parse(svg.byteInputStream())
+        // Step 1: strip all SMIL animation elements from the SVG string.
+        var result = SMIL_STRIP_PATTERN.replace(svg, "")
 
-        // Strip all SMIL animation elements
-        removeSmilElements(doc)
+        // Step 2: SMIL sandwich resolution.
+        //
+        // Multiple animations frequently target the SAME (element, attribute) pair across
+        // disjoint time windows — e.g. a highlight rect's `opacity` is animated 0→0.4 then
+        // 0.4→0 once per replay cycle, and its `fill` is animated once per cycle too. SMIL
+        // priority semantics say that at time t, the animation with the LATEST begin time
+        // that has already started wins (all kUML animations use fill="freeze", so an ended
+        // animation holds its `to` value until a later-begun one takes over).
+        //
+        // Applying every animation blindly in list order — as a naive loop would — lets a
+        // not-yet-started animation overwrite the active one with its `from` value (e.g. a
+        // later cycle's fill="#ffffff" start value masking the current cycle's "#ffd54a"),
+        // which renders the highlight invisible. Grouping and picking the latest-started
+        // animation per target reproduces correct SMIL behaviour.
+        //
+        // AnimateMotion is handled separately because it writes two attributes (cx + cy).
 
-        // Compute and apply attribute values per animation active at tMs
-        for (anim in timeline.animations) {
-            applyAnimation(doc, anim, tMs)
+        val motions = timeline.animations.filterIsInstance<SmilAnimation.AnimateMotion>()
+        val attrAnims = timeline.animations.filter { it !is SmilAnimation.AnimateMotion }
+
+        // Attribute animations grouped by (elementId, target attribute name).
+        val groups = attrAnims.groupBy { it.elementId to attrKeyOf(it) }
+        for ((key, anims) in groups) {
+            val (elementId, attrName) = key
+            // The winning animation is the one with the latest begin time that has started.
+            val chosen = anims.filter { tMs >= it.beginMs }.maxByOrNull { it.beginMs } ?: continue
+            val value = attrValueOf(chosen, tMs) ?: continue
+            result = setAttr(result, elementId, attrName, value)
         }
 
-        return docToString(doc)
+        // Motion animations grouped by target element.
+        val motionGroups = motions.groupBy { it.elementId }
+        for ((elementId, anims) in motionGroups) {
+            val chosen = anims.filter { tMs >= it.beginMs }.maxByOrNull { it.beginMs } ?: continue
+            val t = normalise(tMs, chosen.beginMs, chosen.durationMs, chosen.repeatCount).coerceIn(0f, 1f)
+            val (x, y) = pointAlongPath(chosen.path, t.toDouble())
+            result = setAttr(result, elementId, "cx", String.format(Locale.ROOT, "%.2f", x))
+            result = setAttr(result, elementId, "cy", String.format(Locale.ROOT, "%.2f", y))
+        }
+
+        return result
     }
 
-    private fun removeSmilElements(doc: Document) {
-        val tags = listOf("animate", "animateTransform", "animateMotion", "set")
-        for (tag in tags) {
-            val list = doc.getElementsByTagName(tag)
-            // collect then remove to avoid live NodeList issues
-            val toRemove = (0 until list.length).map { list.item(it) }
-            for (node in toRemove) {
-                node.parentNode?.removeChild(node)
-            }
+    /** The SVG attribute name a (non-motion) animation writes to. */
+    private fun attrKeyOf(anim: SmilAnimation): String =
+        when (anim) {
+            is SmilAnimation.Animate -> anim.attribute
+            is SmilAnimation.AnimateTransform -> "transform"
+            is SmilAnimation.Set -> anim.attribute
+            is SmilAnimation.Fill -> "fill"
+            is SmilAnimation.AnimateMotion -> "__motion__" // not reached; motions handled separately
         }
-    }
 
-    private fun applyAnimation(
-        doc: Document,
+    /**
+     * The static value [anim] holds at [tMs], assuming it has already started
+     * (`tMs >= anim.beginMs`). With fill="freeze" semantics an ended animation holds its
+     * `to` value. Returns null only when no meaningful value applies.
+     */
+    private fun attrValueOf(
         anim: SmilAnimation,
         tMs: Long,
-    ) {
-        val el = doc.getElementById(anim.elementId) ?: return
+    ): String? =
         when (anim) {
             is SmilAnimation.Animate -> {
                 val t = normalise(tMs, anim.beginMs, anim.durationMs, anim.repeatCount)
-                // Guard is `t in 0..1` rather than `t >= 0` so that frames sampled
-                // *after* the animation window (t > 1.0) freeze at the `to` value
-                // via the lerp clamp rather than computing an out-of-range interpolation.
-                // For indefinite animations (repeatCount=0) normalise() wraps t into [0,1]
-                // so this else branch (freeze) is never reached.
-                // The Fill branch handles its own post-window "freeze" case explicitly.
-                if (t < 0.0f) {
-                    // Before animation begins: restore the element to its pre-animation
-                    // value (`from`). The static SVG may not have serialised the attribute
-                    // at all when its value equals the SVG default (e.g. opacity is 1 by
-                    // default and may be absent from the DOM even though the animation
-                    // starts from opacity=0). Setting `from` explicitly ensures frames
-                    // before beginMs render with the correct initial value.
-                    el.setAttribute(anim.attribute, anim.from)
-                } else if (t in 0.0f..1.0f) {
-                    val value = lerp(anim.from, anim.to, t)
-                    el.setAttribute(anim.attribute, value)
-                } else {
-                    // fill=freeze semantics: hold at the final `to` value
-                    el.setAttribute(anim.attribute, anim.to)
-                }
+                if (t <= 1f) lerp(anim.from, anim.to, t) else anim.to
             }
             is SmilAnimation.AnimateTransform -> {
                 val t = normalise(tMs, anim.beginMs, anim.durationMs, anim.repeatCount)
-                if (t < 0.0f) {
-                    // Before animation begins: restore to the pre-animation transform value.
-                    el.setAttribute("transform", "${anim.type.svgToken}(${anim.from})")
-                } else if (t in 0.0f..1.0f) {
-                    val value = lerpTransform(anim.from, anim.to, t)
-                    el.setAttribute("transform", "${anim.type.svgToken}($value)")
-                } else {
-                    // fill=freeze: hold at end transform
-                    el.setAttribute("transform", "${anim.type.svgToken}(${anim.to})")
-                }
+                val value = if (t <= 1f) lerp(anim.from, anim.to, t) else anim.to
+                "${anim.type.svgToken}($value)"
             }
-            is SmilAnimation.AnimateMotion -> {
-                val t = normalise(tMs, anim.beginMs, anim.durationMs, anim.repeatCount)
-                if (t < 0.0f) {
-                    // Before animation begins: restore to the motion start position.
-                    // This ensures the element sits at the path origin during any begin delay
-                    // rather than at whatever position the static SVG happens to serialise.
-                    val (x, y) = pointAlongPath(anim.path, 0.0)
-                    when {
-                        el.hasAttribute("cx") -> {
-                            el.setAttribute("cx", x.toInt().toString())
-                            el.setAttribute("cy", y.toInt().toString())
-                        }
-                        else -> {
-                            el.setAttribute("x", x.toInt().toString())
-                            el.setAttribute("y", y.toInt().toString())
-                        }
-                    }
-                } else if (t in 0.0f..1.0f) {
-                    val (x, y) = pointAlongPath(anim.path, t.toDouble())
-                    // AnimateMotion typically targets a <circle> or similar
-                    // We update cx/cy for circles, x/y for rects
-                    when {
-                        el.hasAttribute("cx") -> {
-                            el.setAttribute("cx", x.toInt().toString())
-                            el.setAttribute("cy", y.toInt().toString())
-                        }
-                        else -> {
-                            el.setAttribute("x", x.toInt().toString())
-                            el.setAttribute("y", y.toInt().toString())
-                        }
-                    }
-                }
-            }
-            is SmilAnimation.Set -> {
-                if (tMs >= anim.beginMs) {
-                    el.setAttribute(anim.attribute, anim.to)
-                }
-            }
+            is SmilAnimation.Set -> anim.to
             is SmilAnimation.Fill -> {
                 val t = normalise(tMs, anim.beginMs, anim.durationMs)
                 when {
-                    t < 0.0f -> {
-                        // before animation — keep original (fromColor if known)
-                        if (anim.fromColor != null) el.setAttribute("fill", anim.fromColor)
-                    }
-                    t <= 1.0f -> {
-                        // during animation — lerp from fromColor to color
-                        val from = anim.fromColor ?: "none"
-                        val value = lerp(from, anim.color, t)
-                        el.setAttribute("fill", value)
-                    }
-                    else -> {
-                        // after animation (fill=freeze semantics) — restore fromColor
-                        val restored = anim.fromColor ?: anim.color
-                        el.setAttribute("fill", restored)
-                    }
+                    t <= 1f -> lerp(anim.fromColor ?: "none", anim.color, t)
+                    else -> anim.color
                 }
             }
+            is SmilAnimation.AnimateMotion -> null // handled separately
+        }
+
+    /**
+     * In the SVG string, find the opening tag of any element whose `id` attribute equals
+     * [elementId], then set [attribute] to [value] — replacing any existing value or
+     * appending before the closing `>` / `/>`.
+     *
+     * This operates on the raw SVG string to avoid JAXP namespace re-prefixing issues.
+     */
+    private fun setAttr(
+        svg: String,
+        elementId: String,
+        attribute: String,
+        value: String,
+    ): String {
+        val idEsc = Regex.escape(elementId)
+        val attrEsc = Regex.escape(attribute)
+        val valueEsc = value.replace("&", "&amp;").replace("\"", "&quot;")
+
+        // Match any opening SVG/XML tag that contains id="elementId".
+        // The tag may span multiple lines (DOT_MATCHES_ALL) and the id attribute
+        // can appear anywhere in the attribute list.
+        val tagPattern =
+            Regex(
+                """(<[\w:]+(?:\s+[^>]*?)?\s+id="$idEsc"[^>]*?)(/>|>)""",
+                setOf(RegexOption.DOT_MATCHES_ALL),
+            )
+
+        return tagPattern.replace(svg) { mr ->
+            val tagBody = mr.groupValues[1]
+            val closing = mr.groupValues[2]
+            // Replace existing attribute or append before the closing delimiter
+            val existingAttr = Regex("""\s+$attrEsc="[^"]*"""")
+            val newBody =
+                if (existingAttr.containsMatchIn(tagBody)) {
+                    existingAttr.replace(tagBody) { """ $attribute="$valueEsc"""" }
+                } else {
+                    """$tagBody $attribute="$valueEsc""""
+                }
+            "$newBody$closing"
         }
     }
 
-    /**
-     * Returns the normalised time in [-1.0, 2.0]:
-     * - exactly in [0.0, 1.0] while the animation window is active,
-     * - < 0 when `t` is before `beginMs` (coerced to -1.0 minimum),
-     * - > 1.0 when `t` is after the window ends (coerced to 2.0 maximum) for
-     *   finite [repeatCount] animations (fill=freeze semantics).
-     *
-     * For [SmilAnimation.REPEAT_INDEFINITE] ([repeatCount] == 0) animations, time beyond
-     * the first play-through wraps modulo [durationMs] so the animation cycles
-     * continuously. This matches SMIL `repeatCount="indefinite"` / Batik engine behaviour
-     * and prevents the fallback sampler from silently freezing indefinitely-repeating
-     * animations at their terminal frame.
-     *
-     * The upper coerce bound (2.0) is arbitrary but finite so callers can still
-     * distinguish "before" (< 0) from "after" (> 1) without numeric overflow.
-     * [applyAnimation] uses the explicit `t in 0.0f..1.0f` range guard so the
-     * lerp clamping inside [lerp] (via [coerceIn]) is the last line of defence
-     * rather than the only one.
-     */
+    // ── Animation interpolation helpers ───────────────────────────────────────
+
     private fun normalise(
         tMs: Long,
         beginMs: Long,
@@ -273,37 +224,25 @@ public object SmilTimelineFrameSampler {
         if (durationMs <= 0L) return if (tMs >= beginMs) 1.0f else -1.0f
         val elapsed = tMs - beginMs
         if (elapsed < 0L) return (elapsed.toFloat() / durationMs).coerceIn(-1.0f, -0.0f)
-        // For indefinitely repeating animations, wrap the elapsed time modulo durationMs
-        // so the animation cycles rather than freezing at fill=freeze.
         val effectiveElapsed =
-            if (repeatCount == SmilAnimation.REPEAT_INDEFINITE) {
-                elapsed % durationMs
-            } else {
-                elapsed
-            }
+            if (repeatCount == SmilAnimation.REPEAT_INDEFINITE) elapsed % durationMs else elapsed
         return (effectiveElapsed.toFloat() / durationMs).coerceIn(0.0f, 2.0f)
     }
 
-    /**
-     * Linearly interpolate between two string values.
-     * Tries numeric interpolation first; falls back to threshold (from/to).
-     */
     private fun lerp(
         from: String,
         to: String,
         t: Float,
     ): String {
         val clamped = t.coerceIn(0.0f, 1.0f)
-        // Numeric interpolation (single number or space-separated numbers)
         val fromNums = from.trim().split("\\s+".toRegex()).mapNotNull { it.toFloatOrNull() }
         val toNums = to.trim().split("\\s+".toRegex()).mapNotNull { it.toFloatOrNull() }
         if (fromNums.size == toNums.size && fromNums.isNotEmpty()) {
             return fromNums.zip(toNums).joinToString(" ") { (a, b) ->
                 val v = a + (b - a) * clamped
-                if (v == v.toLong().toFloat()) v.toLong().toString() else "%.4f".format(v)
+                if (v == v.toLong().toFloat()) v.toLong().toString() else String.format(Locale.ROOT, "%.4f", v)
             }
         }
-        // Colour interpolation: #rrggbb
         val fc = parseHexColor(from)
         val tc = parseHexColor(to)
         if (fc != null && tc != null) {
@@ -312,15 +251,8 @@ public object SmilTimelineFrameSampler {
             val b = (fc[2] + (tc[2] - fc[2]) * clamped).toInt().coerceIn(0, 255)
             return "#%02x%02x%02x".format(r, g, b)
         }
-        // Fallback: threshold
         return if (clamped < 1.0f) from else to
     }
-
-    private fun lerpTransform(
-        from: String,
-        to: String,
-        t: Float,
-    ): String = lerp(from, to, t)
 
     private fun parseHexColor(s: String): FloatArray? {
         val hex = s.trim().trimStart('#')
@@ -341,21 +273,17 @@ public object SmilTimelineFrameSampler {
         }
     }
 
-    /**
-     * Compute a point at fractional distance [t] (0.0–1.0) along an SVG path [d].
-     */
+    // ── SVG path traversal for AnimateMotion ──────────────────────────────────
+
     private fun pointAlongPath(
         d: String,
         t: Double,
     ): Pair<Double, Double> =
         try {
             val path = GeneralPath()
-            // Basic SVG path parser for M/L/C/Z commands
             parseSvgPathInto(d, path)
-            val flat = FlatteningPathIterator(path.getPathIterator(AffineTransform()), 1.0)
-            val totalLength = pathLength(flat)
-            val target = totalLength * t.coerceIn(0.0, 1.0)
-            pointAtLength(path.getPathIterator(AffineTransform()), target)
+            val totalLength = pathLength(path.getPathIterator(AffineTransform()))
+            pointAtLength(path.getPathIterator(AffineTransform()), totalLength * t.coerceIn(0.0, 1.0))
         } catch (_: Exception) {
             Pair(0.0, 0.0)
         }
@@ -378,6 +306,11 @@ public object SmilTimelineFrameSampler {
                     px = coords[0]
                     py = coords[1]
                 }
+                java.awt.geom.PathIterator.SEG_CUBICTO -> {
+                    // Approximate cubic Bezier length via FlatteningPathIterator (done by caller)
+                    px = coords[4]
+                    py = coords[5]
+                }
                 else -> {}
             }
             iter.next()
@@ -389,12 +322,13 @@ public object SmilTimelineFrameSampler {
         iter: java.awt.geom.PathIterator,
         target: Double,
     ): Pair<Double, Double> {
+        val flat = FlatteningPathIterator(iter, 1.0)
         val coords = DoubleArray(6)
         var len = 0.0
         var px = 0.0
         var py = 0.0
-        while (!iter.isDone) {
-            when (iter.currentSegment(coords)) {
+        while (!flat.isDone) {
+            when (flat.currentSegment(coords)) {
                 java.awt.geom.PathIterator.SEG_MOVETO -> {
                     px = coords[0]
                     py = coords[1]
@@ -413,20 +347,11 @@ public object SmilTimelineFrameSampler {
                 }
                 else -> {}
             }
-            iter.next()
+            flat.next()
         }
         return Pair(px, py)
     }
 
-    /**
-     * SVG path d-string parser — handles M, L, C, Z, H, V, Q, S, T commands
-     * (absolute and relative variants). A (arc) is approximated as a straight line
-     * to its endpoint since [GeneralPath] has no native arc support and the approximation
-     * is sufficient for animation-path length calculations.
-     *
-     * Unknown commands are logged as a warning rather than silently breaking the parse
-     * (silent break yields (0,0) for all t > 0, which produces frozen motion with no error).
-     */
     private fun parseSvgPathInto(
         d: String,
         path: GeneralPath,
@@ -440,11 +365,9 @@ public object SmilTimelineFrameSampler {
                 .toMutableList()
         var i = 0
         var cmd = ' '
-        // Track last cubic control point for S (smooth cubic)
         var lastCx2 = 0.0
         var lastCy2 = 0.0
         var lastCubic = false
-        // Track last quadratic control point for T (smooth quadratic)
         var lastQx = 0.0
         var lastQy = 0.0
         var lastQuad = false
@@ -466,7 +389,6 @@ public object SmilTimelineFrameSampler {
                     val y = tokens.getOrNull(i + 1)?.toDoubleOrNull() ?: break
                     if (cmd.isUpperCase()) path.moveTo(x, y) else path.moveTo(cx + x, cy + y)
                     i += 2
-                    // Implicit lineto after moveto
                     cmd = if (cmd.isUpperCase()) 'L' else 'l'
                 }
                 'L' -> {
@@ -506,7 +428,6 @@ public object SmilTimelineFrameSampler {
                     i += 6
                 }
                 'S' -> {
-                    // Smooth cubic: control point 1 is reflection of last C's cp2
                     val x2 = tokens.getOrNull(i)?.toDoubleOrNull() ?: break
                     val y2 = tokens.getOrNull(i + 1)?.toDoubleOrNull() ?: break
                     val x = tokens.getOrNull(i + 2)?.toDoubleOrNull() ?: break
@@ -531,9 +452,10 @@ public object SmilTimelineFrameSampler {
                     val qy = tokens.getOrNull(i + 1)?.toDoubleOrNull() ?: break
                     val x = tokens.getOrNull(i + 2)?.toDoubleOrNull() ?: break
                     val y = tokens.getOrNull(i + 3)?.toDoubleOrNull() ?: break
-                    // Approximate quadratic Bezier as cubic
-                    val (aqx, aqy, ax, ay) =
-                        if (cmd.isUpperCase()) listOf(qx, qy, x, y) else listOf(cx + qx, cy + qy, cx + x, cy + y)
+                    val aqx = if (cmd.isUpperCase()) qx else cx + qx
+                    val aqy = if (cmd.isUpperCase()) qy else cy + qy
+                    val ax = if (cmd.isUpperCase()) x else cx + x
+                    val ay = if (cmd.isUpperCase()) y else cy + y
                     val cp1x = cx + 2.0 / 3.0 * (aqx - cx)
                     val cp1y = cy + 2.0 / 3.0 * (aqy - cy)
                     val cp2x = ax + 2.0 / 3.0 * (aqx - ax)
@@ -546,12 +468,12 @@ public object SmilTimelineFrameSampler {
                     i += 4
                 }
                 'T' -> {
-                    // Smooth quadratic: reflected control point
                     val x = tokens.getOrNull(i)?.toDoubleOrNull() ?: break
                     val y = tokens.getOrNull(i + 1)?.toDoubleOrNull() ?: break
                     val aqx = if (lastQuad) 2 * cx - lastQx else cx
                     val aqy = if (lastQuad) 2 * cy - lastQy else cy
-                    val (ax, ay) = if (cmd.isUpperCase()) Pair(x, y) else Pair(cx + x, cy + y)
+                    val ax = if (cmd.isUpperCase()) x else cx + x
+                    val ay = if (cmd.isUpperCase()) y else cy + y
                     val cp1x = cx + 2.0 / 3.0 * (aqx - cx)
                     val cp1y = cy + 2.0 / 3.0 * (aqy - cy)
                     val cp2x = ax + 2.0 / 3.0 * (aqx - ax)
@@ -564,10 +486,6 @@ public object SmilTimelineFrameSampler {
                     i += 2
                 }
                 'A' -> {
-                    // Arc: approximate as straight line to endpoint (sufficient for length sampling).
-                    // Arc params: rx ry x-rotation large-arc-flag sweep-flag x y
-                    // The first 5 params (rx,ry,xRot,largeArc,sweep) control the arc shape but
-                    // are not needed for the endpoint-only approximation — consume them to advance i.
                     if (tokens.size <= i + 6) break
                     val x = tokens.getOrNull(i + 5)?.toDoubleOrNull() ?: break
                     val y = tokens.getOrNull(i + 6)?.toDoubleOrNull() ?: break
@@ -582,21 +500,10 @@ public object SmilTimelineFrameSampler {
                     lastQuad = false
                 }
                 else -> {
-                    log.warning(
-                        "SmilTimelineFrameSampler: unknown SVG path command '$cmd' at token $i " +
-                            "in path '${if (d.length > 80) d.take(80) + "…" else d}'. " +
-                            "Motion animation will be incorrect from this point onward.",
-                    )
-                    i++ // skip unknown token to avoid infinite loop
+                    log.warning("Unknown SVG path command '$cmd' at token $i")
+                    i++
                 }
             }
         }
-    }
-
-    private fun docToString(doc: Document): String {
-        val transformer = TransformerFactory.newInstance().newTransformer()
-        val writer = StringWriter()
-        transformer.transform(DOMSource(doc), StreamResult(writer))
-        return writer.toString()
     }
 }
