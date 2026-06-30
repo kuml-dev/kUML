@@ -26,6 +26,8 @@ import dev.kuml.io.svg.bpmn.smil.BpmnAnimationContext
 import dev.kuml.io.svg.bpmn.smil.BpmnSmilRenderer
 import dev.kuml.io.svg.stm.smil.StmAnimationContext
 import dev.kuml.io.svg.stm.smil.StmSmilRenderer
+import dev.kuml.io.svg.uml.smil.SequenceAnimationContext
+import dev.kuml.io.svg.uml.smil.SequenceSmilRenderer
 import dev.kuml.layout.DiagramKind
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutEngineRegistry
@@ -328,6 +330,28 @@ internal object RenderPipeline {
                                 options = svgOptions,
                                 trace = trace,
                                 context = ActivityAnimationContext(speedFactor = SpeedFactor(speed)),
+                            )
+                        writeText(output, result.svg)
+                    }
+                    animated && diagram.type == DiagramType.SEQUENCE -> {
+                        // Sequence Diagram animated rendering — trace-driven via SequenceSmilRenderer.
+                        // Requires a kuml.trace.v1 JSON file with MessageSent entries.
+                        // Falls back to static SVG when no trace file is provided.
+                        val trace = traceFile?.let { TraceFileLoader.load(it) }
+                        if (trace == null) {
+                            System.err.println(
+                                "[kuml] WARNING: --animated requested for UML Sequence but no --trace file provided. " +
+                                    "Sequence animation requires a kuml.trace.v1 JSON file with MessageSent entries. " +
+                                    "Falling back to static SVG.",
+                            )
+                        }
+                        val result =
+                            SequenceSmilRenderer.render(
+                                diagram = diagram,
+                                layoutResult = layoutResult,
+                                theme = theme,
+                                trace = trace,
+                                context = SequenceAnimationContext(speedFactor = SpeedFactor(speed)),
                             )
                         writeText(output, result.svg)
                     }
