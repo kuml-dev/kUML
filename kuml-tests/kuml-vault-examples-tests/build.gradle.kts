@@ -26,6 +26,7 @@ dependencies {
     testImplementation(project(":kuml-io:kuml-io-png"))
     testImplementation(project(":kuml-io:kuml-io-latex"))
     testImplementation(project(":kuml-io:kuml-io-arxml")) // V3.1.36 — ArxmlComponentRenderTest
+    testImplementation(project(":kuml-io:kuml-io-anim")) // V3.2 — APNG/WebP sample output in SMIL tests
     // kotlin-scripting-* are implementation (not api) in kuml-core-script,
     // so we need to list them here explicitly for access to ResultWithDiagnostics etc.
     testImplementation(libs.kotlin.scripting.common)

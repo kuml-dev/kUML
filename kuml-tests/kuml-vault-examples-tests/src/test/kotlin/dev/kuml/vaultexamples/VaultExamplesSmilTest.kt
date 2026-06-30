@@ -1,6 +1,11 @@
 package dev.kuml.vaultexamples
 
+import dev.kuml.io.anim.AnimEncoderException
+import dev.kuml.io.anim.AnimFormat
+import dev.kuml.io.anim.AnimRenderOptions
+import dev.kuml.io.anim.KumlAnimRenderer
 import dev.kuml.io.svg.uml.smil.SequenceAnimationContext
+import dev.kuml.render.smil.SmilTimeline
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.string.shouldContain
@@ -49,6 +54,32 @@ class VaultExamplesSmilTest :
                 ?.readText()
                 ?: error("Classpath-Ressource nicht gefunden: /vault-examples/$filename")
 
+        // ── Animated raster helpers ───────────────────────────────────────────
+
+        /**
+         * Writes APNG + WebP sample output next to the animated SVG.
+         * WebP is skipped (with a printed warning) when ffmpeg is not on PATH —
+         * the test itself does not fail in that case because ffmpeg is an optional
+         * system dependency, not a build-time requirement.
+         */
+        fun writeAnimatedRaster(
+            baseName: String,
+            svg: String,
+            timeline: SmilTimeline,
+        ) {
+            val apngOptions = AnimRenderOptions(format = AnimFormat.APNG, widthPx = 1024)
+            val apngBytes = KumlAnimRenderer.toAnimated(svg, timeline, apngOptions)
+            SampleOutput.writeBytes("$baseName.apng", apngBytes)
+
+            val webpOptions = AnimRenderOptions(format = AnimFormat.WEBP, widthPx = 1024)
+            try {
+                val webpBytes = KumlAnimRenderer.toAnimated(svg, timeline, webpOptions)
+                SampleOutput.writeBytes("$baseName.webp", webpBytes)
+            } catch (e: AnimEncoderException) {
+                println("[sample-output] WebP skipped (ffmpeg not available): ${e.message}")
+            }
+        }
+
         // ── SMIL output directory ─────────────────────────────────────────────
 
         val smilOutputDir = "vault-examples/smil"
@@ -72,6 +103,13 @@ class VaultExamplesSmilTest :
             SampleOutput.write(
                 "$smilOutputDir/07_BPMN_animiert_PdV_Mitgliedsantrag.svg",
                 result.svg,
+            )
+
+            // Write animated APNG + WebP
+            writeAnimatedRaster(
+                "$smilOutputDir/07_BPMN_animiert_PdV_Mitgliedsantrag",
+                result.svg,
+                result.timeline,
             )
 
             // Static snapshot via re-render with trace=null for byte-identical output
@@ -103,6 +141,13 @@ class VaultExamplesSmilTest :
             SampleOutput.write(
                 "$smilOutputDir/08_STM_animiert_Traffic_Light.svg",
                 result.svg,
+            )
+
+            // Write animated APNG + WebP
+            writeAnimatedRaster(
+                "$smilOutputDir/08_STM_animiert_Traffic_Light",
+                result.svg,
+                result.timeline,
             )
 
             // Static snapshot
@@ -166,6 +211,13 @@ class VaultExamplesSmilTest :
             SampleOutput.write(
                 "$smilOutputDir/19_UML_Sequence_animiert_API_Submit.svg",
                 result.svg,
+            )
+
+            // Write animated APNG + WebP
+            writeAnimatedRaster(
+                "$smilOutputDir/19_UML_Sequence_animiert_API_Submit",
+                result.svg,
+                result.timeline,
             )
 
             val staticResult = AnimatedExampleRenderer.renderSequence(kumlScript, traceJson = EMPTY_TRACE_JSON)
