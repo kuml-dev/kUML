@@ -267,7 +267,14 @@ object VaultExampleRenderer {
                                     )
                                 KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                             }
-                            is ChoreographyDiagram -> null // SVG rendering not yet implemented for choreography
+                            is ChoreographyDiagram -> {
+                                val layout =
+                                    elkEngine.layout(
+                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram),
+                                        LayoutHints.DEFAULT,
+                                    )
+                                KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                            }
                             is ConversationDiagram -> {
                                 val layout =
                                     elkEngine.layout(

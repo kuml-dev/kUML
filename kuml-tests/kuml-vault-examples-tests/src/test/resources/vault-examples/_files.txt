@@ -40,3 +40,5 @@
 33 Blueprint – PdV Mitglieder-Journey.md
 34 User Journey – PdV Mitglieder-Journey.md
 35 AUTOSAR Classic – SW-Komponenten.md
+36 BPMN Conversation – PdV Kommunikation.md
+37 BPMN Choreography – Bestellprozess.md
