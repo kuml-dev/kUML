@@ -5,6 +5,11 @@ import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnSubProcess
+import dev.kuml.bpmn.model.ChoreographyDiagram
+import dev.kuml.bpmn.model.ChoreographyEvent
+import dev.kuml.bpmn.model.ChoreographyGateway
+import dev.kuml.bpmn.model.ChoreographySequenceFlow
+import dev.kuml.bpmn.model.ChoreographyTask
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Diagram
@@ -21,6 +26,10 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
 import dev.kuml.core.model.PackageDiagramConfig
 import dev.kuml.io.svg.blueprint.renderBlueprintJourney
+import dev.kuml.io.svg.bpmn.renderChoreoSequenceFlow
+import dev.kuml.io.svg.bpmn.renderChoreographyEvent
+import dev.kuml.io.svg.bpmn.renderChoreographyGateway
+import dev.kuml.io.svg.bpmn.renderChoreographyTask
 import dev.kuml.io.svg.c4.c4RelationshipLabel
 import dev.kuml.io.svg.c4.renderC4Interaction
 import dev.kuml.io.svg.c4.renderC4Relationship
@@ -2970,6 +2979,114 @@ public object KumlSvgRenderer {
         file.parentFile?.mkdirs()
         file.writeText(svg, Charsets.UTF_8)
         return file
+    }
+
+    /**
+     * Rendert ein BPMN-Choreografie-Diagramm als SVG.
+     *
+     * Render-Reihenfolge (flach, keine Groups/Pools):
+     *  1. ChoreographyTasks mit doppeltem Rahmen und Participant-Bands.
+     *  2. ChoreographyGateways als Rauten.
+     *  3. ChoreographyEvents als Kreise.
+     *  4. ChoreographySequenceFlows als Pfeile.
+     *
+     * @param model Das BPMN-Modell mit der referenzierten Choreography.
+     * @param diagram Das [ChoreographyDiagram] mit dem Verweis auf eine Choreography.
+     * @param layoutResult Berechnete Positionen und Routing-Pfade.
+     * @param theme Visuelles Theme; Standard: [PlainTheme].
+     * @param options Renderer-Optionen; Standard: [SvgRenderOptions.DEFAULT].
+     *
+     * V3.2.2 — BPMN Choreography SVG-Renderer
+     */
+    public fun toSvg(
+        model: BpmnModel,
+        diagram: ChoreographyDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): String = renderBpmnChoreography(model, diagram, layoutResult, theme, options)
+
+    /** [toSvg]-Variante für BPMN-Choreografie-Diagramme, schreibt direkt auf Platte. */
+    public fun toSvgFile(
+        model: BpmnModel,
+        diagram: ChoreographyDiagram,
+        layoutResult: LayoutResult,
+        out: java.nio.file.Path,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    ): java.io.File {
+        val svg = toSvg(model, diagram, layoutResult, theme, options)
+        val file = out.toFile()
+        file.parentFile?.mkdirs()
+        file.writeText(svg, Charsets.UTF_8)
+        return file
+    }
+
+    /**
+     * Dedizierter Render-Pfad für BPMN-Choreografie-Diagramme.
+     *
+     * Flache Struktur (keine Groups): Tasks, Gateways und Events werden direkt
+     * als Nodes gerendert, SequenceFlows als Kanten. Keine Canvas-Inflation
+     * für Event-/Gateway-Labels (TODO V3.2.3).
+     *
+     * V3.2.2 — BPMN Choreography SVG-Renderer
+     */
+    private fun renderBpmnChoreography(
+        model: BpmnModel,
+        diagram: ChoreographyDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+    ): String {
+        val choreography =
+            model.choreographies.firstOrNull { it.id == diagram.choreographyId }
+                ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> }
+
+        // Build element index
+        val taskById: Map<String, ChoreographyTask> = choreography.tasks.associateBy { it.id }
+        val gatewayById: Map<String, ChoreographyGateway> = choreography.gateways.associateBy { it.id }
+        val eventById: Map<String, ChoreographyEvent> = choreography.events.associateBy { it.id }
+        val flowById: Map<String, ChoreographySequenceFlow> = choreography.sequenceFlows.associateBy { it.id }
+
+        return SvgDocument.render(
+            layoutResult,
+            theme,
+            options,
+            frameName = diagram.name,
+            frameTypeLabel = "choreography",
+        ) { nodesBuilder, edgesBuilder ->
+            val padding = options.paddingPx
+
+            // Nodes
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                when {
+                    taskById.containsKey(nodeId.value) ->
+                        renderChoreographyTask(taskById[nodeId.value]!!, shifted, theme, nodesBuilder)
+                    gatewayById.containsKey(nodeId.value) ->
+                        renderChoreographyGateway(gatewayById[nodeId.value]!!, shifted, theme, nodesBuilder)
+                    eventById.containsKey(nodeId.value) ->
+                        renderChoreographyEvent(eventById[nodeId.value]!!, shifted, theme, nodesBuilder)
+                }
+            }
+
+            // Edges
+            for ((edgeId, route) in layoutResult.edges) {
+                val flow = flowById[edgeId.value] ?: continue
+                val shiftedRoute = shiftRoute(route, padding)
+                renderChoreoSequenceFlow(flow, shiftedRoute, edgesBuilder, theme)
+            }
+        }
     }
 
     /**

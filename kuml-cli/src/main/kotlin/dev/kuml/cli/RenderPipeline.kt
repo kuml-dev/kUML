@@ -881,10 +881,19 @@ internal object RenderPipeline {
                     else -> throw ScriptEvaluationException("Unsupported format for BPMN: $format (supported: svg, png)")
                 }
             }
-            is ChoreographyDiagram ->
-                throw ScriptEvaluationException(
-                    "Rendering für BPMN-Choreografie-Diagramme ist noch nicht implementiert.",
-                )
+            is ChoreographyDiagram -> {
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                when (format) {
+                    "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme))
+                    "png" -> {
+                        val svg = KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme)
+                        val pngBytes = KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = width))
+                        writeBinary(output, pngBytes)
+                    }
+                    else -> throw ScriptEvaluationException("Unsupported format for BPMN: $format (supported: svg, png)")
+                }
+            }
         }
     }
 

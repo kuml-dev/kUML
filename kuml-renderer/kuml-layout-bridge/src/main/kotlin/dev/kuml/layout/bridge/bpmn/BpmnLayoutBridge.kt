@@ -8,6 +8,10 @@ import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.bpmn.model.BpmnTask
+import dev.kuml.bpmn.model.ChoreographyDiagram
+import dev.kuml.bpmn.model.ChoreographyEvent
+import dev.kuml.bpmn.model.ChoreographyGateway
+import dev.kuml.bpmn.model.ChoreographyTask
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.bpmn.model.MessageFlow
 import dev.kuml.bpmn.model.ProcessDiagram
@@ -66,6 +70,9 @@ public object BpmnLayoutBridge {
 
     /** Standard-Knotengröße für BPMN-DataObjects (Breite × Höhe). */
     public val DEFAULT_DATA_OBJECT_SIZE: Size = Size(40f, 55f)
+
+    /** Standard-Knotengröße für BPMN-Choreography-Tasks (Breite × Höhe). */
+    public val DEFAULT_CHOREO_TASK_SIZE: Size = Size(160f, 80f)
 
     /**
      * Übersetzt [diagram] mithilfe von [model] als Lookup-Kontext in einen [LayoutGraph].
@@ -510,6 +517,82 @@ public object BpmnLayoutBridge {
         }
 
         return LayoutGraph(nodes = nodes, edges = edges, groups = groups)
+    }
+
+    /**
+     * Übersetzt ein [BpmnModel] + [ChoreographyDiagram] in einen [LayoutGraph].
+     *
+     * Flaches Layout ohne Groups (Choreographien haben keine Pools/Lanes):
+     * - [ChoreographyTask]s → [DEFAULT_CHOREO_TASK_SIZE] (160×80 px)
+     * - [ChoreographyGateway]s → [DEFAULT_GATEWAY_SIZE] (50×70 px)
+     * - [ChoreographyEvent]s → [DEFAULT_EVENT_SIZE] (36×56 px)
+     * - [dev.kuml.bpmn.model.ChoreographySequenceFlow]s → [LayoutEdge]
+     *
+     * Ist [ChoreographyDiagram.elementIds] leer, werden alle Elemente der
+     * referenzierten Choreography angezeigt (Konvention wie ProcessDiagram).
+     *
+     * V3.2.2 — BPMN Choreography SVG-Renderer
+     *
+     * @param model Das BPMN-Modell mit allen Choreographien.
+     * @param diagram Das [ChoreographyDiagram], das festlegt, welche Choreography
+     *   und welche Elemente angezeigt werden.
+     * @param sizeProvider Optionaler SizeProvider; überschreibt Standardgrößen.
+     */
+    public fun toLayoutGraph(
+        model: BpmnModel,
+        diagram: ChoreographyDiagram,
+        sizeProvider: SizeProvider? = null,
+    ): LayoutGraph {
+        val choreography =
+            model.choreographies.firstOrNull { it.id == diagram.choreographyId }
+                ?: return LayoutGraph(nodes = emptyList(), edges = emptyList(), groups = emptyList())
+
+        val filterIds =
+            diagram.elementIds.takeIf { it.isNotEmpty() }?.toSet()
+
+        val nodes = mutableListOf<LayoutNode>()
+        val edges = mutableListOf<LayoutEdge>()
+        val addedNodeIds = mutableSetOf<String>()
+
+        // Nodes
+        for (task in choreography.tasks) {
+            if (filterIds != null && task.id !in filterIds) continue
+            val size =
+                sizeProvider?.sizeOf(task.id, "ChoreographyTask") ?: DEFAULT_CHOREO_TASK_SIZE
+            nodes.add(LayoutNode(id = NodeId(task.id), intrinsicSize = size, groupId = null))
+            addedNodeIds.add(task.id)
+        }
+        for (gw in choreography.gateways) {
+            if (filterIds != null && gw.id !in filterIds) continue
+            val size =
+                sizeProvider?.sizeOf(gw.id, "ChoreographyGateway") ?: DEFAULT_GATEWAY_SIZE
+            nodes.add(LayoutNode(id = NodeId(gw.id), intrinsicSize = size, groupId = null))
+            addedNodeIds.add(gw.id)
+        }
+        for (event in choreography.events) {
+            if (filterIds != null && event.id !in filterIds) continue
+            val size =
+                sizeProvider?.sizeOf(event.id, "ChoreographyEvent") ?: DEFAULT_EVENT_SIZE
+            nodes.add(LayoutNode(id = NodeId(event.id), intrinsicSize = size, groupId = null))
+            addedNodeIds.add(event.id)
+        }
+
+        // Edges
+        for (sf in choreography.sequenceFlows) {
+            if (filterIds != null && sf.id !in filterIds) continue
+            if (sf.sourceRef in addedNodeIds && sf.targetRef in addedNodeIds) {
+                edges.add(
+                    LayoutEdge(
+                        id = EdgeId(sf.id),
+                        source = EndpointRef(nodeId = NodeId(sf.sourceRef)),
+                        target = EndpointRef(nodeId = NodeId(sf.targetRef)),
+                        hints = EdgeHints.NONE,
+                    ),
+                )
+            }
+        }
+
+        return LayoutGraph(nodes = nodes, edges = edges, groups = emptyList())
     }
 
     // ── Swimlane sizing constants ─────────────────────────────────────────────

@@ -239,9 +239,10 @@ internal object GradlePipeline {
                         val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
                         KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                     }
-                    is ChoreographyDiagram -> throw ScriptEvaluationException(
-                        "SVG-Rendering für BPMN-Choreografie-Diagramme ist noch nicht implementiert.",
-                    )
+                    is ChoreographyDiagram -> {
+                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                    }
                 }
             }
             // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
@@ -290,9 +291,11 @@ internal object GradlePipeline {
                         val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                         KumlPngRenderer.toPng(svg, options)
                     }
-                    is ChoreographyDiagram -> throw ScriptEvaluationException(
-                        "PNG-Rendering für BPMN-Choreografie-Diagramme ist noch nicht implementiert.",
-                    )
+                    is ChoreographyDiagram -> {
+                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlPngRenderer.toPng(svg, options)
+                    }
                 }
             }
             // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
