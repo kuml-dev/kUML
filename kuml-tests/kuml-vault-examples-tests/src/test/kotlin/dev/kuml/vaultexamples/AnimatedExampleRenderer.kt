@@ -13,6 +13,9 @@ import dev.kuml.io.svg.bpmn.smil.BpmnSmilRenderer
 import dev.kuml.io.svg.stm.smil.AnimatedStmRenderResult
 import dev.kuml.io.svg.stm.smil.StmAnimationContext
 import dev.kuml.io.svg.stm.smil.StmSmilRenderer
+import dev.kuml.io.svg.uml.smil.AnimatedSequenceRenderResult
+import dev.kuml.io.svg.uml.smil.SequenceAnimationContext
+import dev.kuml.io.svg.uml.smil.SequenceSmilRenderer
 import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.bridge.UmlContentSizeProvider
@@ -40,6 +43,19 @@ internal object AnimatedExampleRenderer {
     private val paddingOpts = SvgRenderOptions(paddingPx = 64f)
 
     /**
+     * Maximum allowed length (in characters) for a trace JSON string passed to the render
+     * helpers in this class.
+     *
+     * Prevents OOM from unbounded deserialization: [KumlRuntimeJson.decodeFromString] with
+     * [TraceFile.serializer] deserializes the entire JSON payload into a heap-allocated
+     * [TraceFile] before any entry-count guard fires. A malicious or accidental multi-MB
+     * string would exhaust heap before [dev.kuml.io.svg.uml.smil.SequenceAnimationContext.MAX_ANIMATIONS]
+     * has any effect. 1 MB of JSON can encode roughly 10,000–50,000 trace entries — well
+     * beyond any realistic test input.
+     */
+    private const val MAX_TRACE_JSON_CHARS: Int = 1_048_576 // 1 MB
+
+    /**
      * Renders an animated BPMN vault example.
      *
      * @param script The kUML script text from the `.md` file's ` ```kuml ` block.
@@ -58,6 +74,10 @@ internal object AnimatedExampleRenderer {
             LayoutEngineRegistry.get("elk.layered")
                 ?: error("ELK-Layout-Engine nicht verfügbar")
 
+        require(traceJson.length <= MAX_TRACE_JSON_CHARS) {
+            "Trace JSON is ${traceJson.length} chars which exceeds the maximum of $MAX_TRACE_JSON_CHARS. " +
+                "Reduce trace length."
+        }
         val traceFile = KumlRuntimeJson.decodeFromString(TraceFile.serializer(), traceJson)
 
         val evalResult = KumlScriptHost.eval(script)
@@ -129,6 +149,10 @@ internal object AnimatedExampleRenderer {
             LayoutEngineRegistry.get("elk.layered")
                 ?: error("ELK-Layout-Engine nicht verfügbar")
 
+        require(traceJson.length <= MAX_TRACE_JSON_CHARS) {
+            "Trace JSON is ${traceJson.length} chars which exceeds the maximum of $MAX_TRACE_JSON_CHARS. " +
+                "Reduce trace length."
+        }
         val traceFile = KumlRuntimeJson.decodeFromString(TraceFile.serializer(), traceJson)
 
         val evalResult = KumlScriptHost.eval(script)
@@ -157,6 +181,62 @@ internal object AnimatedExampleRenderer {
         return StmSmilRenderer.render(
             diagram = extracted.diagram,
             stateMachine = stateMachine,
+            layoutResult = layout,
+            options = paddingOpts,
+            trace = traceFile,
+            context = context,
+        )
+    }
+
+    /**
+     * Renders an animated UML Sequence Diagram vault example.
+     *
+     * The script must use the `sequenceDiagram { }` DSL, which yields a
+     * [dev.kuml.uml.UmlInteraction] inside [ExtractedDiagram.Uml].
+     *
+     * @param script The kUML script text from the `.md` file's ` ```kuml ` block.
+     * @param traceJson A `kuml.trace.v1` JSON string with [dev.kuml.runtime.TraceEntry.MessageSent] entries.
+     *   Parsed via [KumlRuntimeJson].
+     * @param context Animation tuning. Defaults to [SequenceAnimationContext.DEFAULT].
+     * @return [AnimatedSequenceRenderResult] with the SVG and animation flag.
+     */
+    fun renderSequence(
+        script: String,
+        traceJson: String,
+        context: SequenceAnimationContext = SequenceAnimationContext.DEFAULT,
+    ): AnimatedSequenceRenderResult {
+        VaultExampleRenderer.init()
+
+        val elkEngine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: error("ELK-Layout-Engine nicht verfügbar")
+
+        require(traceJson.length <= MAX_TRACE_JSON_CHARS) {
+            "Trace JSON is ${traceJson.length} chars which exceeds the maximum of $MAX_TRACE_JSON_CHARS. " +
+                "Reduce trace length."
+        }
+        val traceFile = KumlRuntimeJson.decodeFromString(TraceFile.serializer(), traceJson)
+
+        val evalResult = KumlScriptHost.eval(script)
+        val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
+        check(errors.isEmpty() && evalResult !is ResultWithDiagnostics.Failure) {
+            errors.joinToString("\n") { it.message }.ifBlank { "Script-Auswertung fehlgeschlagen" }
+        }
+        val success = evalResult as ResultWithDiagnostics.Success
+
+        val extracted =
+            DiagramExtractor.extractAny(success.value.returnValue, File("inline.kuml.kts"))
+        check(extracted is ExtractedDiagram.Uml) {
+            "Erwartet ExtractedDiagram.Uml, erhalten: ${extracted::class.simpleName}"
+        }
+
+        val diagram = extracted.diagram
+        val sizeProvider = UmlContentSizeProvider(diagram)
+        val graph = UmlLayoutBridge.toLayoutGraph(diagram, sizeProvider)
+        val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
+
+        return SequenceSmilRenderer.render(
+            diagram = diagram,
             layoutResult = layout,
             options = paddingOpts,
             trace = traceFile,

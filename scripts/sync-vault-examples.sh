@@ -59,6 +59,7 @@ map_vault_to_web() {
     "33 Blueprint – PdV Mitglieder-Journey.md")   echo "blueprint-pdv-mitglieder-journey.kuml.kts" ;;
     "07 BPMN animiert – PdV Mitgliedsantrag.md") echo "bpmn-pdv-mitgliedsantrag-animiert.kuml.kts" ;;
     "08 STM animiert – Traffic Light.md")         echo "stm-traffic-light-animiert.kuml.kts" ;;
+    "19 UML Sequence animiert – API Submit.md")   echo "uml-sequence-api-submit-animiert.kuml.kts" ;;
     *)                                            echo "" ;;
   esac
 }

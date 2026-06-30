@@ -96,6 +96,9 @@ internal fun TraceEntry.withoutTimestamp(): TraceEntry =
         is TraceEntry.ActivityActionInvoked -> copy(timestamp = "")
         is TraceEntry.FlowFinalConsumed -> copy(timestamp = "")
         is TraceEntry.ActivityTerminated -> copy(timestamp = "")
+        // Interaction trace entries (V3.2)
+        is TraceEntry.MessageSent -> copy(timestamp = "")
+        is TraceEntry.MessageReceived -> copy(timestamp = "")
         // AI-lifecycle entries (V3.0.25) — timestamp stripping for stable diffs
         is AiTraceEntry.SessionStarted -> copy(timestamp = "")
         is AiTraceEntry.Validated -> copy(timestamp = "")
@@ -126,6 +129,9 @@ internal fun TraceEntry.shortDescr(): String =
         is TraceEntry.ActivityActionInvoked -> "ActivityActionInvoked($nodeId, body='$body')"
         is TraceEntry.FlowFinalConsumed -> "FlowFinalConsumed($nodeId)"
         is TraceEntry.ActivityTerminated -> "ActivityTerminated(clock=$clock)"
+        // Interaction trace entries (V3.2)
+        is TraceEntry.MessageSent -> "MessageSent(msg=$messageId, from=$fromLifelineId, to=$toLifelineId)"
+        is TraceEntry.MessageReceived -> "MessageReceived(msg=$messageId)"
         // AI-lifecycle entries (V3.0.25)
         is AiTraceEntry.SessionStarted -> "AiSessionStarted(session=$sessionId)"
         is AiTraceEntry.Validated -> "AiValidated(patch=$patchId, phase=$phase, errors=$errorCount)"

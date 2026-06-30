@@ -443,6 +443,9 @@ private fun TraceEntry.toOtlpEvent(timeUnixNano: Long): OtlpEvent? =
         is TraceEntry.StateExited -> null
         is TraceEntry.TokenPlaced -> null
         is TraceEntry.TokenConsumed -> null
+        // Interaction trace entries (V3.2) — no OTLP mapping yet
+        is TraceEntry.MessageSent -> null
+        is TraceEntry.MessageReceived -> null
         // AI-lifecycle entries (V3.0.25) are separated out before the main loop
         // and processed by buildAiOtlpResourceSpans() — they never reach here.
         is AiTraceEntry -> null

@@ -195,6 +195,26 @@ public sealed class TraceEntry {
         override val timestamp: String,
         public val clock: Long,
     ) : TraceEntry()
+
+    // ── Interaction (Sequence Diagram) trace entries (V3.2) ───────────────────
+
+    @Serializable
+    @SerialName("MessageSent")
+    public data class MessageSent(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val messageId: String,
+        public val fromLifelineId: String,
+        public val toLifelineId: String,
+    ) : TraceEntry()
+
+    @Serializable
+    @SerialName("MessageReceived")
+    public data class MessageReceived(
+        override val seqNo: Long,
+        override val timestamp: String,
+        public val messageId: String,
+    ) : TraceEntry()
 }
 
 /**

@@ -22,6 +22,7 @@
 16 UML Use Case – Online Shop.md
 17 UML Activity – Checkout Flow.md
 18 UML State Machine – Order Lifecycle.md
+19 UML Sequence animiert – API Submit.md
 19 UML Sequence – API Submit.md
 20 UML Communication – Place Order.md
 21 UML Timing – TCP Handshake.md

@@ -1,12 +1,13 @@
 package dev.kuml.vaultexamples
 
+import dev.kuml.io.svg.uml.smil.SequenceAnimationContext
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 
 /**
- * SMIL animation tests for the two animated vault examples (V3.1.32).
+ * SMIL animation tests for the three animated vault examples (V3.2).
  *
  * Loads each example from the classpath (synced from the vault via sync-vault-examples.sh),
  * extracts the embedded trace JSON, renders the animated SVG, and asserts that:
@@ -14,11 +15,12 @@ import io.kotest.matchers.string.shouldNotContain
  *  - The SVG contains expected SMIL elements
  *  - The SMIL-stripped snapshot contains none of the SMIL animation elements
  *
- * Both animated examples also pass through the static loop in [VaultExamplesRenderTest] — the
+ * All three animated examples also pass through the static loop in [VaultExamplesRenderTest] — the
  * BPMN one as [dev.kuml.core.script.ExtractedDiagram.Bpmn], the STM one as
+ * [dev.kuml.core.script.ExtractedDiagram.Uml], and the UML Sequence one as
  * [dev.kuml.core.script.ExtractedDiagram.Uml] — so regression coverage is double.
  *
- * V3.1.32 — SMIL vault examples + vault-examples SMIL tests
+ * V3.2 — UML Sequence Diagram SMIL Animation
  */
 class VaultExamplesSmilTest :
     StringSpec({
@@ -136,6 +138,59 @@ class VaultExamplesSmilTest :
             val traceJson = extractTraceJson(mdContent)
 
             val result = AnimatedExampleRenderer.renderStm(kumlScript, traceJson)
+            result.hasAnimation.shouldBeTrue()
+
+            val stripped = AnimatedExampleRenderer.stripSmil(result.svg)
+            stripped shouldNotContain "<animate"
+            stripped shouldNotContain "<animateMotion"
+            stripped shouldNotContain "<animateTransform"
+            stripped shouldNotContain "<set "
+        }
+
+        // ── (3) UML Sequence animiert: API Submit ──────────────────────────────
+
+        "rendert animiert: UML Sequence API Submit (SMIL)" {
+            VaultExampleRenderer.init()
+
+            val mdContent = loadResource("19 UML Sequence animiert – API Submit.md")
+            val kumlScript = extractKumlScript(mdContent)
+            val traceJson = extractTraceJson(mdContent)
+
+            val result = AnimatedExampleRenderer.renderSequence(kumlScript, traceJson)
+
+            result.hasAnimation.shouldBeTrue()
+            result.svg shouldContain "<animateMotion"
+            result.svg shouldContain "kuml-seq-dot-"
+            result.svg shouldContain "</svg>"
+
+            SampleOutput.write(
+                "$smilOutputDir/19_UML_Sequence_animiert_API_Submit.svg",
+                result.svg,
+            )
+
+            val staticResult = AnimatedExampleRenderer.renderSequence(kumlScript, traceJson = EMPTY_TRACE_JSON)
+            SampleOutput.write(
+                "vault-examples/elegant/19_UML_Sequence_animiert_API_Submit.svg",
+                staticResult.svg,
+            )
+
+            println("[smil-test] SEQ SMIL: hasAnimation=${result.hasAnimation}, svg.length=${result.svg.length}")
+        }
+
+        // ── (4) SMIL strip ist deterministisch: UML Sequence ─────────────────
+
+        "SMIL strip ist deterministisch: UML Sequence" {
+            val mdContent = loadResource("19 UML Sequence animiert – API Submit.md")
+            val kumlScript = extractKumlScript(mdContent)
+            val traceJson = extractTraceJson(mdContent)
+
+            val seqContext = SequenceAnimationContext(loopCount = 1)
+            val result =
+                AnimatedExampleRenderer.renderSequence(
+                    kumlScript,
+                    traceJson,
+                    context = seqContext,
+                )
             result.hasAnimation.shouldBeTrue()
 
             val stripped = AnimatedExampleRenderer.stripSmil(result.svg)

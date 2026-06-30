@@ -230,11 +230,13 @@ class BpmnSmilRendererTest :
             result.svg shouldContain "attributeName=\"stroke-width\""
             // Pulse zielt auf das transparente Overlay-Rect, nicht auf das Haupt-"-box"-Rect.
             Regex("""<animate[^>]+xlink:href="#task1-box-pulse"[^>]+attributeName="stroke-width"""")
-                .containsMatchIn(result.svg).shouldBeTrue()
+                .containsMatchIn(result.svg)
+                .shouldBeTrue()
             // Gegenprobe: kein stroke-width-Animate auf dem Haupt-Rect "#task1-box" (exaktes
             // Schluss-Quote — matcht nicht "#task1-box-pulse", da dort nach "box" ein "-" folgt).
             Regex("""<animate[^>]+xlink:href="#task1-box"[^>]+attributeName="stroke-width"""")
-                .containsMatchIn(result.svg).shouldBeFalse()
+                .containsMatchIn(result.svg)
+                .shouldBeFalse()
         }
 
         // ── (8) Start event emits opacity animate ──
