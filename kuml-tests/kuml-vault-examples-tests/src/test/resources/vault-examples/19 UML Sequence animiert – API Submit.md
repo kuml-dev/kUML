@@ -24,7 +24,7 @@ status: aktiv
 > Der `kuml-animated`-Code-Block rendert das Sequenzdiagramm mit message-dot-getriebenem SMIL. Jede Nachricht erhält einen animierten Dot, der horizontal über die Pfeilachse wandert. Die Animation läuft **endlos in Schleife**.
 
 ```kuml-animated
-// trace: inline
+// trace: 07 Anhänge/kUML/traces/sequence-api-submit.kuml.trace.v1.json
 sequenceDiagram(name = "Place Order — API Submit") {
     val customer = lifeline(name = "Customer") { isActor = true }
     val frontend = lifeline(name = "Frontend")

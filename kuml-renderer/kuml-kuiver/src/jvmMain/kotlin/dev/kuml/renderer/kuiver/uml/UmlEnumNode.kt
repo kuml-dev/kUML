@@ -4,7 +4,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -40,7 +40,7 @@ internal fun UmlEnumNode(element: UmlEnumeration, theme: KumlTheme) {
         )
 
         if (element.literals.isNotEmpty()) {
-            Divider(color = theme.colors.border, thickness = theme.borders.thin)
+            HorizontalDivider(color = theme.colors.border, thickness = theme.borders.thin)
         }
 
         element.literals.forEach { literal ->

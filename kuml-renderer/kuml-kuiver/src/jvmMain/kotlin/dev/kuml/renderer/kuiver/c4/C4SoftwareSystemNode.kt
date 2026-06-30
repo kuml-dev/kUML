@@ -5,7 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -42,7 +42,7 @@ internal fun C4SoftwareSystemNode(element: C4SoftwareSystem, theme: KumlTheme) {
             color = theme.colors.muted,
             modifier = Modifier.fillMaxWidth(),
         )
-        Divider(color = theme.colors.border, thickness = theme.borders.thin)
+        HorizontalDivider(color = theme.colors.border, thickness = theme.borders.thin)
         Text(
             text = element.name,
             style = theme.typography.title,

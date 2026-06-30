@@ -4,7 +4,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -39,7 +39,7 @@ internal fun UmlInterfaceNode(element: UmlInterface, theme: KumlTheme) {
         )
 
         if (element.attributes.isNotEmpty() || element.operations.isNotEmpty()) {
-            Divider(color = theme.colors.border, thickness = theme.borders.thin)
+            HorizontalDivider(color = theme.colors.border, thickness = theme.borders.thin)
         }
 
         element.attributes.forEach { attr ->
@@ -51,7 +51,7 @@ internal fun UmlInterfaceNode(element: UmlInterface, theme: KumlTheme) {
         }
 
         if (element.attributes.isNotEmpty() && element.operations.isNotEmpty()) {
-            Divider(color = theme.colors.border, thickness = theme.borders.thin)
+            HorizontalDivider(color = theme.colors.border, thickness = theme.borders.thin)
         }
 
         element.operations.forEach { op ->

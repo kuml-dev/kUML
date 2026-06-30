@@ -17,7 +17,7 @@ Sammlung lebender Beispielnotizen, die das [[02 Projekte/kUML V2.0]]-Plugin [[02
 
 ## Vollständige Abdeckung
 
-Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unterstützten Modellierungssprachen ab — UML 2.x (14), C4 (6) und SysML 2 (8). Hinzu kommen seit V3.1 **BPMN 2.0**-Beispiele (Process + Collaboration) als vierte Modellierungssprache sowie **profil-spezifische Vertiefungsbeispiele** für die Built-in-Profile.
+Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unterstützten Modellierungssprachen ab — UML 2.x (14), C4 (6) und SysML 2 (8). Hinzu kommen seit V3.1 **BPMN 2.0**-Beispiele (Process + Collaboration + Conversation) als vierte Modellierungssprache sowie **profil-spezifische Vertiefungsbeispiele** für die Built-in-Profile.
 
 ### UML 2.x (14 Diagrammtypen)
 
@@ -75,6 +75,7 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unters
 | 30 | [[30 BPMN Process – Order Fulfillment]] | Process — Events, Gateways, Tasks |
 | 31 | [[31 BPMN Process – Sub-Process Loop]] | Process — Sub-Process + Boundary-Event |
 | 32 | [[32 BPMN Collaboration – Customer und Supplier]] | Collaboration — Pools + MessageFlows |
+| 36 | [[36 BPMN Conversation – PdV Kommunikation]] | Conversation — Participants + Hexagons (V3.2.3) |
 
 ## Empfohlene Lese-Reihenfolge nach Komplexität
 
@@ -151,6 +152,7 @@ Der [Playground auf kuml.dev](https://kuml.dev/playground) speist seine Beispiel
 | 30 | [[30 BPMN Process – Order Fulfillment]] | `bpmn-order-fulfillment` |
 | 31 | [[31 BPMN Process – Sub-Process Loop]] | `bpmn-subprocess-loop` |
 | 32 | [[32 BPMN Collaboration – Customer und Supplier]] | `bpmn-collaboration-customer-supplier` |
+| 36 | [[36 BPMN Conversation – PdV Kommunikation]] | `bpmn-conversation-pdv` *(noch kein Playground-Eintrag — V3.2.3 neu)* |
 
 ### Playground-Keys ohne Vault-Anker
 
