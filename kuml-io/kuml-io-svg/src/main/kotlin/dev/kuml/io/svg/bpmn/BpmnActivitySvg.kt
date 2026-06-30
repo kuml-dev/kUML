@@ -142,6 +142,19 @@ private fun renderActivityBox(
             """rx="${fmtF(rx)}" fill="$nodeFill" stroke="$borderColor" stroke-width="${fmtF(strokeWidth)}"/>""",
     )
 
+    // Overlay-Rect ohne eigenes stroke-width-Presentation-Attribut: SMIL <animate> auf
+    // stroke-width ist auf einem <rect> mit inline stroke-width browser-inkonsistent
+    // (Chrome/Safari ignorieren die Animation). Das transparente Overlay (fill="none",
+    // stroke-width="0") ist das alleinige Ziel der Pulse-Animation. pointer-events="none"
+    // hält Klick-/Hover-Verhalten beim Haupt-Rect.
+    if (boxId != null) {
+        builder.rawXml(
+            """<rect id="${xmlEscapeAttr(boxId)}-pulse" x="${fmtF(x)}" y="${fmtF(y)}" """ +
+                """width="${fmtF(w)}" height="${fmtF(h)}" rx="${fmtF(rx)}" """ +
+                """fill="none" stroke="$borderColor" stroke-width="0" pointer-events="none"/>""",
+        )
+    }
+
     if (!label.isNullOrBlank()) {
         val cx = x + w / 2f
         val cy = y + h / 2f

@@ -222,13 +222,19 @@ class BpmnSmilRendererTest :
 
         // ── (7) Task execution emits stroke-width pulse ──
 
-        test("task execution emits stroke-width pulse animate on task id") {
+        test("task execution emits stroke-width pulse animate on overlay rect") {
             val trace = simpleTrace("start1", "task1")
             val result = BpmnSmilRenderer.render(diagram, layoutResult, trace = trace)
 
             result.hasAnimation.shouldBeTrue()
             result.svg shouldContain "attributeName=\"stroke-width\""
-            result.svg shouldContain "task1"
+            // Pulse zielt auf das transparente Overlay-Rect, nicht auf das Haupt-"-box"-Rect.
+            Regex("""<animate[^>]+xlink:href="#task1-box-pulse"[^>]+attributeName="stroke-width"""")
+                .containsMatchIn(result.svg).shouldBeTrue()
+            // Gegenprobe: kein stroke-width-Animate auf dem Haupt-Rect "#task1-box" (exaktes
+            // Schluss-Quote — matcht nicht "#task1-box-pulse", da dort nach "box" ein "-" folgt).
+            Regex("""<animate[^>]+xlink:href="#task1-box"[^>]+attributeName="stroke-width"""")
+                .containsMatchIn(result.svg).shouldBeFalse()
         }
 
         // ── (8) Start event emits opacity animate ──

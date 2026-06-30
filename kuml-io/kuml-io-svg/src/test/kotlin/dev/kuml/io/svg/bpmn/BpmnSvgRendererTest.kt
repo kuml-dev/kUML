@@ -551,6 +551,21 @@ class BpmnSvgRendererTest :
             svg shouldContain "Review Order"
         }
 
+        test("BpmnTask: SVG enthält transparentes Pulse-Overlay-Rect fuer SMIL-Animation") {
+            // Das Overlay-Rect ist das SMIL-Animationsziel fuer stroke-width-Pulse.
+            // Es muss fill="none", stroke-width="0" und pointer-events="none" tragen,
+            // damit es im Ruhezustand unsichtbar ist und Klicks durchlaesst.
+            val task = BpmnTask(id = "t1", name = "Tu was", taskType = TaskType.NONE)
+            val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(task))
+            val svg =
+                dev.kuml.io.svg.KumlSvgRenderer
+                    .toSvg(diagram, singleNodeLayout("t1"), PlainTheme())
+
+            svg shouldContain "id=\"t1-box-pulse\""
+            svg shouldContain "stroke-width=\"0\""
+            svg shouldContain "pointer-events=\"none\""
+        }
+
         test("BpmnTask SERVICE: SVG enthält Rechteck + Service-Symbol") {
             val task = BpmnTask(id = "t2", name = "Call API", taskType = TaskType.SERVICE)
             val diagram = KumlDiagram(name = "D", type = DiagramType.BPMN_PROCESS, elements = listOf(task))

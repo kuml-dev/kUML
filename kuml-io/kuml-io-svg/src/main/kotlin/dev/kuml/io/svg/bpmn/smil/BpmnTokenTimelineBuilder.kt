@@ -167,10 +167,14 @@ internal object BpmnTokenTimelineBuilder {
                     animations += gatewayReset
                 }
                 is BpmnTask -> {
-                    // Task execution: fill highlight (light blue) + stroke-width pulse (1.5 → 4 → 1.5).
-                    // Both target the "-box" <rect> id, NOT the parent <g>: animating fill or
-                    // stroke-width on the <g> does not override the child <rect>'s own attributes.
+                    // Task execution: fill highlight (light blue) on the "-box" rect + stroke-width
+                    // pulse (0 → 4 → 0) on a dedicated transparent "-box-pulse" overlay rect.
+                    // Fill must NOT target the parent <g> (it would not override the child <rect>'s
+                    // own fill). Stroke-width is animated on the overlay because SMIL <animate> on
+                    // stroke-width is browser-inconsistent when the rect carries an inline
+                    // stroke-width presentation attribute (Chrome/Safari ignore it).
                     val boxId = "${xmlEscapeId(nodeId)}-box"
+                    val pulseId = "$boxId-pulse"
                     // Fill covers the full pulse duration (on + off = 2 × TASK_PULSE_MS).
                     val fillOn =
                         SmilAnimation.Fill(
@@ -190,19 +194,19 @@ internal object BpmnTokenTimelineBuilder {
                         )
                     val pulseOn =
                         SmilAnimation.Animate(
-                            elementId = boxId,
+                            elementId = pulseId,
                             attribute = "stroke-width",
-                            from = "1.5",
+                            from = "0",
                             to = "4",
                             beginMs = beginMs,
                             durationMs = TASK_PULSE_MS,
                         )
                     val pulseOff =
                         SmilAnimation.Animate(
-                            elementId = boxId,
+                            elementId = pulseId,
                             attribute = "stroke-width",
                             from = "4",
-                            to = "1.5",
+                            to = "0",
                             beginMs = beginMs + TASK_PULSE_MS,
                             durationMs = TASK_PULSE_MS,
                         )
