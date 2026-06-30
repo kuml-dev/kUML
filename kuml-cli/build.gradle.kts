@@ -27,68 +27,68 @@ application {
 // V3.1.15 — `kuml ai` command group requires kuml-ai-core.
 // Guard: when built with -Pkuml.noAi=true the module is not included, so the
 // project reference would be unresolvable. Check the property here and mirror it.
-val aiEnabled = (project.findProperty("kuml.noAi") ?: "false").toString() != "true"
+val aiEnabled = (findProperty("kuml.noAi") ?: "false").toString() != "true"
 
 dependencies {
     if (aiEnabled) {
-        implementation(project(":kuml-ai:kuml-ai-core")) // V3.1.15 — kuml ai provider commands
+        implementation(project(path = ":kuml-ai:kuml-ai-core")) // V3.1.15 — kuml ai provider commands
         // kuml-ai-spi comes transitively via kuml-ai-core's api() dependency
-        implementation(project(":kuml-ai:kuml-ai-tools")) // V3.1.16 — kuml ai tools commands
+        implementation(project(path = ":kuml-ai:kuml-ai-tools")) // V3.1.16 — kuml ai tools commands
     }
     implementation(libs.clikt)
-    implementation(project(":kuml-plugin-loader")) // V3.0.29 — kuml plugin subcommand group
-    implementation(project(":kuml-web")) // V2.0.34 — kuml serve subcommand
-    implementation(project(":kuml-codegen:kuml-codegen-api"))
-    implementation(project(":kuml-codegen:kuml-codegen-m2m")) // V2.0.21 — M2M transformer track
-    implementation(project(":kuml-codegen:kuml-transform-bpmn-to-uml")) // V3.1.43 — BPMN⇌UML Activity bridge
-    implementation(project(":kuml-codegen:kuml-gen-kotlin"))
-    implementation(project(":kuml-codegen:kuml-gen-java"))
-    implementation(project(":kuml-codegen:kuml-gen-sql"))
-    implementation(project(":kuml-runtime:kuml-runtime-core"))
-    implementation(project(":kuml-runtime:kuml-runtime-trace")) // V2.0.39 — kuml trace replay/export
-    implementation(project(":kuml-runtime:kuml-runtime-sandbox")) // V2.0.40 — Sandbox-Garantien
-    implementation(project(":kuml-runtime:kuml-runtime-chain-api")) // V3.0.1 — fmt --canonical + ModelHasher
-    implementation(project(":kuml-runtime:kuml-runtime-chain-evm")) // V3.0.4 — kuml chain subcommand (EvmChainAdapter)
-    implementation(project(":kuml-core:kuml-core-ocl"))
+    implementation(project(path = ":kuml-plugin-loader")) // V3.0.29 — kuml plugin subcommand group
+    implementation(project(path = ":kuml-web")) // V2.0.34 — kuml serve subcommand
+    implementation(project(path = ":kuml-codegen:kuml-codegen-api"))
+    implementation(project(path = ":kuml-codegen:kuml-codegen-m2m")) // V2.0.21 — M2M transformer track
+    implementation(project(path = ":kuml-codegen:kuml-transform-bpmn-to-uml")) // V3.1.43 — BPMN⇌UML Activity bridge
+    implementation(project(path = ":kuml-codegen:kuml-gen-kotlin"))
+    implementation(project(path = ":kuml-codegen:kuml-gen-java"))
+    implementation(project(path = ":kuml-codegen:kuml-gen-sql"))
+    implementation(project(path = ":kuml-runtime:kuml-runtime-core"))
+    implementation(project(path = ":kuml-runtime:kuml-runtime-trace")) // V2.0.39 — kuml trace replay/export
+    implementation(project(path = ":kuml-runtime:kuml-runtime-sandbox")) // V2.0.40 — Sandbox-Garantien
+    implementation(project(path = ":kuml-runtime:kuml-runtime-chain-api")) // V3.0.1 — fmt --canonical + ModelHasher
+    implementation(project(path = ":kuml-runtime:kuml-runtime-chain-evm")) // V3.0.4 — kuml chain subcommand (EvmChainAdapter)
+    implementation(project(path = ":kuml-core:kuml-core-ocl"))
     // V2.0.20a — validate-expressions command
-    implementation(project(":kuml-core:kuml-core-expr"))
-    implementation(project(":kuml-profile:kuml-profile-api"))
-    implementation(project(":kuml-profile:kuml-profile-soaml"))
-    implementation(project(":kuml-profile:kuml-profile-javaee"))
-    implementation(project(":kuml-profile:kuml-profile-spring"))
-    implementation(project(":kuml-profile:kuml-profile-openapi"))
-    implementation(project(":kuml-profile:kuml-profile-autosar"))
+    implementation(project(path = ":kuml-core:kuml-core-expr"))
+    implementation(project(path = ":kuml-profile:kuml-profile-api"))
+    implementation(project(path = ":kuml-profile:kuml-profile-soaml"))
+    implementation(project(path = ":kuml-profile:kuml-profile-javaee"))
+    implementation(project(path = ":kuml-profile:kuml-profile-spring"))
+    implementation(project(path = ":kuml-profile:kuml-profile-openapi"))
+    implementation(project(path = ":kuml-profile:kuml-profile-autosar"))
     implementation(libs.kotlinx.serialization.json)
 
     // Full pipeline dependencies
-    implementation(project(":kuml-core:kuml-core-script"))
-    implementation(project(":kuml-core:kuml-core-config"))
+    implementation(project(path = ":kuml-core:kuml-core-script"))
+    implementation(project(path = ":kuml-core:kuml-core-config"))
     // Scripting API needed to access ResultWithDiagnostics / ResultValue
     implementation(libs.kotlin.scripting.common)
     implementation(libs.kotlin.scripting.jvm)
     implementation(libs.kotlin.scripting.jvm.host)
     // Reflection for script instance property scanning
     implementation(libs.kotlin.reflect)
-    implementation(project(":kuml-core:kuml-core-dsl"))
-    implementation(project(":kuml-renderer:kuml-layout-api"))
-    implementation(project(":kuml-renderer:kuml-layout-elk"))
-    implementation(project(":kuml-renderer:kuml-layout-grid"))
-    implementation(project(":kuml-renderer:kuml-layout-bridge"))
-    implementation(project(":kuml-renderer:kuml-themes-core"))
-    implementation(project(":kuml-io:kuml-io-svg"))
-    implementation(project(":kuml-io:kuml-render-smil")) // V3.1.31 — TraceFileLoader, SpeedFactor, StaticSnapshotMode
-    implementation(project(":kuml-io:kuml-io-png"))
-    implementation(project(":kuml-io:kuml-io-latex")) // V2.0.2 — TikZ/LaTeX-Export
-    implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
-    implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
-    implementation(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN CLI-Integration
-    implementation(project(":kuml-docs:kuml-markdown"))
+    implementation(project(path = ":kuml-core:kuml-core-dsl"))
+    implementation(project(path = ":kuml-renderer:kuml-layout-api"))
+    implementation(project(path = ":kuml-renderer:kuml-layout-elk"))
+    implementation(project(path = ":kuml-renderer:kuml-layout-grid"))
+    implementation(project(path = ":kuml-renderer:kuml-layout-bridge"))
+    implementation(project(path = ":kuml-renderer:kuml-themes-core"))
+    implementation(project(path = ":kuml-io:kuml-io-svg"))
+    implementation(project(path = ":kuml-io:kuml-render-smil")) // V3.1.31 — TraceFileLoader, SpeedFactor, StaticSnapshotMode
+    implementation(project(path = ":kuml-io:kuml-io-png"))
+    implementation(project(path = ":kuml-io:kuml-io-latex")) // V2.0.2 — TikZ/LaTeX-Export
+    implementation(project(path = ":kuml-metamodel:kuml-metamodel-uml"))
+    implementation(project(path = ":kuml-metamodel:kuml-metamodel-c4"))
+    implementation(project(path = ":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN CLI-Integration
+    implementation(project(path = ":kuml-docs:kuml-markdown"))
 
     // V3.0.9 — `kuml reverse` subcommand. API is needed at compile time,
     // engines are loaded via ServiceLoader at runtime.
-    implementation(project(":kuml-codegen:kuml-codegen-reverse-api"))
-    runtimeOnly(project(":kuml-codegen:kuml-codegen-reverse-java")) // V3.0.7
-    runtimeOnly(project(":kuml-codegen:kuml-codegen-reverse-kotlin")) // V3.0.8
+    implementation(project(path = ":kuml-codegen:kuml-codegen-reverse-api"))
+    runtimeOnly(project(path = ":kuml-codegen:kuml-codegen-reverse-java")) // V3.0.7
+    runtimeOnly(project(path = ":kuml-codegen:kuml-codegen-reverse-kotlin")) // V3.0.8
     implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.kotest.runner.junit5)
@@ -96,11 +96,11 @@ dependencies {
     // V3.1.36 — ARXML CLI tests: ExportCommandArxmlCliTest + ReverseCommandArxmlCliTest.
     // MUST remain testRuntimeOnly — kuml-io-arxml is JVM-only (JDOM2) and must NEVER become
     // a compile-time or implementation dep of kuml-cli (that would break the GraalVM native image).
-    testRuntimeOnly(project(":kuml-io:kuml-io-arxml"))
+    testRuntimeOnly(project(path = ":kuml-io:kuml-io-arxml"))
     // V3.1.41 — profile-uml CLI tests: ExportCommandProfileUmlCliTest.
     // MUST remain testRuntimeOnly — kuml-io-emf is JVM-only (Eclipse EMF) and must NEVER become
     // a compile-time or implementation dep of kuml-cli (that would break the GraalVM native image).
-    testRuntimeOnly(project(":kuml-io:kuml-io-emf"))
+    testRuntimeOnly(project(path = ":kuml-io:kuml-io-emf"))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -180,7 +180,7 @@ val gitSha: String by lazy {
 // Capture values at configuration time so the generator task can run with
 // the Gradle configuration cache enabled — no `project.*` access at
 // execution time.
-val projectVersionForResources = project.version.toString()
+val projectVersionForResources = version.toString()
 val gitShaForResources = gitSha
 // `buildTime` resolves at configuration time on each run; that's fine — we
 // don't list it as a task input so it doesn't invalidate downstream caches.
@@ -433,7 +433,7 @@ tasks.register<Zip>("runtimeZip") {
     description = "Zips the bundled kuml runtime image for release distribution."
     dependsOn("bundledImage")
     archiveBaseName.set("kuml-runtime")
-    archiveVersion.set(project.version.toString())
+    archiveVersion.set(version.toString())
 
     // Gradle's Zip task stores every file as 0644 by default. Without an
     // override the launcher and every JRE binary in the runtime image end

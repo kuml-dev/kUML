@@ -20,7 +20,7 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotest.assertions.core)
         }
-        val jvmMain by getting {
+        val jvmMain = getByName("jvmMain") {
             dependencies {
                 api(project(":kuml-runtime:kuml-runtime-core"))
                 api(project(":kuml-metamodel:kuml-metamodel-uml"))
@@ -39,7 +39,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.core)
             }
         }
-        val jvmTest by getting {
+        val jvmTest = getByName("jvmTest") {
             dependencies {
                 implementation(libs.kotest.runner.junit5)
                 implementation(libs.kotest.assertions.core)

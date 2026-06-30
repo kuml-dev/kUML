@@ -2,7 +2,6 @@ package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.UmlActivityNode
@@ -78,7 +77,7 @@ internal fun renderUmlNode(
         tag(
             "text",
             mapOf("class" to "kuml-title", "x" to fmt((w - depth) / 2f), "y" to fmt(cy), "text-anchor" to "middle"),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
     }
 }
 
@@ -116,7 +115,7 @@ internal fun renderUmlArtifact(
         tag(
             "text",
             mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to "36", "text-anchor" to "middle"),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
     }
 }
 
@@ -142,7 +141,7 @@ internal fun renderUmlStereotype(
         tag(
             "text",
             mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to "34", "text-anchor" to "middle"),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
     }
 }
 
@@ -169,7 +168,7 @@ internal fun renderUmlActivityNode(
                 tag(
                     "text",
                     mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to fmt(h / 2f + 5f), "text-anchor" to "middle"),
-                ) { text(xmlEscapeText(element.name)) }
+                ) { text(element.name) }
             }
             UmlActivityNodeKind.INITIAL ->
                 tag(
@@ -232,7 +231,7 @@ internal fun renderUmlActivityNode(
                 tag(
                     "text",
                     mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to fmt(h / 2f + 5f), "text-anchor" to "middle"),
-                ) { text(xmlEscapeText(element.name)) }
+                ) { text(element.name) }
             }
         }
     }
@@ -267,14 +266,14 @@ internal fun renderUmlTimingLifeline(
             tag(
                 "text",
                 mapOf("class" to "kuml-body", "x" to fmt(labelW - 4f), "y" to fmt(cy), "text-anchor" to "end"),
-            ) { text(xmlEscapeText(state)) }
+            ) { text(state) }
         }
 
         // Title
         tag(
             "text",
             mapOf("class" to "kuml-title", "x" to fmt(labelW / 2f), "y" to "14", "text-anchor" to "middle"),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
 
         // Step-line through ticks + X-axis
         if (element.timeline.isNotEmpty()) {
@@ -373,7 +372,7 @@ internal fun renderUmlInteractionOverviewFrame(
                 tag(
                     "text",
                     mapOf("class" to "kuml-title", "x" to fmt(w / 2f), "y" to fmt(h / 2f + 5f), "text-anchor" to "middle"),
-                ) { text(xmlEscapeText(element.name)) }
+                ) { text(element.name) }
             }
             UmlInteractionFrameKind.INITIAL ->
                 tag(

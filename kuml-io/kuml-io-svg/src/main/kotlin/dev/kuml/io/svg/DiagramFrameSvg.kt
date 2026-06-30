@@ -40,7 +40,7 @@ internal fun renderDiagramFrame(
         tag(
             "text",
             mapOf("class" to "kuml-small", "x" to "8", "y" to "13"),
-        ) { text("$typeLabel: ${xmlEscapeText(name)}") }
+        ) { text("$typeLabel: $name") }
     }
 }
 

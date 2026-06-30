@@ -2,7 +2,6 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.GroupLayout
 import dev.kuml.sysml2.ActivityPartitionDefinition
 
@@ -99,7 +98,7 @@ internal fun renderActivityPartitionGroup(
                 "y" to fmtPart(PARTITION_HEADER_HEIGHT / 2f + 4f),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(partition.name)) }
+        ) { text(partition.name) }
     }
 }
 

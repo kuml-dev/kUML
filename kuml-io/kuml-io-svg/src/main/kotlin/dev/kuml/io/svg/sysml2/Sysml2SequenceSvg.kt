@@ -2,7 +2,6 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
@@ -147,7 +146,7 @@ internal fun renderLifelineHead(
                 "y" to fmt(30f + createOffsetY),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
 
         // 4. Vertikale gestrichelte Zeit-Achse — beginnt am unteren Rand der
         //    (ggf. verschobenen) Kopf-Box und endet am unteren Bounds-Rand.

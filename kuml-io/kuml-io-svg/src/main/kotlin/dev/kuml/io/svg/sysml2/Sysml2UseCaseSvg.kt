@@ -2,7 +2,6 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.UseCaseDefinition
@@ -57,7 +56,7 @@ internal fun renderSysml2UseCase(
                 "y" to fmt(ry + 4f),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
     }
 }
 

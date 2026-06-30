@@ -7,7 +7,6 @@ import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.arrowDirection
 import dev.kuml.io.svg.renderInlineArrow
 import dev.kuml.io.svg.sourceArrowDirection
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.AggregationKind
@@ -308,7 +307,7 @@ private fun renderEdgeLabel(
             "text-anchor" to "middle",
         ),
     ) {
-        text(xmlEscapeText(label))
+        text(label)
     }
 }
 
@@ -348,7 +347,7 @@ internal fun renderUmlLink(
                 "y" to fmt(ly),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(label)) }
+        ) { text(label) }
     }
 
     rel.targetRoleName?.let { label ->
@@ -363,7 +362,7 @@ internal fun renderUmlLink(
                 "y" to fmt(ly),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(label)) }
+        ) { text(label) }
     }
 }
 

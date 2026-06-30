@@ -2,7 +2,6 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.ConstraintDefinition
@@ -84,7 +83,7 @@ internal fun renderConstraintDefinition(
                 "y" to fmt(cy),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
         cy += 12f
 
         // Compartment 2 — Expression-Body (monospaced, ggf. ellipsis-trunkiert).
@@ -109,7 +108,7 @@ internal fun renderConstraintDefinition(
                     "text-anchor" to "middle",
                     "font-family" to "monospace",
                 ),
-            ) { text(xmlEscapeText(expressionText)) }
+            ) { text(expressionText) }
             cy += 13f
         }
 
@@ -130,7 +129,7 @@ internal fun renderConstraintDefinition(
                 tag(
                     "text",
                     mapOf("class" to "kuml-body", "x" to "6", "y" to fmt(cy)),
-                ) { text(xmlEscapeText(parameter.formatParameterLine())) }
+                ) { text(parameter.formatParameterLine()) }
                 cy += 13f
             }
         }

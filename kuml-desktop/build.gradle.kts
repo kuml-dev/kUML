@@ -15,7 +15,8 @@ kotlin {
             implementation(compose.ui)
             implementation(compose.material3)
         }
-        val jvmMain by getting {
+        val jvmMain =
+            getByName("jvmMain") {
             dependencies {
                 implementation(project(":kuml-core:kuml-core-script"))
                 implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
@@ -56,7 +57,8 @@ kotlin {
                 implementation(libs.ktor.client.java)
             }
         }
-        val jvmTest by getting {
+        val jvmTest =
+            getByName("jvmTest") {
             dependencies {
                 implementation(libs.kotest.runner.junit5)
                 implementation(libs.kotest.assertions.core)

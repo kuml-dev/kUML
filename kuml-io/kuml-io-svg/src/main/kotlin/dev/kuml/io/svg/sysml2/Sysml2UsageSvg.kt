@@ -2,7 +2,6 @@ package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.PortId
@@ -180,7 +179,7 @@ private fun renderUsageBox(
                 "y" to fmt(h / 2f + 10f),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(usage.formatIbd())) }
+        ) { text(usage.formatIbd()) }
 
         // IBD boundary ports — small squares on the box edge, one per connected port.
         if (ibdPorts.isNotEmpty()) {

@@ -3,7 +3,6 @@ package dev.kuml.io.svg.c4
 import dev.kuml.c4.model.C4Person
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.TextWrap
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -74,7 +73,7 @@ internal fun renderC4Person(
                 "y" to fmt(boxY + 18f),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
 
         if (descLines.isNotEmpty()) {
             tag(

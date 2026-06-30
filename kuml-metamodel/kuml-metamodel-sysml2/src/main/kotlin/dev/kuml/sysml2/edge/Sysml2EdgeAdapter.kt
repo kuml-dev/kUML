@@ -415,20 +415,6 @@ public class ParEdgeAdapter(
                 else -> null
             }
         }
-
-        /**
-         * Beibehalten für Quellkompatibilität: Reine Linie ohne Label und
-         * ohne Arrow-Head. Direkt gegen diese Konstante zu vergleichen ist
-         * seit V2.x nicht mehr aussagekräftig (Bindings tragen jetzt Labels);
-         * neue Callsites sollen [Sysml2EdgeMetadata] direkt aufbauen.
-         */
-        @Deprecated(
-            "Bindings tragen seit V2.x Labels (binding.name). Diese Konstante " +
-                "bildet nur noch den label-losen Fallback ab; für reale Lookups " +
-                "den Adapter verwenden.",
-        )
-        public val METADATA_BINDING: Sysml2EdgeMetadata =
-            Sysml2EdgeMetadata(arrowHead = Sysml2ArrowHead.None)
     }
 }
 

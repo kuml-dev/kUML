@@ -51,7 +51,7 @@ internal class AiVaultUnlockCommand : CliktCommand(name = "unlock") {
                     // Fallback for environments without a real console (CI, piped stdin).
                     System.err.println("Warning: no console available — password may be visible in process listing.")
                     print("Master password: ")
-                    readLine()?.toCharArray()
+                    readlnOrNull()?.toCharArray()
                 }
                 ?: run {
                     echo("No password entered.", err = true)

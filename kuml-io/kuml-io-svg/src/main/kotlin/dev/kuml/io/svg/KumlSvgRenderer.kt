@@ -593,7 +593,7 @@ public object KumlSvgRenderer {
                                     "y" to "14",
                                     "text-anchor" to "middle",
                                 ),
-                            ) { text(xmlEscapeText("[Container:$tech]")) }
+                            ) { text("[Container:$tech]") }
                             tag(
                                 "text",
                                 mapOf(
@@ -602,7 +602,7 @@ public object KumlSvgRenderer {
                                     "y" to "30",
                                     "text-anchor" to "middle",
                                 ),
-                            ) { text(xmlEscapeText(anchorElement.name)) }
+                            ) { text(anchorElement.name) }
                         }
                         is C4SoftwareSystem -> {
                             tag(
@@ -613,7 +613,7 @@ public object KumlSvgRenderer {
                                     "y" to "14",
                                     "text-anchor" to "middle",
                                 ),
-                            ) { text(xmlEscapeText("[Software System]")) }
+                            ) { text("[Software System]") }
                             tag(
                                 "text",
                                 mapOf(
@@ -622,7 +622,7 @@ public object KumlSvgRenderer {
                                     "y" to "30",
                                     "text-anchor" to "middle",
                                 ),
-                            ) { text(xmlEscapeText(anchorElement.name)) }
+                            ) { text(anchorElement.name) }
                         }
                         else -> Unit // Unknown anchor type — boundary rect only, no label
                     }

@@ -2,7 +2,6 @@ package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.UmlInstanceSpecification
@@ -51,7 +50,7 @@ internal fun renderUmlInstance(
                 "text-anchor" to "middle",
                 "text-decoration" to "underline",
             ),
-        ) { text(xmlEscapeText(header)) }
+        ) { text(header) }
 
         if (element.slots.isNotEmpty()) {
             var cy = 24f
@@ -77,7 +76,7 @@ internal fun renderUmlInstance(
                     "text",
                     mapOf("class" to "kuml-body", "x" to fmt(bo.thinPx + 4f), "y" to fmt(cy)),
                 ) {
-                    text(xmlEscapeText("${slot.featureName} = $rhs"))
+                    text("${slot.featureName} = $rhs")
                 }
                 cy += 13f
             }

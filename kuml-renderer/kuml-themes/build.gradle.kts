@@ -25,7 +25,7 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotest.assertions.core)
         }
-        val jvmTest by getting {
+        val jvmTest = getByName("jvmTest") {
             dependencies {
                 implementation(libs.kotest.runner.junit5)
             }

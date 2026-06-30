@@ -3,7 +3,6 @@ package dev.kuml.io.svg.c4
 import dev.kuml.c4.model.C4Container
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 
@@ -48,7 +47,7 @@ internal fun renderC4Container(
                 "y" to "18",
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText("[Container:$tech]")) }
+        ) { text("[Container:$tech]") }
         tag(
             "text",
             mapOf(
@@ -57,7 +56,7 @@ internal fun renderC4Container(
                 "y" to "36",
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
         element.description?.let { desc ->
             renderWrappedDescription(this, desc, w)
         }

@@ -3,7 +3,6 @@ package dev.kuml.io.svg.uml
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.io.svg.xmlEscapeContent
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.UmlInterface
@@ -58,7 +57,7 @@ internal fun renderUmlInterface(
                 "y" to fmt(cy),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
         cy += 6f
 
         // Tagged-value compartment (V1.1, opt-in)

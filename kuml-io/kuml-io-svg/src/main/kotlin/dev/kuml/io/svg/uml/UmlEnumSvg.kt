@@ -2,7 +2,6 @@ package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.xmlEscapeAttr
-import dev.kuml.io.svg.xmlEscapeText
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.UmlEnumeration
@@ -57,7 +56,7 @@ internal fun renderUmlEnum(
                 "y" to fmt(cy),
                 "text-anchor" to "middle",
             ),
-        ) { text(xmlEscapeText(element.name)) }
+        ) { text(element.name) }
         cy += 6f
 
         if (element.literals.isNotEmpty()) {
@@ -72,7 +71,7 @@ internal fun renderUmlEnum(
             tag(
                 "text",
                 mapOf("class" to "kuml-body", "x" to "8", "y" to fmt(cy)),
-            ) { text(xmlEscapeText(lit.name)) }
+            ) { text(lit.name) }
             cy += 13f
         }
     }
