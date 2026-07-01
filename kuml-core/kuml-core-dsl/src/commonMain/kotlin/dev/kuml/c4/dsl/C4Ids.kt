@@ -1,6 +1,6 @@
 package dev.kuml.c4.dsl
 
-import java.util.concurrent.atomic.AtomicLong
+import kotlinx.atomicfu.atomic
 
 /**
  * Helper functions for generating and managing C4 element IDs.
@@ -24,7 +24,7 @@ object C4Ids {
     /** Separator constant for qualified names (compatible with UML). */
     const val SEP = "::"
 
-    private val counter = AtomicLong(0L)
+    private val counter = atomic(0L)
 
     /**
      * Resets the ID counter to zero. Must be called once at the start of each
@@ -35,7 +35,7 @@ object C4Ids {
      * threaded script evaluation paths (CLI, MCP tool handler).
      */
     fun resetForScript() {
-        counter.set(0L)
+        counter.value = 0L
     }
 
     /**
@@ -44,12 +44,12 @@ object C4Ids {
      * making this safe for nested or concurrent callers.
      */
     fun <T> withScriptContext(block: () -> T): T {
-        val saved = counter.get()
-        counter.set(0L)
+        val saved = counter.value
+        counter.value = 0L
         return try {
             block()
         } finally {
-            counter.set(saved)
+            counter.value = saved
         }
     }
 

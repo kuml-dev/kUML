@@ -1,5 +1,7 @@
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
+import com.vanniktech.maven.publish.KotlinMultiplatform
+import com.vanniktech.maven.publish.MavenPublishBaseExtension
 import com.vanniktech.maven.publish.SourcesJar
 
 plugins {
@@ -88,62 +90,92 @@ val nonPublishedModules =
         "kuml-plugin-api",     // V3.0.27 — Plugin API aggregator parent (sub-modules are published separately)
     )
 
+// Shared publication config (coordinates, POM, signing, Central Portal
+// upload) applied to every published module regardless of whether it's a
+// plain Kotlin/JVM module or a Kotlin Multiplatform (KMP) module. The
+// per-platform bit (KotlinJvm(...) vs KotlinMultiplatform(...)) is configured
+// separately by each `pluginManager.withPlugin` branch below, because
+// vanniktech's `configure(...)` call differs by module shape.
+fun Project.configureKumlPublishing() {
+    apply(plugin = "com.vanniktech.maven.publish")
+
+    configure<MavenPublishBaseExtension> {
+        // automaticRelease = true → vanniktech uploads to the Central
+        // Portal staging and immediately publishes it. Without this flag
+        // (which we had through v0.3.0), the staging deployment sits at
+        // VALIDATED indefinitely until a maintainer clicks "Publish" in
+        // https://central.sonatype.com/publishing/deployments. That's how
+        // v0.3.0's JARs never reached Maven Central even though the
+        // release workflow reported success.
+        publishToMavenCentral(automaticRelease = true)
+        signAllPublications()
+
+        coordinates(
+            groupId = "dev.kuml",
+            artifactId = project.name,
+            version = project.version.toString(),
+        )
+
+        pom {
+            name.set(project.name)
+            description.set("kUML — a Kotlin-DSL approach to UML 2.x and C4 modelling. Module: ${project.name}")
+            url.set("https://github.com/kuml-dev/kuml")
+
+            licenses {
+                license {
+                    name.set("Apache-2.0")
+                    url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                }
+            }
+
+            developers {
+                developer {
+                    id.set("ibetchvaia")
+                    name.set("Irakli Betchvaia")
+                    email.set("ibetchvaia@gmail.com")
+                }
+            }
+
+            scm {
+                url.set("https://github.com/kuml-dev/kuml")
+                connection.set("scm:git:https://github.com/kuml-dev/kuml.git")
+                developerConnection.set("scm:git:ssh://git@github.com/kuml-dev/kuml.git")
+            }
+        }
+    }
+}
+
 subprojects {
     if (name in nonPublishedModules) return@subprojects
 
+    // Plain Kotlin/JVM modules (the majority — kuml-io-*, kuml-metamodel-*
+    // aggregators' leaf modules, codegen, etc.).
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
-        apply(plugin = "com.vanniktech.maven.publish")
-
-        configure<com.vanniktech.maven.publish.MavenPublishBaseExtension> {
-            // automaticRelease = true → vanniktech uploads to the Central
-            // Portal staging and immediately publishes it. Without this flag
-            // (which we had through v0.3.0), the staging deployment sits at
-            // VALIDATED indefinitely until a maintainer clicks "Publish" in
-            // https://central.sonatype.com/publishing/deployments. That's how
-            // v0.3.0's JARs never reached Maven Central even though the
-            // release workflow reported success.
-            publishToMavenCentral(automaticRelease = true)
-            signAllPublications()
-
+        configureKumlPublishing()
+        configure<MavenPublishBaseExtension> {
             configure(
                 KotlinJvm(
                     javadocJar = JavadocJar.Empty(),
                     sourcesJar = SourcesJar.Sources(),
                 ),
             )
+        }
+    }
 
-            coordinates(
-                groupId = "dev.kuml",
-                artifactId = project.name,
-                version = project.version.toString(),
-            )
-
-            pom {
-                name.set(project.name)
-                description.set("kUML — a Kotlin-DSL approach to UML 2.x and C4 modelling. Module: ${project.name}")
-                url.set("https://github.com/kuml-dev/kuml")
-
-                licenses {
-                    license {
-                        name.set("Apache-2.0")
-                        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                    }
-                }
-
-                developers {
-                    developer {
-                        id.set("ibetchvaia")
-                        name.set("Irakli Betchvaia")
-                        email.set("ibetchvaia@gmail.com")
-                    }
-                }
-
-                scm {
-                    url.set("https://github.com/kuml-dev/kuml")
-                    connection.set("scm:git:https://github.com/kuml-dev/kuml.git")
-                    developerConnection.set("scm:git:ssh://git@github.com/kuml-dev/kuml.git")
-                }
-            }
+    // Kotlin Multiplatform (KMP) modules — V3.2.6 converted kuml-core-model,
+    // kuml-core-dsl, kuml-metamodel-uml, kuml-metamodel-c4 and
+    // kuml-profile-api from `kotlin.jvm` to `kotlin.multiplatform` with
+    // jvm()/js()/wasmJs() targets. These modules do NOT apply
+    // `org.jetbrains.kotlin.jvm`, so without this branch they silently fell
+    // out of the publication set entirely (V3.2.7 fix — see CLAUDE.md /
+    // ADR-0012). vanniktech auto-detects a per-target publication set
+    // (root metadata module + `-jvm`/`-js`/`-wasm-js` legs); sources jars are
+    // produced automatically per target under KMP, so JavadocJar is the only
+    // knob needed here.
+    pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
+        configureKumlPublishing()
+        configure<MavenPublishBaseExtension> {
+            configure(KotlinMultiplatform(javadocJar = JavadocJar.Empty()))
         }
     }
 }

@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.io.svg.xmlEscapeContent
 import dev.kuml.layout.NodeLayout
@@ -549,7 +550,7 @@ private fun drawInternalConnectors(
 ) {
     val cappedConnectors =
         if (connectors.size > MAX_INTERNAL_CONNECTORS) {
-            System.err.println(
+            println(
                 "[kUML] WARNING: component subtree has ${connectors.size} internal connectors; " +
                     "rendering is capped at $MAX_INTERNAL_CONNECTORS to prevent resource exhaustion.",
             )
@@ -750,7 +751,4 @@ private fun rectContains(
         outer.origin.x + outer.size.width >= inner.origin.x + inner.size.width &&
         outer.origin.y + outer.size.height >= inner.origin.y + inner.size.height
 
-private fun fmt(v: Float): String {
-    val i = v.toInt()
-    return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
-}
+private fun fmt(v: Float): String = fmt2(v)

@@ -1,7 +1,5 @@
 package dev.kuml.profile
 
-import java.util.ServiceLoader
-
 /**
  * In-process registry for [KumlProfile] instances.
  *
@@ -40,9 +38,7 @@ public object ProfileRegistry {
      * Runs [validateClosure] after loading to enforce D4.
      */
     public fun loadFromClasspath() {
-        ServiceLoader
-            .load(KumlProfileProvider::class.java)
-            .forEach { register(it.profile) }
+        discoverProfileProviders().forEach { register(it.profile) }
         validateClosure()
     }
 

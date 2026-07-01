@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.io.svg.xmlEscapeContent
 import dev.kuml.layout.NodeLayout
@@ -115,7 +116,4 @@ internal fun renderUmlClass(
     }
 }
 
-private fun fmt(v: Float): String {
-    val i = v.toInt()
-    return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
-}
+private fun fmt(v: Float): String = fmt2(v)

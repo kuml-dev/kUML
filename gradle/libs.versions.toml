@@ -31,6 +31,7 @@ eclipse-uml2           = "5.0.1.v20140910-1354"
 eclipse-uml2-types     = "2.0.0.v20140910-1354"
 eclipse-uml2-common    = "2.0.1.v20140910-1354"
 sqlite-jdbc            = "3.53.2.0"
+atomicfu               = "0.33.0"
 
 [libraries]
 # ── Compose / Kuiver ─────────────────────────────────────────────────────────
@@ -126,6 +127,9 @@ sqlite-jdbc                     = { module = "org.xerial:sqlite-jdbc",          
 # ── Kotlin Compiler Embeddable (Reverse Engineering — V3.0.8) ─────────────────
 kotlin-compiler-embeddable      = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable",       version.ref = "kotlin" }
 
+# ── atomicfu (KMP-safe atomics — V3.2.6) ─────────────────────────────────────
+kotlinx-atomicfu                 = { module = "org.jetbrains.kotlinx:atomicfu",                        version.ref = "atomicfu" }
+
 [plugins]
 kotlin-jvm              = { id = "org.jetbrains.kotlin.jvm",                      version.ref = "kotlin" }
 kotlin-multiplatform    = { id = "org.jetbrains.kotlin.multiplatform",            version.ref = "kotlin" }
@@ -137,3 +141,4 @@ graalvm-native          = { id = "org.graalvm.buildtools.native",               
 vanniktech-publish      = { id = "com.vanniktech.maven.publish",                  version.ref = "vanniktech-publish" }
 intellij-platform       = { id = "org.jetbrains.intellij.platform",               version.ref = "intellij-platform" }
 shadow                  = { id = "com.gradleup.shadow",                            version.ref = "shadow" }
+kotlinx-atomicfu        = { id = "org.jetbrains.kotlinx.atomicfu",                version.ref = "atomicfu" }

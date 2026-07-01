@@ -211,7 +211,4 @@ internal fun renderInlineArrow(
     }
 }
 
-private fun fa(v: Float): String {
-    val i = v.toInt()
-    return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
-}
+private fun fa(v: Float): String = fmt2(v)

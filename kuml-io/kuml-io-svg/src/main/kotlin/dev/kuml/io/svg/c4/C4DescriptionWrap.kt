@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.c4
 
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt2
 import dev.kuml.layout.TextWrap
 
 /**
@@ -78,7 +79,4 @@ internal fun renderWrappedDescription(
     }
 }
 
-private fun fmtCoord(v: Float): String {
-    val i = v.toInt()
-    return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
-}
+private fun fmtCoord(v: Float): String = fmt2(v)

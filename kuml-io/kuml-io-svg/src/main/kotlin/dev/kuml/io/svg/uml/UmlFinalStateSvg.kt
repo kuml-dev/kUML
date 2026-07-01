@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -49,9 +50,4 @@ internal fun renderUmlFinalState(
     }
 }
 
-private fun fmt(v: Float): String =
-    if (v == v.toInt().toFloat()) {
-        v.toInt().toString()
-    } else {
-        "%.2f".format(java.util.Locale.ROOT, v)
-    }
+private fun fmt(v: Float): String = fmt2(v)

@@ -43,13 +43,22 @@ jobs:
       # Maven Central is immutable: a given GAV can only be published once.
       # If a prior run of this workflow already pushed the libraries, this
       # step would fail with "Component already exists". We probe a
-      # representative POM (kuml-core-dsl) before invoking Gradle so re-runs
-      # after a downstream failure (e.g. GitHub Release creation) are idempotent.
+      # representative POM before invoking Gradle so re-runs after a
+      # downstream failure (e.g. GitHub Release creation) are idempotent.
+      #
+      # V3.2.7: kuml-core-dsl (and 4 sibling modules) are now Kotlin
+      # Multiplatform. The root `kuml-core-dsl-${VERSION}.pom` (Gradle
+      # metadata module) is still published under KMP, but it can land even
+      # if a platform leg (`-js`/`-wasm-js`) failed validation, which would
+      # make the root-only probe a false positive for "fully published". We
+      # probe the `-jvm` leg instead — it is the most-consumed target
+      # (downstream JVM modules resolve it via Gradle module metadata) and a
+      # missing `-jvm` POM reliably indicates an incomplete/failed publish.
       - name: Check if libraries already on Maven Central
         id: mc_check
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          POM_URL="https://repo1.maven.org/maven2/dev/kuml/kuml-core-dsl/${VERSION}/kuml-core-dsl-${VERSION}.pom"
+          POM_URL="https://repo1.maven.org/maven2/dev/kuml/kuml-core-dsl-jvm/${VERSION}/kuml-core-dsl-jvm-${VERSION}.pom"
           HTTP_STATUS=$(curl -sI -o /dev/null -w "%{http_code}" "$POM_URL")
           echo "Maven Central probe: $POM_URL → HTTP $HTTP_STATUS"
           if [ "$HTTP_STATUS" = "200" ]; then

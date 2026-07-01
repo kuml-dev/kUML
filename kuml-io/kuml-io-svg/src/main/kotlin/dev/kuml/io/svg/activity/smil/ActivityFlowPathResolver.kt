@@ -1,5 +1,6 @@
 package dev.kuml.io.svg.activity.smil
 
+import dev.kuml.io.svg.fmt2
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
@@ -100,10 +101,7 @@ internal object ActivityFlowPathResolver {
         return sb.toString()
     }
 
-    private fun fmtF(v: Float): String {
-        val i = v.toInt()
-        return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
-    }
+    private fun fmtF(v: Float): String = fmt2(v)
 
     internal fun shiftRoute(
         route: EdgeRoute,

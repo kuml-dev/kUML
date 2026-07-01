@@ -158,10 +158,7 @@ internal object EdgePathBuilder {
         return sb.toString()
     }
 
-    private fun fmt(v: Float): String {
-        val i = v.toInt()
-        return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
-    }
+    private fun fmt(v: Float): String = fmt2(v)
 
     private fun segmentLength(
         a: Point,

@@ -4,6 +4,7 @@ import dev.kuml.io.svg.ArrowStyle
 import dev.kuml.io.svg.EdgePathBuilder
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.arrowDirection
+import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.renderInlineArrow
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
@@ -11,7 +12,6 @@ import dev.kuml.layout.Point
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.sysml2.edge.Sysml2ArrowHead
 import dev.kuml.sysml2.edge.Sysml2EdgeMetadata
-import java.util.Locale
 
 /**
  * Renders a single SysML 2 edge — line + optional dash pattern, arrow head
@@ -334,8 +334,5 @@ internal object Sysml2EdgeRenderer {
         return midpoint(points[bestIdx], points[bestIdx + 1])
     }
 
-    private fun fmt(v: Float): String {
-        val i = v.toInt()
-        return if (v == i.toFloat()) "$i" else "%.2f".format(Locale.ROOT, v)
-    }
+    private fun fmt(v: Float): String = fmt2(v)
 }

@@ -112,6 +112,37 @@ need its own workflow until the release cadence accelerates.
 - Verify the brew install on a clean machine:
   `brew uninstall kuml; brew untap kuml-dev/kuml; brew tap kuml-dev/kuml; brew install kuml`.
 
+## KMP coordinate matrix (V3.2.7+)
+
+`kuml-core-model`, `kuml-core-dsl`, `kuml-metamodel-uml`, `kuml-metamodel-c4`
+and `kuml-profile-api` are Kotlin Multiplatform modules (targets: `jvm()`,
+`js { browser(); nodejs() }`, `wasmJs { browser(); nodejs() }`). Each of these
+publishes as **four** Maven components instead of one:
+
+| Coordinate                          | Contents                                                        |
+|--------------------------------------|-------------------------------------------------------------------|
+| `dev.kuml:kuml-core-dsl:<version>`         | Root/metadata module: Gradle Module Metadata (`.module`) + POM, no classes jar |
+| `dev.kuml:kuml-core-dsl-jvm:<version>`     | JVM target classes + sources jar                                 |
+| `dev.kuml:kuml-core-dsl-js:<version>`      | JS (IR) target classes + sources jar                              |
+| `dev.kuml:kuml-core-dsl-wasm-js:<version>` | Wasm/JS target classes + sources jar                              |
+
+(same pattern for the other four KMP modules — substitute the module name).
+
+**Gradle consumers** (all in-repo JVM modules, e.g. `kuml-io-svg`) depend on
+the **root** coordinate via `project(...)` or, for external consumers,
+`implementation("dev.kuml:kuml-core-dsl:<version>")`. Gradle reads the Module
+Metadata and transparently resolves the `-jvm` variant — no `-jvm` suffix
+needed in the dependency declaration.
+
+**Maven (non-Gradle) consumers** cannot read Gradle Module Metadata and must
+depend on the platform-suffixed artifact explicitly, e.g.
+`dev.kuml:kuml-core-dsl-jvm:<version>` in a `pom.xml`.
+
+The Maven Central publish idempotency probe in `.github/workflows/release.yml`
+checks the `-jvm` leg (`kuml-core-dsl-jvm-<version>.pom`) rather than the root
+POM, since a partial KMP publish could leave the root module present while a
+platform leg failed validation.
+
 ## Dry-runs (no credentials needed)
 
 ```bash

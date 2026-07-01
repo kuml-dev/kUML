@@ -5,6 +5,7 @@ import dev.kuml.blueprint.model.ChannelKind
 import dev.kuml.blueprint.model.Touchpoint
 import dev.kuml.blueprint.model.TouchpointSymbol
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt2
 
 /**
  * Draws a touchpoint symbol (circle/diamond/square/hexagon) with the channel
@@ -49,7 +50,4 @@ internal fun SvgBuilder.renderTouchpoint(
     rawXml("""<g transform="translate(${f(tx)},${f(ty)}) scale(${f(iconScale)})" color="#333">$icon</g>""")
 }
 
-internal fun f(v: Double): String {
-    val i = v.toInt()
-    return if (v == i.toDouble()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
-}
+internal fun f(v: Double): String = fmt2(v.toFloat())

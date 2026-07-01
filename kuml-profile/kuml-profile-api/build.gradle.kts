@@ -1,19 +1,35 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
     jvmToolchain(21)
     explicitApi()
-}
 
-dependencies {
-    implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
-    implementation(libs.kotlinx.serialization.json)
+    jvm()
+    js {
+        browser()
+        nodejs()
+    }
+    wasmJs {
+        browser()
+        nodejs()
+    }
 
-    testImplementation(libs.kotest.runner.junit5)
-    testImplementation(libs.kotest.assertions.core)
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
+            implementation(libs.kotlinx.serialization.json)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
+            implementation(libs.kotest.assertions.core)
+        }
+        jvmTest.dependencies {
+            implementation(libs.kotest.runner.junit5)
+        }
+    }
 }
 
 tasks.withType<Test>().configureEach { useJUnitPlatform() }

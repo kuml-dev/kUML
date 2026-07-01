@@ -34,10 +34,7 @@ internal fun SvgBuilder.renderEdgeLabelWithHalo(
     tag("text", mapOf("class" to "kuml-edge-label") + attrs) { text(label) }
 }
 
-private fun fmtCoord(v: Float): String {
-    val i = v.toInt()
-    return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
-}
+private fun fmtCoord(v: Float): String = fmt2(v)
 
 /**
  * Geometric helper for placing edge labels on the *actual* polyline path,

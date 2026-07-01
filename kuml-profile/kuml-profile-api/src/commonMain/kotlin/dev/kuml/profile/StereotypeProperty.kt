@@ -17,7 +17,7 @@ public data class StereotypeProperty<T : Any>(
 ) {
     init {
         require(name.isNotBlank()) { "StereotypeProperty.name must not be blank" }
-        require(type in ALLOWED_TYPES || type.java.isEnum) {
+        require(type in ALLOWED_TYPES || type.isEnumClass()) {
             "Stereotype property '$name': type ${type.simpleName} is not allowed in V1.1. " +
                 "Allowed: String, Int, Long, Double, Boolean, enum classes, List<primitive>."
         }

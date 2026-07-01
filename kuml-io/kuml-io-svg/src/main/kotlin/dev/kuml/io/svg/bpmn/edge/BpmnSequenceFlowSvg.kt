@@ -2,6 +2,7 @@ package dev.kuml.io.svg.bpmn.edge
 
 import dev.kuml.bpmn.model.SequenceFlow
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt2
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
 import kotlin.math.sqrt
@@ -136,7 +137,4 @@ private fun buildPolyline(points: List<dev.kuml.layout.Point>): String {
     return sb.toString()
 }
 
-private fun fmtF(v: Float): String {
-    val i = v.toInt()
-    return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
-}
+private fun fmtF(v: Float): String = fmt2(v)

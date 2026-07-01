@@ -3,6 +3,7 @@ package dev.kuml.io.svg.bpmn.smil
 import dev.kuml.bpmn.model.BpmnProcess
 import dev.kuml.bpmn.model.BpmnSubProcess
 import dev.kuml.bpmn.model.SequenceFlow
+import dev.kuml.io.svg.fmt2
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.Point
@@ -149,10 +150,7 @@ internal object BpmnFlowPathResolver {
         return sb.toString()
     }
 
-    private fun fmtF(v: Float): String {
-        val i = v.toInt()
-        return if (v == i.toFloat()) "$i" else "%.2f".format(java.util.Locale.ROOT, v)
-    }
+    private fun fmtF(v: Float): String = fmt2(v)
 
     private fun shiftRoute(
         route: EdgeRoute,
