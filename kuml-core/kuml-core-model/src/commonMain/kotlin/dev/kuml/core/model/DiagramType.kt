@@ -1,11 +1,14 @@
 package dev.kuml.core.model
 
+import kotlinx.serialization.Serializable
+
 /**
  * Supported diagram types.
  *
  * V1 implements: [CLASS], [SEQUENCE], [STATE], [COMPONENT], [USE_CASE] and all C4 types.
  * V1.1 adds the remaining UML 2.x types.
  */
+@Serializable
 enum class DiagramType {
     // ── UML 2.x — V1 (5 types) ──────────────────────────────────────────────
     CLASS,
