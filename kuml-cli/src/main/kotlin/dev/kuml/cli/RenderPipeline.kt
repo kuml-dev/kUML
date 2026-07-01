@@ -46,6 +46,7 @@ import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
+import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.render.smil.SpeedFactor
@@ -910,8 +911,8 @@ internal object RenderPipeline {
                 }
             }
             is ChoreographyDiagram -> {
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
-                val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+                // V3.2.2 — Choreography bypasses ELK entirely: deterministic custom grid layout.
+                val layoutResult: LayoutResult = ChoreographyGridLayout.layout(model, bpmnDiagram)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme))
                     "png" -> {

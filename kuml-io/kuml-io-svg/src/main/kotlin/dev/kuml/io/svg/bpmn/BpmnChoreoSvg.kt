@@ -53,9 +53,9 @@ private const val BPMN_CHOREO_EVENT_SHAPE_H = 36f
  * - Unteres Band: empfangender Teilnehmer (weiß / Node-Fill, Vordergrundfarbe)
  * - Mittiges Textlabel (Task-Name)
  * - Optionaler Loop-Marker (STANDARD / MI_PARALLEL / MI_SEQ)
- *
- * Hinweis: Message-Envelope-Icons auf den Bändern sind als TODO für V3.2.3
- * vorgesehen.
+ * - Message-Envelope-Icons auf den Bändern (BPMN 2.0 §11.6.2): initiierende
+ *   Nachricht (weißer/ungefüllter Umschlag) am oberen Band, Rückantwort
+ *   (gefüllter/grauer Umschlag) am unteren Band.
  *
  * V3.2.2 — BPMN Choreography SVG-Renderer
  */
@@ -154,7 +154,72 @@ internal fun renderChoreographyTask(
         // 6. Loop-Marker unten-mitte
         renderChoreoLoopMarker(task.loopType, x, y, w, h, borderColor, this)
 
-        // TODO V3.2.3: Message-Envelope-Icons auf den Bands (ChoreographyMessageFlow)
+        // 7. Message-Envelope-Icons an den Bändern (BPMN 2.0 §11.6.2)
+        renderChoreoMessageEnvelopes(task.messageFlows, x, y, w, h, borderColor, this)
+    }
+}
+
+/** Width/height of the small envelope glyph drawn above/below the participant bands. */
+private const val CHOREO_ENVELOPE_W = 16f
+private const val CHOREO_ENVELOPE_H = 10f
+
+/** Fill for the non-initiating (return) message envelope — grey, per BPMN convention. */
+private const val CHOREO_RETURN_ENVELOPE_FILL = "#DDDDDD"
+
+/**
+ * Rendert Message-Envelope-Icons für die [messageFlows] eines [ChoreographyTask]:
+ * die initiierende Nachricht als weißer (fill=none) Umschlag oberhalb des oberen
+ * Bands, die Rückantwort als gefüllter (grau) Umschlag unterhalb des unteren Bands.
+ * Beide sind über eine kurze gestrichelte Stub-Linie mit ihrem Band verbunden.
+ *
+ * V3.2.2 — BPMN Choreography SVG-Renderer
+ */
+private fun renderChoreoMessageEnvelopes(
+    messageFlows: List<dev.kuml.bpmn.model.ChoreographyMessageFlow>,
+    x: Float,
+    y: Float,
+    w: Float,
+    h: Float,
+    borderColor: String,
+    builder: SvgBuilder,
+) {
+    val cx = x + w / 2f
+
+    fun envelope(
+        centerX: Float,
+        centerY: Float,
+        fill: String,
+    ) {
+        val ex = centerX - CHOREO_ENVELOPE_W / 2f
+        val ey = centerY - CHOREO_ENVELOPE_H / 2f
+        builder.rawXml(
+            """<rect x="${fmtF(ex)}" y="${fmtF(ey)}" width="${fmtF(CHOREO_ENVELOPE_W)}" """ +
+                """height="${fmtF(CHOREO_ENVELOPE_H)}" fill="$fill" stroke="$borderColor" stroke-width="1"/>""",
+        )
+        builder.rawXml(
+            """<polyline points="${fmtF(ex)},${fmtF(ey)} ${fmtF(centerX)},${fmtF(ey + CHOREO_ENVELOPE_H / 2f)} """ +
+                """${fmtF(ex + CHOREO_ENVELOPE_W)},${fmtF(ey)}" fill="none" stroke="$borderColor" stroke-width="1"/>""",
+        )
+    }
+
+    val initiating = messageFlows.firstOrNull { it.isInitiating }
+    if (initiating != null) {
+        val envY = y - CHOREO_ENVELOPE_H / 2f - 4f
+        builder.rawXml(
+            """<line x1="${fmtF(cx)}" y1="${fmtF(y)}" x2="${fmtF(cx)}" y2="${fmtF(envY + CHOREO_ENVELOPE_H / 2f)}" """ +
+                """stroke="$borderColor" stroke-width="1" stroke-dasharray="2,2"/>""",
+        )
+        envelope(cx, envY, "none")
+    }
+
+    val returning = messageFlows.firstOrNull { !it.isInitiating }
+    if (returning != null) {
+        val envY = y + h + CHOREO_ENVELOPE_H / 2f + 4f
+        builder.rawXml(
+            """<line x1="${fmtF(cx)}" y1="${fmtF(y + h)}" x2="${fmtF(cx)}" y2="${fmtF(envY - CHOREO_ENVELOPE_H / 2f)}" """ +
+                """stroke="$borderColor" stroke-width="1" stroke-dasharray="2,2"/>""",
+        )
+        envelope(cx, envY, CHOREO_RETURN_ENVELOPE_FILL)
     }
 }
 

@@ -20,6 +20,7 @@ import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
+import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.renderer.theme.core.ThemeRegistry
@@ -268,11 +269,8 @@ object VaultExampleRenderer {
                                 KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                             }
                             is ChoreographyDiagram -> {
-                                val layout =
-                                    elkEngine.layout(
-                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram),
-                                        LayoutHints.DEFAULT,
-                                    )
+                                // V3.2.2 — Choreography bypasses ELK entirely: deterministic custom grid layout.
+                                val layout = ChoreographyGridLayout.layout(extracted.model, diagram)
                                 KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                             }
                             is ConversationDiagram -> {

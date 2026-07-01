@@ -1,5 +1,6 @@
 package dev.kuml.bpmn.constraint
 
+import dev.kuml.bpmn.model.BpmnChoreography
 import dev.kuml.bpmn.model.BpmnCollaboration
 import dev.kuml.bpmn.model.BpmnEvent
 import dev.kuml.bpmn.model.BpmnGateway
@@ -44,18 +45,26 @@ public enum class ViolationSeverity {
  * 6. Boundary event's attachedToRef must exist in the process — ERROR.
  * 7. MessageFlow with identical source and target — ERROR.
  * 8. Participant.processRef must reference an existing process — ERROR.
+ * 9. Choreography SequenceFlow source/target must reference an existing element — ERROR.
+ * 10. Choreography should have at least one StartEvent without incoming flows — WARNING.
+ * 11. Choreography EndEvents should have no outgoing flows — ERROR.
+ * 12. Choreography elements should be reachable from a StartEvent — WARNING.
+ * 13. Condition set on a flow leaving a non-EXCLUSIVE/INCLUSIVE gateway — WARNING.
+ * 14. Initiating ChoreographyMessageFlow.participantRef must match task.initiatingParticipant — ERROR.
+ * 15. Choreography task participant-band continuity between connected tasks — WARNING.
  *
- * V3.1.6
+ * V3.1.6, V3.2.2 (choreography rules)
  */
 public class BpmnConstraintChecker {
     /**
-     * Checks all processes and collaborations in [model] and returns the list
-     * of violations found. An empty list means the model passes all checks.
+     * Checks all processes, collaborations, and choreographies in [model] and returns the
+     * list of violations found. An empty list means the model passes all checks.
      */
     public fun check(model: BpmnModel): List<ConstraintViolation> =
         buildList {
             model.processes.forEach { process -> checkProcess(process, this) }
             model.collaborations.forEach { collab -> checkCollaboration(collab, model, this) }
+            model.choreographies.forEach { choreography -> checkChoreography(choreography, this) }
         }
 
     private fun checkProcess(
@@ -176,5 +185,151 @@ public class BpmnConstraintChecker {
                         )
                 }
             }
+    }
+
+    private fun checkChoreography(
+        choreography: BpmnChoreography,
+        violations: MutableList<ConstraintViolation>,
+    ) {
+        val nodeIds =
+            (choreography.tasks.map { it.id } + choreography.gateways.map { it.id } + choreography.events.map { it.id })
+                .toSet()
+
+        // 9. SequenceFlow source/target must exist in this choreography (ERROR)
+        choreography.sequenceFlows.forEach { flow ->
+            if (flow.sourceRef !in nodeIds) {
+                violations +=
+                    ConstraintViolation(
+                        elementId = flow.id,
+                        message =
+                            "ChoreographySequenceFlow '${flow.id}' source '${flow.sourceRef}' " +
+                                "not found in choreography '${choreography.id}'",
+                        severity = ViolationSeverity.ERROR,
+                    )
+            }
+            if (flow.targetRef !in nodeIds) {
+                violations +=
+                    ConstraintViolation(
+                        elementId = flow.id,
+                        message =
+                            "ChoreographySequenceFlow '${flow.id}' target '${flow.targetRef}' " +
+                                "not found in choreography '${choreography.id}'",
+                        severity = ViolationSeverity.ERROR,
+                    )
+            }
+        }
+
+        // 10. At least one StartEvent without incoming flows (WARNING)
+        val targetIds = choreography.sequenceFlows.map { it.targetRef }.toSet()
+        val startEvents = choreography.events.filter { it.position == EventPosition.START }
+        val hasFreeStart = startEvents.any { it.id !in targetIds }
+        if (startEvents.isEmpty() || !hasFreeStart) {
+            violations +=
+                ConstraintViolation(
+                    elementId = choreography.id,
+                    message =
+                        "Choreography '${choreography.name ?: choreography.id}' has no StartEvent " +
+                            "without incoming flows",
+                    severity = ViolationSeverity.WARNING,
+                )
+        }
+
+        // 11. EndEvents must have no outgoing flows (ERROR)
+        val sourceIds = choreography.sequenceFlows.map { it.sourceRef }.toSet()
+        choreography.events
+            .filter { it.position == EventPosition.END }
+            .forEach { endEvent ->
+                if (endEvent.id in sourceIds) {
+                    violations +=
+                        ConstraintViolation(
+                            elementId = endEvent.id,
+                            message =
+                                "EndEvent '${endEvent.name ?: endEvent.id}' has outgoing flows, " +
+                                    "which is not allowed",
+                            severity = ViolationSeverity.ERROR,
+                        )
+                }
+            }
+
+        // 12. Every element should be reachable from a StartEvent (WARNING)
+        val reachable = mutableSetOf<String>()
+        val queue = ArrayDeque(startEvents.map { it.id })
+        while (queue.isNotEmpty()) {
+            val current = queue.removeFirst()
+            if (!reachable.add(current)) continue
+            choreography.sequenceFlows
+                .filter { it.sourceRef == current }
+                .forEach { queue.addLast(it.targetRef) }
+        }
+        nodeIds
+            .filterNot { it in reachable }
+            .forEach { isolatedId ->
+                violations +=
+                    ConstraintViolation(
+                        elementId = isolatedId,
+                        message = "Choreography element '$isolatedId' is not reachable from any StartEvent",
+                        severity = ViolationSeverity.WARNING,
+                    )
+            }
+
+        // 13. condition set on a flow leaving a non-EXCLUSIVE/INCLUSIVE gateway (WARNING)
+        val branchingGatewayIds =
+            choreography.gateways
+                .filter { it.type == GatewayType.EXCLUSIVE || it.type == GatewayType.INCLUSIVE }
+                .map { it.id }
+                .toSet()
+        choreography.sequenceFlows
+            .filter { it.condition != null }
+            .forEach { flow ->
+                if (flow.sourceRef !in branchingGatewayIds) {
+                    violations +=
+                        ConstraintViolation(
+                            elementId = flow.id,
+                            message =
+                                "ChoreographySequenceFlow '${flow.id}' has a condition but does not " +
+                                    "leave an EXCLUSIVE/INCLUSIVE gateway",
+                            severity = ViolationSeverity.WARNING,
+                        )
+                }
+            }
+
+        // 14. Initiating message's participantRef must match task.initiatingParticipant (ERROR)
+        choreography.tasks.forEach { task ->
+            task.messageFlows
+                .filter { it.isInitiating }
+                .forEach { message ->
+                    if (message.participantRef != task.initiatingParticipant) {
+                        violations +=
+                            ConstraintViolation(
+                                elementId = task.id,
+                                message =
+                                    "ChoreographyTask '${task.name ?: task.id}' initiating message " +
+                                        "participantRef '${message.participantRef}' does not match " +
+                                        "initiatingParticipant '${task.initiatingParticipant}'",
+                                severity = ViolationSeverity.ERROR,
+                            )
+                    }
+                }
+        }
+
+        // 15. Participant-band continuity between directly connected tasks (WARNING)
+        val tasksById = choreography.tasks.associateBy { it.id }
+        choreography.sequenceFlows.forEach { flow ->
+            val fromTask = tasksById[flow.sourceRef]
+            val toTask = tasksById[flow.targetRef]
+            if (fromTask != null && toTask != null) {
+                val sharedParticipant = fromTask.participants.any { it in toTask.participants }
+                if (!sharedParticipant) {
+                    violations +=
+                        ConstraintViolation(
+                            elementId = flow.id,
+                            message =
+                                "Choreography tasks '${fromTask.name ?: fromTask.id}' and " +
+                                    "'${toTask.name ?: toTask.id}' share no participant (band continuity broken)",
+                            severity = ViolationSeverity.WARNING,
+                        )
+                }
+            }
+        }
     }
 }

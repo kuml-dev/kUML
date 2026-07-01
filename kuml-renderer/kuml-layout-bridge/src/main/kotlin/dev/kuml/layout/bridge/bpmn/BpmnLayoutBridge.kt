@@ -541,6 +541,10 @@ public object BpmnLayoutBridge {
      *   und welche Elemente angezeigt werden.
      * @param sizeProvider Optionaler SizeProvider; überschreibt Standardgrößen.
      */
+    @Deprecated(
+        "Choreography-Diagramme verwenden seit V3.2.2 dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout " +
+            "(deterministisches Custom-Grid, kein ELK). Dieser ELK-Pfad wird in einer künftigen Welle entfernt.",
+    )
     public fun toLayoutGraph(
         model: BpmnModel,
         diagram: ChoreographyDiagram,

@@ -6,6 +6,7 @@ import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.ChoreographyEvent
 import dev.kuml.bpmn.model.ChoreographyGateway
+import dev.kuml.bpmn.model.ChoreographyMessageFlow
 import dev.kuml.bpmn.model.ChoreographySequenceFlow
 import dev.kuml.bpmn.model.ChoreographyTask
 import dev.kuml.bpmn.model.EventPosition
@@ -20,6 +21,7 @@ import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.renderer.theme.core.PlainTheme
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.string.shouldContain
@@ -490,5 +492,115 @@ class BpmnChoreographySvgTest :
             val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
 
             svg shouldContain "<svg"
+        }
+
+        // ── End-to-end über die echte ChoreographyGridLayout-Pipeline (V3.2.2) ─────
+
+        test("End-to-end: ChoreographyGridLayout + Renderer zeigen Doppelrahmen, Bänder und Teilnehmer") {
+            val task =
+                ChoreographyTask(
+                    id = "t1",
+                    name = "Bestellung senden",
+                    initiatingParticipant = "Kunde",
+                    participants = listOf("Kunde", "Haendler"),
+                    loopType = BpmnLoopType.STANDARD,
+                )
+            val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
+            val (model, diagram) = modelAndDiagram(choreo)
+
+            val layout = ChoreographyGridLayout.layout(model, diagram)
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+
+            svg shouldContain "fill=\"none\""
+            svg shouldContain "#FFED00"
+            svg shouldContain "Kunde"
+            svg shouldContain "Haendler"
+            svg shouldContain "Bestellung senden"
+        }
+
+        test("End-to-end: Message-Envelope-Icons erscheinen wenn messageFlows gesetzt sind") {
+            val task =
+                ChoreographyTask(
+                    id = "t1",
+                    name = "Anfrage",
+                    initiatingParticipant = "Kunde",
+                    participants = listOf("Kunde", "Haendler"),
+                    messageFlows =
+                        listOf(
+                            ChoreographyMessageFlow(
+                                id = "mf1",
+                                name = "Anfrage",
+                                participantRef = "Kunde",
+                                isInitiating = true,
+                            ),
+                            ChoreographyMessageFlow(
+                                id = "mf2",
+                                name = "Antwort",
+                                participantRef = "Haendler",
+                                isInitiating = false,
+                            ),
+                        ),
+                )
+            val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
+            val (model, diagram) = modelAndDiagram(choreo)
+
+            val layout = ChoreographyGridLayout.layout(model, diagram)
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+
+            svg shouldContain "#DDDDDD"
+            svg shouldContain "stroke-dasharray"
+        }
+
+        test("End-to-end: Loop-Marker bleibt bei echtem Grid-Layout sichtbar") {
+            val task =
+                ChoreographyTask(
+                    id = "t1",
+                    name = "Wiederholte Pruefung",
+                    initiatingParticipant = "Kunde",
+                    participants = listOf("Kunde", "Haendler"),
+                    isMultiInstance = true,
+                    loopType = BpmnLoopType.MULTI_INSTANCE_PARALLEL,
+                )
+            val choreo = BpmnChoreography(id = "ch1", tasks = listOf(task))
+            val (model, diagram) = modelAndDiagram(choreo)
+
+            val layout = ChoreographyGridLayout.layout(model, diagram)
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+
+            svg shouldContain "<svg"
+            svg shouldContain "Wiederholte Pruefung"
+        }
+
+        test("End-to-end: Gateway-Raute und Event-Kreise über echtes Grid-Layout") {
+            val start = ChoreographyEvent(id = "start", position = EventPosition.START)
+            val gw = ChoreographyGateway(id = "gw1", type = GatewayType.EXCLUSIVE)
+            val task =
+                ChoreographyTask(
+                    id = "t1",
+                    initiatingParticipant = "A",
+                    participants = listOf("A", "B"),
+                )
+            val end = ChoreographyEvent(id = "end", position = EventPosition.END)
+            val choreo =
+                BpmnChoreography(
+                    id = "ch1",
+                    tasks = listOf(task),
+                    gateways = listOf(gw),
+                    events = listOf(start, end),
+                    sequenceFlows =
+                        listOf(
+                            ChoreographySequenceFlow(id = "sf1", sourceRef = "start", targetRef = "gw1"),
+                            ChoreographySequenceFlow(id = "sf2", sourceRef = "gw1", targetRef = "t1"),
+                            ChoreographySequenceFlow(id = "sf3", sourceRef = "t1", targetRef = "end"),
+                        ),
+                )
+            val (model, diagram) = modelAndDiagram(choreo)
+
+            val layout = ChoreographyGridLayout.layout(model, diagram)
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+
+            svg shouldContain "<polygon"
+            svg shouldContain "<circle"
+            svg shouldContain "marker-end"
         }
     })

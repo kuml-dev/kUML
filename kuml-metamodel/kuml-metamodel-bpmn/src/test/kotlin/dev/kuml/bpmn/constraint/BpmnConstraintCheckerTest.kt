@@ -1,12 +1,18 @@
 package dev.kuml.bpmn.constraint
 
 import dev.kuml.bpmn.dsl.bpmnModel
+import dev.kuml.bpmn.model.BpmnChoreography
 import dev.kuml.bpmn.model.BpmnCollaboration
 import dev.kuml.bpmn.model.BpmnEvent
 import dev.kuml.bpmn.model.BpmnGateway
 import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.bpmn.model.BpmnParticipant
 import dev.kuml.bpmn.model.BpmnProcess
+import dev.kuml.bpmn.model.ChoreographyEvent
+import dev.kuml.bpmn.model.ChoreographyGateway
+import dev.kuml.bpmn.model.ChoreographyMessageFlow
+import dev.kuml.bpmn.model.ChoreographySequenceFlow
+import dev.kuml.bpmn.model.ChoreographyTask
 import dev.kuml.bpmn.model.EventBehaviour
 import dev.kuml.bpmn.model.EventDefinition
 import dev.kuml.bpmn.model.EventPosition
@@ -353,5 +359,255 @@ class BpmnConstraintCheckerTest :
             // XOR gateway has 2 outgoing but no defaultFlow → 1 WARNING only
             val errors = violations.filter { it.severity == ViolationSeverity.ERROR }
             errors.shouldBeEmpty()
+        }
+
+        // ── Choreography helper: minimal valid choreography (start -> task -> end) ──
+
+        fun validChoreography(id: String = "ch1"): BpmnChoreography {
+            val start = ChoreographyEvent(id = "${id}_start", position = EventPosition.START)
+            val end = ChoreographyEvent(id = "${id}_end", position = EventPosition.END)
+            val task =
+                ChoreographyTask(
+                    id = "${id}_task1",
+                    initiatingParticipant = "Buyer",
+                    participants = listOf("Buyer", "Seller"),
+                    messageFlows = listOf(ChoreographyMessageFlow(id = "${id}_mf1", participantRef = "Buyer", isInitiating = true)),
+                )
+            return BpmnChoreography(
+                id = id,
+                tasks = listOf(task),
+                events = listOf(start, end),
+                sequenceFlows =
+                    listOf(
+                        ChoreographySequenceFlow(id = "${id}_f1", sourceRef = "${id}_start", targetRef = "${id}_task1"),
+                        ChoreographySequenceFlow(id = "${id}_f2", sourceRef = "${id}_task1", targetRef = "${id}_end"),
+                    ),
+            )
+        }
+
+        // ── Rule 9: Choreography SequenceFlow with unknown source/target → ERROR ──
+
+        test("choreography sequenceFlow with unknown sourceRef produces ERROR") {
+            val end = ChoreographyEvent(id = "e1", position = EventPosition.END)
+            val flow = ChoreographySequenceFlow(id = "f1", sourceRef = "NONEXISTENT", targetRef = "e1")
+            val model =
+                BpmnModel(
+                    name = "BadChorSource",
+                    choreographies = listOf(BpmnChoreography(id = "c1", events = listOf(end), sequenceFlows = listOf(flow))),
+                )
+            val violations = checker.check(model)
+            val errors = violations.filter { it.severity == ViolationSeverity.ERROR }
+            errors.any { it.message.contains("source") && it.message.contains("NONEXISTENT") } shouldBe true
+        }
+
+        test("choreography sequenceFlow with unknown targetRef produces ERROR") {
+            val start = ChoreographyEvent(id = "s1", position = EventPosition.START)
+            val flow = ChoreographySequenceFlow(id = "f1", sourceRef = "s1", targetRef = "NOWHERE")
+            val model =
+                BpmnModel(
+                    name = "BadChorTarget",
+                    choreographies = listOf(BpmnChoreography(id = "c1", events = listOf(start), sequenceFlows = listOf(flow))),
+                )
+            val violations = checker.check(model)
+            val errors = violations.filter { it.severity == ViolationSeverity.ERROR }
+            errors.any { it.message.contains("target") && it.message.contains("NOWHERE") } shouldBe true
+        }
+
+        // ── Rule 10: no free StartEvent → WARNING ─────────────────────────────
+
+        test("choreography without a free StartEvent produces WARNING") {
+            val end = ChoreographyEvent(id = "e1", position = EventPosition.END)
+            val model =
+                BpmnModel(
+                    name = "NoChorStart",
+                    choreographies = listOf(BpmnChoreography(id = "c1", events = listOf(end))),
+                )
+            val violations = checker.check(model)
+            violations.any {
+                it.severity == ViolationSeverity.WARNING && it.message.contains("no StartEvent")
+            } shouldBe true
+        }
+
+        // ── Rule 11: EndEvent with outgoing flow → ERROR ──────────────────────
+
+        test("choreography EndEvent with outgoing flow produces ERROR") {
+            val start = ChoreographyEvent(id = "s1", position = EventPosition.START)
+            val end = ChoreographyEvent(id = "e1", position = EventPosition.END)
+            val flows =
+                listOf(
+                    ChoreographySequenceFlow(id = "f1", sourceRef = "s1", targetRef = "e1"),
+                    ChoreographySequenceFlow(id = "f2", sourceRef = "e1", targetRef = "s1"),
+                )
+            val model =
+                BpmnModel(
+                    name = "BadChorEnd",
+                    choreographies = listOf(BpmnChoreography(id = "c1", events = listOf(start, end), sequenceFlows = flows)),
+                )
+            val violations = checker.check(model)
+            val errors = violations.filter { it.severity == ViolationSeverity.ERROR }
+            errors.any { it.message.contains("outgoing flows") } shouldBe true
+        }
+
+        // ── Rule 12: isolated (unreachable) element → WARNING ─────────────────
+
+        test("choreography element unreachable from StartEvent produces WARNING") {
+            val start = ChoreographyEvent(id = "s1", position = EventPosition.START)
+            val end = ChoreographyEvent(id = "e1", position = EventPosition.END)
+            val isolated = ChoreographyGateway(id = "gw_isolated", type = GatewayType.PARALLEL)
+            val flow = ChoreographySequenceFlow(id = "f1", sourceRef = "s1", targetRef = "e1")
+            val model =
+                BpmnModel(
+                    name = "IsolatedChorNode",
+                    choreographies =
+                        listOf(
+                            BpmnChoreography(
+                                id = "c1",
+                                events = listOf(start, end),
+                                gateways = listOf(isolated),
+                                sequenceFlows = listOf(flow),
+                            ),
+                        ),
+                )
+            val violations = checker.check(model)
+            violations.any {
+                it.severity == ViolationSeverity.WARNING && it.elementId == "gw_isolated" && it.message.contains("not reachable")
+            } shouldBe true
+        }
+
+        // ── Rule 13: condition on flow not leaving EXCLUSIVE/INCLUSIVE gateway → WARNING ──
+
+        test("condition on flow leaving PARALLEL gateway produces WARNING") {
+            val start = ChoreographyEvent(id = "s1", position = EventPosition.START)
+            val gw = ChoreographyGateway(id = "gw1", type = GatewayType.PARALLEL)
+            val end = ChoreographyEvent(id = "e1", position = EventPosition.END)
+            val flows =
+                listOf(
+                    ChoreographySequenceFlow(id = "f1", sourceRef = "s1", targetRef = "gw1"),
+                    ChoreographySequenceFlow(id = "f2", sourceRef = "gw1", targetRef = "e1", condition = "x > 0"),
+                )
+            val model =
+                BpmnModel(
+                    name = "BadCondition",
+                    choreographies =
+                        listOf(BpmnChoreography(id = "c1", events = listOf(start, end), gateways = listOf(gw), sequenceFlows = flows)),
+                )
+            val violations = checker.check(model)
+            violations.any {
+                it.severity == ViolationSeverity.WARNING && it.message.contains("does not leave an EXCLUSIVE/INCLUSIVE gateway")
+            } shouldBe true
+        }
+
+        test("condition on flow leaving EXCLUSIVE gateway produces no rule-13 WARNING") {
+            val start = ChoreographyEvent(id = "s1", position = EventPosition.START)
+            val gw = ChoreographyGateway(id = "gw1", type = GatewayType.EXCLUSIVE)
+            val end = ChoreographyEvent(id = "e1", position = EventPosition.END)
+            val flows =
+                listOf(
+                    ChoreographySequenceFlow(id = "f1", sourceRef = "s1", targetRef = "gw1"),
+                    ChoreographySequenceFlow(id = "f2", sourceRef = "gw1", targetRef = "e1", condition = "x > 0"),
+                )
+            val model =
+                BpmnModel(
+                    name = "GoodCondition",
+                    choreographies =
+                        listOf(BpmnChoreography(id = "c1", events = listOf(start, end), gateways = listOf(gw), sequenceFlows = flows)),
+                )
+            val violations = checker.check(model)
+            violations.none { it.message.contains("does not leave an EXCLUSIVE/INCLUSIVE gateway") } shouldBe true
+        }
+
+        // ── Rule 14: initiating message participantRef mismatch → ERROR ──────
+
+        test("initiating message with mismatched participantRef produces ERROR") {
+            val task =
+                ChoreographyTask(
+                    id = "t1",
+                    initiatingParticipant = "Buyer",
+                    participants = listOf("Buyer", "Seller"),
+                    messageFlows = listOf(ChoreographyMessageFlow(id = "mf1", participantRef = "Seller", isInitiating = true)),
+                )
+            val model =
+                BpmnModel(
+                    name = "BadInitiator",
+                    choreographies = listOf(BpmnChoreography(id = "c1", tasks = listOf(task))),
+                )
+            val violations = checker.check(model)
+            val errors = violations.filter { it.severity == ViolationSeverity.ERROR }
+            errors.any { it.message.contains("does not match") } shouldBe true
+        }
+
+        test("initiating message with matching participantRef produces no rule-14 ERROR") {
+            val task =
+                ChoreographyTask(
+                    id = "t1",
+                    initiatingParticipant = "Buyer",
+                    participants = listOf("Buyer", "Seller"),
+                    messageFlows = listOf(ChoreographyMessageFlow(id = "mf1", participantRef = "Buyer", isInitiating = true)),
+                )
+            val model =
+                BpmnModel(
+                    name = "GoodInitiator",
+                    choreographies = listOf(BpmnChoreography(id = "c1", tasks = listOf(task))),
+                )
+            val violations = checker.check(model)
+            violations.none { it.message.contains("does not match") } shouldBe true
+        }
+
+        // ── Rule 15: broken participant-band continuity between tasks → WARNING ──
+
+        test("connected choreography tasks with no shared participant produces WARNING") {
+            val taskA =
+                ChoreographyTask(
+                    id = "tA",
+                    initiatingParticipant = "Buyer",
+                    participants = listOf("Buyer", "Seller"),
+                )
+            val taskB =
+                ChoreographyTask(
+                    id = "tB",
+                    initiatingParticipant = "Shipper",
+                    participants = listOf("Shipper", "Warehouse"),
+                )
+            val flow = ChoreographySequenceFlow(id = "f1", sourceRef = "tA", targetRef = "tB")
+            val model =
+                BpmnModel(
+                    name = "BrokenBand",
+                    choreographies = listOf(BpmnChoreography(id = "c1", tasks = listOf(taskA, taskB), sequenceFlows = listOf(flow))),
+                )
+            val violations = checker.check(model)
+            violations.any {
+                it.severity == ViolationSeverity.WARNING && it.message.contains("band continuity broken")
+            } shouldBe true
+        }
+
+        test("connected choreography tasks sharing a participant produce no rule-15 WARNING") {
+            val taskA =
+                ChoreographyTask(
+                    id = "tA",
+                    initiatingParticipant = "Buyer",
+                    participants = listOf("Buyer", "Seller"),
+                )
+            val taskB =
+                ChoreographyTask(
+                    id = "tB",
+                    initiatingParticipant = "Seller",
+                    participants = listOf("Seller", "Shipper"),
+                )
+            val flow = ChoreographySequenceFlow(id = "f1", sourceRef = "tA", targetRef = "tB")
+            val model =
+                BpmnModel(
+                    name = "GoodBand",
+                    choreographies = listOf(BpmnChoreography(id = "c1", tasks = listOf(taskA, taskB), sequenceFlows = listOf(flow))),
+                )
+            val violations = checker.check(model)
+            violations.none { it.message.contains("band continuity broken") } shouldBe true
+        }
+
+        // ── Happy path: fully valid choreography → no violations ─────────────
+
+        test("fully valid choreography produces no violations") {
+            val model = BpmnModel(name = "HappyChoreography", choreographies = listOf(validChoreography()))
+            val violations = checker.check(model)
+            violations.shouldBeEmpty()
         }
     })

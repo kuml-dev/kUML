@@ -19,6 +19,7 @@ import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
+import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
@@ -166,10 +167,11 @@ internal object DesktopRenderPipeline {
                                 )
                             KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                         }
-                        is ChoreographyDiagram ->
-                            throw ScriptEvaluationException(
-                                "Rendering für BPMN-Choreografie-Diagramme ist noch nicht implementiert.",
-                            )
+                        is ChoreographyDiagram -> {
+                            // V3.2.2 — Choreography bypasses ELK entirely: deterministic custom grid layout.
+                            val layout = ChoreographyGridLayout.layout(extracted.model, diagram)
+                            KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        }
                         is ConversationDiagram -> {
                             val layout =
                                 elkEngine.layout(

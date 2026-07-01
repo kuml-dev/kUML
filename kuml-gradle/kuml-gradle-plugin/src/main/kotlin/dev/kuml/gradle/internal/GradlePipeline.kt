@@ -19,6 +19,7 @@ import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
+import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
@@ -241,7 +242,8 @@ internal object GradlePipeline {
                         KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                     }
                     is ChoreographyDiagram -> {
-                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        // V3.2.2 — Choreography bypasses ELK entirely: deterministic custom grid layout.
+                        val layout = ChoreographyGridLayout.layout(extracted.model, diagram)
                         KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                     }
                     is ConversationDiagram -> {
@@ -297,7 +299,8 @@ internal object GradlePipeline {
                         KumlPngRenderer.toPng(svg, options)
                     }
                     is ChoreographyDiagram -> {
-                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        // V3.2.2 — Choreography bypasses ELK entirely: deterministic custom grid layout.
+                        val layout = ChoreographyGridLayout.layout(extracted.model, diagram)
                         val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                         KumlPngRenderer.toPng(svg, options)
                     }
