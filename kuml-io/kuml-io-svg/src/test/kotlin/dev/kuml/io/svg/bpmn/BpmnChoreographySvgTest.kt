@@ -24,6 +24,7 @@ import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.renderer.theme.core.PlainTheme
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 
 /**
@@ -549,6 +550,66 @@ class BpmnChoreographySvgTest :
 
             svg shouldContain "#DDDDDD"
             svg shouldContain "stroke-dasharray"
+        }
+
+        test("End-to-end: adjacent envelope-bearing tasks — glyph rects do not overlap vertically") {
+            val t1 =
+                ChoreographyTask(
+                    id = "t1",
+                    initiatingParticipant = "A",
+                    participants = listOf("A", "B"),
+                    messageFlows =
+                        listOf(
+                            ChoreographyMessageFlow(id = "m1", participantRef = "A", isInitiating = false),
+                        ),
+                )
+            val t2 =
+                ChoreographyTask(
+                    id = "t2",
+                    initiatingParticipant = "C",
+                    participants = listOf("C", "D"),
+                    messageFlows =
+                        listOf(
+                            ChoreographyMessageFlow(id = "m2", participantRef = "C", isInitiating = true),
+                        ),
+                )
+            val gw = ChoreographyGateway(id = "gw", type = GatewayType.PARALLEL)
+            val choreo =
+                BpmnChoreography(
+                    id = "ch1",
+                    tasks = listOf(t1, t2),
+                    gateways = listOf(gw),
+                    sequenceFlows =
+                        listOf(
+                            ChoreographySequenceFlow(id = "f1", sourceRef = "gw", targetRef = "t1"),
+                            ChoreographySequenceFlow(id = "f2", sourceRef = "gw", targetRef = "t2"),
+                        ),
+                )
+            val (model, diagram) = modelAndDiagram(choreo)
+
+            val layout = ChoreographyGridLayout.layout(model, diagram)
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+
+            val envelopeRectRegex =
+                Regex("""<rect x="[^"]*" y="(-?[\d.]+)" width="16(?:\.0+)?" height="10(?:\.0+)?"""")
+            val intervals =
+                envelopeRectRegex
+                    .findAll(svg)
+                    .map { match ->
+                        val y = match.groupValues[1].toFloat()
+                        y to (y + 10f)
+                    }.toList()
+
+            (intervals.size >= 2) shouldBe true
+            for (i in intervals.indices) {
+                for (j in intervals.indices) {
+                    if (i == j) continue
+                    val (aStart, aEnd) = intervals[i]
+                    val (bStart, bEnd) = intervals[j]
+                    val overlap = aStart < bEnd && bStart < aEnd
+                    overlap shouldBe false
+                }
+            }
         }
 
         test("End-to-end: Loop-Marker bleibt bei echtem Grid-Layout sichtbar") {

@@ -5,6 +5,7 @@ import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.ChoreographyEvent
 import dev.kuml.bpmn.model.ChoreographyGateway
+import dev.kuml.bpmn.model.ChoreographyMessageFlow
 import dev.kuml.bpmn.model.ChoreographySequenceFlow
 import dev.kuml.bpmn.model.ChoreographyTask
 import dev.kuml.bpmn.model.EventPosition
@@ -243,6 +244,71 @@ class ChoreographyGridLayoutTest :
             result.nodes
                 .getValue(NodeId("t1"))
                 .bounds.size.width shouldBe 240f
+        }
+
+        test("adjacent tasks with message envelopes: reserved lane gap prevents envelope overlap") {
+            // t1 spans lanes [0,1] with a RETURN envelope (overhangs 15px below into lane 2);
+            // t2 spans lanes [2,3] with an INITIATING envelope (overhangs 15px above into lane 1).
+            // Both sit in the SAME column (parallel) so only the vertical gap separates them.
+            val t1 =
+                ChoreographyTask(
+                    id = "t1",
+                    initiatingParticipant = "A",
+                    participants = listOf("A", "B"),
+                    messageFlows =
+                        listOf(
+                            ChoreographyMessageFlow(id = "m1", participantRef = "A", isInitiating = false),
+                        ),
+                )
+            val t2 =
+                ChoreographyTask(
+                    id = "t2",
+                    initiatingParticipant = "C",
+                    participants = listOf("C", "D"),
+                    messageFlows =
+                        listOf(
+                            ChoreographyMessageFlow(id = "m2", participantRef = "C", isInitiating = true),
+                        ),
+                )
+            // force same column via a fork
+            val gw = ChoreographyGateway(id = "gw", type = GatewayType.PARALLEL)
+            val choreo =
+                BpmnChoreography(
+                    id = "c1",
+                    tasks = listOf(t1, t2),
+                    gateways = listOf(gw),
+                    sequenceFlows =
+                        listOf(
+                            ChoreographySequenceFlow(id = "f1", sourceRef = "gw", targetRef = "t1"),
+                            ChoreographySequenceFlow(id = "f2", sourceRef = "gw", targetRef = "t2"),
+                        ),
+                )
+            val result =
+                ChoreographyGridLayout.layout(model(choreo), ChoreographyDiagram(name = "d", choreographyId = "c1"))
+            val b1 = result.nodes.getValue(NodeId("t1")).bounds
+            val b2 = result.nodes.getValue(NodeId("t2")).bounds
+            // t1 bottom envelope reaches b1.bottom + 15; t2 top envelope reaches b2.top - 15.
+            val t1EnvBottom = b1.origin.y + b1.size.height + ChoreographyGridLayout.ENVELOPE_RESERVE
+            val t2EnvTop = b2.origin.y - ChoreographyGridLayout.ENVELOPE_RESERVE
+            (t2EnvTop >= t1EnvBottom) shouldBe true // no vertical overlap of glyph footprints
+        }
+
+        test("no message flows: lanes remain contiguous (no reserved gap)") {
+            val t1 = ChoreographyTask(id = "t1", initiatingParticipant = "A", participants = listOf("A", "B"))
+            val t2 = ChoreographyTask(id = "t2", initiatingParticipant = "B", participants = listOf("B", "C"))
+            val choreo =
+                BpmnChoreography(
+                    id = "c1",
+                    tasks = listOf(t1, t2),
+                    sequenceFlows = listOf(ChoreographySequenceFlow(id = "sf1", sourceRef = "t1", targetRef = "t2")),
+                )
+            val result =
+                ChoreographyGridLayout.layout(model(choreo), ChoreographyDiagram(name = "d", choreographyId = "c1"))
+            // lane1 top == MARGIN + LANE_HEIGHT exactly (no gap)
+            result.nodes
+                .getValue(NodeId("t2"))
+                .bounds.origin.y shouldBe
+                (ChoreographyGridLayout.MARGIN + ChoreographyGridLayout.LANE_HEIGHT)
         }
 
         test("engineId and seed contract") {

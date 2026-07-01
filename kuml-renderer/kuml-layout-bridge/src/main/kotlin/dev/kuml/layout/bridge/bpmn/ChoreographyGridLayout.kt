@@ -53,6 +53,16 @@ public object ChoreographyGridLayout {
     public const val CORNER_RADIUS: Float = 6f
 
     /**
+     * Vertikaler Platz, den ein Message-Envelope-Glyph (BpmnChoreoSvg.renderChoreoMessageEnvelopes)
+     * ober-/unterhalb der Task-Box beansprucht: CHOREO_ENVELOPE_H (10) + Stub-Offset (4) = 14 px
+     * reales Footprint (envY = y - CHOREO_ENVELOPE_H/2 - 4, Rect-Oberkante bei y - 14). Zusätzlich
+     * +1 px Sicherheitsreserve (Rundungsfehler bei Float-Arithmetik, künftige Glyph-Anpassungen) →
+     * 15 px Gesamtreserve. Wird pro Task und pro Seite nur reserviert, wenn dort ein Envelope
+     * gezeichnet wird (initiating → oben, returning → unten).
+     */
+    public const val ENVELOPE_RESERVE: Float = 15f
+
+    /**
      * Berechnet das vollständige [LayoutResult] für [diagram] gegen [model].
      *
      * @param model Das BPMN-Modell mit allen Choreographien.
@@ -115,7 +125,51 @@ public object ChoreographyGridLayout {
         // STEP D — Zellen → absolute Geometrie
         fun columnX(rank: Int): Float = MARGIN + rank * (TASK_W + COL_GAP)
 
-        fun laneY(lane: Int): Float = MARGIN + lane * LANE_HEIGHT
+        // Envelope-Overhang je Lane-Grenze: an welchen Grenzen ragt ein Task-Envelope hinein?
+        // Für jede Lane-Grenze g (zwischen Lane g-1 und g) brauchen wir Clearance, wenn ein Task
+        // mit Bottom-Envelope an/über g endet UND/ODER ein Task mit Top-Envelope an/unter g beginnt.
+        // Beide Seiten reservieren UNABHÄNGIG voneinander ihren eigenen 15px-Streifen — treffen an
+        // derselben Lane-Grenze ein Bottom- und ein Top-Envelope aufeinander, müssen sich die Reserven
+        // ADDIEREN (30 px), nicht per max mergen, sonst überlappen sich die beiden Glyph-Footprints
+        // exakt in der Mitte des (dann zu schmalen) Gaps.
+        val laneGapTop = FloatArray(laneCount + 1) // Reserve für einen Top-Envelope, der in Lane i-1 hineinragt
+        val laneGapBottom = FloatArray(laneCount + 1) // Reserve für einen Bottom-Envelope, der in Lane i hineinragt
+        // Für jede Lane-Grenze merken wir uns zusätzlich, welche(r) Spalten-Rang(ränge) die Reserve
+        // ausgelöst haben. Das braucht STEP D, um zu entscheiden, ob eine INNERE Lane-Grenze innerhalb
+        // einer spannenden Task-Box tatsächlich von einem in dieser Spalte liegenden Envelope stammt
+        // (dann zählt die Reserve zur Box-Höhe) oder von einem völlig unabhängigen Task in einer
+        // anderen Spalte (dann bleibt sie außen vor, sonst Bug siehe Review-Finding).
+        val laneGapTopRanks = Array(laneCount + 1) { mutableSetOf<Int>() }
+        val laneGapBottomRanks = Array(laneCount + 1) { mutableSetOf<Int>() }
+        for (task in tasks) {
+            val lanes = task.participants.mapNotNull { laneIndex[it] }
+            val topLane = lanes.minOrNull() ?: spineLane
+            val bottomLane = lanes.maxOrNull() ?: spineLane
+            val taskRank = ranks[task.id] ?: 0
+            if (task.messageFlows.any { it.isInitiating } && topLane > 0) {
+                laneGapTop[topLane] = maxOf(laneGapTop[topLane], ENVELOPE_RESERVE)
+                laneGapTopRanks[topLane].add(taskRank)
+            }
+            if (task.messageFlows.any { !it.isInitiating } && bottomLane + 1 < laneCount) {
+                laneGapBottom[bottomLane + 1] = maxOf(laneGapBottom[bottomLane + 1], ENVELOPE_RESERVE)
+                laneGapBottomRanks[bottomLane + 1].add(taskRank)
+            }
+        }
+        val laneGap = FloatArray(laneCount + 1) { laneGapTop[it] + laneGapBottom[it] }
+        val laneOffset = FloatArray(laneCount + 1)
+        for (i in 1..laneCount) laneOffset[i] = laneOffset[i - 1] + LANE_HEIGHT + laneGap[i]
+
+        fun laneY(lane: Int): Float = MARGIN + laneOffset[lane]
+
+        // Zusätzliche Bottom-Margin-Reserve, falls ein Task auf der letzten Spur einen
+        // Bottom-Envelope trägt — sonst würde der Glyph in die untere Margin hineinragen.
+        val bottomEnvelopeOnLastLane =
+            tasks.any { task ->
+                val lanes = task.participants.mapNotNull { laneIndex[it] }
+                val bottomLane = lanes.maxOrNull() ?: spineLane
+                bottomLane == laneCount - 1 && task.messageFlows.any { !it.isInitiating }
+            }
+        val bottomMarginReserve = if (bottomEnvelopeOnLastLane) ENVELOPE_RESERVE else 0f
 
         val bounds = mutableMapOf<String, Rect>()
         for (id in elementIds) {
@@ -130,7 +184,35 @@ public object ChoreographyGridLayout {
                     val size = sizeProvider?.sizeOf(id, kind) ?: Size(TASK_W, TASK_MIN_H)
                     val x = columnX(rank)
                     val y = laneY(topLane)
-                    val spanH = laneY(bottomLane) + LANE_HEIGHT - y
+                    // Der Box-Span darf NUR die Lane-Höhen (LANE_HEIGHT je überspannter Lane) sowie die
+                    // Gap-Reserven an INNEREN Lane-Grenzen (streng zwischen topLane und bottomLane)
+                    // aufsummieren — diese Grenzen liegen tatsächlich INNERHALB des Tasks eigenen
+                    // vertikalen Bereichs. Die Gap-Reserven an den ÄUSSEREN Grenzen (oberhalb topLane
+                    // bzw. unterhalb bottomLane, also laneGap[topLane] und laneGap[bottomLane + 1]) liegen
+                    // dagegen ZWISCHEN diesem Task und seinem Nachbarn in der Lane darüber/darunter — sie
+                    // sind bereits in laneY() über laneOffset eingerechnet (Abstand zwischen den Boxen),
+                    // dürfen aber nicht zusätzlich in die eigene Box-Höhe einfließen. Andernfalls würde
+                    // (a) die Box in fremde Reserven hineinwachsen, die von völlig unabhängigen Tasks in
+                    // anderen Spalten stammen (laneGap ist nur pro Lane-Index, nicht pro Spalte/Rank,
+                    // indiziert), und (b) der als Whitespace zwischen den Boxen gedachte Envelope-Puffer
+                    // fälschlich in die Box-Geometrie verschoben.
+                    //
+                    // Für INNERE Lane-Grenzen (topLane < Grenze <= bottomLane, streng innerhalb der
+                    // eigenen Box) gilt dieselbe Kontamination: eine Reserve an einer solchen Grenze kann
+                    // auch von einem völlig unabhängigen Task in einer anderen Spalte stammen (laneGap
+                    // ist nur pro Lane-Index, nicht pro Spalte/Rank, indiziert). Deshalb zählt eine innere
+                    // Grenzen-Reserve nur dann zur eigenen Box-Höhe, wenn mindestens einer der ranks, die
+                    // diese Reserve ausgelöst haben, mit dem eigenen Spalten-Rang übereinstimmt — sonst
+                    // ist die Reserve für DIESEN Task reiner Whitespace, kein eigener Envelope-Footprint.
+                    val innerGapReserve =
+                        (topLane + 1..bottomLane)
+                            .sumOf { boundary ->
+                                var reserve = 0.0
+                                if (rank in laneGapTopRanks[boundary]) reserve += laneGapTop[boundary].toDouble()
+                                if (rank in laneGapBottomRanks[boundary]) reserve += laneGapBottom[boundary].toDouble()
+                                reserve
+                            }.toFloat()
+                    val spanH = (bottomLane - topLane + 1) * LANE_HEIGHT + innerGapReserve
                     val h = maxOf(TASK_MIN_H, spanH, size.height)
                     val w = maxOf(TASK_W, size.width)
                     bounds[id] = Rect(Point(x, y), Size(w, h))
@@ -155,7 +237,7 @@ public object ChoreographyGridLayout {
         val maxRank = ranks.values.maxOrNull() ?: 0
         val canvasWidth = columnX(maxRank) + TASK_W + MARGIN
         val loopReserve = if (backEdgeIds.isNotEmpty()) LOOP_BACKEDGE_RESERVE else 0f
-        val canvasHeight = laneY(laneCount - 1) + LANE_HEIGHT + MARGIN + loopReserve
+        val canvasHeight = laneY(laneCount - 1) + LANE_HEIGHT + MARGIN + loopReserve + bottomMarginReserve
 
         // STEP E — Kanten-Routing
         val edges = mutableMapOf<EdgeId, EdgeRoute>()
