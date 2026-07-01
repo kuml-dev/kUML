@@ -6,7 +6,7 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
-## [0.21.0] — 2026-06-30
+## [0.21.0] — 2026-07-01
 
 ### Added
 
@@ -43,6 +43,25 @@ persisted via `PropertiesComponent` (key `dev.kuml.jetbrains.theme`, default `ku
 dropdown (SVG / PNG / TeX) that auto-saves the result via a background CLI invocation with balloon
 notifications (new `kUML Export` `NotificationGroup` in `plugin.xml`). Covered by
 `KumlPreviewPanelThemeTest` and `KumlExportActionTest`.
+
+**BPMN Choreography — constraint checks and dedicated grid layout (V3.2.1–V3.2.4 follow-up)**
+
+Adds BPMN choreography constraint checks (`BpmnConstraintChecker`) and a new
+`ChoreographyGridLayout` algorithm tailored to choreography diagrams, wired into the CLI, desktop,
+Gradle, and web render pipelines (`RenderPipeline`, `DesktopRenderPipeline`, `GradlePipeline`,
+`BpmnLayoutBridge`). Choreography diagrams no longer reuse the generic BPMN layout and instead lay
+out participant bands on a purpose-built grid.
+
+**Core modules migrated to Kotlin Multiplatform — jvm/js/wasmJs (V3.2.6–V3.2.9)**
+
+`kuml-core-model`, `kuml-metamodel-uml`, `kuml-metamodel-c4`, `kuml-profile-api`, and
+`kuml-core-dsl` are now Kotlin Multiplatform modules targeting `jvm`, `js`, and `wasmJs`, using
+`expect`/`actual` declarations and `kotlinx-atomicfu` in place of JVM-only concurrency primitives.
+Maven Central publishing was extended to multi-target coordinates for the migrated modules
+(`vanniktech` `KotlinMultiplatform` publication alongside the existing `KotlinJvm` one for
+JVM-only modules), and `kuml-io-svg` was audited for KMP readiness (number formatting centralized
+away from JVM-only `String.format`). This is groundwork for future JS/Wasm consumers of the kUML
+core DSL (e.g. browser-based playgrounds) — no CLI-facing behaviour changes in this release.
 
 ### Fixed
 
