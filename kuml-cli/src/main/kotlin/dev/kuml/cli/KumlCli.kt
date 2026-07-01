@@ -36,6 +36,7 @@ internal class KumlCli : CliktCommand(name = "kuml") {
         val commands =
             buildList {
                 add(RenderCommand())
+                add(DumpJsonCommand())
                 add(ServeCommand())
                 add(WatchCommand())
                 add(ValidateCommand())
