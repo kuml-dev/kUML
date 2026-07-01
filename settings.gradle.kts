@@ -113,6 +113,9 @@ include(
     "kuml-io:kuml-io-anim",            // V3.2 — Animated APNG + WebP export (Fat-JAR only)
 )
 
+// ── WASM Playground ──────────────────────────────────── V3.2.9 ──
+include("kuml-wasm-playground")     // V3.2.9 — wasmJs render entry point (model+layout → SVG); scaffolding only, see CLAUDE.md
+
 // ── LLM ──────────────────────────────────────────────── Phase 2 ──
 include(
     "kuml-llm:kuml-llm-core",       // Phase 2 — LlmBackend Interface
