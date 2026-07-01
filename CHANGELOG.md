@@ -6,7 +6,63 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
-## [0.21.0] — 2026-07-01
+## [0.22.0] — 2026-07-01
+
+### Added
+
+**Animated APNG / WebP export (V3.2 addendum)**
+
+New module `kuml-io-anim`. `kuml render --animated -f apng` / `-f webp` renders SMIL-animated
+diagrams to a real animated raster file — no browser required. Frame extraction defaults to a
+Batik clock-freeze pipeline (`BatikFrameSampler`, painting the GVT tree directly) with a
+dependency-free `SmilTimelineFrameSampler` fallback (string-based SVG mutation, avoiding a JAXP
+namespace-reprefixing bug that silently produced transparent frames, plus a `Locale.ROOT` fix for
+German-locale float formatting, plus correct SMIL "sandwich" resolution so only the
+latest-started animation among overlapping cycles wins). APNG encoding is a from-scratch
+`acTL`/`fcTL`/`fdAT` assembler; WebP goes through `ffmpeg`. DoS guards: 500 frames / 30 s / 50 MB
+via `FrameBudget` + `SizeLimitedByteArrayOutputStream`. Wired into the CLI (`-f apng`/`-f webp`,
+requires `--animated`) and the JetBrains export dropdown (WebP greyed out when `ffmpeg` is
+missing).
+
+**BPMN Choreography — dedicated grid layout and constraint checks**
+
+Choreography diagrams no longer reuse the generic ELK-based BPMN layout. A new
+`ChoreographyGridLayout` lays out participant bands on a purpose-built grid (topological
+ranking, per-column lane assignment, loop back-edge routing below all lanes), wired into the
+CLI, desktop, Gradle, and web render pipelines. Adds `BpmnConstraintChecker` rules for
+choreography diagrams (dangling flow refs, unreachable elements, gateway condition mismatches,
+participant-band continuity). Fixes a layout bug where message-envelope glyphs on adjacent
+choreography tasks could visually collide with neighboring lanes — vertical reserve is now
+scoped per originating column instead of applied globally.
+
+**Core and renderer modules migrated to Kotlin Multiplatform — jvm/js/wasmJs**
+
+`kuml-core-model`, `kuml-metamodel-uml`, `kuml-metamodel-c4`, `kuml-profile-api`,
+`kuml-core-dsl`, `kuml-core-expr`, `kuml-metamodel-kerml`, `kuml-metamodel-sysml2`,
+`kuml-metamodel-bpmn`, `kuml-metamodel-blueprint`, `kuml-layout-api`, `kuml-themes-core`,
+`kuml-layout-bridge`, and `kuml-io-svg` are now Kotlin Multiplatform modules targeting `jvm`,
+`js`, and `wasmJs`, using `expect`/`actual` declarations (`ServiceLoader`, hex/number
+formatting) and `kotlinx-atomicfu` in place of JVM-only concurrency primitives. `kuml-render-smil`
+and `kuml-runtime-core` remain JVM-only, wired as `jvmMain`-only dependencies where still needed.
+Maven Central publishing was extended to multi-target coordinates (`-jvm`/`-js`/`-wasm-js`) for
+the migrated modules via `vanniktech`'s `KotlinMultiplatform` publication, alongside the existing
+`KotlinJvm` publication for JVM-only modules (publishing config only — no production Maven
+Central publish has been run yet for the new coordinates).
+
+**Client-side WASM rendering in the kuml.dev Playground**
+
+`KumlDiagram` (and the UML element hierarchy) is now `kotlinx.serialization`-serializable. A new
+`kuml-wasm-playground` module exposes `renderDiagramJson(diagramJson, layoutJson): String`,
+decoding a real `KumlDiagram` + `LayoutResult` and rendering SVG entirely in Kotlin/Wasm — no JVM,
+no CLI. A new `kuml dump-json` CLI command dumps a UML script's parsed diagram + computed layout
+as JSON in the exact shape the wasm entry point expects. Scope is UML-only for now (C4, BPMN,
+SysML2, KerML, and Blueprint element types are not yet registered in the serializers module).
+The kuml.dev Playground gained a "Render via WASM (experimental)" toggle on the UML class-diagram
+example that swaps the pre-rendered SVG for a live client-side WASM render, and
+`render-playground.mjs` gained a `KUML_PLAYGROUND_ENGINE=wasm` build-time mode (only active when
+the configured theme is `plain`, since the wasm renderer does not yet take a theme parameter).
+
+## [0.21.0] — 2026-06-30
 
 ### Added
 
@@ -43,25 +99,6 @@ persisted via `PropertiesComponent` (key `dev.kuml.jetbrains.theme`, default `ku
 dropdown (SVG / PNG / TeX) that auto-saves the result via a background CLI invocation with balloon
 notifications (new `kUML Export` `NotificationGroup` in `plugin.xml`). Covered by
 `KumlPreviewPanelThemeTest` and `KumlExportActionTest`.
-
-**BPMN Choreography — constraint checks and dedicated grid layout (V3.2.1–V3.2.4 follow-up)**
-
-Adds BPMN choreography constraint checks (`BpmnConstraintChecker`) and a new
-`ChoreographyGridLayout` algorithm tailored to choreography diagrams, wired into the CLI, desktop,
-Gradle, and web render pipelines (`RenderPipeline`, `DesktopRenderPipeline`, `GradlePipeline`,
-`BpmnLayoutBridge`). Choreography diagrams no longer reuse the generic BPMN layout and instead lay
-out participant bands on a purpose-built grid.
-
-**Core modules migrated to Kotlin Multiplatform — jvm/js/wasmJs (V3.2.6–V3.2.9)**
-
-`kuml-core-model`, `kuml-metamodel-uml`, `kuml-metamodel-c4`, `kuml-profile-api`, and
-`kuml-core-dsl` are now Kotlin Multiplatform modules targeting `jvm`, `js`, and `wasmJs`, using
-`expect`/`actual` declarations and `kotlinx-atomicfu` in place of JVM-only concurrency primitives.
-Maven Central publishing was extended to multi-target coordinates for the migrated modules
-(`vanniktech` `KotlinMultiplatform` publication alongside the existing `KotlinJvm` one for
-JVM-only modules), and `kuml-io-svg` was audited for KMP readiness (number formatting centralized
-away from JVM-only `String.format`). This is groundwork for future JS/Wasm consumers of the kUML
-core DSL (e.g. browser-based playgrounds) — no CLI-facing behaviour changes in this release.
 
 ### Fixed
 
