@@ -32,6 +32,7 @@ import dev.kuml.io.svg.bpmn.smil.BpmnAnimationContext
 import dev.kuml.io.svg.bpmn.smil.BpmnSmilRenderer
 import dev.kuml.io.svg.stm.smil.StmAnimationContext
 import dev.kuml.io.svg.stm.smil.StmSmilRenderer
+import dev.kuml.io.svg.toSvgFile
 import dev.kuml.io.svg.uml.smil.SequenceAnimationContext
 import dev.kuml.io.svg.uml.smil.SequenceSmilRenderer
 import dev.kuml.layout.DiagramKind

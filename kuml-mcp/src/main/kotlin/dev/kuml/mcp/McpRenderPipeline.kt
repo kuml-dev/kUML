@@ -6,6 +6,7 @@ import dev.kuml.core.script.ScriptEvaluationException
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.io.svg.KumlSvgRenderer
+import dev.kuml.io.svg.toSvgFile
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngine
