@@ -241,6 +241,130 @@ jobs:
           retention-days: 1
 
   # ─────────────────────────────────────────────────────────────────────────
+  # Job 2b (V3.2.14): build the kuml-desktop macOS DMG and upload it to the
+  # release, then dispatch a repository_dispatch event to the Homebrew tap
+  # so its Cask (Cask/kuml-desktop.rb) can be rewritten with the new
+  # version/url/sha256.
+  #
+  # Uses the plain (non-minified) `packageDmg` Compose-Desktop task rather
+  # than `packageReleaseDmg` — the latter runs ProGuard, which currently
+  # fails on this module (thousands of unresolved references from the
+  # Kotlin scripting host + AI/Koog stack pulled in by kuml-desktop; not
+  # something this cask-packaging job should silently paper over). The
+  # bundled JRE inside `packageDmg`'s output is unminified but otherwise
+  # fully functional — same trade-off `kuml-packaging:packageDmg` already
+  # makes for the CLI DMG. Revisit once V3.2.14's ProGuard config is fixed
+  # in a dedicated follow-up (see Stolperfalle notes in the daily note).
+  #
+  # DMG filename is `kuml-desktop-<macOsPackageVersion>.dmg`, where
+  # macOsPackageVersion maps kUML's pre-1.0 "0.MINOR.PATCH" scheme to
+  # jpackage's required "MINOR.PATCH.0" (see versionForJpackage() in
+  # kuml-desktop/build.gradle.kts) — e.g. kUML 0.23.0 → kuml-desktop-23.0.0.dmg.
+  # ─────────────────────────────────────────────────────────────────────────
+  desktop-dmg:
+    name: Package kuml-desktop DMG (macOS)
+    needs: build
+    runs-on: macos-latest
+    outputs:
+      dmg_name: ${{ steps.pack.outputs.name }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
+      app_version: ${{ steps.pack.outputs.app_version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build kuml-desktop DMG (unsigned)
+        run: ./gradlew clean :kuml-desktop:packageDmg
+
+      - name: Rename DMG with version tag, upload, compute SHA-256
+        id: pack
+        shell: bash
+        run: |
+          VERSION='${{ needs.build.outputs.version }}'
+          ORIG=$(ls kuml-desktop/build/compose/binaries/main/dmg/kuml-desktop-*.dmg | head -n1)
+          APP_VERSION=$(basename "$ORIG" .dmg | sed 's/^kuml-desktop-//')
+          OUT="kuml-desktop/build/compose/binaries/main/dmg/kuml-desktop-${VERSION}.dmg"
+          cp "$ORIG" "$OUT"
+          SHA=$(shasum -a 256 "$OUT" | cut -d ' ' -f1)
+          echo "zip=$OUT" >> $GITHUB_OUTPUT
+          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+          echo "name=$(basename "$OUT")" >> $GITHUB_OUTPUT
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Upload DMG to existing GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" "${{ steps.pack.outputs.zip }}" --clobber
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 2c (V3.2.14): dispatch the kuml-desktop DMG url/sha256 to the
+  # Homebrew tap so its Cask/kuml-desktop.rb gets rewritten. Independent of
+  # dispatch-tap (the CLI Formula) — a Cask update failure must not block
+  # the CLI Formula update or vice versa. Reuses HOMEBREW_TAP_TOKEN.
+  # ─────────────────────────────────────────────────────────────────────────
+  dispatch-tap-cask:
+    name: Dispatch Homebrew Cask update (kuml-desktop)
+    needs: [build, desktop-dmg]
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.desktop-dmg.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        if: ${{ always() }}
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          HAS_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
+          URL: ${{ needs.build.outputs.release_url_base }}/${{ needs.desktop-dmg.outputs.dmg_name }}
+          SHA256: ${{ needs.desktop-dmg.outputs.sha256 }}
+        run: |
+          {
+            echo "### Homebrew Cask update (kuml-desktop)"
+            echo ""
+            echo "| Field    | Value |"
+            echo "| -------- | ----- |"
+            echo "| Version  | \`$VERSION\` |"
+            echo "| DMG URL  | \`$URL\` |"
+            echo "| SHA-256  | \`$SHA256\` |"
+            echo ""
+            if [ "$HAS_TOKEN" = "true" ]; then
+              echo "✅ Dispatching to \`kuml-dev/homebrew-kuml\` (event: \`kuml-desktop-release\`). See its Actions tab for the Cask bump."
+            else
+              echo "⚠ \`HOMEBREW_TAP_TOKEN\` is not set — auto-dispatch skipped. Trigger manually:"
+              echo ""
+              echo '```bash'
+              echo "gh workflow run update-cask.yml -R kuml-dev/homebrew-kuml \\"
+              echo "    -f version=$VERSION \\"
+              echo "    -f url='$URL' \\"
+              echo "    -f sha256='$SHA256'"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Dispatch Homebrew tap Cask update
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: kuml-dev/homebrew-kuml
+          event-type: kuml-desktop-release
+          client-payload: |-
+            {
+              "version": "${{ needs.build.outputs.version }}",
+              "url":     "${{ needs.build.outputs.release_url_base }}/${{ needs.desktop-dmg.outputs.dmg_name }}",
+              "sha256":  "${{ needs.desktop-dmg.outputs.sha256 }}"
+            }
+
+  # ─────────────────────────────────────────────────────────────────────────
   # Job 3: collect the per-platform SHAs from the matrix legs and dispatch
   # a single repository_dispatch event to the Homebrew tap so it can
   # rewrite the formula with platform-conditional url/sha blocks.
