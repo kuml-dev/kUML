@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: Plain · engine: elk.layered -->
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 367 880"
+     width="367"
+     height="880">
+  <defs>
+  <style>
+    .kuml-class { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-interface { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-enum { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-component { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-state { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-usecase { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-system { fill: #FFFFFF; stroke: #000000; stroke-width: 2.0; }
+.kuml-container { fill: #FFFFFF; stroke: #000000; stroke-width: 1.0; }
+.kuml-c4component { fill: #FFFFFF; stroke: #000000; stroke-width: 1.0; }
+.kuml-instance { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-title { font-family: system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #000000; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #000000; }
+.kuml-body { font-family: system-ui, sans-serif; font-size: 11.0px; fill: #000000; }
+.kuml-small { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #666666; }
+.kuml-edge-label { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #666666; }
+.kuml-edge-label-halo { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #666666; }
+.kuml-tagged-value { font-family: system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #666666; }
+.kuml-edge { stroke: #000000; stroke-width: 1.5; fill: none; }
+.kuml-edge-dashed { stroke: #999999; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #000000; stroke-width: 1.0; }
+.kuml-actor { stroke: #000000; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #000000; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #000000; stroke-width: 1.5; }
+.kuml-port { fill: #000000; stroke: #000000; stroke-width: 1.0; }
+.kuml-port-label { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #000000; }
+.kuml-port-label-halo { font-family: system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #000000; stroke-width: 1.5; }
+.kuml-connector-label { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #000000; }
+.kuml-action { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-decision { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #000000; stroke: #000000; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #000000; stroke: #000000; stroke-width: 1.5; }
+.kuml-final-outer { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-node { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-node-top { fill: #666666; stroke: #000000; stroke-width: 1.5; }
+.kuml-node-side { fill: #666666; stroke: #000000; stroke-width: 1.5; }
+.kuml-artifact { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #666666; stroke: #000000; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #000000; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="367" height="880" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="Traffic Light" transform="translate(80,80)">
+      <rect width="223" height="736" rx="8" ry="8" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="16">
+        stateMachine
+      </text>
+      <text class="kuml-title" x="111.50" y="46" text-anchor="middle">
+        Traffic Light
+      </text>
+    </g>
+    <g id="Traffic Light::initial">
+      <circle cx="180.33" cy="152" r="9.60" class="kuml-class" fill="currentColor"/>
+    </g>
+    <g id="Traffic Light::Red" transform="translate(100.33,254)">
+      <rect width="160" height="80" rx="12" ry="12" class="kuml-state"/>
+      <text class="kuml-body" x="80" y="44" text-anchor="middle">
+        Red
+      </text>
+    </g>
+    <g id="Traffic Light::Green" transform="translate(127,424)">
+      <rect width="160" height="80" rx="12" ry="12" class="kuml-state"/>
+      <text class="kuml-body" x="80" y="44" text-anchor="middle">
+        Green
+      </text>
+    </g>
+    <g id="Traffic Light::Yellow" transform="translate(100.33,594)">
+      <rect width="160" height="80" rx="12" ry="12" class="kuml-state"/>
+      <text class="kuml-body" x="80" y="44" text-anchor="middle">
+        Yellow
+      </text>
+    </g>
+    <g id="Traffic Light::Off">
+      <circle cx="180.33" cy="778" r="12.60" class="kuml-class" fill="white"/>
+      <circle cx="180.33" cy="778" r="6.30" class="kuml-class" fill="currentColor"/>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="180.33" y1="164" x2="180.33" y2="254" class="kuml-edge"/>
+    <path d="M 175.33,242 L 180.33,254 L 185.33,242" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <line x1="207" y1="334" x2="207" y2="424" class="kuml-edge"/>
+    <path d="M 202,412 L 207,424 L 212,412" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <rect x="129.60" y="365" width="154.80" height="12" fill="white" stroke="none"/>
+    <text class="kuml-body" x="207" y="375" text-anchor="middle">
+      timerGreen [cycleActive]
+    </text>
+    <line x1="207" y1="504" x2="207" y2="594" class="kuml-edge"/>
+    <path d="M 202,582 L 207,594 L 212,582" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <rect x="169.90" y="535" width="74.20" height="12" fill="white" stroke="none"/>
+    <text class="kuml-body" x="207" y="545" text-anchor="middle">
+      timerYellow
+    </text>
+    <path d="M 153.67 594 L 153.67 534 L 96 534 L 96 364 L 153.67 364 L 153.67 334" class="kuml-edge"/>
+    <path d="M 158.67,346 L 153.67,334 L 148.67,346" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <rect x="82.47" y="549.97" width="142.40" height="12" fill="white" stroke="none"/>
+    <text class="kuml-body" x="153.67" y="559.97" text-anchor="middle">
+      timerRed [cycleActive]
+    </text>
+    <line x1="180.33" y1="674" x2="180.33" y2="764" class="kuml-edge"/>
+    <path d="M 175.33,752 L 180.33,764 L 185.33,752" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <rect x="106.03" y="705" width="148.60" height="12" fill="white" stroke="none"/>
+    <text class="kuml-body" x="180.33" y="715" text-anchor="middle">
+      powerOff [!cycleActive]
+    </text>
+  </g>
+
+<rect id="smil-stm-hl-Traffic_Light__initial" x="168.33334" y="140.0" width="24.0" height="24.0" fill="none" opacity="0" rx="4"/>
+<rect id="smil-stm-hl-Traffic_Light__Red" x="100.33333" y="254.0" width="160.0" height="80.0" fill="none" opacity="0" rx="4"/>
+<rect id="smil-stm-hl-Traffic_Light__Green" x="127.0" y="424.0" width="160.0" height="80.0" fill="none" opacity="0" rx="4"/>
+<rect id="smil-stm-hl-Traffic_Light__Yellow" x="100.33333" y="594.0" width="160.0" height="80.0" fill="none" opacity="0" rx="4"/>
+<path id="smil-stm-trans-Traffic_Light__t__initial-_Red" d="M 180.33 164 L 180.33 254" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
+<path id="smil-stm-trans-Traffic_Light__t__Red-_Green" d="M 207 334 L 207 424" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
+<path id="smil-stm-trans-Traffic_Light__t__Green-_Yellow" d="M 207 504 L 207 594" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
+<path id="smil-stm-trans-Traffic_Light__t__Yellow-_Red" d="M 153.67 594 L 153.67 534 L 96 534 L 96 364 L 153.67 364 L 153.67 334" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
+
+<animate xlink:href="#smil-stm-hl-Traffic_Light__initial" attributeName="opacity" from="0" to="0.4" begin="0ms" dur="50ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__initial" attributeName="fill" from="#ffffff" to="#ffd54a" begin="0ms" dur="600ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__initial" attributeName="opacity" from="0.4" to="0" begin="600ms" dur="200ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__initial-_Red" attributeName="stroke-width" from="1.5" to="4" begin="1000ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__initial-_Red" attributeName="stroke-width" from="4" to="1.5" begin="1300ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Red" attributeName="opacity" from="0" to="0.4" begin="2000ms" dur="50ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Red" attributeName="fill" from="#ffffff" to="#ffd54a" begin="2000ms" dur="600ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Red" attributeName="opacity" from="0.4" to="0" begin="2600ms" dur="200ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Red-_Green" attributeName="stroke-width" from="1.5" to="4" begin="3000ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Red-_Green" attributeName="stroke-width" from="4" to="1.5" begin="3300ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Green" attributeName="opacity" from="0" to="0.4" begin="4000ms" dur="50ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Green" attributeName="fill" from="#ffffff" to="#ffd54a" begin="4000ms" dur="600ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Green" attributeName="opacity" from="0.4" to="0" begin="4600ms" dur="200ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Green-_Yellow" attributeName="stroke-width" from="1.5" to="4" begin="5000ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Green-_Yellow" attributeName="stroke-width" from="4" to="1.5" begin="5300ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Yellow" attributeName="opacity" from="0" to="0.4" begin="6000ms" dur="50ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Yellow" attributeName="fill" from="#ffffff" to="#ffd54a" begin="6000ms" dur="600ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Yellow" attributeName="opacity" from="0.4" to="0" begin="6600ms" dur="200ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Yellow-_Red" attributeName="stroke-width" from="1.5" to="4" begin="7000ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Yellow-_Red" attributeName="stroke-width" from="4" to="1.5" begin="7300ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Red" attributeName="opacity" from="0" to="0.4" begin="8000ms" dur="50ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Red" attributeName="fill" from="#ffffff" to="#ffd54a" begin="8000ms" dur="600ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Red" attributeName="opacity" from="0.4" to="0" begin="8600ms" dur="200ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Red-_Green" attributeName="stroke-width" from="1.5" to="4" begin="9000ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Red-_Green" attributeName="stroke-width" from="4" to="1.5" begin="9300ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Green" attributeName="opacity" from="0" to="0.4" begin="10000ms" dur="50ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Green" attributeName="fill" from="#ffffff" to="#ffd54a" begin="10000ms" dur="600ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Green" attributeName="opacity" from="0.4" to="0" begin="10600ms" dur="200ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Green-_Yellow" attributeName="stroke-width" from="1.5" to="4" begin="11000ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Green-_Yellow" attributeName="stroke-width" from="4" to="1.5" begin="11300ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Yellow" attributeName="opacity" from="0" to="0.4" begin="12000ms" dur="50ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Yellow" attributeName="fill" from="#ffffff" to="#ffd54a" begin="12000ms" dur="600ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Yellow" attributeName="opacity" from="0.4" to="0" begin="12600ms" dur="200ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Yellow-_Red" attributeName="stroke-width" from="1.5" to="4" begin="13000ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-trans-Traffic_Light__t__Yellow-_Red" attributeName="stroke-width" from="4" to="1.5" begin="13300ms" dur="300ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Red" attributeName="opacity" from="0" to="0.4" begin="14000ms" dur="50ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Red" attributeName="fill" from="#ffffff" to="#ffd54a" begin="14000ms" dur="600ms" fill="freeze"/>
+<animate xlink:href="#smil-stm-hl-Traffic_Light__Red" attributeName="opacity" from="0.4" to="0" begin="14600ms" dur="200ms" fill="freeze"/>
+</svg>

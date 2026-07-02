@@ -42,30 +42,43 @@ jobs:
 
       # Maven Central is immutable: a given GAV can only be published once.
       # If a prior run of this workflow already pushed the libraries, this
-      # step would fail with "Component already exists". We probe a
-      # representative POM before invoking Gradle so re-runs after a
+      # step would fail with "Component already exists". We probe
+      # representative POMs before invoking Gradle so re-runs after a
       # downstream failure (e.g. GitHub Release creation) are idempotent.
       #
       # V3.2.7: kuml-core-dsl (and 4 sibling modules) are now Kotlin
       # Multiplatform. The root `kuml-core-dsl-${VERSION}.pom` (Gradle
       # metadata module) is still published under KMP, but it can land even
       # if a platform leg (`-js`/`-wasm-js`) failed validation, which would
-      # make the root-only probe a false positive for "fully published". We
-      # probe the `-jvm` leg instead — it is the most-consumed target
-      # (downstream JVM modules resolve it via Gradle module metadata) and a
-      # missing `-jvm` POM reliably indicates an incomplete/failed publish.
+      # make the root-only probe a false positive for "fully published".
+      #
+      # V3.2.15 follow-up: probing only the `-jvm` leg had the same failure
+      # mode one level down — a partial publish where `-jvm` succeeds but
+      # `-js` or `-wasm-js` fails Central's async validation would make a
+      # retry see `already_published=true` and skip publishToMavenCentral
+      # entirely, permanently orphaning the missing legs for that version
+      # (Central is immutable, so only a version bump recovers). We now
+      # probe all three legs of the representative module and only report
+      # already_published=true if ALL of them are already live.
       - name: Check if libraries already on Maven Central
         id: mc_check
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          POM_URL="https://repo1.maven.org/maven2/dev/kuml/kuml-core-dsl-jvm/${VERSION}/kuml-core-dsl-jvm-${VERSION}.pom"
-          HTTP_STATUS=$(curl -sI -o /dev/null -w "%{http_code}" "$POM_URL")
-          echo "Maven Central probe: $POM_URL → HTTP $HTTP_STATUS"
-          if [ "$HTTP_STATUS" = "200" ]; then
+          ALL_PUBLISHED=true
+          for LEG in jvm js wasm-js; do
+            POM_URL="https://repo1.maven.org/maven2/dev/kuml/kuml-core-dsl-${LEG}/${VERSION}/kuml-core-dsl-${LEG}-${VERSION}.pom"
+            HTTP_STATUS=$(curl -sI -o /dev/null -w "%{http_code}" "$POM_URL")
+            echo "Maven Central probe ($LEG): $POM_URL → HTTP $HTTP_STATUS"
+            if [ "$HTTP_STATUS" != "200" ]; then
+              ALL_PUBLISHED=false
+            fi
+          done
+          if [ "$ALL_PUBLISHED" = "true" ]; then
             echo "already_published=true" >> $GITHUB_OUTPUT
-            echo "::notice::v${VERSION} already on Maven Central — skipping publishToMavenCentral"
+            echo "::notice::v${VERSION} already on Maven Central (jvm+js+wasm-js all present) — skipping publishToMavenCentral"
           else
             echo "already_published=false" >> $GITHUB_OUTPUT
+            echo "::notice::v${VERSION} not fully published yet (or partially published) — running publishToMavenCentral"
           fi
 
       - name: Publish libraries to Maven Central

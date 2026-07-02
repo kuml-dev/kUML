@@ -83,6 +83,34 @@ with ELK Sugiyama layout and the kUML theme:
 
 image::docs/images/order-domain.svg[Order Domain — class diagram with OrderStatus enum and OrderItem composition,align=center]
 
+== Animated Diagrams
+
+kUML renders *pure SMIL SVG animations* directly from execution traces — no JavaScript, no GIF conversion.
+Pass `--animated` on the CLI (or use a `kuml-animated` code block in Obsidian) and supply a
+`kuml.trace.v1` JSON trace. Any browser that supports SVG SMIL plays them inline.
+
+=== UML Sequence — message-dot animation
+
+image::docs/images/anim-sequence-api-submit.svg[UML Sequence: Place Order / API Submit — animated message dots,align=center]
+
+An animated `sequenceDiagram` (Place Order happy path). A blue dot glides along each arrow in
+declaration order: `submitOrder()` → `POST /orders` → `INSERT order` → `ok` → `201 Created` → confirmation.
+Rendered by `SequenceSmilRenderer`.
+
+=== UML State Machine — state-highlighting animation
+
+image::docs/images/anim-stm-traffic-light.svg[UML State Machine: Traffic Light — animated state highlighting,align=center]
+
+An animated `stateDiagram` (Traffic Light, two full cycles). The active state highlights in amber;
+all others remain passive. Rendered by `StmSmilRenderer`.
+
+=== BPMN Process — token animation
+
+image::docs/images/anim-bpmn-pdv-mitgliedsantrag.svg[BPMN Process: PdV Mitgliedsantrag — animated token flow,align=center]
+
+An animated `bpmnModel` (PdV membership application). A token travels along BPMN sequence
+flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmilRenderer`.
+
 == Installation
 
 [cols="1,3"]
@@ -177,8 +205,8 @@ image::docs/images/order-domain.svg[Order Domain — class diagram with OrderSta
 | *WASM / ink! Chain Adapter (`kuml-runtime-chain-wasm`)*
 | Connect behaviour-runtime state machines to Substrate-based WASM smart contracts (ink!, Polkadot, Astar, Moonbeam). `onChain { call(selector, args) }` SCALE-encodes and submits the call. Same dry-run, retry, and SSRF-safe guards as the CosmWasm adapter. Config via `kuml-chain-wasm.properties` or environment variables. (v0.18.0)
 
-| *User Journey Maps (`blueprint {}` DSL)*
-| Model end-to-end customer experiences as a four-layer Service Blueprint: Customer Actions / Frontstage / Backstage / Support Processes, separated by the three standard dividing lines. Each step carries an optional `Sentiment` annotation (POSITIVE / NEUTRAL / NEGATIVE / PAINPOINT) that drives colour coding in the SVG swimlane output. Renderable with `kuml render`, validatable with `kuml validate`. (v0.18.0)
+| *User Journey Maps & Service Blueprint (`blueprint {}` DSL)*
+| Model end-to-end customer experiences as a four-layer Service Blueprint (Shostack): Customer Actions / Frontstage / Backstage / Support Processes, separated by the three standard dividing lines (Interaction / Visibility / Internal Interaction). Each step carries an optional `Sentiment` annotation (POSITIVE / NEUTRAL / NEGATIVE / PAINPOINT) that drives colour coding in the SVG swimlane output. Renderable with `kuml render`, validatable with `kuml validate`. (v0.18.0)
 
 | *JetBrains Plugin (Marketplace)*
 | `dev.kuml.ide` — available on the JetBrains Marketplace. Install via *Settings → Plugins → Marketplace*, search for `kUML`. Provides live SVG preview with scroll pane (automatic scrollbars for large diagrams), hand-drag panning, zoom toolbar (Fit Width / Fit Height / Zoom Out / Fit to Window), inline error highlighting via `kuml diagnostics`, structure view, and code completion for all DSL builders. (v0.19.0)
