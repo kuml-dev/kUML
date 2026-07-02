@@ -30,6 +30,28 @@ internal sealed interface OclExpression {
         val prop: String,
     ) : OclExpression
 
+    /**
+     * `receiver.name(args)` — a dot-navigated operation call with an
+     * explicit (possibly empty) argument list, as opposed to plain property
+     * navigation ([Navigate], which never has parentheses).
+     *
+     * Covers the OCL standard-library `String`/`Real`/`Integer` operations
+     * (V3.2.24 — `substring`, `toUpper`, `toLower`, `concat`, `indexOf`,
+     * `abs`, `floor`, `round`, `max`, `min`, `mod`, `div`, …) evaluated by
+     * [dev.kuml.core.ocl.OclEvaluator.evalOperationCall]. Zero-arg model
+     * operation calls (e.g. `self.someOperation()`) also parse to this node
+     * with an empty [args] list; the evaluator falls back to standard-library
+     * dispatch first and otherwise treats a bare `receiver()` call as
+     * equivalent to [Navigate] for compatibility with existing model
+     * `UmlOperation` navigation (no operation-invocation runtime exists in
+     * this subset — see [dev.kuml.core.ocl.OclEvaluator] class KDoc).
+     */
+    data class OperationCall(
+        val receiver: OclExpression,
+        val name: String,
+        val args: List<OclExpression> = emptyList(),
+    ) : OclExpression
+
     data class CollectionOp(
         val receiver: OclExpression,
         val op: String,

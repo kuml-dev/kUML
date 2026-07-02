@@ -54,6 +54,7 @@ internal class OclEvaluator(
                         ?: throw OclEvaluationException("Cannot navigate '${expr.prop}' on null")
                 PropertyAccessor.get(recv, expr.prop, model)
             }
+            is OclExpression.OperationCall -> evalOperationCall(expr, env)
             is OclExpression.CollectionOp -> evalCollectionOp(expr, env)
             is OclExpression.IterateExpr -> evalIterate(expr, env)
             is OclExpression.LetExpr -> {
@@ -71,6 +72,137 @@ internal class OclEvaluator(
             is OclExpression.TypeOp -> evalTypeOp(expr, env)
             is OclExpression.AtPre -> eval(expr.receiver, preSnapshot ?: env)
         }
+
+    // ── OCL standard-library String/Real/Integer operations (V3.2.24) ──────
+
+    /**
+     * Dispatches `receiver.name(args)` calls parsed as [OclExpression.OperationCall].
+     *
+     * Resolution order:
+     * 1. `String` standard-library operations, if the receiver evaluates to a [String].
+     * 2. `Real`/`Integer` standard-library operations, if the receiver is numeric.
+     * 3. Fallback: no matching standard-library operation — this subset has no
+     *    operation-invocation runtime for arbitrary model operations (see class
+     *    KDoc), so a bare zero-arg call on a non-primitive receiver (e.g. a
+     *    metamodel accessor exposed as a method-shaped name) resolves via
+     *    [PropertyAccessor] exactly like [OclExpression.Navigate] — this keeps
+     *    `self.someOperation()`-style call syntax from the OCL spec parseable
+     *    without requiring every model accessor to be re-exposed as a property.
+     */
+    private fun evalOperationCall(
+        expr: OclExpression.OperationCall,
+        env: Map<String, Any?>,
+    ): Any? {
+        val receiverValue =
+            eval(expr.receiver, env)
+                ?: throw OclEvaluationException("Cannot call '${expr.name}' on null")
+
+        fun arg(i: Int): Any? = eval(expr.args[i], env)
+
+        if (receiverValue is String) {
+            evalStringOp(receiverValue, expr.name, expr.args, ::arg)?.let { return it.value }
+        }
+        if (isNumeric(receiverValue)) {
+            evalNumberOp(receiverValue, expr.name, expr.args, ::arg)?.let { return it.value }
+        }
+        return PropertyAccessor.get(receiverValue, expr.name, model)
+    }
+
+    /** Wraps a possibly-`null` standard-library result so "no matching op" can be told apart from a `null` result. */
+    private class OpResult(
+        val value: Any?,
+    )
+
+    /**
+     * OCL `String` standard-library operations (V3.2.24 completion). All
+     * indices are 1-based per the OCL specification (`substring(1, size())`
+     * returns the whole string), converted to Kotlin's 0-based indices here.
+     */
+    private fun evalStringOp(
+        receiver: String,
+        name: String,
+        args: List<OclExpression>,
+        arg: (Int) -> Any?,
+    ): OpResult? =
+        when (name) {
+            "size" -> OpResult(receiver.length)
+            "toUpper" -> OpResult(receiver.uppercase())
+            "toLower" -> OpResult(receiver.lowercase())
+            "concat" -> OpResult(receiver + requireString(arg(0), "concat"))
+            "substring" -> {
+                val from = requireInt(arg(0), "substring")
+                val to = requireInt(arg(1), "substring")
+                if (from < 1 || to > receiver.length || from > to + 1) {
+                    throw OclEvaluationException(
+                        "'substring($from, $to)' out of bounds for a string of length ${receiver.length}",
+                    )
+                }
+                OpResult(receiver.substring(from - 1, to))
+            }
+            "indexOf" -> OpResult(receiver.indexOf(requireString(arg(0), "indexOf")) + 1)
+            "equalsIgnoreCase" -> OpResult(receiver.equals(requireString(arg(0), "equalsIgnoreCase"), ignoreCase = true))
+            "isEmpty" -> OpResult(receiver.isEmpty())
+            "notEmpty" -> OpResult(receiver.isNotEmpty())
+            "at" -> {
+                val i = requireInt(arg(0), "at")
+                if (i < 1 || i > receiver.length) {
+                    throw OclEvaluationException("'at($i)' out of bounds for a string of length ${receiver.length}")
+                }
+                OpResult(receiver[i - 1].toString())
+            }
+            else -> null
+        }
+
+    /**
+     * OCL `Real`/`Integer` standard-library operations (V3.2.24 completion).
+     * `mod`/`div` are Integer-only per the OCL spec; `abs`/`floor`/`round`
+     * preserve the OCL `Integer op -> Integer` / `Real op -> Real` promotion
+     * rule used elsewhere in this evaluator (see [arithResult]).
+     */
+    private fun evalNumberOp(
+        receiver: Any,
+        name: String,
+        args: List<OclExpression>,
+        arg: (Int) -> Any?,
+    ): OpResult? =
+        when (name) {
+            "abs" -> OpResult(if (receiver is Int) kotlin.math.abs(receiver) else kotlin.math.abs(toNumeric(receiver)))
+            "floor" -> OpResult(kotlin.math.floor(toNumeric(receiver)).toInt())
+            // OCL `round()` rounds half *up* ("if there are two nearest integers,
+            // the larger is selected" — OMG OCL 2.4 §7.5.2), unlike
+            // `kotlin.math.round`'s round-half-to-even ("banker's rounding"),
+            // which would incorrectly return 2 for `2.5.round()`.
+            "round" -> OpResult(kotlin.math.floor(toNumeric(receiver) + 0.5).toInt())
+            "max" -> {
+                val other = arg(0)
+                OpResult(arithResult(receiver, other, kotlin.math.max(toNumeric(receiver), toNumeric(other))))
+            }
+            "min" -> {
+                val other = arg(0)
+                OpResult(arithResult(receiver, other, kotlin.math.min(toNumeric(receiver), toNumeric(other))))
+            }
+            "mod" -> {
+                val divisor = requireInt(arg(0), "mod")
+                if (divisor == 0) throw OclEvaluationException("'mod' by zero")
+                OpResult(requireInt(receiver, "mod") % divisor)
+            }
+            "div" -> {
+                val divisor = requireInt(arg(0), "div")
+                if (divisor == 0) throw OclEvaluationException("'div' by zero")
+                OpResult(Math.floorDiv(requireInt(receiver, "div"), divisor))
+            }
+            else -> null
+        }
+
+    private fun requireString(
+        v: Any?,
+        op: String,
+    ): String = v as? String ?: throw OclEvaluationException("'$op' requires a String argument, got $v")
+
+    private fun requireInt(
+        v: Any?,
+        op: String,
+    ): Int = v as? Int ?: throw OclEvaluationException("'$op' requires an Integer argument, got $v")
 
     // ── OCL type operations (V3.2.22) ───────────────────────────────────────
 

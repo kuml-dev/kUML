@@ -225,6 +225,46 @@ class OclParserTest :
             shouldThrow<OclEvaluationException> { OclParser(tokens).parse() }
         }
 
+        // ── Standard-library operation calls (V3.2.24) ──────────────────────
+
+        test("parses a zero-arg operation call") {
+            val tokens = OclLexer.tokenize("self.name.toUpper()")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe
+                OclExpression.OperationCall(
+                    receiver = OclExpression.Navigate(OclExpression.Self, "name"),
+                    name = "toUpper",
+                )
+        }
+
+        test("parses a single-arg operation call") {
+            val tokens = OclLexer.tokenize("self.name.concat('!')")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe
+                OclExpression.OperationCall(
+                    receiver = OclExpression.Navigate(OclExpression.Self, "name"),
+                    name = "concat",
+                    args = listOf(OclExpression.StrLit("!")),
+                )
+        }
+
+        test("parses a two-arg operation call") {
+            val tokens = OclLexer.tokenize("self.name.substring(1, 3)")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe
+                OclExpression.OperationCall(
+                    receiver = OclExpression.Navigate(OclExpression.Self, "name"),
+                    name = "substring",
+                    args = listOf(OclExpression.IntLit(1), OclExpression.IntLit(3)),
+                )
+        }
+
+        test("does not treat plain property navigation as an operation call") {
+            val tokens = OclLexer.tokenize("self.name")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe OclExpression.Navigate(OclExpression.Self, "name")
+        }
+
         // ── @pre snapshot (V3.2.22) ──────────────────────────────────────────
 
         test("parses @pre on a navigation") {

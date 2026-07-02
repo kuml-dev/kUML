@@ -303,6 +303,76 @@ class OclEvaluatorTest :
             shouldThrow<OclEvaluationException> { OclEvaluator(cls).eval(expr) }
         }
 
+        // ── Standard-library String operations (V3.2.24) ────────────────────
+
+        test("String size returns character count") {
+            eval(order(), "'hello'.size()") shouldBe 5
+        }
+
+        test("String toUpper and toLower") {
+            eval(order(), "'Hello'.toUpper()") shouldBe "HELLO"
+            eval(order(), "'Hello'.toLower()") shouldBe "hello"
+        }
+
+        test("String concat appends the argument") {
+            eval(order(), "'foo'.concat('bar')") shouldBe "foobar"
+        }
+
+        test("String substring is 1-based and inclusive") {
+            eval(order(), "'pantry'.substring(1, 3)") shouldBe "pan"
+            eval(order(), "'pantry'.substring(4, 6)") shouldBe "try"
+        }
+
+        test("String substring out of bounds throws") {
+            shouldThrow<OclEvaluationException> { eval(order(), "'abc'.substring(0, 2)") }
+            shouldThrow<OclEvaluationException> { eval(order(), "'abc'.substring(1, 5)") }
+        }
+
+        test("String indexOf is 1-based, 0 when not found") {
+            eval(order(), "'hello world'.indexOf('world')") shouldBe 7
+            eval(order(), "'hello'.indexOf('xyz')") shouldBe 0
+        }
+
+        test("String isEmpty and notEmpty") {
+            eval(order(), "''.isEmpty()") shouldBe true
+            eval(order(), "'x'.notEmpty()") shouldBe true
+        }
+
+        test("String at returns the 1-based character") {
+            eval(order(), "'abc'.at(2)") shouldBe "b"
+        }
+
+        // ── Standard-library Integer/Real operations (V3.2.24) ──────────────
+
+        test("Integer abs, floor, round") {
+            eval(order(), "(-5).abs()") shouldBe 5
+            eval(order(), "3.7.floor()") shouldBe 3
+            eval(order(), "3.5.round()") shouldBe 4
+        }
+
+        test("round is half-up, not Kotlin's half-to-even banker's rounding") {
+            // kotlin.math.round(2.5) == 2.0 (rounds to even) — OCL spec requires
+            // the *larger* of the two nearest integers for an exact .5 (OMG
+            // OCL 2.4 §7.5.2), i.e. round-half-up.
+            eval(order(), "2.5.round()") shouldBe 3
+            eval(order(), "0.5.round()") shouldBe 1
+        }
+
+        test("Integer max and min") {
+            eval(order(), "3.max(7)") shouldBe 7
+            eval(order(), "3.min(7)") shouldBe 3
+        }
+
+        test("Integer mod and div") {
+            eval(order(), "7.mod(3)") shouldBe 1
+            eval(order(), "7.div(3)") shouldBe 2
+        }
+
+        test("mod and div by zero throw") {
+            shouldThrow<OclEvaluationException> { eval(order(), "7.mod(0)") }
+            shouldThrow<OclEvaluationException> { eval(order(), "7.div(0)") }
+        }
+
         // ── @pre snapshot (V3.2.22) ──────────────────────────────────────────
 
         test("@pre resolves via the explicit preSnapshot env when provided") {

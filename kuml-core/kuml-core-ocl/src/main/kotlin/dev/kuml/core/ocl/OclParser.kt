@@ -187,10 +187,10 @@ internal class OclParser(
                                     "Expected property name after '.'",
                                     position = propPos,
                                 )
-                        if (name in typeOpNames) {
-                            parseTypeOp(expr, name)
-                        } else {
-                            OclExpression.Navigate(expr, name)
+                        when {
+                            name in typeOpNames -> parseTypeOp(expr, name)
+                            peek() == OclToken.LParen -> parseOperationCall(expr, name)
+                            else -> OclExpression.Navigate(expr, name)
                         }
                     }
                     peek() == OclToken.Arrow -> {
@@ -212,6 +212,28 @@ internal class OclParser(
                     else -> return expr
                 }
         }
+    }
+
+    /**
+     * `receiver.name(arg1, arg2, ...)` — parses the parenthesized (possibly
+     * empty) argument list of an [OclExpression.OperationCall].
+     */
+    private fun parseOperationCall(
+        receiver: OclExpression,
+        name: String,
+    ): OclExpression {
+        consume() // '('
+        if (peek() == OclToken.RParen) {
+            consume()
+            return OclExpression.OperationCall(receiver, name)
+        }
+        val args = mutableListOf(parseExpr())
+        while (peek() == OclToken.Comma) {
+            consume()
+            args += parseExpr()
+        }
+        expect(OclToken.RParen)
+        return OclExpression.OperationCall(receiver, name, args)
     }
 
     private fun parseTypeOp(
