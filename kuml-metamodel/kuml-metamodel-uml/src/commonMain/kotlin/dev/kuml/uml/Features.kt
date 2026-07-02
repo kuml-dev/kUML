@@ -88,6 +88,28 @@ data class UmlParameter(
 // ── Constraint ────────────────────────────────────────────────────────────────
 
 /**
+ * The OCL contextual constraint stereotype (V3.2.22) — mirrors the standard
+ * OCL keywords `inv:`/`def:`/`pre:`/`post:`/`body:` that precede a constraint
+ * body in concrete OCL syntax.
+ *
+ * @property Invariant `inv:` — a classifier-scoped invariant (the pre-V3.2.22
+ *   default; must hold for every instance of the classifier at all times).
+ * @property Definition `def:` — a reusable named helper (attribute/operation)
+ *   declared in the classifier scope and referenceable from later constraints,
+ *   rather than an assertion in itself.
+ * @property Precondition `pre:` — an operation entry condition. Requires
+ *   [UmlConstraint.contextOperation] to name the constrained operation.
+ * @property Postcondition `post:` — an operation exit condition. May reference
+ *   `result` (the operation's return value) and `expr@pre` (pre-state
+ *   snapshots). Requires [UmlConstraint.contextOperation].
+ * @property Body `body:` — a full operation definition via its return-value
+ *   expression (`result = ...`). May reference `result`. Requires
+ *   [UmlConstraint.contextOperation].
+ */
+@Serializable
+enum class UmlConstraintKind { Invariant, Definition, Precondition, Postcondition, Body }
+
+/**
  * A structural placeholder for a UML constraint (OCL or other language).
  *
  * Interpretation of the constraint [body] is deferred to Phase 2
@@ -95,6 +117,15 @@ data class UmlParameter(
  *
  * @property body The constraint expression (e.g. an OCL invariant).
  * @property language Constraint language identifier (default: `"OCL"`).
+ * @property kind The OCL contextual stereotype (V3.2.22); defaults to
+ *   [UmlConstraintKind.Invariant] to preserve pre-V3.2.22 semantics for
+ *   existing constraints.
+ * @property contextOperation Name of the [UmlOperation] this constraint is
+ *   scoped to, required for [UmlConstraintKind.Precondition],
+ *   [UmlConstraintKind.Postcondition], and [UmlConstraintKind.Body] (validated
+ *   by `kuml-core-ocl`'s `OclValidator`); `null` for
+ *   [UmlConstraintKind.Invariant] and [UmlConstraintKind.Definition], which
+ *   are classifier-scoped rather than operation-scoped.
  */
 @Serializable
 data class UmlConstraint(
@@ -103,6 +134,8 @@ data class UmlConstraint(
     override val visibility: Visibility = Visibility.PUBLIC,
     val body: String,
     val language: String = "OCL",
+    val kind: UmlConstraintKind = UmlConstraintKind.Invariant,
+    val contextOperation: String? = null,
     override val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : UmlNamedElement

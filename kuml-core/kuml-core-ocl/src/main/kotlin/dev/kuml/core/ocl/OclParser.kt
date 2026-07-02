@@ -137,6 +137,13 @@ internal class OclParser(
         return parsePostfix()
     }
 
+    /** OCL type operations, callable via dot-navigation: `self.oclIsTypeOf(Order)`. */
+    private val typeOpNames =
+        setOf("oclIsTypeOf", "oclIsKindOf", "oclAsType", "oclIsUndefined", "oclIsInvalid")
+
+    /** Type operations that take a single type-name argument (vs. zero-arg). */
+    private val typeOpsWithArg = setOf("oclIsTypeOf", "oclIsKindOf", "oclAsType")
+
     private fun parsePostfix(): OclExpression {
         var expr = parsePrimary()
         while (true) {
@@ -147,7 +154,11 @@ internal class OclParser(
                         val name =
                             (consume() as? OclToken.Ident)?.name
                                 ?: throw OclEvaluationException("Expected property name after '.'")
-                        OclExpression.Navigate(expr, name)
+                        if (name in typeOpNames) {
+                            parseTypeOp(expr, name)
+                        } else {
+                            OclExpression.Navigate(expr, name)
+                        }
                     }
                     peek() == OclToken.Arrow -> {
                         consume()
@@ -157,9 +168,29 @@ internal class OclParser(
                         expect(OclToken.LParen)
                         parseCollectionOp(expr, op)
                     }
+                    peek() == OclToken.AtPre -> {
+                        consume()
+                        OclExpression.AtPre(expr)
+                    }
                     else -> return expr
                 }
         }
+    }
+
+    private fun parseTypeOp(
+        receiver: OclExpression,
+        op: String,
+    ): OclExpression {
+        expect(OclToken.LParen)
+        val typeName =
+            if (op in typeOpsWithArg) {
+                (consume() as? OclToken.Ident)?.name
+                    ?: throw OclEvaluationException("Expected type name in '$op(...)'")
+            } else {
+                null
+            }
+        expect(OclToken.RParen)
+        return OclExpression.TypeOp(receiver, op, typeName)
     }
 
     private fun parseCollectionOp(

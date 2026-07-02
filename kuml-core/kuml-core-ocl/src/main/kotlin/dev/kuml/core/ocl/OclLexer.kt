@@ -24,6 +24,13 @@ internal object OclLexer {
                     tokens += OclToken.Op(">=")
                     i += 2
                 }
+                // "@pre" — post-condition pre-state snapshot marker (OCL 2.x `expr@pre`).
+                i + 3 < input.length &&
+                    input.substring(i, i + 4) == "@pre" &&
+                    (i + 4 >= input.length || !(input[i + 4].isLetterOrDigit() || input[i + 4] == '_')) -> {
+                    tokens += OclToken.AtPre
+                    i += 4
+                }
                 // Single-char
                 input[i] == '.' -> {
                     tokens += OclToken.Dot

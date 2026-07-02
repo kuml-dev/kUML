@@ -2,6 +2,7 @@ package dev.kuml.core.ocl
 
 import dev.kuml.core.ocl.ast.OclExpression
 import dev.kuml.uml.UmlClass
+import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlProperty
 import dev.kuml.uml.UmlTypeRef
@@ -235,5 +236,85 @@ class OclEvaluatorTest :
             val expr = OclParser(tokens).parse()
             val result = OclEvaluator(cls).eval(expr)
             result shouldBe true
+        }
+
+        // ── Type operations (V3.2.22) ───────────────────────────────────────
+
+        test("oclIsUndefined is true for null, false otherwise") {
+            eval(order(), "self.oclIsUndefined()") shouldBe false
+            val op = OclExpression.TypeOp(OclExpression.VarRef("nope"), "oclIsUndefined")
+            OclEvaluator(order()).eval(op, mapOf("self" to order())) shouldBe true
+        }
+
+        test("oclIsInvalid is always false in this evaluator (no distinct invalid value)") {
+            eval(order(), "self.oclIsInvalid()") shouldBe false
+        }
+
+        test("oclIsTypeOf matches the exact classifier name only") {
+            val cls = order()
+            eval(cls, "self.oclIsTypeOf(Order)") shouldBe true
+            eval(cls, "self.oclIsTypeOf(Other)") shouldBe false
+        }
+
+        test("oclIsKindOf matches the exact type and any ancestor via UmlGeneralization") {
+            val base = UmlClass(id = "Base", name = "Base")
+            val child = UmlClass(id = "Child", name = "Child")
+            val gen = UmlGeneralization(id = "gen", specificId = "Child", generalId = "Base")
+            val model = listOf(base, child, gen)
+
+            val tokensSelf = OclParser(OclLexer.tokenize("self.oclIsKindOf(Child)")).parse()
+            OclEvaluator(child, model).eval(tokensSelf) shouldBe true
+
+            val tokensBase = OclParser(OclLexer.tokenize("self.oclIsKindOf(Base)")).parse()
+            OclEvaluator(child, model).eval(tokensBase) shouldBe true
+
+            val tokensOther = OclParser(OclLexer.tokenize("self.oclIsKindOf(Other)")).parse()
+            OclEvaluator(child, model).eval(tokensOther) shouldBe false
+        }
+
+        test("oclIsKindOf walks a multi-level generalization chain") {
+            val grandparent = UmlClass(id = "GP", name = "GrandParent")
+            val parent = UmlClass(id = "P", name = "Parent")
+            val child = UmlClass(id = "C", name = "Child")
+            val model =
+                listOf(
+                    grandparent,
+                    parent,
+                    child,
+                    UmlGeneralization(id = "g1", specificId = "C", generalId = "P"),
+                    UmlGeneralization(id = "g2", specificId = "P", generalId = "GP"),
+                )
+            val expr = OclParser(OclLexer.tokenize("self.oclIsKindOf(GrandParent)")).parse()
+            OclEvaluator(child, model).eval(expr) shouldBe true
+        }
+
+        test("oclAsType returns the receiver when the kind matches") {
+            val base = UmlClass(id = "Base", name = "Base")
+            val child = UmlClass(id = "Child", name = "Child")
+            val gen = UmlGeneralization(id = "gen", specificId = "Child", generalId = "Base")
+            val model = listOf(base, child, gen)
+            val expr = OclParser(OclLexer.tokenize("self.oclAsType(Base)")).parse()
+            OclEvaluator(child, model).eval(expr) shouldBe child
+        }
+
+        test("oclAsType throws when the kind does not match") {
+            val cls = order()
+            val expr = OclParser(OclLexer.tokenize("self.oclAsType(Other)")).parse()
+            shouldThrow<OclEvaluationException> { OclEvaluator(cls).eval(expr) }
+        }
+
+        // ── @pre snapshot (V3.2.22) ──────────────────────────────────────────
+
+        test("@pre resolves via the explicit preSnapshot env when provided") {
+            val cls = order("id")
+            val expr = OclParser(OclLexer.tokenize("self.attributes->size()@pre")).parse()
+            val preState = mapOf("self" to order("id", "name"))
+            OclEvaluator(cls, preSnapshot = preState).eval(expr) shouldBe 2
+        }
+
+        test("@pre falls back to current env when no preSnapshot is given (static-validation no-op)") {
+            val cls = order("id", "name")
+            val expr = OclParser(OclLexer.tokenize("self.attributes->size()@pre")).parse()
+            OclEvaluator(cls).eval(expr) shouldBe 2
         }
     })

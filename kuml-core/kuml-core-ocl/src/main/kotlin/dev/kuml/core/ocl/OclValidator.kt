@@ -3,6 +3,7 @@ package dev.kuml.core.ocl
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlConstraint
+import dev.kuml.uml.UmlConstraintKind
 import dev.kuml.uml.UmlInterface
 
 public object OclValidator {
@@ -70,33 +71,111 @@ public object OclValidator {
         classifierName: String,
         constraints: List<UmlConstraint>,
         model: List<Any> = emptyList(),
-    ): List<KumlViolation> =
-        constraints.mapNotNull { c ->
+    ): List<KumlViolation> {
+        val operations =
+            when (self) {
+                is UmlClass -> self.operations
+                is UmlInterface -> self.operations
+                else -> emptyList()
+            }
+
+        // `def:` constraints are reusable named helpers, not assertions — evaluate
+        // them once up front and bind their value into the shared environment so
+        // later `inv:`/`pre:`/`post:`/`body:` constraints in the same classifier can
+        // reference them by name (`self`-scoped, `let`-like visibility).
+        val defs = constraints.filter { it.kind == UmlConstraintKind.Definition }
+        val defEnv = mutableMapOf<String, Any?>("self" to self)
+        val defViolations = mutableListOf<KumlViolation>()
+        for (d in defs) {
             try {
-                val tokens = OclLexer.tokenize(c.body)
-                val expr = OclParser(tokens).parse()
-                val result = OclEvaluator(self, model).eval(expr)
-                if (result != true) {
+                val expr = OclParser(OclLexer.tokenize(d.body)).parse()
+                defEnv[d.name] = OclEvaluator(self, model).eval(expr, defEnv.toMap())
+            } catch (e: OclEvaluationException) {
+                defViolations +=
                     KumlViolation(
+                        constraintId = d.id,
+                        constraintName = d.name,
+                        classifierId = classifierId,
+                        classifierName = classifierName,
+                        oclExpression = d.body,
+                        message = "Definition '${d.name}' on '$classifierName' threw: ${e.message}",
+                    )
+            }
+        }
+
+        val assertions = constraints.filter { it.kind != UmlConstraintKind.Definition }
+        return defViolations +
+            assertions.mapNotNull { c ->
+                // `pre:`/`post:`/`body:` are operation-scoped and require a matching
+                // `contextOperation` on the classifier — structural check first, since
+                // there is no operation to evaluate against otherwise.
+                val requiresOperation =
+                    c.kind == UmlConstraintKind.Precondition ||
+                        c.kind == UmlConstraintKind.Postcondition ||
+                        c.kind == UmlConstraintKind.Body
+                if (requiresOperation && operations.none { it.name == c.contextOperation }) {
+                    return@mapNotNull KumlViolation(
                         constraintId = c.id,
                         constraintName = c.name,
                         classifierId = classifierId,
                         classifierName = classifierName,
                         oclExpression = c.body,
-                        message = "Constraint '${c.name}' violated on '$classifierName': evaluated to $result",
+                        message =
+                            "${c.kind} constraint '${c.name}' on '$classifierName' references unknown " +
+                                "operation '${c.contextOperation}'",
                     )
-                } else {
-                    null
                 }
-            } catch (e: OclEvaluationException) {
+                evaluateAssertion(self, classifierId, classifierName, c, defEnv, model)
+            }
+    }
+
+    /**
+     * Evaluates a single `inv:`/`pre:`/`post:`/`body:` constraint, extending the
+     * shared `def:` environment with the two `post:`/`body:`-only bindings:
+     *
+     * - `result` — the operation's return value. This evaluator has no
+     *   operation-call runtime (no actual invocation happens during model
+     *   validation), so `result` is bound to `null` here; constraint authors
+     *   writing `body:`/`post:` contracts against a *runtime* executor (e.g. a
+     *   future guard/interpreter) get real binding there — see
+     *   [dev.kuml.core.ocl.OclEvaluator]'s `result`/`@pre` KDoc.
+     * - `expr@pre` — resolved by [OclEvaluator] itself (no explicit env entry
+     *   needed here); with no distinct pre-state available in static
+     *   validation, `@pre` snapshots the current (only) state, i.e. is a no-op.
+     */
+    private fun evaluateAssertion(
+        self: Any,
+        classifierId: String,
+        classifierName: String,
+        c: UmlConstraint,
+        defEnv: Map<String, Any?>,
+        model: List<Any>,
+    ): KumlViolation? =
+        try {
+            val expr = OclParser(OclLexer.tokenize(c.body)).parse()
+            val bindsResult = c.kind == UmlConstraintKind.Postcondition || c.kind == UmlConstraintKind.Body
+            val env = if (bindsResult) defEnv + mapOf("result" to null) else defEnv
+            val result = OclEvaluator(self, model).eval(expr, env)
+            if (result != true) {
                 KumlViolation(
                     constraintId = c.id,
                     constraintName = c.name,
                     classifierId = classifierId,
                     classifierName = classifierName,
                     oclExpression = c.body,
-                    message = "Constraint '${c.name}' on '$classifierName' threw: ${e.message}",
+                    message = "Constraint '${c.name}' violated on '$classifierName': evaluated to $result",
                 )
+            } else {
+                null
             }
+        } catch (e: OclEvaluationException) {
+            KumlViolation(
+                constraintId = c.id,
+                constraintName = c.name,
+                classifierId = classifierId,
+                classifierName = classifierName,
+                oclExpression = c.body,
+                message = "Constraint '${c.name}' on '$classifierName' threw: ${e.message}",
+            )
         }
 }

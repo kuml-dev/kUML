@@ -172,4 +172,81 @@ class OclParserTest :
                 OclParser(tokens).parse()
             }
         }
+
+        // ── Type operations (V3.2.22) ───────────────────────────────────────
+
+        test("parses oclIsTypeOf with a type-name argument") {
+            val tokens = OclLexer.tokenize("self.oclIsTypeOf(Order)")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe OclExpression.TypeOp(OclExpression.Self, "oclIsTypeOf", "Order")
+        }
+
+        test("parses oclIsKindOf with a type-name argument") {
+            val tokens = OclLexer.tokenize("self.oclIsKindOf(Order)")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe OclExpression.TypeOp(OclExpression.Self, "oclIsKindOf", "Order")
+        }
+
+        test("parses oclAsType with a type-name argument") {
+            val tokens = OclLexer.tokenize("self.oclAsType(Order)")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe OclExpression.TypeOp(OclExpression.Self, "oclAsType", "Order")
+        }
+
+        test("parses oclIsUndefined with no arguments") {
+            val tokens = OclLexer.tokenize("self.oclIsUndefined()")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe OclExpression.TypeOp(OclExpression.Self, "oclIsUndefined", null)
+        }
+
+        test("parses oclIsInvalid with no arguments") {
+            val tokens = OclLexer.tokenize("self.oclIsInvalid()")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe OclExpression.TypeOp(OclExpression.Self, "oclIsInvalid", null)
+        }
+
+        test("parses type operation chained after a navigation") {
+            val tokens = OclLexer.tokenize("self.attributes->first().oclIsKindOf(Order)")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe
+                OclExpression.TypeOp(
+                    receiver =
+                        OclExpression.CollectionOp(
+                            receiver = OclExpression.Navigate(OclExpression.Self, "attributes"),
+                            op = "first",
+                        ),
+                    op = "oclIsKindOf",
+                    typeName = "Order",
+                )
+        }
+
+        test("rejects oclIsTypeOf without a type-name argument") {
+            val tokens = OclLexer.tokenize("self.oclIsTypeOf()")
+            shouldThrow<OclEvaluationException> { OclParser(tokens).parse() }
+        }
+
+        // ── @pre snapshot (V3.2.22) ──────────────────────────────────────────
+
+        test("parses @pre on a navigation") {
+            val tokens = OclLexer.tokenize("self.attributes@pre")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe OclExpression.AtPre(OclExpression.Navigate(OclExpression.Self, "attributes"))
+        }
+
+        test("parses @pre chained with a collection op") {
+            val tokens = OclLexer.tokenize("self.attributes@pre->size()")
+            val expr = OclParser(tokens).parse()
+            expr shouldBe
+                OclExpression.CollectionOp(
+                    receiver = OclExpression.AtPre(OclExpression.Navigate(OclExpression.Self, "attributes")),
+                    op = "size",
+                )
+        }
+
+        test("@pre lexer rule requires a word boundary after 'pre' (does not over-match '@preview')") {
+            // "@preview" must not be swallowed as AtPre + trailing "view" garbage —
+            // the lexer should instead fail on the unexpected '@' character, since
+            // "@pre" followed immediately by more letters is not the @pre token.
+            shouldThrow<OclEvaluationException> { OclLexer.tokenize("self.attributes@preview") }
+        }
     })

@@ -75,4 +75,27 @@ internal sealed interface OclExpression {
         val op: String,
         val operand: OclExpression,
     ) : OclExpression
+
+    /**
+     * OCL type operations — `oclIsTypeOf(T)`, `oclIsKindOf(T)`, `oclAsType(T)`,
+     * `oclIsUndefined()`, `oclIsInvalid()`.
+     *
+     * [typeName] is the referenced classifier name (e.g. `Order`); `null` for
+     * the two zero-arg operations ([op] `"oclIsUndefined"` / `"oclIsInvalid"`),
+     * which do not take a type argument.
+     */
+    data class TypeOp(
+        val receiver: OclExpression,
+        val op: String,
+        val typeName: String? = null,
+    ) : OclExpression
+
+    /**
+     * OCL `expr@pre` — references the value of [receiver] as it was at
+     * operation entry. Only meaningful inside a `post:` constraint body; see
+     * [dev.kuml.core.ocl.OclEvaluator] for snapshot-resolution semantics.
+     */
+    data class AtPre(
+        val receiver: OclExpression,
+    ) : OclExpression
 }

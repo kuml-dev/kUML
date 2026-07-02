@@ -1,6 +1,8 @@
 package dev.kuml.core.ocl
 
 import dev.kuml.core.ocl.ast.OclExpression
+import dev.kuml.uml.UmlClassifier
+import dev.kuml.uml.UmlGeneralization
 
 /**
  * Evaluates parsed OCL expressions against a receiver object.
@@ -8,14 +10,31 @@ import dev.kuml.core.ocl.ast.OclExpression
  * @property self The OCL `self` — the root navigation object.
  * @property model The enclosing model's elements (e.g. `KumlDiagram.elements`),
  *   used to resolve association-end navigation (`self.assocEnd`) and `closure()`
- *   in [UmlPropertyAccessor]. Defaults to empty for callers that only navigate
- *   direct/structural properties (e.g. runtime guards evaluating over a
- *   [dev.kuml.core.model.KumlEvalContext] or `Map`, which have no surrounding
- *   model) — association navigation simply finds no matching end in that case.
+ *   in [UmlPropertyAccessor], as well as classifier-name resolution and
+ *   [UmlGeneralization] chain walking for the `oclIsKindOf`/`oclIsTypeOf`/
+ *   `oclAsType` type operations. Defaults to empty for callers that only
+ *   navigate direct/structural properties (e.g. runtime guards evaluating over
+ *   a [dev.kuml.core.model.KumlEvalContext] or `Map`, which have no
+ *   surrounding model) — association navigation and type-name resolution
+ *   simply find no match in that case.
+ * @property preSnapshot The `self`-relative environment as it was at operation
+ *   entry, used to resolve `expr@pre` inside `post:` constraint bodies (V3.2.22).
+ *   Only [OclExpression.Self] and [OclExpression.Navigate] receivers directly
+ *   composed of `self`-navigations are meaningfully "pre-state" — this subset
+ *   has no mutable runtime object model, so the snapshot is simply the *same*
+ *   `self`/`model` re-evaluated: `@pre` is effectively a no-op here and exists
+ *   for OCL-source compatibility with contracts written against a stateful
+ *   runtime (see the `OclEvaluator` KDoc / `V3.2.22` daily-note Stolperfalle:
+ *   this evaluator has no operation-call runtime, so there is no pre-state
+ *   distinct from the current state to snapshot). Callers that *do* have a
+ *   genuine pre-state (e.g. a future runtime-guard operation executor) can
+ *   pass a differing [preSnapshot] map (`self` -> pre-call receiver) to get
+ *   real snapshot semantics; `eval`'s recursive calls thread it through.
  */
 internal class OclEvaluator(
     private val self: Any,
     private val model: List<Any> = emptyList(),
+    private val preSnapshot: Map<String, Any?>? = null,
 ) {
     internal fun eval(
         expr: OclExpression,
@@ -49,7 +68,68 @@ internal class OclEvaluator(
             }
             is OclExpression.BinaryOp -> evalBinaryOp(expr, env)
             is OclExpression.UnaryOp -> evalUnaryOp(expr, env)
+            is OclExpression.TypeOp -> evalTypeOp(expr, env)
+            is OclExpression.AtPre -> eval(expr.receiver, preSnapshot ?: env)
         }
+
+    // ── OCL type operations (V3.2.22) ───────────────────────────────────────
+
+    private fun evalTypeOp(
+        expr: OclExpression.TypeOp,
+        env: Map<String, Any?>,
+    ): Any? {
+        val receiverValue = eval(expr.receiver, env)
+        return when (expr.op) {
+            "oclIsUndefined" -> receiverValue == null
+            "oclIsInvalid" -> false // this subset has no distinct "invalid" (error) value from "undefined" (null)
+            "oclIsTypeOf" -> receiverValue != null && classifierNameOf(receiverValue) == requireTypeName(expr)
+            "oclIsKindOf" -> receiverValue != null && isKindOf(receiverValue, requireTypeName(expr))
+            "oclAsType" -> {
+                val typeName = requireTypeName(expr)
+                if (receiverValue != null && isKindOf(receiverValue, typeName)) {
+                    receiverValue
+                } else {
+                    throw OclEvaluationException(
+                        "'oclAsType($typeName)' failed: receiver is not a kind of '$typeName'",
+                    )
+                }
+            }
+            else -> throw OclEvaluationException("Unknown type operation: ${expr.op}")
+        }
+    }
+
+    private fun requireTypeName(expr: OclExpression.TypeOp): String =
+        expr.typeName ?: throw OclEvaluationException("'${expr.op}' requires a type name argument")
+
+    /** The declared classifier name of [value] — its own metamodel type name, not a Kotlin class name. */
+    private fun classifierNameOf(value: Any?): String? = (value as? UmlClassifier)?.name
+
+    /**
+     * `oclIsKindOf(T)` — `true` if [value]'s classifier is `T` itself or a
+     * (transitive) specialization of `T`, walking [UmlGeneralization] edges
+     * in [model] from the value's classifier up to its ancestors.
+     */
+    private fun isKindOf(
+        value: Any?,
+        typeName: String,
+    ): Boolean {
+        val classifier = value as? UmlClassifier ?: return false
+        if (classifier.name == typeName) return true
+        val generalizations = model.filterIsInstance<UmlGeneralization>()
+        val classifiersById = model.filterIsInstance<UmlClassifier>().associateBy { it.id }
+        val visited = mutableSetOf(classifier.id)
+        val frontier = ArrayDeque(listOf(classifier.id))
+        while (frontier.isNotEmpty()) {
+            val currentId = frontier.removeFirst()
+            for (gen in generalizations) {
+                if (gen.specificId != currentId) continue
+                val general = classifiersById[gen.generalId] ?: continue
+                if (general.name == typeName) return true
+                if (visited.add(general.id)) frontier.addLast(general.id)
+            }
+        }
+        return false
+    }
 
     @Suppress("UNCHECKED_CAST")
     private fun evalCollectionOp(

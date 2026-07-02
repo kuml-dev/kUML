@@ -39,6 +39,8 @@ internal sealed class OclToken {
 
     data object Semicolon : OclToken() // used only in iterate(iterVar; accVar = init | body)
 
+    data object AtPre : OclToken() // "@pre" — post-condition pre-state snapshot marker
+
     data class Op(
         val sym: String,
     ) : OclToken() // =, <>, <, >, <=, >=, +, -, *, /
