@@ -9,6 +9,10 @@ internal sealed class OclToken {
         val value: Int,
     ) : OclToken()
 
+    data class RealLit(
+        val value: Double,
+    ) : OclToken()
+
     data class StrLit(
         val value: String,
     ) : OclToken()
@@ -32,6 +36,8 @@ internal sealed class OclToken {
     data object Pipe : OclToken() // "|"
 
     data object Comma : OclToken()
+
+    data object Semicolon : OclToken() // used only in iterate(iterVar; accVar = init | body)
 
     data class Op(
         val sym: String,

@@ -45,6 +45,10 @@ internal object OclLexer {
                     tokens += OclToken.Comma
                     i++
                 }
+                input[i] == ';' -> {
+                    tokens += OclToken.Semicolon
+                    i++
+                }
                 input[i] == '=' -> {
                     tokens += OclToken.Op("=")
                     i++
@@ -80,11 +84,21 @@ internal object OclLexer {
                     tokens += OclToken.StrLit(input.substring(i + 1, end))
                     i = end + 1
                 }
-                // Integer literal
+                // Integer or Real literal (e.g. "3.14"). A '.' is only consumed as
+                // part of the number if followed by another digit — otherwise it is
+                // the navigation operator (e.g. "self.attributes" must not eat the dot).
                 input[i].isDigit() -> {
                     val start = i
                     while (i < input.length && input[i].isDigit()) i++
-                    tokens += OclToken.IntLit(input.substring(start, i).toInt())
+                    val isReal =
+                        i + 1 < input.length && input[i] == '.' && input[i + 1].isDigit()
+                    if (isReal) {
+                        i++ // consume '.'
+                        while (i < input.length && input[i].isDigit()) i++
+                        tokens += OclToken.RealLit(input.substring(start, i).toDouble())
+                    } else {
+                        tokens += OclToken.IntLit(input.substring(start, i).toInt())
+                    }
                 }
                 // Identifiers and keywords
                 input[i].isLetter() || input[i] == '_' -> {

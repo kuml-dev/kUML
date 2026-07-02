@@ -19,9 +19,52 @@ internal class OclParser(
     private fun matchIdent(name: String): Boolean = peek() is OclToken.Ident && (peek() as OclToken.Ident).name == name
 
     internal fun parse(): OclExpression =
-        parseImplies().also {
+        parseExpr().also {
             if (peek() != OclToken.Eof) throw OclEvaluationException("Unexpected token after expression: ${peek()}")
         }
+
+    /**
+     * Top-level expression entry point. `let ... in ...` binds weaker than
+     * `implies` (it wraps the whole rest of the expression), so it is handled
+     * above [parseImplies] in the precedence chain.
+     */
+    private fun parseExpr(): OclExpression =
+        when {
+            matchIdent("let") -> parseLet()
+            matchIdent("if") -> parseIf()
+            else -> parseImplies()
+        }
+
+    private fun parseLet(): OclExpression {
+        consume() // 'let'
+        val name =
+            (consume() as? OclToken.Ident)?.name
+                ?: throw OclEvaluationException("Expected identifier after 'let'")
+        val op = peek()
+        if (op !is OclToken.Op || op.sym != "=") {
+            throw OclEvaluationException("Expected '=' in let-expression but got $op")
+        }
+        consume()
+        val initExpr = parseExpr()
+        if (!matchIdent("in")) throw OclEvaluationException("Expected 'in' in let-expression but got ${peek()}")
+        consume()
+        val body = parseExpr()
+        return OclExpression.LetExpr(name, initExpr, body)
+    }
+
+    private fun parseIf(): OclExpression {
+        consume() // 'if'
+        val cond = parseExpr()
+        if (!matchIdent("then")) throw OclEvaluationException("Expected 'then' but got ${peek()}")
+        consume()
+        val thenExpr = parseExpr()
+        if (!matchIdent("else")) throw OclEvaluationException("Expected 'else' but got ${peek()}")
+        consume()
+        val elseExpr = parseExpr()
+        if (!matchIdent("endif")) throw OclEvaluationException("Expected 'endif' but got ${peek()}")
+        consume()
+        return OclExpression.IfExpr(cond, thenExpr, elseExpr)
+    }
 
     private fun parseImplies(): OclExpression {
         var left = parseOr()
@@ -123,6 +166,8 @@ internal class OclParser(
         receiver: OclExpression,
         op: String,
     ): OclExpression {
+        // `iterate(iterVar; accVar = accInit | body)` — dedicated two-variable form.
+        if (op == "iterate") return parseIterate(receiver)
         // Check for empty arg list
         if (peek() == OclToken.RParen) {
             consume()
@@ -132,19 +177,39 @@ internal class OclParser(
         if (peek() is OclToken.Ident && tokens.getOrElse(pos + 1) { OclToken.Eof } == OclToken.Pipe) {
             val varName = (consume() as OclToken.Ident).name
             consume() // consume '|'
-            val body = parseImplies()
+            val body = parseExpr()
             expect(OclToken.RParen)
             return OclExpression.CollectionOp(receiver, op, bindingVar = varName, body = body)
         }
         // Regular arg
-        val arg = parseImplies()
+        val arg = parseExpr()
         val args = mutableListOf(arg)
         while (peek() == OclToken.Comma) {
             consume()
-            args += parseImplies()
+            args += parseExpr()
         }
         expect(OclToken.RParen)
         return OclExpression.CollectionOp(receiver, op, args = args)
+    }
+
+    private fun parseIterate(receiver: OclExpression): OclExpression {
+        val iterVar =
+            (consume() as? OclToken.Ident)?.name
+                ?: throw OclEvaluationException("Expected iterator variable in iterate(...)")
+        expect(OclToken.Semicolon)
+        val accVar =
+            (consume() as? OclToken.Ident)?.name
+                ?: throw OclEvaluationException("Expected accumulator variable in iterate(...)")
+        val eqOp = peek()
+        if (eqOp !is OclToken.Op || eqOp.sym != "=") {
+            throw OclEvaluationException("Expected '=' after accumulator variable in iterate(...) but got $eqOp")
+        }
+        consume()
+        val accInit = parseExpr()
+        expect(OclToken.Pipe)
+        val body = parseExpr()
+        expect(OclToken.RParen)
+        return OclExpression.IterateExpr(receiver, iterVar, accVar, accInit, body)
     }
 
     private fun parsePrimary(): OclExpression =
@@ -169,6 +234,10 @@ internal class OclParser(
                 consume()
                 OclExpression.IntLit(t.value)
             }
+            is OclToken.RealLit -> {
+                consume()
+                OclExpression.RealLit(t.value)
+            }
             is OclToken.StrLit -> {
                 consume()
                 OclExpression.StrLit(t.value)
@@ -179,7 +248,7 @@ internal class OclParser(
             }
             OclToken.LParen -> {
                 consume()
-                val e = parseImplies()
+                val e = parseExpr()
                 expect(OclToken.RParen)
                 e
             }
