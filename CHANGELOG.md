@@ -6,6 +6,94 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.23.0] — 2026-07-02
+
+### Added
+
+**OCL: full 2.4/2.5 expression language (was: basic-constraints subset)**
+
+`kuml-core-ocl` now implements the complete OCL iterator/expression surface instead of a small
+subset: collection operations `select`/`reject`/`collect`/`iterate`/`any`/`one`/`sortedBy`/
+`isUnique`/`sum`/`count`/`including`/`excluding`/`union`/`intersection`/`first`/`last`/`asSet`/
+`asSequence`, `let`/`in` and `if`/`then`/`else`/`endif` expressions, and `Real` arithmetic with
+correct Int/Real promotion. Association-end navigation (including opposite ends and multi-step
+chains) replaces the previous hardcoded per-class property table with a metamodel-driven
+accessor — no reflection, so it stays Native-Image/KMP-safe. `closure()` walks the association
+graph cycle-safely. Adds type operations `oclIsTypeOf`/`oclIsKindOf`/`oclAsType`/
+`oclIsUndefined`/`oclIsInvalid` against the classifier + generalization hierarchy, plus
+`def:`/`pre:`/`post:`/`body:` constraint-kind stereotypes (with `result` and `@pre` snapshot
+support for postconditions) and matching `invariant()`/`definition()`/`precondition()`/
+`postcondition()`/`body()` DSL builders. OCL constraint validation now also covers **BPMN** and
+**SysML 2** models (previously UML-only), and `KumlViolation` carries a real source position
+(line/column) tracked through the lexer/parser. `kuml validate --output json` (alias
+`--format`) includes the new BPMN/SysML2 sections and source positions. A new conformance test
+suite exercises OMG OCL §7.4–7.6 examples plus a completed String/Integer/Real standard-library
+surface (`substring`, `indexOf`, `abs`, `floor`, `round`, `max`, `min`, `mod`, `div`, …), with an
+honest coverage matrix documenting what remains deliberately unsupported (e.g. `Tuple` types,
+`oclType()` reflection, collection literals).
+
+**MCP Resources — DSL knowledge as a Lehrkanal, not just a feedback loop**
+
+`kuml-mcp` now advertises `capabilities.resources` and serves three resources so MCP clients
+(Claude Desktop, Cursor, …) can load kUML's DSL knowledge automatically instead of only
+learning it through render/compile-error iteration: `kuml://dsl/reference` (bundled handbook
+DSL reference pages), `kuml://dsl/examples` (curated vault example scripts), and
+`kuml://dsl/schema` (machine-readable builder-signature schema). `resources/list` and
+`resources/read` are wired analogously to the existing `tools/list`/`tools/call` handlers.
+
+**Distribution: `brew install kuml` now ships the MCP server, plus a Desktop Cask**
+
+The standalone `kuml-mcp` binary is bundled into the shared `runtimeZip` artifact (own `mcp/`
+subtree to avoid jar-dedup collisions with the CLI's `lib/`), so Homebrew/SDKMan! installs get a
+working MCP server out of the box. The Homebrew formula symlinks `bin/kuml-mcp` with a
+JSON-RPC smoke test. `kuml-desktop` gets its own Homebrew Cask (`brew install --cask
+kuml-desktop`); this required adding a first-ever `kuml-desktop` DMG build+upload job to the
+release workflow, since no such job existed before.
+
+**Handbook: live-rendered `[kuml]` diagrams via a new `kuml asciidoc` bridge**
+
+Antora runs on Asciidoctor.js, which cannot load the JVM-based `kuml-asciidoc` Asciidoctor
+extension directly. Instead of skipping the integration, a new `kuml asciidoc` CLI subcommand
+pre-renders `[source,kuml]` blocks to SVG before the Antora build consumes the tree
+(`scripts/build-handbook.sh`), so handbook pages embed real, live-rendered example diagrams
+(DSL source and image stay in the same file) rather than static screenshots. Also fixes a stale
+User-Journey/Blueprint DSL example in the handbook that referenced a long-removed builder API.
+
+**Vault examples: element-depth completeness audit**
+
+Extended 8 existing vault example notes to cover previously-missing DSL elements/parameters
+across UML, BPMN, and C4 (rather than adding new fragmented examples), with a gap matrix
+documenting what was closed and what was deliberately left out. Kept in sync with the kUML repo
+classpath-test-resources and the kuml.dev playground per the existing sync convention.
+
+**Animated Diagrams section in the README**
+
+Recovers a previously-drafted-but-never-committed showcase of the three SMIL animation examples
+(UML Sequence message-dots, State Machine highlighting, BPMN token flow) directly in the
+project README.
+
+### Fixed
+
+**Maven Central skip-guard now checks all three KMP legs, not just `-jvm`**
+
+The release workflow's idempotency probe (used to skip `publishToMavenCentral` on a workflow
+re-run) previously checked only the `-jvm` leg of a representative module. A partial publish
+failure (e.g. `-jvm`/`-js` succeed but `-wasm-js` is rejected by Central's async validator)
+would have made a retry falsely report "already published" and skip the entire publish step,
+permanently orphaning the missing legs for that immutable version. The guard now requires all
+three legs (`jvm`/`js`/`wasm-js`) to be present before skipping.
+
+**MCP documentation corrections (D-1/D-2/D-3/D-5/D-7 from the 2026-07-01 audit)**
+
+`README.adoc` no longer references a nonexistent `kuml.diagram.*` tool prefix (the real 5
+authoring tools are `kuml.render`/`validate`/`list_elements`/`describe`/`generate`). The
+Behaviour-Runtime-MCP handbook page's parameter names now match the actual tool schemas
+(`sessionId`, `source`, `element`, `event`, `variables`/`forceState`, the real `run.stop`
+response shape). The nonexistent `kuml ai mcp-stdio` command is replaced with the real
+`kuml-mcp` binary launch path. The website's MCP feature card and a new
+`authoring-mcp.adoc` handbook page now correctly describe all 10 tools (5 authoring + 5
+runtime).
+
 ## [0.22.0] — 2026-07-01
 
 ### Added
