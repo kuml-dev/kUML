@@ -33,7 +33,7 @@ include(
     "kuml-core:kuml-core-dsl",      // Phase 0 — DSL-Builder-Infrastruktur
     "kuml-core:kuml-core-script",   // Phase 0 — Kotlin Scripting Host
     "kuml-core:kuml-core-config",   // V1.1.3 — kuml.config.kts DSL + Script Host
-    "kuml-core:kuml-core-ocl",      // Phase 2 — OCL-Subset-Interpreter (skeleton)
+    "kuml-core:kuml-core-ocl",      // v0.23.0 — OCL 2.4/2.5 expression language (conformance suite, benchmarks, BPMN/SysML2 support)
     "kuml-core:kuml-core-expr",     // V2.0.20a — Typed Expression AST + Parser + Evaluator
 )
 

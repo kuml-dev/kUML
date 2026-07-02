@@ -3,7 +3,7 @@
 
 image:../../docs/images/kuml-logo-simple.png[kUML,width=48,role=left] *kuml-core-ocl*
 
-OCL (Object Constraint Language) subset interpreter for kUML.
+Full OCL 2.4/2.5 (Object Constraint Language) expression-language interpreter for kUML.
 Pure-Kotlin recursive-descent parser and tree-walking evaluator — no ANTLR,
 no runtime dependencies beyond the kUML metamodel. GraalVM Native Image compatible.
 
@@ -11,7 +11,7 @@ Validates `constraint(name, body)` DSL declarations attached to `UmlClass` and
 `UmlInterface`, used by `kuml-cli`'s `ValidateCommand` and the `kuml-mcp`
 `kuml.validate` tool.
 
-== Supported OCL Subset
+== Supported OCL Language
 
 * Property navigation (`self.attr`, `self.assoc.target`), including cross-metamodel
   navigation for UML, BPMN, and SysML 2 receivers
@@ -36,7 +36,8 @@ Validates `constraint(name, body)` DSL declarations attached to `UmlClass` and
 * OCL type operations: `oclIsTypeOf`, `oclIsKindOf` (walks `UmlGeneralization` chains),
   `oclAsType`, `oclIsUndefined`, `oclIsInvalid`
 * `expr@pre` in `post:` constraint bodies (resolves via an explicit pre-state snapshot;
-  a no-op without one, since this subset has no stateful operation-invocation runtime)
+  a no-op without one, since there is no stateful operation-invocation runtime — see
+  "Deliberately out of scope" below)
 
 === Deliberately out of scope
 

@@ -19,8 +19,9 @@ The thermostat's heating/cooling control is captured as a five-state machine:
 * **Eco** — low-power mode at 18 °C setpoint; returns to Idle on `normalMode`
 
 Temperature-based transitions use `tick` events that carry integer °C values in
-their JSON payload. The kUML OCL subset operates on integer arithmetic, so the
-1 °C hysteresis band is expressed as:
+their JSON payload. kUML's OCL expression language supports both `Integer` and
+`Real` arithmetic with automatic promotion, but this example sticks to whole-degree
+readings, so the 1 °C hysteresis band is expressed as:
 
 [source,kotlin]
 ----

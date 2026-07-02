@@ -2,7 +2,7 @@
 
 ## Projektüberblick
 
-**kUML** ist ein Modellierungswerkzeug, das drei gleichberechtigte Modellierungssprachen als type-safe Kotlin-DSL ausdrückt: **UML 2.x**, **SysML 2** (auf KerML) und **C4**. Dazu kommt ein OCL-Subset für Constraints. Das Projekt folgt dem Prinzip der Model Driven Architecture (MDA): Modelle werden stufenweise transformiert (Design → Implementation → Deployment) und daraus Code generiert.
+**kUML** ist ein Modellierungswerkzeug, das drei gleichberechtigte Modellierungssprachen als type-safe Kotlin-DSL ausdrückt: **UML 2.x**, **SysML 2** (auf KerML) und **C4**. Dazu kommt eine vollständige OCL-2.4/2.5-Expression-Language für Constraints. Das Projekt folgt dem Prinzip der Model Driven Architecture (MDA): Modelle werden stufenweise transformiert (Design → Implementation → Deployment) und daraus Code generiert.
 
 Das zentrale Alleinstellungsmerkmal: kUML ist **das erste UML-Werkzeug, das bewusst für die LLM-Ära entworfen wurde** — Kotlin-Syntax, semantische Validierung, strukturierte Fehler (JSON), kanonischer Formatter, MCP-Server.
 
@@ -26,7 +26,7 @@ Das Metamodell ist **pure Kotlin** (`sealed`/`data class`), keine EMF-Abhängigk
 | Metamodell | Pure Kotlin (`sealed`/`data class`) — kein EMF im Kern |
 | Eingabeformat | Kotlin Scripting (`*.kuml.kts` mit `KumlScriptDefinition` + `defaultImports`) |
 | Serialisierung | `kotlinx.serialization` |
-| OCL | Eigener OCL-Subset-Interpreter auf dem Kotlin-Modell |
+| OCL | Eigener OCL-2.4/2.5-Expression-Language-Interpreter auf dem Kotlin-Modell |
 | Rendering | Kuiver (Kotlin/Compose) + ELK (Layout) |
 | Native | GraalVM Native Image für die CLI |
 | XMI (optional) | `kuml-io-emf` über Eclipse UML2 — separat geladen, nicht im Kern |
@@ -51,7 +51,7 @@ kuml/
 │   ├── kuml-core-model/    # Pure Kotlin Modell-Basistypen (KumlElement, KumlModel, …)
 │   ├── kuml-core-dsl/      # DSL-Builder-Infrastruktur (sprachenübergreifend)
 │   ├── kuml-core-script/   # Kotlin Scripting Host + KumlScriptDefinition
-│   └── kuml-core-ocl/      # OCL-Subset-Interpreter auf dem Kotlin-Modell
+│   └── kuml-core-ocl/      # OCL-2.4/2.5-Expression-Language-Interpreter auf dem Kotlin-Modell
 ├── kuml-metamodel/         # Modellierungssprachen — jede mit eigenem Metamodell
 │   ├── kuml-metamodel-uml/      # UML 2.x — pure Kotlin
 │   ├── kuml-metamodel-kerml/    # KerML — Basis für SysML 2
@@ -108,7 +108,7 @@ kuml/
 ├── kuml-intellij-plugin/   # JetBrains IDE Plugin
 ├── kuml-tests/             # Alle Tests (Unit, Integration, System, UI)
 │   ├── kuml-dsl-tests/             # Unit: alle 14 UML + SysML 2 + C4 Diagrammtypen
-│   ├── kuml-ocl-tests/             # Unit: OCL-Subset-Constraint-Validierung
+│   ├── kuml-ocl-tests/             # Unit: OCL-Constraint-Validierung (2.4/2.5-Expression-Language)
 │   ├── kuml-formatter-tests/       # Unit: kuml fmt Idempotenz
 │   ├── kuml-renderer-tests/        # Integration: SVG Snapshot-Tests
 │   ├── kuml-structurizr-tests/     # Integration: C4 ⇌ Structurizr Roundtrip
@@ -321,7 +321,7 @@ data class DiagramError(
 
 ### 5. Fehlerbehandlung
 
-Alle Fehler (Skript-Compiler, Typchecker, OCL-Subset, optionaler XMI) müssen **strukturiert** ausgegeben werden — niemals plain text:
+Alle Fehler (Skript-Compiler, Typchecker, OCL-Interpreter, optionaler XMI) müssen **strukturiert** ausgegeben werden — niemals plain text:
 
 ```kotlin
 data class KumlError(
@@ -424,7 +424,7 @@ V1 ist radikal geschnitten: **UML 2.x (5 Diagrammtypen)** + **C4 (vollständig)*
 
 ### ✅ Entschieden: Strukturierte Fehler (Phase 1)
 
-Fehler sind JSON-serialisierbar von Anfang an. Kein späteres Umbauen. Gilt für den Skript-Compiler, Typchecker, OCL-Subset-Interpreter und das optionale `kuml-io-emf`.
+Fehler sind JSON-serialisierbar von Anfang an. Kein späteres Umbauen. Gilt für den Skript-Compiler, Typchecker, OCL-Interpreter und das optionale `kuml-io-emf`.
 
 ### ✅ Entschieden: Kanonischer Formatter
 

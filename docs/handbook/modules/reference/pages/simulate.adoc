@@ -155,8 +155,10 @@ The nine numbered rules in `OPERATIONAL_SEMANTICS.md`:
 . *Entry ordering* — enter from the LCA down to the target top-down.
 . *Run-to-completion* — process one event end-to-end before consuming the next.
 . *Atomicity* — failed transitions roll back; current state is unchanged.
-. *Effect logging* — `effect` strings appear in the trace but are NOT executed in v0.3.0
-  (V2 will execute OCL-subset action language).
+. *Effect logging* — `effect` strings appear in the trace but are NOT executed. Guard
+  expressions are evaluated via the full OCL 2.4/2.5 interpreter (xref:ocl.adoc[OCL]);
+  `effect` strings remain trace-only annotations, since there is no operation-body
+  execution runtime (see xref:ocl.adoc#deliberately-not-supported[Deliberately not supported]).
 . *Termination* — entering a final state at top level terminates the machine.
 
 Each rule has a goldfile test in `kuml-runtime-core/src/test/.../*GoldfileTest.kt` — read

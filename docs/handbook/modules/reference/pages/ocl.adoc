@@ -1,9 +1,12 @@
 = OCL Constraints
-:description: Write executable invariants on your kUML model with the OCL subset.
+:description: Write executable invariants on your kUML model with kUML's OCL 2.4/2.5 expression language.
 
 The Object Constraint Language (OCL) is the OMG-standard expression language for adding
-invariants, pre-conditions, and post-conditions to UML models. kUML implements a
-practical subset suitable for invariants and state-machine guards.
+invariants, pre-conditions, and post-conditions to UML models. kUML implements the full
+OCL 2.4/2.5 expression language — collection iterators, `let`/`if`, type operations,
+association navigation, and more — for invariants, pre/post-conditions, and state-machine
+guards. A short list of deliberately out-of-scope features remains; see
+<<deliberately-not-supported,Deliberately not supported>>.
 
 == Invariants on classifiers
 
@@ -41,7 +44,7 @@ The CLI parses every constraint, evaluates it, and exits with code:
 In a Gradle build, the `kumlValidate` task runs the same check and fails the build if
 `failOnValidationViolations` is `true` (the default).
 
-== Supported OCL subset (v0.23.0)
+== Supported OCL language (v0.23.0)
 
 [cols="1,3"]
 |===
@@ -89,12 +92,13 @@ In a Gradle build, the `kumlValidate` task runs the same check and fails the bui
 
 | Pre-state
 | `expr@pre` inside `post:` constraint bodies (snapshot-based; no-op without an
-  explicit pre-state, since this subset has no stateful operation runtime)
+  explicit pre-state, since operation bodies are not executed — see
+  <<deliberately-not-supported,Deliberately not supported>>)
 |===
 
 == State-machine guards
 
-Transition guards on state machines use the same OCL subset, with two additional
+Transition guards on state machines use the same OCL expression language, with two additional
 implicit variables: `event` (the triggering event with its payload as a `Map<String, Any?>`)
 and the model instance binding.
 
@@ -136,7 +140,8 @@ profile(name = "JavaEE") {
 When you `applyProfile("JavaEE")` and stereotype a class as `Entity`, the validator
 checks the constraint without you adding it manually.
 
-== What's not supported
+[[deliberately-not-supported]]
+== Deliberately not supported
 
 * Collection-literal syntax (`Set{1, 2, 3}`, `Bag{...}`) — collections are only
   produced via navigation or `collect`, never literal construction

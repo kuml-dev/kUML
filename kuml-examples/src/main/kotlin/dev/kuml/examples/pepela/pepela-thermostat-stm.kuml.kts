@@ -19,8 +19,8 @@ import dev.kuml.sysml2.dsl.sysml2Model
  * `temperature` and `targetTemperature` in their JSON payload:
  *   {"name":"tick","payload":{"temperature":16,"targetTemperature":21}}
  *
- * The kUML OCL subset supports integer arithmetic only, so temperatures are
- * whole-number °C values. A 1 °C hysteresis band prevents oscillation:
+ * kUML's OCL expression language supports both Integer and Real arithmetic, but this
+ * example sticks to whole-number °C values. A 1 °C hysteresis band prevents oscillation:
  *  - Enter Heating:  temperature < targetTemperature - 1  (i.e. ≤ target - 2)
  *  - Leave Heating:  temperature >= targetTemperature
  *  - Enter Cooling:  temperature > targetTemperature + 1  (i.e. ≥ target + 2)

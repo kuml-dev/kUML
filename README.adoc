@@ -157,8 +157,8 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | *Pure Kotlin metamodel*
 | No EMF in the core — `sealed`/`data class` hierarchy only. XMI interop available as optional `kuml-io-emf` module.
 
-| *OCL subset*
-| Object Constraint Language constraints directly on the Kotlin model.
+| *OCL 2.4/2.5 expression language*
+| Full Object Constraint Language expressions — iterators, let/if, type operations, association navigation — directly on the Kotlin model.
 
 | *Built-in UML profiles*
 | Five profiles ship with v0.3.0 — *AUTOSAR* (Classic Platform R22-11), JavaEE / Jakarta EE, Spring, OpenAPI, SoaML. Discovered through `ServiceLoader`; add your own without touching the CLI.
@@ -523,7 +523,7 @@ SVG export + PNG export (Batik)
 
 | *Phase 2*
 | CLI (`render` ✅, `watch` ✅, `validate` ✅, `fmt` ✅, `generate` ✅, `completion` ✅, `import` ✅, `markdown` ✅) +
-OCL subset ✅ + Markdown code block ✅ + MCP server ✅ +
+OCL 2.4/2.5 expression language ✅ + Markdown code block ✅ + MCP server ✅ +
 `kuml-gen-kotlin` ✅ + LLM Benchmark ✅ (100 % vs. Haiku 4.5) +
 GraalVM Native Image 🚧 (deferred V1.1, ADR-0009) +
 Maven Central ✅ infra + Homebrew ✅ tap live
@@ -603,7 +603,7 @@ kuml-core/
   kuml-core-dsl      ✅  DSL builders: UML (14 diagram types) + C4 (6 builders) + SysML 2 (8 diagram types)
   kuml-core-script   ✅  Kotlin Scripting host + KumlScriptDefinition + DiagramExtractor
   kuml-core-config   ✅  kuml.config.kts DSL + Script Host (V1.1.3)
-  kuml-core-ocl      ✅  OCL subset interpreter
+  kuml-core-ocl      ✅  OCL 2.4/2.5 expression language interpreter
   kuml-core-expr     ✅  Typed Expression AST + Parser + Evaluator (V2.0.20a)
 
 kuml-metamodel/

@@ -108,7 +108,7 @@ host.
 
 == 5. Validation with OCL
 
-kUML embeds a small OCL-subset interpreter for invariants. Suppose your domain
+kUML embeds a full OCL 2.4/2.5 expression-language interpreter for invariants. Suppose your domain
 forbids more than five attributes per class:
 
 [source,bash]
