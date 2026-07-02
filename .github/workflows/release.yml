@@ -189,7 +189,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build bundled jlink runtime zip
-        run: ./gradlew :kuml-cli:runtimeZip
+        # :kuml-cli:runtimeZip already depends on :kuml-mcp:installDist via the
+        # bundledImage -> bundleMcpInstallDist task graph (V3.2.13), but we chain
+        # it explicitly here too so CI logs show the kuml-mcp build step distinctly.
+        run: ./gradlew :kuml-mcp:installDist :kuml-cli:runtimeZip
 
       - name: Rename runtime zip with target suffix and compute SHA-256
         id: pack

@@ -326,6 +326,35 @@ val bundleInstallDist =
         into(imageDir)
     }
 
+// Step A2: copy the kuml-mcp installDist tree into its own subdir (V3.2.13).
+//
+// We deliberately do NOT merge kuml-mcp's bin/ and lib/ directly into the
+// CLI's bin/ and lib/ trees. kuml-cli and kuml-mcp share several jars
+// (kuml-core-dsl, kuml-core-model, kuml-metamodel-*, ...) but not
+// necessarily the exact same version/classpath ordering, and Gradle 9's
+// Sync task has no sane "keep either, they're identical" merge semantics
+// for that case — it would require either a EXCLUDE duplicatesStrategy
+// (silently dropping one binary's copy of a shared jar) or per-file
+// collision resolution. A separate mcp/ subdirectory with the complete,
+// self-contained kuml-mcp installDist tree avoids the dedup problem
+// entirely at the cost of a few duplicated jars in the zip — an
+// acceptable trade for a "Small" complexity task. bin/kuml-mcp is then a
+// thin wrapper that simply execs into mcp/bin/kuml-mcp.
+val bundleMcpInstallDist =
+    tasks.register<Sync>("bundleMcpInstallDist") {
+        group = "distribution"
+        description = "Copies the kuml-mcp installDist tree into the runtime-image mcp/ subdir."
+        dependsOn(":kuml-mcp:installDist")
+        // bundleInstallDist also writes into imageDir (a parent of mcp/). Gradle's
+        // Sync task pre-cleans its destination directory before copying; running
+        // both Sync tasks in parallel (org.gradle.parallel=true is the project
+        // default) races on that pre-clean step and can leave mcp/ empty. Force
+        // sequencing without introducing an artificial dependsOn.
+        mustRunAfter(bundleInstallDist)
+        from(project(":kuml-mcp").layout.buildDirectory.dir("install/kuml-mcp"))
+        into(imageDir.map { it.dir("mcp") })
+    }
+
 // Step B: copy the jlink JRE under runtime/.
 val bundleJlinkRuntime =
     tasks.register<Sync>("bundleJlinkRuntime") {
@@ -345,7 +374,7 @@ tasks.register("bundledImage") {
     group = "distribution"
     description =
         "Assembles a self-contained kuml runtime image: installDist + jlink JRE + patched launcher."
-    dependsOn("bundleInstallDist", "bundleJlinkRuntime")
+    dependsOn("bundleInstallDist", "bundleJlinkRuntime", bundleMcpInstallDist)
 
     val launcherPath: String =
         imageDir
@@ -363,7 +392,21 @@ tasks.register("bundledImage") {
             .asFile
             .resolve("bin/kuml.bat")
             .absolutePath
-    outputs.files(launcherPath, batLauncherPath)
+    // kuml-mcp (V3.2.13) — installDist launcher living under mcp/bin/, plus the
+    // thin wrapper script at bin/kuml-mcp that end users (and Homebrew) invoke.
+    val mcpLauncherPath: String =
+        imageDir
+            .get()
+            .asFile
+            .resolve("mcp/bin/kuml-mcp")
+            .absolutePath
+    val mcpWrapperPath: String =
+        imageDir
+            .get()
+            .asFile
+            .resolve("bin/kuml-mcp")
+            .absolutePath
+    outputs.files(launcherPath, batLauncherPath, mcpLauncherPath, mcpWrapperPath)
 
     doLast(
         object : Action<Task> {
@@ -424,6 +467,77 @@ tasks.register("bundledImage") {
                             batMarker,
                     )
                 batLauncher.writeText(batPatched)
+
+                // ── kuml-mcp launcher (V3.2.13) ──────────────────────────────
+                // Same self-containment fix as bin/kuml, applied to the
+                // kuml-mcp installDist launcher under mcp/bin/. APP_HOME here
+                // resolves to the mcp/ directory itself (one level below the
+                // image root), so the bundled JRE is reached via ../runtime
+                // rather than ./runtime.
+                val mcpLauncher = File(mcpLauncherPath)
+                require(mcpLauncher.isFile) { "Expected kuml-mcp installDist launcher at $mcpLauncher" }
+                val mcpSource = mcpLauncher.readText()
+                require(mcpSource.contains(marker)) {
+                    "kuml-mcp launcher format unexpected — could not find Java-detection marker. " +
+                        "Inspect $mcpLauncher and adjust patcher."
+                }
+                val mcpPatched =
+                    mcpSource.replace(
+                        marker,
+                        """
+                        |# kUML bundled runtime: always use the JRE shipped under runtime/
+                        |# one level above this launcher (mcp/bin/kuml-mcp -> ../../runtime),
+                        |# regardless of the user's JAVA_HOME / PATH.
+                        |JAVA_HOME="${'$'}APP_HOME/../runtime"
+                        |export JAVA_HOME
+                        |
+                        |$marker
+                        """.trimMargin(),
+                    )
+                mcpLauncher.writeText(mcpPatched)
+                mcpLauncher.setExecutable(true)
+
+                // ── bin/kuml-mcp wrapper ──────────────────────────────────────
+                // Thin exec wrapper so end users (and the Homebrew formula)
+                // invoke a single top-level bin/kuml-mcp, matching bin/kuml's
+                // location, without duplicating kuml-mcp's jars into lib/.
+                val mcpWrapper = File(mcpWrapperPath)
+                mcpWrapper.parentFile.mkdirs()
+                // Written as a list of plain (non-interpolated) lines rather than a
+                // single triple-quoted template: the launcher needs many literal
+                // ${'$'}{...} shell parameter expansions, which collide with
+                // ktlint's "redundant curly braces" rule when written as Kotlin
+                // string-template escapes.
+                val mcpWrapperLines =
+                    listOf(
+                        "#!/bin/sh",
+                        "# kUML bundled runtime: thin wrapper delegating to the kuml-mcp",
+                        "# installDist launcher bundled under mcp/bin/. Generated by the",
+                        "# :kuml-cli:bundledImage Gradle task -- do not edit by hand.",
+                        "#",
+                        "# Resolve \$0 through symlinks (Homebrew installs this file as a",
+                        "# symlink at \$HOMEBREW_PREFIX/bin/kuml-mcp pointing into libexec/bin/),",
+                        "# the same way the Gradle `application` plugin's own generated",
+                        "# launchers do, so ../mcp/bin/kuml-mcp resolves relative to the real",
+                        "# file location rather than the symlink's directory.",
+                        "app_path=\$0",
+                        "while",
+                        "    dir=\${app_path%\"\${app_path##*/}\"}",
+                        "    [ -h \"\$app_path\" ]",
+                        "do",
+                        "    ls=\$( ls -ld \"\$app_path\" )",
+                        "    link=\${ls#*' -> '}",
+                        "    case \$link in",
+                        "      /*)   app_path=\$link ;;",
+                        "      *)    app_path=\$dir\$link ;;",
+                        "    esac",
+                        "done",
+                        "DIR=\$( cd -P \"\${dir:-./}\" > /dev/null && pwd )",
+                        "exec \"\$DIR/../mcp/bin/kuml-mcp\" \"\$@\"",
+                        "",
+                    )
+                mcpWrapper.writeText(mcpWrapperLines.joinToString("\n"))
+                mcpWrapper.setExecutable(true)
             }
         },
     )
@@ -453,6 +567,9 @@ tasks.register<Zip>("runtimeZip") {
             val isExecutable =
                 // CLI launcher (the shell variant; .bat stays 0644).
                 p.endsWith("/bin/kuml") ||
+                    // kuml-mcp wrapper (V3.2.13) and its bundled installDist launcher.
+                    p.endsWith("/bin/kuml-mcp") ||
+                    p.endsWith("/mcp/bin/kuml-mcp") ||
                     // All JDK binaries shipped with the bundled runtime.
                     p.contains("/runtime/bin/") ||
                     // jlink's helper executable, lives outside runtime/bin.
