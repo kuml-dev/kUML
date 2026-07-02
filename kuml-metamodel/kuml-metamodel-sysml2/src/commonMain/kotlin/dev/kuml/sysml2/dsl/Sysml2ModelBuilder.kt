@@ -106,6 +106,7 @@ class Sysml2ModelBuilder(
                 isAbstract = isAbstract,
                 features = builder.features(),
                 specializations = specializesId?.let { listOf(KermlSpecialization(id, it)) }.orEmpty(),
+                constraints = builder.constraints(),
             )
         definitions += def
         return def
@@ -1160,6 +1161,8 @@ class DefinitionBuilder internal constructor(
     private val modelBuilder: Sysml2ModelBuilder,
 ) {
     private val collected = mutableListOf<dev.kuml.kerml.KermlFeature>()
+    private val collectedConstraints = mutableListOf<dev.kuml.uml.UmlConstraint>()
+    private var constraintCounter = 0
 
     /**
      * Declare an attribute-usage: `mass : Mass = 1500[kg]`.
@@ -1252,7 +1255,32 @@ class DefinitionBuilder internal constructor(
         return usage
     }
 
+    /**
+     * Declare an OCL invariant on the enclosing definition (V3.2.23).
+     *
+     * Only meaningful on definitions that carry a `constraints` field
+     * (currently [PartDefinition] — the SysML 2 analog of a UML classifier).
+     * Coexists with PAR [dev.kuml.sysml2.ConstraintDefinition] /
+     * [dev.kuml.sysml2.constraint.Sysml2ConstraintChecker]: this is a classifier
+     * invariant evaluated by `kuml-core-ocl`'s `OclValidator`, not a parametric
+     * equation checked by the type-checker.
+     *
+     * @param name Constraint name, shown in violation messages.
+     * @param body OCL expression body, e.g. `"self.mass->notEmpty()"`.
+     */
+    fun constraint(
+        name: String,
+        body: String,
+    ): dev.kuml.uml.UmlConstraint {
+        val constraintId = "${parentId}_inv_${++constraintCounter}"
+        val c = dev.kuml.uml.UmlConstraint(id = constraintId, name = name, body = body)
+        collectedConstraints += c
+        return c
+    }
+
     internal fun features(): List<dev.kuml.kerml.KermlFeature> = collected.toList()
+
+    internal fun constraints(): List<dev.kuml.uml.UmlConstraint> = collectedConstraints.toList()
 
     /**
      * Shadow SysML 2 usages onto the KerML feature layer so consumers that

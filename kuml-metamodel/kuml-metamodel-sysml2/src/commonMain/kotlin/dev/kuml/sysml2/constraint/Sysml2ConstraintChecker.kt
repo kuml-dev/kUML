@@ -24,6 +24,19 @@ import dev.kuml.sysml2.Sysml2Model
  *
  * V2.x deferred: constraint solving / equation system, recursive type inference
  * for nested constraints.
+ *
+ * **Consolidation note (V3.2.23)**: this checker is deliberately kept separate
+ * from `kuml-core-ocl`'s `OclValidator` / `OclParser`. It type-checks PAR
+ * (parametric) equations bound to attributes via [BindingConnectorUsage]s using
+ * [OclLikeExpressionParser] (`kuml-core-expr`) — a lightweight expression parser
+ * shared with STM/ACT guard conditions. `OclValidator` instead evaluates full
+ * OCL invariants (e.g. `dev.kuml.sysml2.PartDefinition.constraints`) with `self`
+ * bound to a model element. The two engines coexist rather than merge: PAR
+ * constraint type-checking has no `self`/navigation context and does not need
+ * the full OCL grammar, while classifier invariants need exactly that. If PAR
+ * constraints ever require OCL-level expressiveness (navigation, collection
+ * operations), revisit routing [OclLikeExpressionParser] through the full
+ * `kuml-core-ocl` interpreter instead of maintaining two parsers.
  */
 public object Sysml2ConstraintChecker {
     /**

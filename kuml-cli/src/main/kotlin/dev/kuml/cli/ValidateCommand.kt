@@ -48,7 +48,11 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
     private val input by argument(help = "Path to *.kuml.kts script")
         .file(mustExist = true, canBeDir = false)
 
-    private val outputFormat by option("-o", "--output", help = "Output format")
+    // "--format" is accepted as an alias for "--output" (V3.2.23) — some wave
+    // plans/docs referred to the flag as "--format json" before the CLI's
+    // actual flag name ("-o/--output") was cross-checked; keeping both spellings
+    // working avoids breaking any script written against the documented name.
+    private val outputFormat by option("-o", "--output", "--format", help = "Output format")
         .choice("text", "json")
         .default("text")
 
@@ -109,12 +113,18 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                 }
             }
 
-        // 3. Model OCL validation — only if a UML diagram was extracted.
+        // 3. Model OCL validation.
+        //    - UML: OclValidator.validate over classifier constraints (unchanged).
+        //    - BPMN / SysML 2 (V3.2.23): OclValidator.validateBpmn / validateSysml2
+        //      evaluate process-/part-level OCL invariants. Any other extracted
+        //      diagram kind (C4, Blueprint) has no OCL constraint concept and
+        //      validates trivially (valid = true, no violations).
         val modelResult =
-            if (umlDiagram != null) {
-                OclValidator.validate(umlDiagram)
-            } else {
-                KumlValidationResult(valid = true, violations = emptyList())
+            when {
+                umlDiagram != null -> OclValidator.validate(umlDiagram)
+                extracted is ExtractedDiagram.Bpmn -> OclValidator.validateBpmn(extracted.model)
+                extracted is ExtractedDiagram.Sysml2 -> OclValidator.validateSysml2(extracted.model)
+                else -> KumlValidationResult(valid = true, violations = emptyList())
             }
 
         // 4. Stereotype validation (opt-in, UML only)

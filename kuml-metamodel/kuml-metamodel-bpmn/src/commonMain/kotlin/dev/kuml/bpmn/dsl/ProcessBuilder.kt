@@ -15,6 +15,7 @@ import dev.kuml.bpmn.model.EventPosition
 import dev.kuml.bpmn.model.GatewayType
 import dev.kuml.bpmn.model.SequenceFlow
 import dev.kuml.bpmn.model.TaskType
+import dev.kuml.uml.UmlConstraint
 
 /**
  * Builder for a [BpmnProcess].
@@ -36,10 +37,12 @@ class ProcessBuilder(
     private val sequenceFlows: MutableList<SequenceFlow> = mutableListOf()
     private val dataObjects: MutableList<BpmnDataObject> = mutableListOf()
     private val dataAssociations: MutableList<DataAssociation> = mutableListOf()
+    private val constraints: MutableList<UmlConstraint> = mutableListOf()
 
     private var nodeCounter = 0
     private var flowCounter = 0
     private var dataCounter = 0
+    private var constraintCounter = 0
 
     private fun nextNodeId(prefix: String): String = "${id}_${prefix}_${++nodeCounter}"
 
@@ -288,6 +291,29 @@ class ProcessBuilder(
         return assocId
     }
 
+    // ── Constraints (V3.2.23) ───────────────────────────────────────────────────
+
+    /**
+     * Declare an OCL invariant on this process.
+     *
+     * Evaluated by `kuml-core-ocl`'s `OclValidator` BPMN branch with `self` bound
+     * to the enclosing [BpmnProcess]. Property navigation (`self.flowNodes`,
+     * `self.sequenceFlows`, …) is resolved by the BPMN property accessor —
+     * analogous to how UML classifier constraints navigate `self.attributes`.
+     *
+     * @param name Constraint name, shown in violation messages.
+     * @param body OCL expression body, e.g. `"self.flowNodes->notEmpty()"`.
+     * @return The generated constraint id.
+     */
+    fun constraint(
+        name: String,
+        body: String,
+    ): String {
+        val constraintId = "${id}_inv_${++constraintCounter}"
+        constraints += UmlConstraint(id = constraintId, name = name, body = body)
+        return constraintId
+    }
+
     // ── Flows ─────────────────────────────────────────────────────────────────
 
     /**
@@ -339,5 +365,6 @@ class ProcessBuilder(
             sequenceFlows = sequenceFlows.toList(),
             dataObjects = dataObjects.toList(),
             dataAssociations = dataAssociations.toList(),
+            constraints = constraints.toList(),
         )
 }

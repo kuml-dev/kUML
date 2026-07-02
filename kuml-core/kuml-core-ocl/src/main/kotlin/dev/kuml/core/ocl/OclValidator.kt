@@ -1,6 +1,9 @@
 package dev.kuml.core.ocl
 
+import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.sysml2.PartDefinition
+import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlConstraint
 import dev.kuml.uml.UmlConstraintKind
@@ -31,6 +34,59 @@ public object OclValidator {
                         validateClassifier(element, element.id, element.name, element.constraints, diagram.elements)
                 else -> Unit
             }
+        }
+        return KumlValidationResult(valid = violations.isEmpty(), violations = violations)
+    }
+
+    /**
+     * Validates the OCL invariants declared on every [BpmnModel] process
+     * (V3.2.23 — `BpmnProcess.constraints`).
+     *
+     * `self` is bound to the [BpmnModel]'s process; navigation resolves via
+     * [BpmnPropertyAccessor] (analogous to [UmlPropertyAccessor] for the UML
+     * branch). `model` for association-style navigation is the process's own
+     * flow nodes + sequence flows — BPMN processes have no cross-process
+     * associations comparable to UML's [dev.kuml.uml.UmlAssociation], so the
+     * navigation model is scoped per-process rather than model-wide.
+     */
+    public fun validateBpmn(model: BpmnModel): KumlValidationResult {
+        val violations = mutableListOf<KumlViolation>()
+        for (process in model.processes) {
+            if (process.constraints.isEmpty()) continue
+            violations +=
+                validateClassifier(
+                    self = process,
+                    classifierId = process.id,
+                    classifierName = process.name ?: process.id,
+                    constraints = process.constraints,
+                    model = process.flowNodes + process.sequenceFlows,
+                )
+        }
+        return KumlValidationResult(valid = violations.isEmpty(), violations = violations)
+    }
+
+    /**
+     * Validates the OCL invariants declared on every [Sysml2Model]
+     * [PartDefinition] (V3.2.23 — `PartDefinition.constraints`).
+     *
+     * `self` is bound to the [PartDefinition]; navigation resolves via
+     * [Sysml2PropertyAccessor]. Coexists with the PAR
+     * [dev.kuml.sysml2.constraint.Sysml2ConstraintChecker] path — that one
+     * type-checks parametric equations bound via `BindingConnectorUsage`s,
+     * this one evaluates classifier-scoped OCL invariants against `self`.
+     */
+    public fun validateSysml2(model: Sysml2Model): KumlValidationResult {
+        val violations = mutableListOf<KumlViolation>()
+        for (def in model.definitions.filterIsInstance<PartDefinition>()) {
+            if (def.constraints.isEmpty()) continue
+            violations +=
+                validateClassifier(
+                    self = def,
+                    classifierId = def.id,
+                    classifierName = def.name,
+                    constraints = def.constraints,
+                    model = model.definitions + model.usages,
+                )
         }
         return KumlValidationResult(valid = violations.isEmpty(), violations = violations)
     }
@@ -88,7 +144,8 @@ public object OclValidator {
         val defViolations = mutableListOf<KumlViolation>()
         for (d in defs) {
             try {
-                val expr = OclParser(OclLexer.tokenize(d.body)).parse()
+                val (tokens, positions) = OclLexer.tokenizeWithPositions(d.body)
+                val expr = OclParser(tokens, positions).parse()
                 defEnv[d.name] = OclEvaluator(self, model).eval(expr, defEnv.toMap())
             } catch (e: OclEvaluationException) {
                 defViolations +=
@@ -99,6 +156,7 @@ public object OclValidator {
                         classifierName = classifierName,
                         oclExpression = d.body,
                         message = "Definition '${d.name}' on '$classifierName' threw: ${e.message}",
+                        sourcePosition = e.position ?: FALLBACK_POSITION,
                     )
             }
         }
@@ -152,7 +210,8 @@ public object OclValidator {
         model: List<Any>,
     ): KumlViolation? =
         try {
-            val expr = OclParser(OclLexer.tokenize(c.body)).parse()
+            val (tokens, positions) = OclLexer.tokenizeWithPositions(c.body)
+            val expr = OclParser(tokens, positions).parse()
             val bindsResult = c.kind == UmlConstraintKind.Postcondition || c.kind == UmlConstraintKind.Body
             val env = if (bindsResult) defEnv + mapOf("result" to null) else defEnv
             val result = OclEvaluator(self, model).eval(expr, env)
@@ -164,6 +223,7 @@ public object OclValidator {
                     classifierName = classifierName,
                     oclExpression = c.body,
                     message = "Constraint '${c.name}' violated on '$classifierName': evaluated to $result",
+                    sourcePosition = FALLBACK_POSITION,
                 )
             } else {
                 null
@@ -176,6 +236,15 @@ public object OclValidator {
                 classifierName = classifierName,
                 oclExpression = c.body,
                 message = "Constraint '${c.name}' on '$classifierName' threw: ${e.message}",
+                sourcePosition = e.position ?: FALLBACK_POSITION,
             )
         }
+
+    /**
+     * Fallback [OclPosition] used when a violation has no token-level position
+     * (e.g. a successfully-parsed constraint that evaluated to non-`true` — the
+     * failure is semantic, not syntactic, so there is no single failing token).
+     * Points at the start of the constraint body.
+     */
+    private val FALLBACK_POSITION = OclPosition(line = 1, col = 1)
 }

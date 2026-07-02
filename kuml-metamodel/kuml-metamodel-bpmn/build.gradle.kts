@@ -19,6 +19,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":kuml-core:kuml-core-model"))
+            // V3.2.23 — BpmnProcess.constraints reuses UmlConstraint (OCL invariant body)
+            // so kuml-core-ocl can validate BPMN processes with the same constraint model
+            // as UML classifiers, without duplicating the constraint-kind/body shape.
+            api(project(":kuml-metamodel:kuml-metamodel-uml"))
             implementation(libs.kotlinx.serialization.json)
         }
         jvmTest.dependencies {

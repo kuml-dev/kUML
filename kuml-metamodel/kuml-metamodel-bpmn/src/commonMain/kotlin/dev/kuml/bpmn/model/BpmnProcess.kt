@@ -2,6 +2,7 @@ package dev.kuml.bpmn.model
 
 import dev.kuml.core.model.KumlElement
 import dev.kuml.core.model.KumlMetaValue
+import dev.kuml.uml.UmlConstraint
 import kotlinx.serialization.Serializable
 
 /**
@@ -13,6 +14,11 @@ import kotlinx.serialization.Serializable
  * @property sequenceFlows All sequence flows connecting the flow nodes.
  * @property dataObjects Data objects referenced within this process.
  * @property dataAssociations Data associations between data objects and activities.
+ * @property constraints Process-level OCL invariants (V3.2.23). Evaluated with `self`
+ *   bound to this [BpmnProcess] by `kuml-core-ocl`'s `OclValidator` BPMN branch —
+ *   reuses [UmlConstraint] (the same shape UML classifiers use) rather than a
+ *   parallel BPMN-specific constraint type, so the OCL lexer/parser/evaluator need
+ *   no BPMN-specific code path.
  * @property metadata Arbitrary additional metadata.
  */
 @Serializable
@@ -23,6 +29,7 @@ data class BpmnProcess(
     val sequenceFlows: List<SequenceFlow> = emptyList(),
     val dataObjects: List<BpmnDataObject> = emptyList(),
     val dataAssociations: List<DataAssociation> = emptyList(),
+    val constraints: List<UmlConstraint> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : BpmnElement {
     /**

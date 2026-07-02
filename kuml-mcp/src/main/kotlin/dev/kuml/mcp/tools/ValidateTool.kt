@@ -3,6 +3,7 @@ package dev.kuml.mcp.tools
 import dev.kuml.core.ocl.KumlValidationResult
 import dev.kuml.core.ocl.OclValidator
 import dev.kuml.core.script.DiagramExtractor
+import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptGuard
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.core.script.ScriptEvaluationException
@@ -26,7 +27,11 @@ internal object ValidateTool : McpTool {
     override val descriptor: McpToolDescriptor =
         McpToolDescriptor(
             name = "kuml.validate",
-            description = "Validate OCL constraints defined in a kUML DSL script. Returns a structured list of constraint violations.",
+            description =
+                "Validate OCL constraints defined in a kUML DSL script (UML classifiers, " +
+                    "BPMN processes, or SysML 2 part definitions). Returns a structured list of " +
+                    "constraint violations, each with an optional sourcePosition (line/col within " +
+                    "the constraint body).",
             inputSchema =
                 buildJsonObject {
                     put("type", "object")
@@ -60,8 +65,22 @@ internal object ValidateTool : McpTool {
                 evalResult as? ResultWithDiagnostics.Success
                     ?: throw ScriptEvaluationException("Script evaluation produced no result")
 
-            val diagram = DiagramExtractor.extract(success.value.returnValue, scriptFile)
-            val result: KumlValidationResult = OclValidator.validate(diagram)
+            // V3.2.23 — mirrors ValidateCommand's dispatch: UML uses the legacy
+            // extract() path (kept for backward compatibility with existing MCP
+            // clients), BPMN / SysML 2 route through extractAny() to their new
+            // OclValidator branches. Any other diagram kind (C4, Blueprint) has
+            // no OCL constraint concept and validates trivially.
+            val result: KumlValidationResult =
+                try {
+                    val diagram = DiagramExtractor.extract(success.value.returnValue, scriptFile)
+                    OclValidator.validate(diagram)
+                } catch (_: ScriptEvaluationException) {
+                    when (val extracted = DiagramExtractor.extractAny(success.value.returnValue, scriptFile)) {
+                        is ExtractedDiagram.Bpmn -> OclValidator.validateBpmn(extracted.model)
+                        is ExtractedDiagram.Sysml2 -> OclValidator.validateSysml2(extracted.model)
+                        else -> KumlValidationResult(valid = true, violations = emptyList())
+                    }
+                }
             val resultJson = json.encodeToString(KumlValidationResult.serializer(), result)
             listOf(McpContent(type = "text", text = resultJson))
         } finally {

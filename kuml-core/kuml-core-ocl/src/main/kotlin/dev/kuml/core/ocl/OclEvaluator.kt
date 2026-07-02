@@ -52,7 +52,7 @@ internal class OclEvaluator(
                 val recv =
                     eval(expr.receiver, env)
                         ?: throw OclEvaluationException("Cannot navigate '${expr.prop}' on null")
-                UmlPropertyAccessor.get(recv, expr.prop, model)
+                PropertyAccessor.get(recv, expr.prop, model)
             }
             is OclExpression.CollectionOp -> evalCollectionOp(expr, env)
             is OclExpression.IterateExpr -> evalIterate(expr, env)

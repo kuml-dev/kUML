@@ -27,6 +27,13 @@ sealed interface Sysml2Definition :
  * Represents a system part *type* (e.g. `Vehicle`, `Engine`, `Cylinder`).
  * Owns attribute / port / part usages via [features]. Inheritance is
  * encoded via [specializations] (KerML `:>`).
+ *
+ * @property constraints OCL invariants on this part definition (V3.2.23).
+ *   Reuses [dev.kuml.uml.UmlConstraint] — the same shape UML classifiers use —
+ *   so `kuml-core-ocl`'s `OclValidator` evaluates them via the same
+ *   lexer/parser/evaluator, with `self` bound to this [PartDefinition]. Distinct
+ *   from PAR [ConstraintDefinition]/[dev.kuml.sysml2.constraint.Sysml2ConstraintChecker],
+ *   which type-checks parametric equations bound via [dev.kuml.sysml2.BindingConnectorUsage]s.
  */
 @Serializable
 data class PartDefinition(
@@ -36,6 +43,7 @@ data class PartDefinition(
     override val isAbstract: Boolean = false,
     override val features: List<KermlFeature> = emptyList(),
     override val specializations: List<KermlSpecialization> = emptyList(),
+    val constraints: List<dev.kuml.uml.UmlConstraint> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : Sysml2Definition
 
