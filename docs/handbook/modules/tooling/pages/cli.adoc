@@ -274,16 +274,27 @@ See the `kuml-codegen-reverse-api` README for the full table.
 
 == `kuml ai`
 
-Hook for LLM-assisted workflows. Currently exposes the MCP server stdio frontend:
+Inspect and manage AI provider configuration, agent tool sets, benchmarks, pricing,
+compliance audit logs, and the API key vault:
 
 [source,bash]
 ----
-kuml ai mcp-stdio                   # speak MCP over stdio
+kuml ai provider list                # configured LLM providers
+kuml ai tools list                    # agent tool sets (including the MCP bridge)
+kuml ai bench                         # benchmark provider latency/quality
+kuml ai pricing                       # provider pricing tables
+kuml ai audit                         # compliance audit log
+kuml ai vault                         # API key vault (AES-256-GCM)
 ----
 
-The MCP server exposes tools for diagram introspection, validation, and code generation —
-agents can query a kUML model the same way they query a database. See the source for
-the full tool list.
+`kuml ai` is *not* the MCP server entry point — there is no `mcp-stdio` subcommand. The
+MCP server is the standalone `kuml-mcp` binary (module `kuml-mcp`, `mainClass =
+dev.kuml.mcp.MainKt`), started directly as `/path/to/kuml-mcp/bin/kuml-mcp`. It exposes
+5 authoring tools (`kuml.render`/`validate`/`list_elements`/`describe`/`generate`) and
+5 Behaviour-Runtime tools (`kuml.run.start`/`event`/`snapshot`/`patch`/`stop`) — agents
+can query and drive a kUML model the same way they query a database. See
+xref:reference:authoring-mcp.adoc[Authoring MCP] and
+xref:reference:runtime-mcp.adoc[Behaviour-Runtime MCP] for the full tool reference.
 
 == Exit codes
 

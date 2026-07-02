@@ -6,12 +6,19 @@ any MCP-compatible client — Claude Desktop, VS Code Copilot, or your own agent
 *run* kUML state machines and activity diagrams interactively, without writing a single
 line of integration code.
 
-The MCP server is started via:
+The MCP server is a standalone binary, `kuml-mcp`, built from the `kuml-mcp` module
+(`application` plugin, `mainClass = dev.kuml.mcp.MainKt`). It is *not* a subcommand of
+the `kuml` CLI — there is no `kuml ai mcp-stdio` command. Start it directly:
 
 [source,bash]
 ----
-kuml ai mcp-stdio
+/path/to/kuml-mcp/bin/kuml-mcp
 ----
+
+After `./gradlew :kuml-mcp:installDist` the binary is at
+`kuml-mcp/build/install/kuml-mcp/bin/kuml-mcp`. Once `kuml-mcp` is bundled into
+`runtimeZip` (see the distribution changelog), `brew install kuml` puts it on `PATH`
+alongside `kuml`.
 
 Claude Desktop (and other clients) connect to this process over stdio.
 
@@ -22,34 +29,35 @@ Claude Desktop (and other clients) connect to this process over stdio.
 | Tool | Purpose | Arguments | Return shape
 
 | `kuml.run.start`
-| Compile a `.kuml.kts` script and start a new runtime instance.
-| `{ "script": "<path>", "machine"?: "<name>", "epochClock"?: true }`
-| `{ "instanceId": "<uuid>", "initialState": "<vertex>" }`
+| Start a new runtime session from a `.kuml.kts` file (or inline script). Auto-detects
+  `stm` (state machine) vs `act` (activity).
+| `{ "source": "<path-or-inline-script>", "kind"?: "stm"\|"act", "element"?: "<diagram-name>" }`
+| `{ "sessionId": "rs-...", "kind": "stm", "activeStates": [ ... ], "trace": [] }`
 
 | `kuml.run.event`
-| Fire a named event at a running instance.
-| `{ "instanceId": "<uuid>", "name": "<event>", "payload"?: { ... } }`
-| `{ "transitioned": true|false, "currentState": "<vertex>", "trace": [ ... ] }`
+| Send a named event to a running state-machine session.
+| `{ "sessionId": "rs-...", "event": "<event>", "payload"?: { ... } }`
+| `{ "fired": [ "From→To" ], "activeStates": [ ... ], "traceDelta": [ ... ] }`
 
 | `kuml.run.snapshot`
-| Read the current state and accumulated trace without firing an event.
-| `{ "instanceId": "<uuid>" }`
-| `{ "currentState": "<vertex>", "isTerminated": false, "trace": [ ... ] }`
+| Non-destructively inspect a session: active states, variables, trace tail, step count.
+| `{ "sessionId": "rs-..." }`
+| `{ "activeStates": [ ... ], "variables": { ... }, "traceTail": [ last 20 entries ], "stepCount": <int> }`
 
 | `kuml.run.patch`
-| Forcibly set a context variable (for testing guard conditions).
-| `{ "instanceId": "<uuid>", "key": "<var>", "value": <json> }`
-| `{ "ok": true }`
+| Patch session variables and/or teleport the state machine to a named state.
+| `{ "sessionId": "rs-...", "variables"?: { ... }, "forceState"?: "<state>" }`
+| `{ "ok": true, "activeStates": [ ... ] }`
 
 | `kuml.run.stop`
-| Terminate an instance and free runtime resources.
-| `{ "instanceId": "<uuid>" }`
-| `{ "finalState": "<vertex>", "terminated": true|false }`
+| Terminate the session and return the full execution trace.
+| `{ "sessionId": "rs-..." }`
+| `{ "ok": true, "totalSteps": <int>, "traceLength": <int>, "trace": [ ... ] }`
 |===
 
-`instanceId` is a UUID assigned by `kuml.run.start`. All subsequent calls on the same
-session pass this ID. The server keeps instances alive in memory until `kuml.run.stop`
-is called or the MCP session closes.
+`sessionId` is assigned by `kuml.run.start` (format `rs-<hex>`). All subsequent calls on
+the same session pass this ID. The server keeps sessions alive in memory until
+`kuml.run.stop` is called or the session expires (30 minutes of inactivity, configurable).
 
 == Claude Desktop configuration
 
@@ -61,9 +69,7 @@ Add the following block to your Claude Desktop `claude_desktop_config.json` (typ
 {
   "mcpServers": {
     "kuml": {
-      "command": "kuml",
-      "args": ["ai", "mcp-stdio"],
-      "env": {}
+      "command": "/path/to/kuml-mcp/bin/kuml-mcp"
     }
   }
 }
@@ -84,8 +90,7 @@ cooling → eco → idle → off cycle via MCP tool calls.
 ----
 // kuml.run.start
 {
-  "script": "kuml-examples/src/main/kotlin/dev/kuml/examples/pepela/pepela-thermostat-stm.kuml.kts",
-  "epochClock": true
+  "source": "kuml-examples/src/main/kotlin/dev/kuml/examples/pepela/pepela-thermostat-stm.kuml.kts"
 }
 ----
 
@@ -93,8 +98,10 @@ Response:
 [source,json]
 ----
 {
-  "instanceId": "f4a2e891-3c10-4b7f-9d8e-2a1f5c6b7e0d",
-  "initialState": "Off"
+  "sessionId": "rs-a1b2c3d4",
+  "kind": "stm",
+  "activeStates": ["Off"],
+  "trace": []
 }
 ----
 
@@ -104,8 +111,8 @@ Response:
 ----
 // kuml.run.event
 {
-  "instanceId": "f4a2e891-3c10-4b7f-9d8e-2a1f5c6b7e0d",
-  "name": "powerOn"
+  "sessionId": "rs-a1b2c3d4",
+  "event": "powerOn"
 }
 ----
 
@@ -113,9 +120,9 @@ Response:
 [source,json]
 ----
 {
-  "transitioned": true,
-  "currentState": "Idle",
-  "trace": [
+  "fired": ["Off→Idle"],
+  "activeStates": ["Idle"],
+  "traceDelta": [
     { "type": "EventReceived",  "event": { "name": "powerOn" } },
     { "type": "Transitioned",   "trigger": "powerOn", "from": "Off", "to": "Idle" },
     { "type": "Entered",        "vertex": "Idle" }
@@ -129,13 +136,13 @@ Response:
 ----
 // kuml.run.event
 {
-  "instanceId": "f4a2e891-3c10-4b7f-9d8e-2a1f5c6b7e0d",
-  "name": "tick",
+  "sessionId": "rs-a1b2c3d4",
+  "event": "tick",
   "payload": { "temperature": 16, "targetTemperature": 21 }
 }
 ----
 
-Response: `currentState: "Heating"` — the guard `event.temperature < event.targetTemperature - 1`
+Response: `activeStates: ["Heating"]` — the guard `event.temperature < event.targetTemperature - 1`
 evaluated to true (16 < 20).
 
 === Step 4: Snapshot without firing an event
@@ -143,16 +150,17 @@ evaluated to true (16 < 20).
 [source,json]
 ----
 // kuml.run.snapshot
-{ "instanceId": "f4a2e891-3c10-4b7f-9d8e-2a1f5c6b7e0d" }
+{ "sessionId": "rs-a1b2c3d4" }
 ----
 
 Response:
 [source,json]
 ----
 {
-  "currentState": "Heating",
-  "isTerminated": false,
-  "trace": [ /* all entries so far */ ]
+  "activeStates": ["Heating"],
+  "variables": {},
+  "traceTail": [ /* last 20 entries */ ],
+  "stepCount": 2
 }
 ----
 
@@ -164,20 +172,24 @@ Cooling → Idle → Eco → Idle → Off, then stop:
 [source,json]
 ----
 // kuml.run.stop
-{ "instanceId": "f4a2e891-3c10-4b7f-9d8e-2a1f5c6b7e0d" }
+{ "sessionId": "rs-a1b2c3d4" }
 ----
 
 Response:
 [source,json]
 ----
 {
-  "finalState": "Off",
-  "terminated": false
+  "ok": true,
+  "totalSteps": 6,
+  "traceLength": 24,
+  "trace": [ /* full trace */ ]
 }
 ----
 
-NOTE: `terminated` is `true` only when the machine reaches a UML/SysML final state via
-the runtime's own termination rule. A `kuml.run.stop` call always succeeds regardless.
+NOTE: `kuml.run.stop` always returns `"ok": true` on a valid session ID; there is no
+separate terminated/non-terminated distinction in the response — inspect `activeStates`
+in the preceding `kuml.run.snapshot`/`kuml.run.event` calls to see whether the machine
+reached a final state.
 
 == Payload schema for guards
 
@@ -187,7 +199,8 @@ object maps directly to these keys — what you pass in `kuml.run.event` is what
 [source,json]
 ----
 {
-  "name": "tick",
+  "sessionId": "rs-a1b2c3d4",
+  "event": "tick",
   "payload": {
     "temperature": 19,
     "targetTemperature": 21,
@@ -200,17 +213,24 @@ A guard of `event.temperature < event.targetTemperature - 1` receives `19 < 20 =
 
 == Using `kuml.run.patch` for guard testing
 
-`kuml.run.patch` injects a context variable that guards can read. This is intended for
-automated tests that need to reach a specific state without constructing a full event
-sequence:
+`kuml.run.patch` merges variables into the session's context and/or forces the state
+machine to jump to a named state. This is intended for automated tests that need to
+reach a specific state without constructing a full event sequence:
 
 [source,json]
 ----
 // Force the overrideEco flag so the eco-mode guard fires immediately
-{ "instanceId": "...", "key": "overrideEco", "value": true }
+{ "sessionId": "rs-a1b2c3d4", "variables": { "overrideEco": true } }
+----
+
+[source,json]
+----
+// Teleport the machine directly to the "Heating" state
+{ "sessionId": "rs-a1b2c3d4", "forceState": "Heating" }
 ----
 
 == See also
 
 * xref:simulate.adoc[State-Machine Simulation] — batch simulation via `kuml simulate`, trace format
-* xref:cli.adoc[CLI Reference] — `kuml ai mcp-stdio` command
+* xref:authoring-mcp.adoc[Authoring MCP] — `kuml.render`/`validate`/`list_elements`/`describe`/`generate` tools
+* xref:cli.adoc[CLI Reference]

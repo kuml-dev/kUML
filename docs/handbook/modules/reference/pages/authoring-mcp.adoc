@@ -1,0 +1,142 @@
+= Authoring MCP Interface
+:description: kUML's MCP server exposes 5 authoring tools — render, validate, list_elements, describe, generate.
+
+kUML exposes its authoring/rendering pipeline via the Model Context Protocol (MCP). This
+allows any MCP-compatible client — Claude Desktop, Cursor, Continue, or your own agent —
+to render, validate, introspect, and generate code from kUML DSL scripts, without
+writing a single line of integration code.
+
+The MCP server is the standalone `kuml-mcp` binary (module `kuml-mcp`, `application`
+plugin, `mainClass = dev.kuml.mcp.MainKt`). It is *not* a subcommand of the `kuml` CLI.
+Build it via:
+
+[source,bash]
+----
+./gradlew clean :kuml-mcp:installDist
+----
+
+The binary is installed at:
+
+[source]
+----
+kuml-mcp/build/install/kuml-mcp/bin/kuml-mcp
+----
+
+Claude Desktop (and other MCP clients) connect to this process over stdio.
+
+== The five authoring tools
+
+[cols="1,3,2"]
+|===
+| Tool | Parameters | Return shape
+
+| `kuml.render`
+| `script` (required, string — inline `*.kuml.kts` content) +
+  `format` (optional, `svg`\|`png`, default `svg`) +
+  `width` (optional, integer, PNG only, default `1024`)
+| SVG: one `text` content block with the SVG markup. +
+  PNG: one `image` content block, base64-encoded, `mimeType: image/png`.
+
+| `kuml.validate`
+| `script` (required, string — inline script with `constraint()` declarations)
+| One `text` content block containing the JSON-serialized `KumlValidationResult`
+  (`{"violations": [...]}`, one entry per failed OCL constraint).
+
+| `kuml.list_elements`
+| `script` (required, string)
+| One `text` content block: a human-readable summary listing every classifier,
+  relationship, and other element with its stable `id`.
+
+| `kuml.describe`
+| `script` (required, string) +
+  `elementId` (required, string — an ID from `kuml.list_elements`)
+| One `text` content block: the structured description of the element (attributes,
+  operations, relationships, constraints depending on element type).
+
+| `kuml.generate`
+| `script` (required, string — must define a class diagram) +
+  `plugin` (optional, string, default `kotlin` — codegen plugin id, e.g. `kotlin`,
+  `java`, `sql`) +
+  `package` (optional, string — target Kotlin/Java package name)
+| One `text` content block per generated file, prefixed with a `// <filename>` comment.
+|===
+
+All five tools take the kUML DSL script *inline* as the `script` argument (not a file
+path) — the server writes it to a temporary `*.kuml.kts` file, evaluates it through the
+same `KumlScriptHost` / `DiagramExtractor` pipeline used by `kuml-cli`, and cleans up the
+temporary file afterwards. `KumlScriptGuard.validate()` runs first to reject scripts that
+attempt disallowed operations (this is the standard sandboxing already applied to
+`kuml render`/`kuml validate` on the CLI).
+
+== Minimal example: `kuml.render`
+
+Request:
+
+[source,json]
+----
+{
+  "method": "tools/call",
+  "params": {
+    "name": "kuml.render",
+    "arguments": {
+      "script": "diagram(\"Demo\") { umlClass(\"User\") { attribute(\"id\", \"String\") } }",
+      "format": "svg"
+    }
+  }
+}
+----
+
+Response (abridged):
+
+[source,json]
+----
+{
+  "content": [
+    { "type": "text", "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" ...>...</svg>" }
+  ]
+}
+----
+
+Requesting `"format": "png"` instead returns a single `image` content block with
+base64-encoded PNG bytes:
+
+[source,json]
+----
+{
+  "content": [
+    { "type": "image", "data": "iVBORw0KGgoAAAANSUhEUgAA...", "mimeType": "image/png" }
+  ]
+}
+----
+
+== Claude Desktop configuration
+
+Add the following block to your Claude Desktop `claude_desktop_config.json` — on macOS
+typically at `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "kuml": {
+      "command": "/path/to/kuml-mcp/bin/kuml-mcp"
+    }
+  }
+}
+----
+
+Once `kuml-mcp` is bundled into the Homebrew `runtimeZip` distribution, the command can
+be simplified to just `"kuml-mcp"` (resolved via `PATH` after `brew install kuml`).
+
+Restart Claude Desktop after editing the config. Both authoring tools (this page) and
+Behaviour-Runtime tools (xref:runtime-mcp.adoc[Behaviour-Runtime MCP]) are exposed by the
+same `kuml-mcp` process — there is no separate binary or config entry per tool group.
+
+== See also
+
+* xref:runtime-mcp.adoc[Behaviour-Runtime MCP] — the other 5 tools (`kuml.run.*`),
+  for driving state machines and activity diagrams interactively
+* xref:validate.adoc[Validation] — the CLI-side `kuml validate` command that
+  `kuml.validate` mirrors
+* xref:codegen.adoc[Code generation] — the CLI-side `kuml generate` command that
+  `kuml.generate` mirrors

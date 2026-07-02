@@ -632,7 +632,7 @@ kuml-runtime/
                            SandboxValidator (V2.0.40)
 
 kuml-mcp/              ✅  MCP server — stdio JSON-RPC 2.0
-                           Authoring tools (5): kuml.diagram.*
+                           Authoring tools (5): kuml.render / validate / list_elements / describe / generate
                            Runtime tools (5): kuml.run.start / event / snapshot / patch / stop
 
 kuml-web/              ✅  Browser-based editing environment (V2.0.34)

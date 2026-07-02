@@ -11,6 +11,7 @@
 * xref:simulate.adoc[State-machine simulation]
 * xref:animated.adoc[SMIL Animation]
 * xref:validate.adoc[Validation]
+* xref:authoring-mcp.adoc[Authoring MCP]
 * xref:runtime-mcp.adoc[Behaviour-Runtime MCP]
 * xref:export.adoc[Structurizr export]
 * xref:arxml.adoc[AUTOSAR / ARXML I/O]
