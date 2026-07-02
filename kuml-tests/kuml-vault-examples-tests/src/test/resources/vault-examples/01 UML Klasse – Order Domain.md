@@ -14,7 +14,7 @@ status: aktiv
 ← [[00 Übersicht]] · Bereich [[03 Bereiche/kUML/Übersicht|kUML]]
 
 > [!info] Worum es geht
-> Klassendiagramm einer kleinen Bestelldomäne mit **vier Klassen** (`Customer`, `Order`, `OrderItem`, `Subscription`), einem **Interface** (`Payable`), einem **Enum** (`OrderStatus`), einer **1-zu-n-Assoziation**, einer **Komposition** und einer **Generalisierung** `Subscription` *erbt von* `Order`. Demonstriert das volle Vokabular der UML-Klassen-DSL: Attribute, Multiplizitäten, Rollen, Implementierung von Schnittstellen, Vererbung und Komposition.
+> Klassendiagramm einer kleinen Bestelldomäne mit **fünf Klassen** (`Customer`, `Order`, `OrderItem`, `Subscription`, `AbstractEntity`), einem **Interface** (`Payable`), einem **Enum** (`OrderStatus`), einer **1-zu-n-Assoziation**, einer **Komposition**, einer **gerichteten Abhängigkeit** und einer **Generalisierung** `Order` *erbt von* `AbstractEntity` bzw. `Subscription` *erbt von* `Order`. Demonstriert das volle Vokabular der UML-Klassen-DSL: Attribute (inkl. Sichtbarkeit, `static`, `readOnly`, Default-Werte), Operationen mit Parametern, OCL-Constraints, Multiplizitäten, Rollen, nicht-navigierbare Assoziationsenden, Implementierung von Schnittstellen, Vererbung, Komposition und Abhängigkeit.
 
 ## Diagramm
 
@@ -31,6 +31,12 @@ classDiagram(name = "Order Domain") {
         operation(name = "pay") { returns(typeName = "Boolean") }
     }
 
+    // Abstrakte Basisklasse — Name wird kursiv gerendert
+    val abstractEntity = classOf(name = "AbstractEntity") {
+        isAbstract = true
+        attribute(name = "id", type = "UUID", visibility = Visibility.PROTECTED, isReadOnly = true)
+    }
+
     val customer = classOf(name = "Customer") {
         attribute(name = "id",    type = "UUID")
         attribute(name = "name",  type = "String")
@@ -39,9 +45,21 @@ classDiagram(name = "Order Domain") {
 
     val order = classOf(name = "Order") {
         attribute(name = "id",     type = "UUID")
-        attribute(name = "status", type = status)
-        attribute(name = "total",  type = "BigDecimal")
+        attribute(name = "status", type = status, defaultValue = "DRAFT")
+        attribute(name = "total",  type = "BigDecimal", visibility = Visibility.PRIVATE)
+        attribute(name = "taxRate", type = "BigDecimal", isStatic = true, defaultValue = "0.19")
         implements(iface = payable)
+        extends(general = abstractEntity)
+
+        operation(name = "place") {
+            visibility = Visibility.PUBLIC
+            parameter(name = "items", type = "List<OrderItem>")
+            returns(typeName = "OrderId")
+        }
+        operation(name = "confirm") { returns(typeName = "Boolean") }
+
+        // OCL-Invariante — wird per `kuml validate` geprüft
+        constraint(name = "PositiveTotal", body = "self.total >= 0")
     }
 
     val orderItem = classOf(name = "OrderItem") {
@@ -54,12 +72,16 @@ classDiagram(name = "Order Domain") {
         attribute(name = "interval",    type = "Period")
     }
 
-    // Generalisierung: Subscription erbt von Order
+    // Generalisierung: Subscription erbt von Order (top-level Schreibweise)
     generalization(specific = subscription, general = order)
 
-    // Assoziation: Kunde besitzt 0..n Bestellungen
+    // Abhängigkeit: Order nutzt eine Notification-Klasse, ohne sie zu besitzen
+    val notification = classOf(name = "NotificationService")
+    dependency(client = order, supplier = notification, name = "notifies")
+
+    // Assoziation: Kunde besitzt 0..n Bestellungen; Order kennt seinen Customer nicht (nicht navigierbar)
     association(source = customer, target = order) {
-        source { multiplicity(spec = "1") }
+        source { multiplicity(spec = "1"); navigable = false }
         target { multiplicity(spec = "0..*"); role = "orders" }
     }
 
@@ -79,13 +101,17 @@ classDiagram(name = "Order Domain") {
 | `classDiagram(name = …) { … }` | Top-Level: erzeugt ein UML-Klassendiagramm. |
 | `enumOf(name = …) { literal(name = …) }` | Aufzählungstyp mit Literalen. Wird per `type = status` an Attributen referenziert. |
 | `interfaceOf(name = …) { operation(…) }` | Schnittstelle mit Operationen. |
-| `classOf(name = …) { … }` | Klasse als Knoten. `val` für Referenzierung in Relationen. |
-| `attribute(name = …, type = …)` | Attribut der Klasse. `type` kann ein String oder eine Enum-Referenz sein. |
+| `classOf(name = …) { isAbstract = true; … }` | Klasse als Knoten. `isAbstract = true` im Body rendert den Namen kursiv. `val` für Referenzierung in Relationen. |
+| `attribute(name = …, type = …, visibility = …, isStatic = …, isReadOnly = …, defaultValue = …)` | Attribut der Klasse. `type` kann ein String oder eine Enum-Referenz sein. |
+| `operation(name = …) { … }` | Operation mit `visibility`, `returnType`/`returns(typeName = …)`, `parameter(name = …, type = …)`. |
+| `constraint(name = …, body = …)` | OCL-Invariante, ausgewertet von `kuml validate`. |
 | `implements(iface = payable)` | Realisierung einer Schnittstelle (gestrichelte Pfeil-Linie). |
-| `generalization(specific = …, general = …)` | **Vererbung** — gefüllter Pfeil vom Kind zum Elternteil. |
+| `extends(general = …)` | In-Class-Kurzform für Generalisierung (siehe unten). |
+| `generalization(specific = …, general = …)` | **Vererbung** — gefüllter Pfeil vom Kind zum Elternteil (Top-Level-Schreibweise). |
+| `dependency(client = …, supplier = …, name = …)` | **Abhängigkeit** — gestrichelter offener Pfeil, Client nutzt Supplier ohne strukturelle Bindung. |
 | `association(source = …, target = …) { … }` | UML-Assoziation zwischen zwei Klassen. |
 | `aggregation = AggregationKind.COMPOSITE` | Macht aus einer Assoziation eine **Komposition** (gefüllte Raute). `SHARED` für Aggregation, `NONE` für reine Assoziation. |
-| `source { multiplicity(spec = "1") }` | Multiplizität am Quellenende. |
+| `source { multiplicity(spec = "1"); navigable = false }` | Multiplizität am Quellenende; `navigable = false` blendet den Navigationspfeil an diesem Ende aus. |
 | `target { multiplicity(spec = "0..*"); role = "orders" }` | Multiplizität plus Rollen-Name am Zielende. |
 
 ## Beziehungen im Überblick
@@ -113,8 +139,6 @@ Beide Schreibweisen erzeugen dieselbe `UmlGeneralization`-Kante. Die top-level V
 ## Mögliche Erweiterungen
 
 - **Mehrere Vererbungen**: `generalization(specific = electronicSubscription, general = subscription)` für tiefere Hierarchien
-- **Abstrakte Klassen**: `classOf(name = "Order", isAbstract = true)` — Name wird *kursiv* gerendert
-- **Operation mit Parametern**: `operation(name = "place") { parameter(name = "items", type = "List<OrderItem>"); returns(typeName = "OrderId") }`
 - **Stereotypen**: `classOf(name = "Customer", stereotypes = listOf("Entity"))` (siehe [[15 UML Profil – Java EE Profile]])
 - **`showOperations = false`** auf dem Diagramm, um die Operationsfächer auszublenden — nützlich bei großen Klassen
 

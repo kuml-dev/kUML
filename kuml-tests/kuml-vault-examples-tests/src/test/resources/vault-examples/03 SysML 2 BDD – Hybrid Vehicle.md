@@ -14,7 +14,7 @@ status: aktiv
 ← [[00 Übersicht]] · Bereich [[03 Bereiche/kUML/Übersicht|kUML]]
 
 > [!info] Worum es geht
-> Minimal-Beispiel für ein **SysML 2 BDD** (Block Definition Diagram) — das SysML-2-Analogon zum UML-Klassendiagramm, aber für **System Engineering**: physische Komponenten, Attribute mit Typen, Spezifikation eines Fahrzeugs.
+> Minimal-Beispiel für ein **SysML 2 BDD** (Block Definition Diagram) — das SysML-2-Analogon zum UML-Klassendiagramm, aber für **System Engineering**: physische Komponenten, Attribute mit Typen, Spezifikation eines Fahrzeugs. Zeigt zusätzlich **Spezialisierung** (`specializesId`) und **abstrakte Definitionen** (`isAbstract`) — das SysML-2-Pendant zur UML-Generalisierung.
 
 ## Diagramm
 
@@ -25,15 +25,22 @@ sysml2Model(name = "VehicleSystem") {
     val massType = attributeDef(name = "Mass")
     val powerType = attributeDef(name = "Power")
 
+    // Abstrakte Basis-Definition — kann nicht direkt instanziiert werden
+    val powertrain = partDef(name = "Powertrain", isAbstract = true) {
+        attribute(name = "ratedPower", typeId = powerType.id)
+    }
+
     val vehicle = partDef(name = "Vehicle") {
         attribute(name = "mass", typeId = massType.id)
     }
 
-    val engine = partDef(name = "Engine") {
+    // Spezialisierung: Engine ist eine konkrete Powertrain-Ausprägung
+    val engine = partDef(name = "Engine", specializesId = powertrain.id) {
         attribute(name = "ratedPower", typeId = powerType.id)
     }
 
     bdd(name = "Vehicle BDD") {
+        include(definition = powertrain)
         include(definition = vehicle)
         include(definition = engine)
     }
@@ -59,6 +66,8 @@ In diesem Beispiel sehen wir nur die **Definition-Seite** (das System-Vokabular)
 | `sysml2Model(name = "VehicleSystem") { … }` | Top-Level für ein SysML-2-Modell. |
 | `val massType = attributeDef(name = "Mass")` | Attribut-Definition als wiederverwendbarer Typ. |
 | `partDef(name = "Vehicle") { attribute(name = "mass", typeId = massType.id) }` | Part-Definition mit typisiertem Attribut — `typeId` referenziert die `attributeDef`. |
+| `partDef(name = "Powertrain", isAbstract = true) { … }` | Abstrakte Definition — kann nicht direkt usiert werden, nur über Spezialisierungen. |
+| `partDef(name = "Engine", specializesId = powertrain.id) { … }` | Spezialisierung — SysML-2-Pendant zur UML-`generalization`; `Engine` erbt die Merkmale von `Powertrain`. |
 | `bdd("Vehicle BDD") { include(vehicle); include(engine) }` | Block Definition Diagram, das die Parts visuell darstellt. |
 
 ## Wann SysML 2 statt UML?
