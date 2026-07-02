@@ -53,3 +53,20 @@ internal data class McpToolDescriptor(
     val description: String,
     val inputSchema: JsonObject,
 )
+
+/** A single resource descriptor returned by resources/list. */
+@Serializable
+internal data class McpResourceDescriptor(
+    val uri: String,
+    val name: String,
+    val description: String,
+    val mimeType: String,
+)
+
+/** A single resource content block returned by resources/read. */
+@Serializable
+internal data class McpResourceContents(
+    val uri: String,
+    val mimeType: String,
+    val text: String,
+)

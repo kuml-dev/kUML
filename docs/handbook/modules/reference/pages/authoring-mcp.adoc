@@ -1,5 +1,5 @@
 = Authoring MCP Interface
-:description: kUML's MCP server exposes 5 authoring tools — render, validate, list_elements, describe, generate.
+:description: kUML's MCP server exposes 5 authoring tools — render, validate, list_elements, describe, generate — plus 3 read-only resources for auto-loading DSL knowledge.
 
 kUML exposes its authoring/rendering pipeline via the Model Context Protocol (MCP). This
 allows any MCP-compatible client — Claude Desktop, Cursor, Continue, or your own agent —
@@ -108,6 +108,61 @@ base64-encoded PNG bytes:
   ]
 }
 ----
+
+== MCP resources: auto-loading DSL knowledge
+
+In addition to the five tools above, `kuml-mcp` exposes the `resources` capability
+(`capabilities.resources` in the `initialize` response, protocol version `2024-11-05`).
+Resources are a *read-only* teaching channel — where the tools let an agent render and
+validate scripts, resources let an MCP client auto-load reference material about the DSL
+itself, without any tool call round-trip.
+
+[cols="1,3,1"]
+|===
+| URI | Content | MIME type
+
+| `kuml://dsl/reference`
+| The full DSL reference for all builder functions across UML, SysML v2, C4, and BPMN —
+  the four handbook reference pages (`uml-dsl.adoc`, `sysml2.adoc`, `c4-dsl.adoc`,
+  `bpmn-dsl.adoc`), concatenated.
+| `text/asciidoc`
+
+| `kuml://dsl/examples`
+| Curated example scripts covering every kUML diagram type, sourced from the vault's
+  example notes (same corpus that backs `kuml-vault-examples-tests`).
+| `text/markdown`
+
+| `kuml://dsl/schema`
+| Machine-readable JSON listing every MCP tool's `inputSchema`, for structured
+  autocompletion in MCP clients. MVP: derived directly from the same descriptors returned
+  by `tools/list`, not a full reflective DSL-builder schema.
+| `application/json`
+|===
+
+Client protocol, mirroring `tools/list` / `tools/call`:
+
+[source,json]
+----
+{ "method": "resources/list" }
+----
+
+[source,json]
+----
+{
+  "method": "resources/read",
+  "params": { "uri": "kuml://dsl/reference" }
+}
+----
+
+The response shape for `resources/read` is `{ "contents": [{ "uri", "mimeType", "text" }] }`
+— one entry per requested URI. Requesting an unknown `uri` returns a standard JSON-RPC
+error (code `-32602`), not a crash.
+
+All three resources are static: bundled at build time from the handbook pages and the
+vault-examples classpath resources (`:kuml-mcp:processResources`), so they behave
+identically in the packaged binary and in tests — no live filesystem or vault access at
+runtime. Not yet supported: `resources/subscribe` / live updates, and `prompts` capability
+(prompt templates) — both out of scope for this resources wave.
 
 == Claude Desktop configuration
 

@@ -1,0 +1,107 @@
+package dev.kuml.mcp.resources
+
+import dev.kuml.mcp.McpServer
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
+import io.kotest.matchers.string.shouldNotBeBlank
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+
+/**
+ * V3.2.17 — tests for the MCP resources capability: `kuml://dsl/{reference,examples,schema}`.
+ *
+ * Exercises both the [ResourceRegistry] directly (unit level, mirrors [dev.kuml.mcp.tools.ToolRegistry]
+ * test style) and the JSON-RPC surface via [McpServer.handleLine] (protocol level, mirrors how a
+ * real MCP client would call `resources/list` / `resources/read`).
+ */
+class KumlMcpResourcesTest :
+    FunSpec({
+        val json = Json { ignoreUnknownKeys = true }
+
+        test("descriptors exposes exactly the three kuml://dsl resource URIs") {
+            ResourceRegistry.descriptors shouldHaveSize 3
+            ResourceRegistry.descriptors.map { it.uri } shouldBe
+                listOf("kuml://dsl/reference", "kuml://dsl/examples", "kuml://dsl/schema")
+        }
+
+        test("read(kuml://dsl/reference) returns non-empty asciidoc content covering all DSL families") {
+            val contents = ResourceRegistry.read("kuml://dsl/reference")
+            contents.mimeType shouldBe "text/asciidoc"
+            contents.text.shouldNotBeBlank()
+            contents.text shouldContain "UML"
+            contents.text shouldContain "SysML"
+            contents.text shouldContain "C4"
+            contents.text shouldContain "BPMN"
+        }
+
+        test("read(kuml://dsl/examples) returns non-empty markdown content with multiple examples") {
+            val contents = ResourceRegistry.read("kuml://dsl/examples")
+            contents.mimeType shouldBe "text/markdown"
+            contents.text.shouldNotBeBlank()
+            // Separator between concatenated examples must appear at least once for >1 bundled example.
+            contents.text shouldContain "---"
+        }
+
+        test("read(kuml://dsl/schema) returns valid JSON listing every MCP tool's input schema") {
+            val contents = ResourceRegistry.read("kuml://dsl/schema")
+            contents.mimeType shouldBe "application/json"
+            val parsed = json.parseToJsonElement(contents.text).jsonObject
+            parsed["tools"]!!.jsonArray.size shouldBe dev.kuml.mcp.tools.ToolRegistry.descriptors.size
+        }
+
+        test("read(unknown URI) throws McpResourceException") {
+            shouldThrow<McpResourceException> {
+                ResourceRegistry.read("kuml://dsl/does-not-exist")
+            }
+        }
+
+        test("JSON-RPC resources/list returns 3 descriptors with uri, name, description, mimeType") {
+            val response =
+                McpServer.handleLine("""{"jsonrpc":"2.0","id":1,"method":"resources/list"}""")
+                    ?: error("Expected a response for resources/list")
+            val resources = response.result!!.jsonObject["resources"]!!.jsonArray
+            resources shouldHaveSize 3
+            resources.forEach { resource ->
+                val obj = resource.jsonObject
+                obj["uri"]!!.jsonPrimitive.content.shouldNotBeBlank()
+                obj["name"]!!.jsonPrimitive.content.shouldNotBeBlank()
+                obj["description"]!!.jsonPrimitive.content.shouldNotBeBlank()
+                obj["mimeType"]!!.jsonPrimitive.content.shouldNotBeBlank()
+            }
+        }
+
+        test("JSON-RPC resources/read for each known URI returns non-empty contents") {
+            listOf("kuml://dsl/reference", "kuml://dsl/examples", "kuml://dsl/schema").forEach { uri ->
+                val request =
+                    """{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"$uri"}}"""
+                val response = McpServer.handleLine(request) ?: error("Expected a response for resources/read")
+                response.error shouldBe null
+                val contentsArray = response.result!!.jsonObject["contents"]!!.jsonArray
+                contentsArray shouldHaveSize 1
+                val entry = contentsArray[0].jsonObject
+                entry["uri"]!!.jsonPrimitive.content shouldBe uri
+                entry["text"]!!.jsonPrimitive.content.shouldNotBeBlank()
+            }
+        }
+
+        test("JSON-RPC resources/read with unknown URI returns a clean JSON-RPC error, not a crash") {
+            val request =
+                """{"jsonrpc":"2.0","id":3,"method":"resources/read","params":{"uri":"kuml://dsl/nope"}}"""
+            val response = McpServer.handleLine(request) ?: error("Expected a response for resources/read")
+            response.result shouldBe null
+            response.error shouldNotBe null
+        }
+
+        test("initialize advertises the resources capability") {
+            val response =
+                McpServer.handleLine("""{"jsonrpc":"2.0","id":4,"method":"initialize"}""")
+                    ?: error("Expected a response for initialize")
+            response.result!!.jsonObject["capabilities"]!!.jsonObject["resources"] shouldNotBe null
+        }
+    })

@@ -1,6 +1,8 @@
 package dev.kuml.mcp
 
 import dev.kuml.core.script.ScriptEvaluationException
+import dev.kuml.mcp.resources.McpResourceException
+import dev.kuml.mcp.resources.ResourceRegistry
 import dev.kuml.mcp.tools.McpToolException
 import dev.kuml.mcp.tools.ToolRegistry
 import kotlinx.serialization.encodeToString
@@ -27,6 +29,8 @@ import kotlinx.serialization.json.putJsonObject
  * - ping
  * - tools/list
  * - tools/call
+ * - resources/list
+ * - resources/read
  */
 internal object McpServer {
     private val json =
@@ -52,7 +56,7 @@ internal object McpServer {
         }
     }
 
-    private fun handleLine(line: String): JsonRpcResponse? {
+    internal fun handleLine(line: String): JsonRpcResponse? {
         val request =
             try {
                 json.decodeFromString<JsonRpcRequest>(line)
@@ -70,6 +74,8 @@ internal object McpServer {
             "ping" -> JsonRpcResponse(id = request.id, result = buildJsonObject {})
             "tools/list" -> handleToolsList(request)
             "tools/call" -> handleToolsCall(request)
+            "resources/list" -> handleResourcesList(request)
+            "resources/read" -> handleResourcesRead(request)
             else ->
                 JsonRpcResponse(
                     id = request.id,
@@ -88,6 +94,7 @@ internal object McpServer {
                 }
                 putJsonObject("capabilities") {
                     putJsonObject("tools") {}
+                    putJsonObject("resources") {}
                 }
             }
         return JsonRpcResponse(id = request.id, result = result)
@@ -150,6 +157,41 @@ internal object McpServer {
                     ),
                 )
             JsonRpcResponse(id = request.id, result = errResult)
+        }
+    }
+
+    private fun handleResourcesList(request: JsonRpcRequest): JsonRpcResponse {
+        val resourcesArray =
+            buildJsonObject {
+                putJsonArray("resources") {
+                    ResourceRegistry.descriptors.forEach { desc ->
+                        add(json.encodeToJsonElement(McpResourceDescriptor.serializer(), desc))
+                    }
+                }
+            }
+        return JsonRpcResponse(id = request.id, result = resourcesArray)
+    }
+
+    private fun handleResourcesRead(request: JsonRpcRequest): JsonRpcResponse {
+        val params =
+            request.params?.jsonObject
+                ?: return errorResponse(request, -32602, "Missing params")
+
+        val uri =
+            params["uri"]?.jsonPrimitive?.content
+                ?: return errorResponse(request, -32602, "Missing params.uri")
+
+        return try {
+            val contents = ResourceRegistry.read(uri)
+            val result =
+                buildJsonObject {
+                    putJsonArray("contents") {
+                        add(json.encodeToJsonElement(McpResourceContents.serializer(), contents))
+                    }
+                }
+            JsonRpcResponse(id = request.id, result = result)
+        } catch (e: McpResourceException) {
+            errorResponse(request, -32602, e.message ?: "Unknown resource: '$uri'")
         }
     }
 
