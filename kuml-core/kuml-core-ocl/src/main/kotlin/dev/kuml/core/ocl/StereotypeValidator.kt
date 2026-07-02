@@ -60,7 +60,7 @@ public object StereotypeValidator {
                     violations += checkTargetMetaclass(app, stereotype, elementId, elementName, elementMetaclass)
 
                     // Pass 3: stereotype OCL constraints
-                    violations += checkOclConstraints(element, app, stereotype, elementId, elementName)
+                    violations += checkOclConstraints(element, app, stereotype, elementId, elementName, diagram.elements)
                 }
                 // If stereotype not found in registry, we skip silently
                 // (profile not loaded is not a model error — use kuml profile validate for that)
@@ -132,6 +132,7 @@ public object StereotypeValidator {
         stereotype: KumlStereotype,
         elementId: String,
         elementName: String,
+        model: List<Any>,
     ): List<KumlViolation> {
         if (stereotype.constraints.isEmpty()) return emptyList()
         val constraintBodies = stereotype.constraints.associate { it.name to it.body }
@@ -141,6 +142,7 @@ public object StereotypeValidator {
                 elementId = elementId,
                 elementName = elementName,
                 constraintBodies = constraintBodies,
+                model = model,
             )
         // Annotate violations with the stereotype context
         return result.violations.map { v ->

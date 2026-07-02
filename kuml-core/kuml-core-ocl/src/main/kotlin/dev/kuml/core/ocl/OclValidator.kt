@@ -23,9 +23,11 @@ public object OclValidator {
         for (element in diagram.elements) {
             when (element) {
                 is UmlClass ->
-                    violations += validateClassifier(element, element.id, element.name, element.constraints)
+                    violations +=
+                        validateClassifier(element, element.id, element.name, element.constraints, diagram.elements)
                 is UmlInterface ->
-                    violations += validateClassifier(element, element.id, element.name, element.constraints)
+                    violations +=
+                        validateClassifier(element, element.id, element.name, element.constraints, diagram.elements)
                 else -> Unit
             }
         }
@@ -42,18 +44,23 @@ public object OclValidator {
      * @param elementId Stable identifier for violation messages.
      * @param elementName Display name for violation messages.
      * @param constraintBodies Map of constraint name to OCL expression body.
+     * @param model The enclosing model's elements, used to resolve association-end
+     *   navigation (`self.assocEnd`) and `closure()` in constraint bodies. Defaults
+     *   to empty when no surrounding model is available (e.g. stereotype constraints
+     *   evaluated without a `KumlDiagram` in scope).
      */
     public fun validateWithExpressions(
         self: Any,
         elementId: String,
         elementName: String,
         constraintBodies: Map<String, String>,
+        model: List<Any> = emptyList(),
     ): KumlValidationResult {
         val constraints =
             constraintBodies.map { (name, body) ->
                 UmlConstraint(id = "$elementId::$name", name = name, body = body)
             }
-        val violations = validateClassifier(self, elementId, elementName, constraints)
+        val violations = validateClassifier(self, elementId, elementName, constraints, model)
         return KumlValidationResult(valid = violations.isEmpty(), violations = violations)
     }
 
@@ -62,12 +69,13 @@ public object OclValidator {
         classifierId: String,
         classifierName: String,
         constraints: List<UmlConstraint>,
+        model: List<Any> = emptyList(),
     ): List<KumlViolation> =
         constraints.mapNotNull { c ->
             try {
                 val tokens = OclLexer.tokenize(c.body)
                 val expr = OclParser(tokens).parse()
-                val result = OclEvaluator(self).eval(expr)
+                val result = OclEvaluator(self, model).eval(expr)
                 if (result != true) {
                     KumlViolation(
                         constraintId = c.id,

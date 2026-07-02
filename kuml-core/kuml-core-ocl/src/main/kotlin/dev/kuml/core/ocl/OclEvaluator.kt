@@ -2,8 +2,20 @@ package dev.kuml.core.ocl
 
 import dev.kuml.core.ocl.ast.OclExpression
 
+/**
+ * Evaluates parsed OCL expressions against a receiver object.
+ *
+ * @property self The OCL `self` — the root navigation object.
+ * @property model The enclosing model's elements (e.g. `KumlDiagram.elements`),
+ *   used to resolve association-end navigation (`self.assocEnd`) and `closure()`
+ *   in [UmlPropertyAccessor]. Defaults to empty for callers that only navigate
+ *   direct/structural properties (e.g. runtime guards evaluating over a
+ *   [dev.kuml.core.model.KumlEvalContext] or `Map`, which have no surrounding
+ *   model) — association navigation simply finds no matching end in that case.
+ */
 internal class OclEvaluator(
     private val self: Any,
+    private val model: List<Any> = emptyList(),
 ) {
     internal fun eval(
         expr: OclExpression,
@@ -21,7 +33,7 @@ internal class OclEvaluator(
                 val recv =
                     eval(expr.receiver, env)
                         ?: throw OclEvaluationException("Cannot navigate '${expr.prop}' on null")
-                UmlPropertyAccessor.get(recv, expr.prop)
+                UmlPropertyAccessor.get(recv, expr.prop, model)
             }
             is OclExpression.CollectionOp -> evalCollectionOp(expr, env)
             is OclExpression.IterateExpr -> evalIterate(expr, env)
@@ -44,7 +56,18 @@ internal class OclEvaluator(
         expr: OclExpression.CollectionOp,
         env: Map<String, Any?>,
     ): Any? {
-        val coll = eval(expr.receiver, env) as? List<*> ?: emptyList<Any?>()
+        val receiverValue = eval(expr.receiver, env)
+        // `closure` is defined on Collection in the OCL standard library, but
+        // this subset has no collection-literal syntax (see OclEvaluatorTest),
+        // so a single non-collection receiver (e.g. bare `self`) is treated as
+        // an implicit singleton — matching the common `self->closure(...)`
+        // idiom for starting a transitive-closure navigation from one element.
+        val coll =
+            when (receiverValue) {
+                is List<*> -> receiverValue
+                null -> emptyList<Any?>()
+                else -> if (expr.op == "closure") listOf(receiverValue) else emptyList()
+            }
 
         fun bodyOf(item: Any?): Any? {
             val newEnv = env + mapOf((expr.bindingVar ?: "") to item)
@@ -102,8 +125,59 @@ internal class OclEvaluator(
             "last" -> coll.lastOrNull() ?: throw OclEvaluationException("'last' called on empty collection")
             "asSet" -> coll.distinct()
             "asSequence" -> coll
+            "closure" -> evalClosure(coll, expr)
             else -> throw OclEvaluationException("Unknown collection operation: ${expr.op}")
         }
+    }
+
+    /**
+     * OCL `closure(v | expr)` — the transitive closure of the navigation
+     * expressed by `expr` over the receiver collection's elements.
+     *
+     * Per the OCL standard library, the result contains every element
+     * *reachable* via repeated application of `expr` — the original source
+     * elements are only included if they are re-reached through the relation
+     * (e.g. a cycle). A visited-set (covering both the source elements, to
+     * prevent re-navigating them, and the result) guards against infinite
+     * loops in cyclic association graphs.
+     *
+     * Leaf elements (e.g. a classifier with no outgoing association matching
+     * the navigation) simply terminate that branch: [UmlPropertyAccessor]
+     * throws [OclEvaluationException] for a property with no structural or
+     * association-end match, which is treated here as "no further elements"
+     * rather than propagated — the alternative (`self.next` on every model
+     * classifier being reachable) is not something `closure()` callers can
+     * pre-guarantee for an arbitrary association graph.
+     */
+    private fun evalClosure(
+        coll: List<*>,
+        expr: OclExpression.CollectionOp,
+    ): List<Any?> {
+        val body = expr.body ?: throw OclEvaluationException("'closure' requires a navigation body")
+        val bindingVar = expr.bindingVar ?: throw OclEvaluationException("'closure' requires a binding variable")
+        val visited = LinkedHashSet<Any?>(coll)
+        val result = LinkedHashSet<Any?>()
+        val frontier = ArrayDeque(coll)
+        while (frontier.isNotEmpty()) {
+            val item = frontier.removeFirst()
+            val next =
+                try {
+                    eval(body, mapOf(bindingVar to item, "self" to self))
+                } catch (_: OclEvaluationException) {
+                    null
+                }
+            val newItems =
+                when (next) {
+                    null -> emptyList()
+                    is List<*> -> next
+                    else -> listOf(next)
+                }
+            for (n in newItems) {
+                result += n
+                if (visited.add(n)) frontier.addLast(n)
+            }
+        }
+        return result.toList()
     }
 
     private fun evalIterate(
