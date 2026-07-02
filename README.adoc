@@ -681,7 +681,7 @@ kuml-llm/
 
 kuml-docs/
   kuml-markdown        ✅  Markdown kuml code block processor
-  kuml-asciidoc        ✅  AsciiDoc [kuml] block macro (Antora-compatible)
+  kuml-asciidoc        ✅  AsciiDoc [source,kuml]/kuml::path[] pre-renderer (Antora-integrated, V3.2.19)
 
 kuml-profile/
   kuml-profile-api     ✅  KumlProfile SPI + KumlStereotypeApplication

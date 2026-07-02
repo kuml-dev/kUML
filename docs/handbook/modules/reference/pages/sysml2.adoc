@@ -333,11 +333,11 @@ kuml transform --list-transformers
 ----
 
 NOTE: The SysML 2 transformer targets were introduced in V2.x. Earlier CLI versions only
-supported code generation via `kuml generate`. See xref:cli.adoc[CLI Reference] for the
+supported code generation via `kuml generate`. See xref:tooling:cli.adoc[CLI Reference] for the
 full `transform` subcommand documentation.
 
 == Cross-references
 
 * xref:simulate.adoc[State-Machine Simulation] — events format, trace format, golden traces, interactive REPL
-* xref:cli.adoc[CLI Reference] — `kuml simulate`, `kuml transform`, `kuml render` subcommands
+* xref:tooling:cli.adoc[CLI Reference] — `kuml simulate`, `kuml transform`, `kuml render` subcommands
 * xref:uml-dsl.adoc[UML DSL Reference] — the parallel UML 2.x language

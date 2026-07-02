@@ -6,6 +6,9 @@ on:
     paths:
       - 'docs/handbook/**'
       - 'antora-playbook.yml'
+      - 'scripts/build-handbook.sh'
+      - 'kuml-docs/kuml-asciidoc/**'
+      - 'kuml-cli/**'
       - '.github/workflows/docs.yml'
   # Allow manual trigger from the Actions tab
   workflow_dispatch:
@@ -27,6 +30,15 @@ jobs:
           # Antora needs the full history to resolve branch references
           fetch-depth: 0
 
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -35,8 +47,11 @@ jobs:
       - name: Install Antora
         run: npm install -g @antora/cli@3 @antora/site-generator@3
 
-      - name: Build Handbook
-        run: antora generate antora-playbook.yml
+      - name: Build kuml CLI (needed by the [kuml] pre-render step, V3.2.19)
+        run: ./gradlew clean :kuml-cli:installDist
+
+      - name: Pre-render [kuml] blocks + build Handbook
+        run: scripts/build-handbook.sh
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

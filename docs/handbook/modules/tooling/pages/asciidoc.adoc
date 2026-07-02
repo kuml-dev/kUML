@@ -10,12 +10,12 @@ AsciiDoc that Antora's Asciidoctor pipeline consumes without further setup.
 === Inline source — `[source,kuml]`
 
 [source,asciidoc]
-----
+-----
 = My architecture document
 
 The order subsystem:
 
-[source,kuml]
+\[source,kuml]
 ----
 classDiagram(name = "Order Domain") {
     val order = classOf(name = "Order") {
@@ -28,20 +28,20 @@ classDiagram(name = "Order Domain") {
 ----
 
 That domain model exposes...
-----
+-----
 
 === External file — `kuml::path[]`
 
 [source,asciidoc]
-----
+-----
 = My architecture document
 
 The order subsystem:
 
-kuml::diagrams/order.kuml.kts[]
+\kuml::diagrams/order.kuml.kts[]
 
 That domain model exposes...
-----
+-----
 
 External-file embedding is preferred when:
 
@@ -144,14 +144,14 @@ This handbook itself uses this layout — see `docs/handbook/` in the source rep
 Both block forms accept attributes:
 
 [source,asciidoc]
-----
-[source,kuml,name=order-domain,width=800]
+-----
+\[source,kuml,name=order-domain,width=800]
 ----
 classDiagram(name = "Order Domain") { … }
 ----
 
-kuml::diagrams/order.kuml.kts[name=order-domain,width=800]
-----
+\kuml::diagrams/order.kuml.kts[name=order-domain,width=800]
+-----
 
 Recognised attributes:
 
@@ -174,6 +174,47 @@ The processor is a straightforward four-stage pipeline:
 
 The result is a `AsciidocProcessResult(output: String, assets: List<File>)` — the
 transformed AsciiDoc and the list of files written to disk.
+
+== CLI usage — `kuml asciidoc`
+
+The `kuml asciidoc` subcommand wraps this preprocessor for use outside a JVM build —
+in particular as the pre-render bridge for Antora sites (V3.2.19), since Antora runs
+on Asciidoctor.js (Node) and cannot load the JVM `kuml-asciidoc` module directly.
+
+Single file:
+
+[source,bash]
+----
+kuml asciidoc --input guide.adoc --output guide.rendered.adoc --mode inline
+----
+
+Whole directory tree (renders every `*.adoc` file recursively, copies everything else
+— e.g. `nav.adoc`, `antora.yml` — through unchanged):
+
+[source,bash]
+----
+kuml asciidoc --input-dir docs/handbook --output-dir build/handbook-rendered/docs/handbook --mode linked-svg
+----
+
+In directory mode, `linked-svg`/`linked-png` assets default to the Antora module's
+`images/` directory (a sibling of `pages/`, independent of how deeply a page is
+nested under `pages/`) — exactly where Antora's `image::` macro expects them.
+
+This handbook itself is built this way: `scripts/build-handbook.sh` runs
+`kuml asciidoc --input-dir docs/handbook ... --mode linked-svg`, stages the result
+into a disposable scratch git repository (Antora content sources must be git
+repositories), and points a generated playbook at that scratch repo. The *committed*
+`docs/handbook/**/*.adoc` tree is untouched — it keeps the raw `[source,kuml]` DSL
+source, never pre-rendered SVGs, so the diagram source is always visible in the
+repository diff. `.github/workflows/docs.yml` runs the same script in CI before
+deploying to https://docs.kuml.dev.
+
+**Coverage** (V3.2.19): UML (`classDiagram`/`stateDiagram`/… family) and Blueprint
+(Service Blueprint / Journey Map) scripts render. C4, SysML 2 and BPMN scripts are
+not yet supported by this pipeline and fail with a clear error naming the
+unsupported kind — `kuml-cli`'s `RenderPipeline` is the reference for extending
+`AsciidocRenderPipeline` with those (ELK layout bridge + kind-specific
+`KumlSvgRenderer.toSvg` overload per kind).
 
 == When you do NOT need this preprocessor
 

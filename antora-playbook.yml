@@ -1,16 +1,29 @@
 #
-# Antora playbook — used for both local preview and GitHub Pages deployment.
+# Antora playbook — direct, un-rendered preview of docs/handbook.
 #
 # This file lives in the repository root so `url: .` resolves cleanly to the
 # git repo Antora needs. Earlier attempts with the playbook nested under
 # docs/handbook hit Antora path-resolution quirks (two failed pipeline runs).
 #
-# Local preview:
+# `[source,kuml]` blocks and `kuml::path[]` macros are shown here as plain,
+# un-rendered AsciiDoc source (Antora runs on Asciidoctor.js/Node and cannot
+# load the JVM `kuml-asciidoc` Asciidoctor extension directly — see
+# docs/handbook/modules/tooling/pages/asciidoc.adoc). That's intentionally
+# lossless for a quick source preview.
+#
+# For a build with **live-rendered diagrams** (V3.2.19), use
+# scripts/build-handbook.sh instead — it pre-renders every kUML block to SVG
+# via the `kuml asciidoc` CLI subcommand *before* invoking Antora, and is
+# what .github/workflows/docs.yml uses for the deployed site at
+# https://docs.kuml.dev.
+#
+# Un-rendered local preview:
 #   npx antora generate antora-playbook.yml
 #   open build/site/index.html
 #
-# CI deployment: .github/workflows/docs.yml builds this and deploys via
-# GitHub Pages. The live site is served at https://docs.kuml.dev
+# Rendered local preview (recommended):
+#   ./gradlew clean :kuml-cli:installDist
+#   scripts/build-handbook.sh --open
 #
 site:
   title: kUML Handbook
@@ -32,13 +45,6 @@ output:
   dir: ./build/site
 
 asciidoc:
-  # extensions:
-  #   The kuml-asciidoc extension lives on Maven Central as a Java/Asciidoctor
-  #   extension — it cannot be loaded by Antora (Node.js based) directly.
-  #   Until a Node.js bridge or a pre-render Gradle task feeds rendered SVGs
-  #   into the handbook, kUML listings are shown as plain Kotlin script source.
-  #   That is intentionally lossless: every example is a valid `.kuml.kts`
-  #   script and remains fully readable.
   attributes:
     page-toclevels: 3
     source-highlighter: highlight.js

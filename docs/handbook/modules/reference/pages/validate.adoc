@@ -187,4 +187,4 @@ stereotype constraints.
 
 * xref:profiles.adoc[Profiles] — authoring stereotype constraints evaluated with `--strict`
 * xref:ocl.adoc[OCL constraints] — the OCL subset supported by kUML
-* xref:cli.adoc[CLI Reference] — full CLI flag reference
+* xref:tooling:cli.adoc[CLI Reference] — full CLI flag reference

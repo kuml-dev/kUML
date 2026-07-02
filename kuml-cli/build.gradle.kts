@@ -84,6 +84,7 @@ dependencies {
     implementation(project(path = ":kuml-metamodel:kuml-metamodel-c4"))
     implementation(project(path = ":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN CLI-Integration
     implementation(project(path = ":kuml-docs:kuml-markdown"))
+    implementation(project(path = ":kuml-docs:kuml-asciidoc")) // V3.2.19 — `kuml asciidoc` subcommand, Antora pre-render step
 
     // V3.0.9 — `kuml reverse` subcommand. API is needed at compile time,
     // engines are loaded via ServiceLoader at runtime.

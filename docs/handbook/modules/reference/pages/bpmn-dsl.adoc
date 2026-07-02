@@ -317,5 +317,5 @@ xref:bpmn-xml.adoc[BPMN 2.0 XML I/O].
 == Cross-references
 
 * xref:bpmn-xml.adoc[BPMN 2.0 XML I/O] — import from / export to OMG BPMN 2.0 XML
-* xref:cli.adoc[CLI Reference] — `kuml render`, `kuml import`, `kuml export`
+* xref:tooling:cli.adoc[CLI Reference] — `kuml render`, `kuml import`, `kuml export`
 * xref:uml-dsl.adoc[UML DSL Reference] · xref:sysml2.adoc[SysML 2 DSL] · xref:c4-dsl.adoc[C4 DSL]

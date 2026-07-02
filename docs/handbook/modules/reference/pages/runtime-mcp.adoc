@@ -233,4 +233,4 @@ reach a specific state without constructing a full event sequence:
 
 * xref:simulate.adoc[State-Machine Simulation] — batch simulation via `kuml simulate`, trace format
 * xref:authoring-mcp.adoc[Authoring MCP] — `kuml.render`/`validate`/`list_elements`/`describe`/`generate` tools
-* xref:cli.adoc[CLI Reference]
+* xref:tooling:cli.adoc[CLI Reference]

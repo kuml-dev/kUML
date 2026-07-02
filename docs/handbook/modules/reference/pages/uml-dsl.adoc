@@ -144,6 +144,92 @@ classDiagram(name = "Domain") {
 | Aggregation kind on an `association { ... }`.
 |===
 
+=== Worked example — Order Domain
+
+A larger, fully working class diagram exercising enums, interfaces, abstract
+classes, static/read-only/default-valued attributes, operations with
+parameters, an OCL invariant, interface realisation, generalisation, a
+non-navigable association end, a composite association, and a dependency.
+Rendered live below (vault source:
+`03 Bereiche/kUML/Beispiele/01 UML Klasse – Order Domain.md`):
+
+[source,kuml]
+----
+classDiagram(name = "Order Domain") {
+    val status = enumOf(name = "OrderStatus") {
+        literal(name = "DRAFT")
+        literal(name = "CONFIRMED")
+        literal(name = "SHIPPED")
+        literal(name = "CANCELLED")
+    }
+
+    val payable = interfaceOf(name = "Payable") {
+        operation(name = "pay") { returns(typeName = "Boolean") }
+    }
+
+    // Abstract base class — name is rendered in italics
+    val abstractEntity = classOf(name = "AbstractEntity") {
+        isAbstract = true
+        attribute(name = "id", type = "UUID", visibility = Visibility.PROTECTED, isReadOnly = true)
+    }
+
+    val customer = classOf(name = "Customer") {
+        attribute(name = "id",    type = "UUID")
+        attribute(name = "name",  type = "String")
+        attribute(name = "email", type = "String")
+    }
+
+    val order = classOf(name = "Order") {
+        attribute(name = "id",     type = "UUID")
+        attribute(name = "status", type = status, defaultValue = "DRAFT")
+        attribute(name = "total",  type = "BigDecimal", visibility = Visibility.PRIVATE)
+        attribute(name = "taxRate", type = "BigDecimal", isStatic = true, defaultValue = "0.19")
+        implements(iface = payable)
+        extends(general = abstractEntity)
+
+        operation(name = "place") {
+            visibility = Visibility.PUBLIC
+            parameter(name = "items", type = "List<OrderItem>")
+            returns(typeName = "OrderId")
+        }
+        operation(name = "confirm") { returns(typeName = "Boolean") }
+
+        // OCL invariant — checked by `kuml validate`
+        constraint(name = "PositiveTotal", body = "self.total >= 0")
+    }
+
+    val orderItem = classOf(name = "OrderItem") {
+        attribute(name = "quantity",  type = "Int")
+        attribute(name = "unitPrice", type = "BigDecimal")
+    }
+
+    val subscription = classOf(name = "Subscription") {
+        attribute(name = "renewalDate", type = "LocalDate")
+        attribute(name = "interval",    type = "Period")
+    }
+
+    // Generalisation: Subscription inherits from Order (top-level form)
+    generalization(specific = subscription, general = order)
+
+    // Dependency: Order uses a notification class without owning it
+    val notification = classOf(name = "NotificationService")
+    dependency(client = order, supplier = notification, name = "notifies")
+
+    // Association: a customer owns 0..n orders; Order does not know its customer (non-navigable)
+    association(source = customer, target = order) {
+        source { multiplicity(spec = "1"); navigable = false }
+        target { multiplicity(spec = "0..*"); role = "orders" }
+    }
+
+    // Composition: an order consists of 1..n order items
+    association(source = order, target = orderItem) {
+        aggregation = AggregationKind.COMPOSITE
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "1..*"); role = "items" }
+    }
+}
+----
+
 == Object diagrams
 
 Object diagrams show concrete instances. Use them for examples and snapshots.

@@ -81,12 +81,12 @@ public class AsciidocProcessor(
                     }
                 }
 
-            val diagram = AsciidocRenderPipeline.evaluate(source, virtualName)
+            val extracted = AsciidocRenderPipeline.evaluate(source, virtualName)
 
             val replacement: List<String> =
                 when (mode) {
                     AsciidocOutputMode.InlineSvg -> {
-                        val svg = AsciidocRenderPipeline.renderSvg(diagram)
+                        val svg = AsciidocRenderPipeline.renderSvg(extracted)
                         // Asciidoctor-Passthrough-Block: `++++` öffnet/schließt, alles dazwischen
                         // landet 1:1 im HTML-Output (Antora-kompatibel).
                         listOf("++++", svg, "++++")
@@ -95,18 +95,18 @@ public class AsciidocProcessor(
                         mode.assetsDir.mkdirs()
                         val stem = block.name ?: defaultStem(block, baseName, idx)
                         val file = File(mode.assetsDir, "$stem.svg")
-                        file.writeText(AsciidocRenderPipeline.renderSvg(diagram), Charsets.UTF_8)
+                        file.writeText(AsciidocRenderPipeline.renderSvg(extracted), Charsets.UTF_8)
                         assets += file
-                        listOf("image::${file.name}[${diagram.name}]")
+                        listOf("image::${file.name}[${AsciidocRenderPipeline.diagramName(extracted)}]")
                     }
                     is AsciidocOutputMode.LinkedPng -> {
                         mode.assetsDir.mkdirs()
                         val stem = block.name ?: defaultStem(block, baseName, idx)
                         val width = block.width ?: mode.widthPx
                         val file = File(mode.assetsDir, "$stem.png")
-                        file.writeBytes(AsciidocRenderPipeline.renderPng(diagram, width))
+                        file.writeBytes(AsciidocRenderPipeline.renderPng(extracted, width))
                         assets += file
-                        listOf("image::${file.name}[${diagram.name}]")
+                        listOf("image::${file.name}[${AsciidocRenderPipeline.diagramName(extracted)}]")
                     }
                 }
 

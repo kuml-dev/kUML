@@ -69,30 +69,35 @@ that step's node in the rendered diagram:
 
 [source,kotlin]
 ----
-blueprint(name = "…") {
-    phase("…") {                        // swimlane column / phase heading
-        customerAction("…") {           // Layer: Customer Actions
-            sentiment = Sentiment.POSITIVE
-        }
-        frontStage("…") {               // Layer: Frontstage
-            sentiment = Sentiment.NEUTRAL
-            // optional: touchpoint channel
-            channel  = Channel.WEB
-        }
-        backStage("…") {                // Layer: Backstage
-            sentiment = Sentiment.NEUTRAL
-        }
-        support("…") {                  // Layer: Support Processes
-            system = "Stripe"           // third-party system label
-        }
+blueprint("…") {
+    // Actors, channels and touchpoints are declared at the `blueprint { }` level
+    // (DslMarker scope isolation forbids declaring them inside `phase { }`) and
+    // referenced from steps by their id.
+    val someActor = actor("…", ActorRole.STAFF)
+    val someChannel = channel("…", ChannelKind.WEB)
+    val someTouchpoint = touchpoint("…", channel = someChannel)
+
+    phase("…") {                                   // swimlane column / phase heading
+        customer("…", Sentiment.POSITIVE,          // Layer: Customer Actions
+            touchpoints = listOf(someTouchpoint))
+        frontstage("…", actor = someActor,          // Layer: Frontstage
+            touchpoints = listOf(someTouchpoint))
+        backstage("…", actor = someActor)           // Layer: Backstage
+        support("…", actor = someActor)             // Layer: Support Processes
     }
 
     // phases are connected left-to-right in declaration order
-    phase("…") { … }
+    phase("…") { /* … */ }
+
+    // renders all four layers + the three dividing lines; emotionCurve overlays
+    // the Sentiment-driven curve described above
+    blueprintDiagram("…", emotionCurve = true)
 }
 ----
 
-`Channel` enum values: `WEB`, `MOBILE`, `EMAIL`, `PHONE`, `IN_PERSON`, `CHAT`, `SOCIAL`.
+`ChannelKind` enum values: `WEB`, `APP`, `PHONE`, `EMAIL`, `IN_PERSON`, `MAIL`, `SOCIAL`, `CHAT`, `OTHER`.
+`ActorRole` enum values: `CUSTOMER`, `STAFF`, `SYSTEM`, `PARTNER`.
+`Sentiment` enum values: `VERY_NEGATIVE`, `NEGATIVE`, `NEUTRAL`, `POSITIVE`, `VERY_POSITIVE`.
 
 == CLI usage
 
@@ -114,130 +119,101 @@ phases as vertical columns, Sentiment colour coding, and dashed dividing lines.
 == Example — PdV membership journey
 
 The following example models the end-to-end experience of a citizen joining the
-*Partei der Vernunft (PdV)*.
+*Partei der Vernunft (PdV)*, from first contact on social media through the
+"valley of tears" waiting period to full engagement. It is the canonical
+Service-Blueprint example used across the kUML documentation (vault source:
+`03 Bereiche/kUML/Beispiele/33 Blueprint – PdV Mitglieder-Journey.md`) and is
+rendered live below — the SVG is regenerated from this exact source on every
+handbook build, so diagram and DSL source can never drift apart.
 
-[source,kotlin]
+[source,kuml]
 ----
-// pdv-membership-journey.kuml.kts
-blueprint(name = "PdV Mitgliedschaft — Citizen Journey") {
+blueprint("PdV Mitglieder-Journey") {
+    // ── Actors ──
+    val interessent = actor("Interessent", ActorRole.CUSTOMER)
+    val mitgliederbuero = actor("Mitgliederbüro", ActorRole.STAFF)
+    val crm = actor("Mitglieder-CRM", ActorRole.SYSTEM)
+    val landesverband = actor("Landesverband", ActorRole.PARTNER)
 
+    // ── Channels ──
+    val web = channel("pdv.de", ChannelKind.WEB)
+    val social = channel("Social Media", ChannelKind.SOCIAL)
+    val mailC = channel("E-Mail", ChannelKind.EMAIL)
+    val personC = channel("Stammtisch", ChannelKind.IN_PERSON)
+
+    // ── Touchpoints (declared before the phases, referenced by id) ──
+    val socialPost = touchpoint("Social-Post", channel = social)
+    val kampagne = touchpoint("Kampagne", channel = social)
+    val programmSeite = touchpoint("Programm-Seite", channel = web)
+    val newsletter = touchpoint("Newsletter-Anmeldung", channel = web)
+    val onlineAntrag = touchpoint("Online-Antrag", channel = web)
+    val bestaetigung = touchpoint("Bestätigungs-Mail", channel = mailC)
+    val willkommensMail = touchpoint("Willkommens-Mail", channel = mailC)
+    val ausweis = touchpoint("Mitgliedsausweis", channel = mailC)
+    val stammtisch = touchpoint("Lokaler Stammtisch", channel = personC)
+    val eventEinladung = touchpoint("Event-Einladung", channel = mailC)
+
+    // ── Phase 1: Discovery ──
     phase("Entdeckung") {
-        customerAction("Hört von PdV über Social Media") {
-            sentiment = Sentiment.NEUTRAL
-            channel   = Channel.SOCIAL
-        }
-        frontStage("Kurzclip mit Kernbotschaft wird ausgespielt") {
-            sentiment = Sentiment.POSITIVE
-            channel   = Channel.SOCIAL
-        }
-        backStage("Targeting-Algorithmus selektiert Interessenten")
-        support("Meta Ads / LinkedIn Campaign Manager") {
-            system = "Meta Ads"
-        }
+        customer("Stößt auf PdV-Inhalt", Sentiment.NEUTRAL, touchpoints = listOf(socialPost))
+        frontstage("Liefert Content & Werbung", actor = mitgliederbuero, touchpoints = listOf(kampagne))
+        support("Trackt Reichweite", actor = crm)
     }
 
-    phase("Orientierung") {
-        customerAction("Besucht kurzbefehl.pdv oder pdv.de") {
-            sentiment = Sentiment.POSITIVE
-            channel   = Channel.WEB
-        }
-        frontStage("Landingpage mit Programm-Übersicht und FAQ") {
-            sentiment = Sentiment.NEUTRAL
-            channel   = Channel.WEB
-        }
-        backStage("Analytics-Event: Landingpage-View")
-        support("Plausible Analytics") {
-            system = "Plausible"
-        }
+    // ── Phase 2: Expression of interest ──
+    phase("Interessenbekundung") {
+        customer("Besucht Website, liest Programm", Sentiment.POSITIVE, touchpoints = listOf(programmSeite))
+        frontstage("Bietet Newsletter & Infomaterial", actor = mitgliederbuero, touchpoints = listOf(newsletter))
+        backstage("Qualifiziert Lead", actor = mitgliederbuero)
+        support("Speichert Interessent", actor = crm)
     }
 
-    phase("Beitritt") {
-        customerAction("Füllt Beitrittsformular aus") {
-            sentiment = Sentiment.NEUTRAL
-            channel   = Channel.WEB
-        }
-        frontStage("Formular mit Validierung, DSGVO-Checkbox") {
-            sentiment = Sentiment.PAINPOINT        // friction: too many fields
-            channel   = Channel.WEB
-        }
-        backStage("Daten werden in Mitglieder-CRM gespeichert")
-        support("CiviCRM / Mitglieder-DB") {
-            system = "CiviCRM"
-        }
+    // ── Phase 3: Application ──
+    phase("Antragstellung") {
+        customer("Füllt Beitrittsantrag aus", Sentiment.NEUTRAL,
+                 touchpoints = listOf(onlineAntrag), pain = "Formular wirkt lang")
+        frontstage("Bestätigt Eingang", actor = mitgliederbuero, touchpoints = listOf(bestaetigung))
+        backstage("Prüft Angaben & Beitrag", actor = mitgliederbuero)
+        support("Legt Mitgliedsdatensatz an", actor = crm)
     }
 
-    phase("Bestätigung") {
-        customerAction("Erhält Willkommens-E-Mail") {
-            sentiment = Sentiment.POSITIVE
-            channel   = Channel.EMAIL
-        }
-        frontStage("Automatische Bestätigungs-E-Mail mit Aktivierungslink") {
-            sentiment = Sentiment.POSITIVE
-            channel   = Channel.EMAIL
-        }
-        backStage("E-Mail-Trigger wird durch CRM ausgelöst")
-        support("Brevo (ehemals Sendinblue)") {
-            system = "Brevo"
-        }
+    // ── Phase 4: Admission process (the "valley of tears") ──
+    phase("Beitrittsprozess") {
+        customer("Wartet auf Aufnahme", Sentiment.NEGATIVE, pain = "Unklar, wie lange es dauert")
+        backstage("Beschließt Aufnahme im Vorstand", actor = mitgliederbuero)
+        support("Weist Landesverband zu", actor = landesverband)
     }
 
-    phase("Aktivierung") {
-        customerAction("Klickt auf Aktivierungslink, erstellt Account") {
-            sentiment = Sentiment.POSITIVE
-            channel   = Channel.WEB
-        }
-        frontStage("Mitglieder-Portal: Dashboard, Abstimmungen, Events") {
-            sentiment = Sentiment.POSITIVE
-            channel   = Channel.WEB
-        }
-        backStage("Account wird aktiviert, Mitgliedsbeitrag gebucht")
-        support("Stripe / SEPA-Lastschrift") {
-            system = "Stripe"
-        }
+    // ── Phase 5: Welcome ──
+    phase("Willkommen") {
+        customer("Erhält Willkommenspaket", Sentiment.VERY_POSITIVE, touchpoints = listOf(willkommensMail))
+        frontstage("Versendet Willkommenspaket", actor = mitgliederbuero, touchpoints = listOf(ausweis))
+        support("Aktiviert Mitgliederbereich", actor = crm)
     }
 
-    phase("Bindung") {
-        customerAction("Nimmt an Abstimmung / lokalem Treffen teil") {
-            sentiment = Sentiment.POSITIVE
-            channel   = Channel.WEB
-        }
-        frontStage("Abstimmungs-Tool, Event-Kalender, Telegram-Gruppe") {
-            sentiment = Sentiment.NEUTRAL
-            channel   = Channel.WEB
-        }
-        backStage("Teilnahme wird geloggt, Engagement-Score berechnet")
-        support("Mitglieder-Portal Backend") {
-            system = "Portal API"
-        }
+    // ── Phase 6: First engagement ──
+    phase("Erstes Engagement") {
+        customer("Nimmt am Stammtisch teil", Sentiment.VERY_POSITIVE, touchpoints = listOf(stammtisch))
+        frontstage("Lädt zu Veranstaltungen ein", actor = landesverband, touchpoints = listOf(eventEinladung))
+        backstage("Matcht Mitglied zu lokaler Gruppe", actor = landesverband)
     }
 
-    phase("Verlängerung") {
-        customerAction("Erhält Erinnerung zur Beitragsverlängerung") {
-            sentiment = Sentiment.NEUTRAL
-            channel   = Channel.EMAIL
-        }
-        frontStage("Personalisierte Erinnerungs-E-Mail 30 Tage vorher") {
-            sentiment = Sentiment.NEUTRAL
-            channel   = Channel.EMAIL
-        }
-        backStage("Automatische Erinnerung ausgelöst durch CRM")
-        support("Brevo + CiviCRM") {
-            system = "Brevo"
-        }
-    }
+    blueprintDiagram("PdV Service Blueprint", emotionCurve = true)
 }
 ----
 
-Render this with:
+The rendered SVG shows six columns (phases) across four horizontal layers, the
+three dividing lines, touchpoint symbols with channel icons, and an emotion
+curve that dips from `NEUTRAL`/`POSITIVE` into a `NEGATIVE` valley during the
+Phase-4 waiting period and climbs back up to `VERY_POSITIVE` — the classic
+"valley of tears" narrative of membership onboarding.
+
+Render it yourself with:
 
 [source,bash]
 ----
 kuml render pdv-membership-journey.kuml.kts --format svg
 ----
-
-The resulting SVG shows seven columns (phases) across four horizontal layers,
-with the Beitritt Frontstage step highlighted in amber (pain-point) and the
-Willkommens-E-Mail in green (positive).
 
 == Where to go from here
 

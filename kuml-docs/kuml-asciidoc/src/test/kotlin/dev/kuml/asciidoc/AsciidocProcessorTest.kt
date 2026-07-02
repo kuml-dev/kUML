@@ -1,5 +1,7 @@
 package dev.kuml.asciidoc
 
+import dev.kuml.core.script.ScriptEvaluationException
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
@@ -165,6 +167,57 @@ class AsciidocProcessorTest :
             } finally {
                 assetsDir.deleteRecursively()
             }
+        }
+
+        test("Blueprint diagrams render inline SVG (V3.2.19 — extractAny multi-model dispatch)") {
+            val processor = AsciidocProcessor()
+            val blueprintScript =
+                """
+                blueprint("Demo Journey") {
+                    val web = channel("Web", ChannelKind.WEB)
+                    val tp = touchpoint("Landing page", channel = web)
+                    phase("Discovery") {
+                        customer("Visits site", Sentiment.POSITIVE, touchpoints = listOf(tp))
+                    }
+                    journeyDiagram("Demo Journey Map")
+                }
+                """.trimIndent()
+            val input =
+                """
+                = Demo
+
+                [source,kuml]
+                ----
+                $blueprintScript
+                ----
+                """.trimIndent()
+            val result = processor.process(input, AsciidocOutputMode.InlineSvg)
+            result.output shouldContain "++++"
+            result.output shouldContain "<svg"
+        }
+
+        test("C4 diagrams throw a clear ScriptEvaluationException (not yet supported)") {
+            val processor = AsciidocProcessor()
+            val c4Script =
+                """
+                c4Model(name = "Demo") {
+                    systemContextDiagram(name = "Context") {
+                        person(name = "User")
+                    }
+                }
+                """.trimIndent()
+            val input =
+                """
+                [source,kuml]
+                ----
+                $c4Script
+                ----
+                """.trimIndent()
+            val exception =
+                shouldThrow<ScriptEvaluationException> {
+                    processor.process(input, AsciidocOutputMode.InlineSvg)
+                }
+            exception.message shouldContain "C4"
         }
 
         test("blocks without a name fall back to baseName-index for asset filenames") {

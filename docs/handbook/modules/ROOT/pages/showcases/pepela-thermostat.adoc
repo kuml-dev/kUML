@@ -22,7 +22,7 @@ Temperature-based transitions use `tick` events that carry integer °C values in
 their JSON payload. The kUML OCL subset operates on integer arithmetic, so the
 1 °C hysteresis band is expressed as:
 
-[source,kuml]
+[source,kotlin]
 ----
 // (excerpt — see full script in kuml-examples/pepela/)
 sysml2Model("Thermostat") {
@@ -76,7 +76,7 @@ Expected state sequence in the trace:
 The thermostat's power-on self-test and sensor calibration are captured as an
 activity diagram. The happy path fans out in parallel via Fork/Join:
 
-[source,kuml]
+[source,kotlin]
 ----
 // (excerpt — see full script in kuml-examples/pepela/)
 sysml2Model("ThermostatBoot") {

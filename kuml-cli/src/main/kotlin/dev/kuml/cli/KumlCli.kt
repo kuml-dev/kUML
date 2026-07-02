@@ -48,6 +48,7 @@ internal class KumlCli : CliktCommand(name = "kuml") {
                 add(ImportCommand())
                 add(ExportCommand())
                 add(MarkdownCommand())
+                add(AsciidocCommand())
                 add(ProfileCommand())
                 add(SimulateCommand())
                 add(TraceCommand())
