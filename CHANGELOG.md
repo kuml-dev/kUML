@@ -6,6 +6,32 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.23.1] — 2026-07-03
+
+### Added
+
+**UML Comment / Note element**
+
+`kuml-core-ocl`'s sibling metamodel module `kuml-metamodel-uml` gains `UmlComment` — the classic
+UML note: a free-text annotation box with a folded top-right corner, optionally attached to zero
+or more model elements by a dashed line (`UmlCommentLink`, modelled as a first-class
+`UmlRelationship`). Available via `comment(text = ..., firstAnchor = ..., ...)` on class, sequence,
+and state-machine diagram bodies — other diagram types (BPMN, SysML 2, C4, component, use case,
+activity, object, deployment, package, profile, composite structure, communication, timing,
+interaction-overview) do not have a `comment()` DSL function yet, a documented scope limitation
+rather than an oversight. Comment body text is always emitted through the existing XML-escaping
+`SvgBuilder.text()` path — pinned by dedicated XSS regression tests — since SVG output is
+frequently embedded in browsers (kuml.dev playground, Obsidian previews, handbook pages).
+
+### Fixed
+
+**Website: v0.23.0 What's New entry and stale playground examples**
+
+The kuml.dev release choreography step was missed for v0.23.0 — the site still showed 0.22.0 as
+latest and the Playground's rendered SVGs were stale (the CI deploy runs a plain `npm run build`,
+which does not re-render Playground SVGs; that step is a local, pre-commit convention). Added the
+missing What's New entry (EN+DE) and re-rendered all Playground SVGs.
+
 ## [0.23.0] — 2026-07-02
 
 ### Added
