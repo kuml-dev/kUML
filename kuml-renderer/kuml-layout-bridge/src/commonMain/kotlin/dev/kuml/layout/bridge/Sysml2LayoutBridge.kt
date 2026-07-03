@@ -338,7 +338,16 @@ public object Sysml2LayoutBridge {
 
     /**
      * Content-aware [SizeProvider] for BDD nodes. Computes node height from
-     * the number of features in the definition.
+     * the number of features and node **width** from the longest text line
+     * (stereotype / name / feature-body), so that long German compound names
+     * like `Fusions- und Verarbeitungseinheit` no longer overflow the box.
+     *
+     * Width formula (mirrors [ibdContentAwareSizeProvider]):
+     *   `max(stereoW, nameW, bodyMax) + 2 × IBD_H_PAD`, floored at [DEFAULT_WIDTH].
+     *
+     * Feature-body lines are formatted as `"name : Type [mult]"` — identical to
+     * [dev.kuml.io.svg.sysml2.formatBdd] in the SVG renderer so the estimate
+     * matches the actual rendered text.
      */
     public fun bddContentAwareSizeProvider(model: Sysml2Model): SizeProvider =
         SizeProvider { id, _ ->
@@ -348,7 +357,17 @@ public object Sysml2LayoutBridge {
                 STEREOTYPE_LINE_H + NAME_LINE_H +
                     (if (featureCount > 0) DIVIDER_GAP + featureCount * FEATURE_LINE_H else 0f) +
                     BOX_V_PADDING
-            dev.kuml.layout.Size(DEFAULT_WIDTH, maxOf(h, 70f))
+            // Width: grow with the longest text line to prevent overflow
+            val stereoW = "«part def»".length * IBD_STEREO_CHAR_PX
+            val nameW = (def?.name?.length ?: 0) * IBD_TITLE_CHAR_PX
+            val bodyMax =
+                def?.features?.maxOfOrNull { feat ->
+                    val multSuffix =
+                        if (feat.multiplicity.toSpecForm() == "1") "" else " [${feat.multiplicity.toSpecForm()}]"
+                    "${feat.name} : ${feat.typeId ?: "?"}$multSuffix".length * BDD_BODY_CHAR_PX
+                } ?: 0f
+            val contentW = maxOf(stereoW, nameW, bodyMax) + 2 * IBD_H_PAD
+            dev.kuml.layout.Size(maxOf(contentW, DEFAULT_WIDTH), maxOf(h, 70f))
         }
 
     /**
@@ -365,6 +384,12 @@ public object Sysml2LayoutBridge {
 
     /** Horizontal padding (left + right) inside an IBD box. */
     public const val IBD_H_PAD: Float = 16f
+
+    /**
+     * Avg width of an 11pt regular sans-serif char — BDD feature compartment
+     * lines (`kuml-body` CSS class). Slightly wider than [IBD_STEREO_CHAR_PX].
+     */
+    public const val BDD_BODY_CHAR_PX: Float = 6.6f
 
     /**
      * Content-aware [SizeProvider] for IBD nodes (V2.0.6 → V2.x).
