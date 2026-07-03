@@ -86,7 +86,7 @@ val model = bpmnModel("Order Process") {
 
 == V3.2 Openness
 
-`BpmnFlowElement` is not used as the base for Collaboration, Choreography, or Conversation types. All new BPMN concepts inherit directly from `BpmnElement` to avoid `when`-exhaustiveness breakage when Choreography and Conversation are added in V3.2.
+`BpmnFlowElement` is not used as the base for Collaboration, Choreography, or Conversation types. All BPMN concepts beyond Process/Collaboration inherit directly from `BpmnElement` to avoid `when`-exhaustiveness breakage — this design paid off when Choreography (`BpmnChoreography`) and Conversation (`BpmnConversation`) were added in V3.2.
 
 == License
 

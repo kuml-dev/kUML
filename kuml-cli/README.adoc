@@ -20,13 +20,19 @@ kuml render banking.kuml.kts                       # C4  → banking.svg
 kuml render order.kuml.kts --format png            # → order.png
 kuml render order.kuml.kts -o /tmp/diagram.svg     # explicit output
 kuml render order.kuml.kts --width 1920 --format png
+kuml render order.kuml.kts --theme plain           # override the default 'kuml' theme
+kuml render stm.kuml.kts --animated --trace run.kuml.trace.v1.json --format mp4
 ----
 
 Renders once and exits. Auto-detects model type from the script's last
 expression — UML scripts end with `classDiagram { … }` / `diagram { … }`,
 C4 scripts end with `c4Model(name = "…") { … }`, BPMN scripts end with
-`bpmnModel(…) { … }` (the first diagram in the model is rendered). PNG output
-is produced by transcoding the SVG via Apache Batik.
+`bpmnModel(…) { … }` (the first diagram in the model is rendered). Supports
+`svg`, `png` (Apache Batik transcode), `latex`/`tex` (TikZ), `apng`, `webp`,
+and `mp4` (H.264/yuv420p, requires `ffmpeg` on `PATH`) output formats. Use
+`--animated` (with an optional `--trace` JSON file) to emit SMIL animations
+for STATE and ACTIVITY diagrams, and `--layout=grid` to opt into the
+experimental pure-Kotlin grid layout engine instead of the ELK default.
 
 === `kuml watch`
 
@@ -123,13 +129,42 @@ kuml completion fish > ~/.config/fish/completions/kuml.fish
 
 Emits a shell-completion script for `bash`, `zsh`, or `fish` (Clikt built-in `CompletionCommand`).
 
+=== Other subcommands
+
+The CLI has grown well beyond render/watch/validate/fmt/generate/import/markdown/completion.
+Additional subcommands, documented in the root link:../README.adoc[README] and the
+https://docs.kuml.dev[Handbook]:
+
+[cols="1,3"]
+|===
+| Command | Purpose
+
+| `dump-json`  | Dump the parsed diagram + model + computed `LayoutResult` as JSON (wasm playground render path). UML, C4, SysML 2, BPMN, Blueprint.
+| `serve`      | Start the kUML web UI (live SVG preview, Ktor/Netty).
+| `diagnostics`| Emit script compile/eval diagnostics (line/column) as TSV for IDE integration.
+| `transform`  | Apply an M2M or M2T transformer to a kUML script.
+| `export`     | Export a kUML model to Structurizr DSL, XMI, ARXML, or Eclipse UML2 profile.
+| `asciidoc`   | Render `kuml` blocks in AsciiDoc file(s) to SVG or PNG (Antora pre-render step).
+| `profile`    | Inspect and validate UML profiles registered in the kUML profile registry.
+| `simulate`   | Execute a kUML or SysML 2 state machine / activity against an event sequence.
+| `trace`      | Inspect, replay, and export behaviour traces.
+| `sandbox`    | Sandbox policy commands — validate guards/actions against the sandbox policy.
+| `run`        | Run a kUML state machine or activity with a live event adapter (`stdin`/`mcp`/`batch`).
+| `reverse`    | Reverse-engineer source code (Java/Kotlin/C#) or ARXML files into a kUML script.
+| `chain`      | Inspect an on-chain registered kUML model (connect, verify hash, list events, sign, verify-sig).
+| `plugin`     | Manage kUML plugins (install, remove, list, info, init, update, upgrade, search).
+| `ai`         | Inspect and manage kUML AI provider configuration, agent tool sets, benchmarks, and pricing.
+| `version`    | Show the kUML CLI version, git SHA, JDK, and build time.
+| `update`     | Check for and inspect newer kUML releases on GitHub (no self-update).
+|===
+
 == Options (render + watch)
 
 [cols="1,1,3"]
 |===
 | Option | Default | Description
 
-| `-f, --format [svg\|png]`
+| `-f, --format [svg\|png\|latex\|tex\|apng\|webp\|mp4]`
 | `svg` (or from `--output` suffix)
 | Output format
 
@@ -141,9 +176,29 @@ Emits a shell-completion script for `bash`, `zsh`, or `fish` (Clikt built-in `Co
 | `1024`
 | Width in pixels (PNG only)
 
-| `--theme [plain]`
-| `plain`
-| Theme name
+| `--theme TEXT`
+| `kuml`
+| Theme name (`kuml`, `plain`, …). Overrides `kuml.config.kts`.
+
+| `--layout TEXT`
+| `auto`
+| Layout engine override: `auto` (ELK for all diagram types) or `grid` (experimental `kuml.grid` engine).
+
+| `--animated`
+| off
+| Emit an animated SMIL SVG (STATE / ACTIVITY diagrams). Optional `--trace` for trace-driven animation.
+
+| `--trace PATH`
+| —
+| Path to a `kuml.trace.v1` JSON file for trace-driven animation (requires `--animated`).
+
+| `--speed FLOAT`
+| `1.0`
+| Playback speed multiplier for animation (requires `--animated`).
+
+| `--config PATH`
+| —
+| Path to `kuml.config.kts`.
 |===
 
 == Exit Codes

@@ -136,13 +136,13 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | `sdk install kuml` — *not available yet*; SDKMAN! vendor onboarding (API keys) is still pending. Planned platforms: Linux x86_64, Linux ARM64, macOS, Windows x86_64. Use Homebrew or the native installers in the meantime.
 
 | *Docker*
-| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.20.5` — minimal CLI image.
+| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.23.2` — minimal CLI image.
 
 | *Native installers*
-| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.20.5). Download from the GitHub Releases page.
+| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.23.2). Download from the GitHub Releases page.
 
 | *Maven Central* (library modules)
-| `implementation("dev.kuml:kuml-core-dsl:0.20.5")` — library modules published to Maven Central.
+| `implementation("dev.kuml:kuml-core-dsl:0.23.2")` — library modules published to Maven Central.
 |===
 
 == Features
@@ -629,7 +629,8 @@ kuml-renderer/
   kuml-layout-api    ✅  Engine-agnostic layout contract (LayoutGraph, LayoutResult, EdgeRoute)
   kuml-layout-bridge ✅  KumlDiagram / C4 / SysML 2 / BPMN → LayoutGraph bridge (BpmnLayoutBridge V3.1.3)
   kuml-layout-elk    ✅  ELK 0.11.0 adapter (Sugiyama layered, default)
-  kuml-layout-grid   ✅  Pure-Kotlin grid layout engine (V1.1.12)
+  kuml-layout-grid   ✅  Pure-Kotlin grid layout engine, multiplatform
+                         (common/jvm/js/wasmJs, V1.1.12, multiplatform since V3.2.9+)
   kuml-kuiver        ✅  Compose Multiplatform renderer backend
   kuml-themes-core   ✅  Framework-neutral theme data
   kuml-themes        ✅  4 themes: Plain, kUML, Elegant, Playful
@@ -700,6 +701,11 @@ kuml-plugin/
   kuml-plugin-registry ✅  Plugin Registry client: search, ratings, reviews, screenshots,
                            `kuml plugin search` CLI + Desktop Plugin Manager UI (V3.1.x)
 
+kuml-wasm-playground/  ✅  Browser-hosted wasmJs render entry points: UML class diagrams
+                           (real multiplatform grid layout via kuml-layout-grid), C4,
+                           SysML 2 (all 8 diagram kinds), BPMN (process/collaboration/
+                           choreography/conversation), Blueprint (V3.2.9+)
+
 kuml-cli/              ✅  Command-line interface (all commands above)
 
 kuml-gradle/           ✅  Gradle plugin (plugin ID: dev.kuml)
@@ -728,7 +734,10 @@ kuml-profile/
   kuml-profile-openapi ✅  OpenAPI 3.x profile
   kuml-profile-soaml   ✅  SoaML profile
 
-kuml-packaging/        ✅  GraalVM Native Image + DEB/RPM/DMG/MSI + Docker + SDKMAN!
+kuml-packaging/        ✅  jpackage DEB/RPM/DMG/MSI + Docker + SDKMAN! packaging built
+                           (SDKMAN! candidate not yet live — vendor onboarding pending,
+                           see Installation table). GraalVM Native Image still deferred,
+                           see Roadmap — ADR-0009.
 
 kuml-tests/
   kuml-dsl-tests              ✅  DSL unit tests

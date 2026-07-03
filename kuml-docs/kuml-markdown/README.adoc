@@ -24,7 +24,7 @@ shell-driven workflows.
 [source,kotlin]
 ----
 dependencies {
-    implementation("dev.kuml:kuml-markdown:0.1.0")
+    implementation("dev.kuml:kuml-markdown:0.23.2")
 }
 ----
 

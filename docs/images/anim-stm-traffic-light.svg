@@ -1,61 +1,65 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- kUML SVG · theme: Plain · engine: elk.layered -->
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
 <svg xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg"
-     viewBox="0 0 367 880"
-     width="367"
-     height="880">
+     viewBox="0 0 283 956"
+     width="283"
+     height="956">
   <defs>
   <style>
-    .kuml-class { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-interface { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-enum { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-component { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-state { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-usecase { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-system { fill: #FFFFFF; stroke: #000000; stroke-width: 2.0; }
-.kuml-container { fill: #FFFFFF; stroke: #000000; stroke-width: 1.0; }
-.kuml-c4component { fill: #FFFFFF; stroke: #000000; stroke-width: 1.0; }
-.kuml-instance { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-title { font-family: system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #000000; }
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
 .kuml-title-abstract { font-style: italic; }
-.kuml-subtitle { font-family: system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #000000; }
-.kuml-body { font-family: system-ui, sans-serif; font-size: 11.0px; fill: #000000; }
-.kuml-small { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #666666; }
-.kuml-edge-label { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #666666; }
-.kuml-edge-label-halo { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
-.kuml-stereotype { font-family: system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #666666; }
-.kuml-tagged-value { font-family: system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #666666; }
-.kuml-edge { stroke: #000000; stroke-width: 1.5; fill: none; }
-.kuml-edge-dashed { stroke: #999999; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
-.kuml-divider { stroke: #000000; stroke-width: 1.0; }
-.kuml-actor { stroke: #000000; stroke-width: 1.5; fill: none; }
-.kuml-frame { fill: none; stroke: #000000; stroke-width: 1.5; }
-.kuml-collaboration { fill: none; stroke: #000000; stroke-width: 1.5; }
-.kuml-port { fill: #000000; stroke: #000000; stroke-width: 1.0; }
-.kuml-port-label { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #000000; }
-.kuml-port-label-halo { font-family: system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
-.kuml-connector { fill: none; stroke: #000000; stroke-width: 1.5; }
-.kuml-connector-label { font-family: system-ui, sans-serif; font-size: 9.0px; fill: #000000; }
-.kuml-action { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-decision { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-fork-bar { fill: #000000; stroke: #000000; stroke-width: 1.5; }
-.kuml-pseudostate { fill: #000000; stroke: #000000; stroke-width: 1.5; }
-.kuml-final-outer { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-node { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-node-top { fill: #666666; stroke: #000000; stroke-width: 1.5; }
-.kuml-node-side { fill: #666666; stroke: #000000; stroke-width: 1.5; }
-.kuml-artifact { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-artifact-ear { fill: #666666; stroke: #000000; stroke-width: 1.5; }
-.kuml-stereotype-box { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-timing-frame { fill: #FFFFFF; stroke: #000000; stroke-width: 1.5; }
-.kuml-timing-line { stroke: #000000; stroke-width: 1.5; fill: none; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
 
   </style>
   </defs>
-  <rect x="0" y="0" width="367" height="880" fill="#FFFFFF"/>
+  <rect x="0" y="0" width="283" height="956" fill="#FFFFFF"/>
   <g id="nodes">
-    <g id="Traffic Light" transform="translate(80,80)">
-      <rect width="223" height="736" rx="8" ry="8" class="kuml-frame"/>
+    <g id="Traffic Light" transform="translate(44,44)">
+      <rect width="223" height="896" rx="8" ry="8" class="kuml-frame"/>
       <text class="kuml-small" x="8" y="16">
         stateMachine
       </text>
@@ -64,68 +68,68 @@
       </text>
     </g>
     <g id="Traffic Light::initial">
-      <circle cx="180.33" cy="152" r="9.60" class="kuml-class" fill="currentColor"/>
+      <circle cx="144.33" cy="116" r="9.60" class="kuml-class" fill="currentColor"/>
     </g>
-    <g id="Traffic Light::Red" transform="translate(100.33,254)">
+    <g id="Traffic Light::Red" transform="translate(64.33,258)">
       <rect width="160" height="80" rx="12" ry="12" class="kuml-state"/>
       <text class="kuml-body" x="80" y="44" text-anchor="middle">
         Red
       </text>
     </g>
-    <g id="Traffic Light::Green" transform="translate(127,424)">
+    <g id="Traffic Light::Green" transform="translate(91,468)">
       <rect width="160" height="80" rx="12" ry="12" class="kuml-state"/>
       <text class="kuml-body" x="80" y="44" text-anchor="middle">
         Green
       </text>
     </g>
-    <g id="Traffic Light::Yellow" transform="translate(100.33,594)">
+    <g id="Traffic Light::Yellow" transform="translate(64.33,678)">
       <rect width="160" height="80" rx="12" ry="12" class="kuml-state"/>
       <text class="kuml-body" x="80" y="44" text-anchor="middle">
         Yellow
       </text>
     </g>
     <g id="Traffic Light::Off">
-      <circle cx="180.33" cy="778" r="12.60" class="kuml-class" fill="white"/>
-      <circle cx="180.33" cy="778" r="6.30" class="kuml-class" fill="currentColor"/>
+      <circle cx="144.33" cy="902" r="12.60" class="kuml-class" fill="white"/>
+      <circle cx="144.33" cy="902" r="6.30" class="kuml-class" fill="currentColor"/>
     </g>
   </g>
   <g id="edges">
-    <line x1="180.33" y1="164" x2="180.33" y2="254" class="kuml-edge"/>
-    <path d="M 175.33,242 L 180.33,254 L 185.33,242" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
-    <line x1="207" y1="334" x2="207" y2="424" class="kuml-edge"/>
-    <path d="M 202,412 L 207,424 L 212,412" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
-    <rect x="129.60" y="365" width="154.80" height="12" fill="white" stroke="none"/>
-    <text class="kuml-body" x="207" y="375" text-anchor="middle">
+    <line x1="144.33" y1="128" x2="144.33" y2="258" class="kuml-edge"/>
+    <path d="M 139.33,246 L 144.33,258 L 149.33,246" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <line x1="171" y1="338" x2="171" y2="468" class="kuml-edge"/>
+    <path d="M 166,456 L 171,468 L 176,456" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <rect x="93.60" y="389" width="154.80" height="12" fill="white" stroke="none"/>
+    <text class="kuml-body" x="171" y="399" text-anchor="middle">
       timerGreen [cycleActive]
     </text>
-    <line x1="207" y1="504" x2="207" y2="594" class="kuml-edge"/>
-    <path d="M 202,582 L 207,594 L 212,582" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
-    <rect x="169.90" y="535" width="74.20" height="12" fill="white" stroke="none"/>
-    <text class="kuml-body" x="207" y="545" text-anchor="middle">
+    <line x1="171" y1="548" x2="171" y2="678" class="kuml-edge"/>
+    <path d="M 166,666 L 171,678 L 176,666" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <rect x="133.90" y="599" width="74.20" height="12" fill="white" stroke="none"/>
+    <text class="kuml-body" x="171" y="609" text-anchor="middle">
       timerYellow
     </text>
-    <path d="M 153.67 594 L 153.67 534 L 96 534 L 96 364 L 153.67 364 L 153.67 334" class="kuml-edge"/>
-    <path d="M 158.67,346 L 153.67,334 L 148.67,346" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
-    <rect x="82.47" y="549.97" width="142.40" height="12" fill="white" stroke="none"/>
-    <text class="kuml-body" x="153.67" y="559.97" text-anchor="middle">
+    <path d="M 117.67 678 L 117.67 578 L 60 578 L 60 368 L 117.67 368 L 117.67 338" class="kuml-edge"/>
+    <path d="M 122.67,350 L 117.67,338 L 112.67,350" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <rect x="46.47" y="627.57" width="142.40" height="12" fill="white" stroke="none"/>
+    <text class="kuml-body" x="117.67" y="637.57" text-anchor="middle">
       timerRed [cycleActive]
     </text>
-    <line x1="180.33" y1="674" x2="180.33" y2="764" class="kuml-edge"/>
-    <path d="M 175.33,752 L 180.33,764 L 185.33,752" style="stroke:#000000;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
-    <rect x="106.03" y="705" width="148.60" height="12" fill="white" stroke="none"/>
-    <text class="kuml-body" x="180.33" y="715" text-anchor="middle">
+    <line x1="144.33" y1="758" x2="144.33" y2="888" class="kuml-edge"/>
+    <path d="M 139.33,876 L 144.33,888 L 149.33,876" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <rect x="70.03" y="809" width="148.60" height="12" fill="white" stroke="none"/>
+    <text class="kuml-body" x="144.33" y="819" text-anchor="middle">
       powerOff [!cycleActive]
     </text>
   </g>
 
-<rect id="smil-stm-hl-Traffic_Light__initial" x="168.33334" y="140.0" width="24.0" height="24.0" fill="none" opacity="0" rx="4"/>
-<rect id="smil-stm-hl-Traffic_Light__Red" x="100.33333" y="254.0" width="160.0" height="80.0" fill="none" opacity="0" rx="4"/>
-<rect id="smil-stm-hl-Traffic_Light__Green" x="127.0" y="424.0" width="160.0" height="80.0" fill="none" opacity="0" rx="4"/>
-<rect id="smil-stm-hl-Traffic_Light__Yellow" x="100.33333" y="594.0" width="160.0" height="80.0" fill="none" opacity="0" rx="4"/>
-<path id="smil-stm-trans-Traffic_Light__t__initial-_Red" d="M 180.33 164 L 180.33 254" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
-<path id="smil-stm-trans-Traffic_Light__t__Red-_Green" d="M 207 334 L 207 424" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
-<path id="smil-stm-trans-Traffic_Light__t__Green-_Yellow" d="M 207 504 L 207 594" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
-<path id="smil-stm-trans-Traffic_Light__t__Yellow-_Red" d="M 153.67 594 L 153.67 534 L 96 534 L 96 364 L 153.67 364 L 153.67 334" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
+<rect id="smil-stm-hl-Traffic_Light__initial" x="132.33334" y="104.0" width="24.0" height="24.0" fill="none" opacity="0" rx="4"/>
+<rect id="smil-stm-hl-Traffic_Light__Red" x="64.33333" y="258.0" width="160.0" height="80.0" fill="none" opacity="0" rx="4"/>
+<rect id="smil-stm-hl-Traffic_Light__Green" x="91.0" y="468.0" width="160.0" height="80.0" fill="none" opacity="0" rx="4"/>
+<rect id="smil-stm-hl-Traffic_Light__Yellow" x="64.33333" y="678.0" width="160.0" height="80.0" fill="none" opacity="0" rx="4"/>
+<path id="smil-stm-trans-Traffic_Light__t__initial-_Red" d="M 144.33 128 L 144.33 258" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
+<path id="smil-stm-trans-Traffic_Light__t__Red-_Green" d="M 171 338 L 171 468" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
+<path id="smil-stm-trans-Traffic_Light__t__Green-_Yellow" d="M 171 548 L 171 678" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
+<path id="smil-stm-trans-Traffic_Light__t__Yellow-_Red" d="M 117.67 678 L 117.67 578 L 60 578 L 60 368 L 117.67 368 L 117.67 338" fill="none" stroke="#333" stroke-width="1.5" opacity="0.6"/>
 
 <animate xlink:href="#smil-stm-hl-Traffic_Light__initial" attributeName="opacity" from="0" to="0.4" begin="0ms" dur="50ms" fill="freeze"/>
 <animate xlink:href="#smil-stm-hl-Traffic_Light__initial" attributeName="fill" from="#ffffff" to="#ffd54a" begin="0ms" dur="600ms" fill="freeze"/>

@@ -131,13 +131,14 @@ Override the backend for tests via `-Dkuml.ai.vault.backend=plain|macos|linux|wi
 
 == Module Scope
 
-This module is the *foundation layer only*. The following are deferred to later waves:
+This module is the foundation layer: multi-provider prompt execution, the API
+key vault, and persisted settings. The layers built on top of it have since
+shipped in later waves:
 
-* Custom tool integration (V3.0.23)
-* Desktop UI (V3.0.24)
-* Streaming response rendering (V3.0.24)
-* MCP-bridge integration (V3.0.25)
-* Budget enforcement for `costBudgetUsd` (V3.0.26)
+* Custom tool integration — `kuml-ai/kuml-ai-tools` (V3.0.23)
+* Desktop UI (AI panel, streaming response rendering) — `kuml-desktop` (V3.0.24)
+* Patch apply, structural/type validation, and render-smoke checks — `kuml-ai-tools` (V3.0.25)
+* Ollama local mode, privacy-mode enforcement, and Langfuse telemetry (V3.0.26)
 
 == Architecture
 

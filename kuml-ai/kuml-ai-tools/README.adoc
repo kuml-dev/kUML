@@ -11,7 +11,8 @@ tool call is validated against the metamodel before the edit is applied.
 
 All mutations target an in-memory `AgentEditingContext` clone.
 An append-only `ModelPatch` audit log is built as a side-effect of each tool call,
-preparing the ground for V3.0.25 diff-preview and per-patch accept/reject.
+which backs the V3.0.25 diff-preview and per-patch accept/reject flow
+(`PatchApplyEngine`, `PatchPreviewDialog`).
 
 === Key design decisions
 
@@ -88,18 +89,18 @@ val patches = runBlocking { ctx.patches() }          // List<ModelPatch>
 summary (< 80 chars). The LLM never sees raw SVG bytes — a typical SVG is 30–100 KB
 (10k+ tokens) and would exhaust the context window after 3–4 renders.
 
-V3.0.24 (AI-Panel desktop widget) will read the returned path and display the diagram
-inline. The LLM only needs the path as an opaque handle.
+The `kuml-desktop` AI-Panel widget (V3.0.24) reads the returned path and displays the
+diagram inline. The LLM only needs the path as an opaque handle.
 
-== Sandbox Layer (V3.0.25 Preparation)
+== Sandbox Layer
 
-`AgentEditingContext` accepts an optional `SandboxValidator` slot (currently no-op).
-V3.0.25 will wire in `kuml-runtime-sandbox::SandboxValidator` to validate each
-`applyPatch` result before committing it to the working model.
+`AgentEditingContext` accepts an optional `SandboxValidator` slot, wired since V3.0.25
+to `kuml-runtime-sandbox::SandboxValidator`, which validates each `applyPatch` result
+before it is committed to the working model (alongside `StructuralPatchChecks`,
+`TypeCheckPatchChecks`, and `RenderSmokeCheck`).
 
-Snapshot + rollback (`ctx.snapshot()` / `ctx.resetTo(snapshot)`) are already
-implemented. V3.0.25 will expose a "Reject all AI changes" button that calls
-`ctx.resetTo(preSessionSnapshot)`.
+Snapshot + rollback (`ctx.snapshot()` / `ctx.resetTo(snapshot)`) back the "Reject all
+AI changes" button in `PatchPreviewDialog`, which calls `ctx.resetTo(preSessionSnapshot)`.
 
 == MCP Bridge — Reflection Hop
 
