@@ -12,6 +12,7 @@ import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
 import dev.kuml.io.svg.fmt3
+import kotlin.math.abs
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Renderer für SysML-2 Sequence-Diagramme (V2.0.11).
@@ -192,6 +193,7 @@ internal fun renderSysml2SeqMessages(
     visibleLifelineIds: Set<String>,
     nodeLayouts: Map<NodeId, NodeLayout>,
     builder: SvgBuilder,
+    operandStartSeqs: List<Int> = emptyList(),
 ) {
     val visible =
         messages
@@ -203,7 +205,8 @@ internal fun renderSysml2SeqMessages(
     for (msg in visible) {
         val srcLayout = nodeLayouts[NodeId(msg.sourceLifelineId)] ?: continue
         val tgtLayout = nodeLayouts[NodeId(msg.targetLifelineId)] ?: continue
-        renderMessage(msg, srcLayout, tgtLayout, builder)
+        val rowOffset = sysml2SeqRowOffset(msg.seqNo, operandStartSeqs)
+        renderMessage(msg, srcLayout, tgtLayout, builder, rowOffset)
     }
 }
 
@@ -240,11 +243,12 @@ internal fun renderMessage(
     srcLayout: NodeLayout,
     tgtLayout: NodeLayout,
     builder: SvgBuilder,
+    rowOffset: Float = 0f,
 ) {
     val srcCx = srcLayout.bounds.origin.x + srcLayout.bounds.size.width / 2f
     val tgtCx = tgtLayout.bounds.origin.x + tgtLayout.bounds.size.width / 2f
     val srcHeadBottom = srcLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
-    val y = srcHeadBottom + (msg.seqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT
+    val y = srcHeadBottom + (msg.seqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + rowOffset
 
     val isSelfCall = msg.sourceLifelineId == msg.targetLifelineId
 
@@ -288,7 +292,21 @@ internal fun renderMessage(
             ),
         )
 
-        // 2. Pfeilspitze am Target-Ende.
+        // 2. Label über dem Pfeil — VOR der Pfeilspitze zeichnen, damit die
+        //    Pfeilspitze oben liegt und nicht vom weißen Hintergrund verdeckt wird.
+        val labelX = (srcCx + tgtCx) / 2f
+        val labelY = y - 4f
+        val availableWidth = (abs(tgtCx - srcCx) - 8f).coerceAtLeast(20f)
+        drawSeqLabelWithWhiteBackground(
+            label = msg.messageLabel,
+            x = labelX,
+            y = labelY,
+            anchor = "middle",
+            builder = this,
+            maxWidth = availableWidth,
+        )
+
+        // 3. Pfeilspitze am Target-Ende — nach dem Label, damit sie oben liegt.
         when (msg.kind) {
             MessageKind.Sync -> renderFilledArrowhead(tgtCx, y, arrowDx, this)
             MessageKind.Async,
@@ -301,19 +319,6 @@ internal fun renderMessage(
             MessageKind.Destroy,
             -> Unit
         }
-
-        // 3. Label über dem Pfeil. V3.0.x: weißer Hintergrund hinter dem Text,
-        //    damit gestrichelte Lifelines + Operand-Separatoren nicht durch
-        //    die Glyphen kreuzen.
-        val labelX = (srcCx + tgtCx) / 2f
-        val labelY = y - 4f
-        drawSeqLabelWithWhiteBackground(
-            label = msg.messageLabel,
-            x = labelX,
-            y = labelY,
-            anchor = "middle",
-            builder = this,
-        )
     }
 }
 
@@ -327,6 +332,15 @@ internal fun renderMessage(
  * Hintergrund kreuzen diese Linien das Text-Glyphen-Innere, was die
  * Lesbarkeit massiv reduziert.
  */
+/**
+ * @param maxWidth Optional maximum rendered width in pixels. When the estimated text
+ *   width exceeds this value, SVG `textLength` + `lengthAdjust="spacingAndGlyphs"` are
+ *   added so the browser compresses glyphs to fit. The white background rect is also
+ *   capped to this width. Used for message labels to prevent overflow beyond lifelines.
+ * @param hPad Horizontal padding on each side of the background rect. Defaults to
+ *   [LABEL_BG_HPAD]. Pass `0f` for self-call labels so the background matches the text
+ *   width and does not spill into an adjacent lifeline's dashed time axis.
+ */
 private fun drawSeqLabelWithWhiteBackground(
     label: String,
     x: Float,
@@ -334,15 +348,18 @@ private fun drawSeqLabelWithWhiteBackground(
     anchor: String,
     builder: SvgBuilder,
     cssClass: String = "kuml-body",
+    maxWidth: Float? = null,
+    hPad: Float = LABEL_BG_HPAD,
 ) {
     val textW = label.length * BODY_CHAR_WIDTH
-    val bgW = textW + 2f * LABEL_BG_HPAD
+    val constrainedW = if (maxWidth != null && textW > maxWidth) maxWidth else textW
+    val bgW = constrainedW + 2f * hPad
     val bgH = BODY_TEXT_ASCENT + BODY_TEXT_DESCENT
     val bgX =
         when (anchor) {
             "middle" -> x - bgW / 2f
             "end" -> x - bgW
-            else -> x - LABEL_BG_HPAD
+            else -> x - hPad
         }
     // y im `<text>` ist die Baseline. Das Rechteck endet knapp unter der
     // Baseline — knapp genug, um Nachrichten-Pfeile (4 px unterhalb der
@@ -359,7 +376,7 @@ private fun drawSeqLabelWithWhiteBackground(
             "stroke" to "none",
         ),
     )
-    val attrs =
+    val baseAttrs =
         if (anchor == "start") {
             mapOf("class" to cssClass, "x" to fmt(x), "y" to fmt(y))
         } else {
@@ -367,6 +384,12 @@ private fun drawSeqLabelWithWhiteBackground(
         }
     // SvgBuilder.text() escapes automatically — pass the raw label through to
     // avoid double-escaping (xmlEscapeText is deprecated and a no-op identity).
+    val attrs =
+        if (maxWidth != null && textW > maxWidth) {
+            baseAttrs + mapOf("textLength" to fmt(maxWidth), "lengthAdjust" to "spacingAndGlyphs")
+        } else {
+            baseAttrs
+        }
     builder.tag("text", attrs) { text(label) }
 }
 
@@ -554,11 +577,16 @@ internal fun renderExecutionSpec(
     execSpec: ExecutionSpecificationUsage,
     lifelineLayout: NodeLayout,
     builder: SvgBuilder,
+    operandStartSeqs: List<Int> = emptyList(),
 ) {
     val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
     val headBottom = lifelineLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
-    val yStart = headBottom + (execSpec.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT
-    val yEnd = headBottom + (execSpec.endSeqNo + 1.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT
+    // Apply the same fragment-header offset the messages use so the activation
+    // bar stays aligned with the message arrows that start/end it.
+    val yStart = headBottom + (execSpec.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+        sysml2SeqRowOffset(execSpec.startSeqNo, operandStartSeqs)
+    val yEnd = headBottom + (execSpec.endSeqNo + 1.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+        sysml2SeqRowOffset(execSpec.endSeqNo, operandStartSeqs)
     val w = EXEC_SPEC_WIDTH
     val h = (yEnd - yStart).coerceAtLeast(SEQ_RENDERER_MESSAGE_ROW_HEIGHT / 2f)
 
@@ -606,6 +634,7 @@ internal fun renderCombinedFragment(
     fragment: CombinedFragmentUsage,
     visibleLifelineLayouts: List<NodeLayout>,
     builder: SvgBuilder,
+    operandStartSeqs: List<Int> = emptyList(),
 ) {
     if (visibleLifelineLayouts.isEmpty() || fragment.operands.isEmpty()) return
     val minLifelineX = visibleLifelineLayouts.minOf { it.bounds.origin.x }
@@ -625,13 +654,16 @@ internal fun renderCombinedFragment(
     val rightPad = FRAGMENT_PADDING_H
     val frameX = minLifelineX - leftPad
     val frameW = (maxLifelineX - minLifelineX) + leftPad + rightPad
-    // SysML-2-Pfeil-Y für seqNo n: `headBottom + (n + 1) * ROW`. Frame-Top
-    // 24 px über dem ersten enthaltenen Pfeil, Frame-Bottom 8 px unter dem
-    // letzten — asymmetrisch wegen Label-Position-über-Pfeil (siehe KDoc).
-    val frameY =
-        headBottom + (minStartSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT - FRAGMENT_TOP_OUTSET
-    val frameBottom =
-        headBottom + (maxEndSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT + FRAGMENT_BOTTOM_OUTSET
+    // Rendered Y of a message = headBottom + (seqNo + 1) * ROW + header offset.
+    // The first message of this fragment (operand 0) is pushed down by exactly
+    // one SYSML2_FRAGMENT_HEADER_BAND, which opens the clear corridor between the
+    // pentagon/guard row and that first arrow.
+    val firstMsgY = headBottom + (minStartSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+        sysml2SeqRowOffset(minStartSeqNo, operandStartSeqs)
+    val lastMsgY = headBottom + (maxEndSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+        sysml2SeqRowOffset(maxEndSeqNo, operandStartSeqs)
+    val frameY = firstMsgY - SYSML2_FRAGMENT_HEADER_BAND - 13f
+    val frameBottom = lastMsgY + FRAGMENT_BOTTOM_OUTSET
     val frameH = frameBottom - frameY
 
     builder.tag(
@@ -698,19 +730,23 @@ internal fun renderCombinedFragment(
             val operandY: Float
 
             if (index == 0) {
-                // V3.0.x: Guard sits BELOW the ALT pentagon (not next to it),
-                // with extra +10 below the pentagon's bottom so the body-text
-                // ascenders clear the pentagon outline. Together with the
-                // wider FRAGMENT_PADDING (24) this keeps `[valid]` clear of
-                // the leftmost lifeline's dashed time axis.
-                operandY = tagY + tagH + 14f
+                // Guard sits inline with the pentagon keyword (frameY + 13). With
+                // frameY = firstMsgY − SYSML2_FRAGMENT_HEADER_BAND − 13 this is
+                // exactly one header band above the first arrow — a clear corridor
+                // so neither a normal arrow nor a self-call arm covers it.
+                operandY = tagY + tagH / 2f + 4f
             } else {
-                // Separator Y: use max(operand.startSeqNo, prevEndSeqNo + 1) to
-                // guarantee the separator falls AFTER all messages of the previous
-                // operand, even when startSeqNo was reused by the DSL author.
-                val naturalSepSeqNo = operand.startSeqNo.toFloat()
-                val guardedSepSeqNo = maxOf(naturalSepSeqNo, prevEndSeqNo + 1f)
-                val sepY = headBottom + (guardedSepSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT
+                // Each non-first operand's first message is pushed down by its own
+                // header band, opening a (row + band) gap above it. Place the
+                // separator one band + 12 px above that first arrow, clamped below
+                // the previous operand's last message so empty operands (startSeqNo
+                // reused) never collide with it.
+                val opFirstMsgY = headBottom + (operand.startSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+                    sysml2SeqRowOffset(operand.startSeqNo, operandStartSeqs)
+                val prevBottomY = headBottom + (prevEndSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+                    sysml2SeqRowOffset(prevEndSeqNo, operandStartSeqs) + FRAGMENT_BOTTOM_OUTSET
+                val naturalSepY = opFirstMsgY - SYSML2_FRAGMENT_HEADER_BAND - 12f
+                val sepY = maxOf(naturalSepY, prevBottomY + 8f)
                 tag(
                     "line",
                     mapOf(
@@ -736,22 +772,29 @@ internal fun renderCombinedFragment(
                 val trimmed = guard.trim()
                 val displayGuard =
                     if (trimmed.startsWith("[") && trimmed.endsWith("]")) trimmed else "[$trimmed]"
-                // V3.0.x: Guard rechtsbündig (anchor="end") an den linken Rand
-                // der äußersten Lifeline gesetzt. Der Text wächst nach LINKS in
-                // die Frame-Left-Pad-Zone (dynamisch dimensioniert via
-                // [sysml2SeqFragmentLeftPad]) und kreuzt damit nie die
-                // gestrichelte Zeit-Achse der leftmost Lifeline — vorher endete
-                // der Text-Hintergrund bei `frameX + 4 + textW`, was bei langen
-                // Guards wie `[credentials invalid]` deutlich rechts der ersten
-                // Lifeline-Zeit-Achse landete (siehe Login-Flow-Beispiel im
-                // Vault).
-                drawSeqLabelWithWhiteBackground(
-                    label = displayGuard,
-                    x = minLifelineX - 4f,
-                    y = operandY,
-                    anchor = "end",
-                    builder = this,
-                )
+                // Index-0 guard: place to the RIGHT of the pentagon keyword
+                // label (same pattern as UmlSequenceSvg). This keeps the guard
+                // above the first message arrow.
+                // Index->0 guards: anchor="end" at the left lifeline edge, growing
+                // left into the frame's left-padding zone (unchanged from V3.0.x).
+                if (index == 0) {
+                    drawSeqLabelWithWhiteBackground(
+                        label = displayGuard,
+                        x = frameX + tagW + 4f,
+                        y = operandY,
+                        anchor = "start",
+                        builder = this,
+                        maxWidth = (frameW - tagW - 8f).coerceAtLeast(20f),
+                    )
+                } else {
+                    drawSeqLabelWithWhiteBackground(
+                        label = displayGuard,
+                        x = minLifelineX - 4f,
+                        y = operandY,
+                        anchor = "end",
+                        builder = this,
+                    )
+                }
             }
         }
     }
@@ -807,13 +850,15 @@ private fun renderSelfCall(
         // the self-call is already at the rightmost lifeline and "right of the U"
         // clips on narrow diagrams. Offset: 4px to the left of the start-corner.
         // V3.0.x: weißer Hintergrund, damit die Lifeline-Achse nicht durch das
-        // Label kreuzt.
+        // Label kreuzt. hPad=0f: Hintergrund auf reine Textbreite beschränkt,
+        // damit er nicht in benachbarte Lifelines überläuft.
         drawSeqLabelWithWhiteBackground(
             label = msg.messageLabel,
             x = cx - 4f,
             y = y - 2f,
             anchor = "end",
             builder = this,
+            hPad = 0f,
         )
     }
 }
@@ -830,12 +875,14 @@ private fun renderFilledArrowhead(
 ) {
     val baseX = tipX + baseDx
     val points = "${fmt(tipX)},${fmt(y)} ${fmt(baseX)},${fmt(y - 4f)} ${fmt(baseX)},${fmt(y + 4f)}"
+    // Use kuml-seq-arrow-filled instead of kuml-edge: `.kuml-edge { fill: none }` has
+    // higher CSS specificity than the `fill="currentColor"` presentation attribute and
+    // would override it, causing the arrowhead to appear hollow.
     builder.tag(
         "polygon",
         mapOf(
             "points" to points,
-            "class" to "kuml-edge",
-            "fill" to "currentColor",
+            "class" to "kuml-seq-arrow-filled",
         ),
     )
 }
@@ -890,6 +937,37 @@ private const val SEQ_RENDERER_HEAD_HEIGHT: Float = 40f
  */
 internal const val SYSML2_SEQ_MESSAGE_ROW_HEIGHT: Float = 32f
 private const val SEQ_RENDERER_MESSAGE_ROW_HEIGHT: Float = SYSML2_SEQ_MESSAGE_ROW_HEIGHT
+
+/**
+ * Header-Band pro Combined-Fragment-Operand — SysML-2-Pendant zu
+ * `FRAGMENT_HEADER_BAND` im UML-Sequenz-Renderer. Reserviert zusätzlichen
+ * vertikalen Freiraum ÜBER der ersten Nachricht jedes Operanden, damit dessen
+ * Guard (bzw. das Fragment-Pentagon) nicht vom Label der ersten Nachricht
+ * überdeckt wird — besonders bei Self-Calls auf der linkesten Lifeline.
+ *
+ * MUSS mit `SEQ_FRAGMENT_HEADER_BAND` in `Sysml2LayoutBridge` (kuml-layout-
+ * bridge) und `FRAGMENT_HEADER_BAND` in `UmlSequenceSvg` synchron bleiben.
+ */
+internal const val SYSML2_FRAGMENT_HEADER_BAND: Float = 24f
+
+/**
+ * Aufsteigend sortierte `startSeqNo`-Liste aller Operanden über alle
+ * Combined-Fragments hinweg. Jeder Eintrag steht für ein oberhalb dieser Zeile
+ * eingefügtes [SYSML2_FRAGMENT_HEADER_BAND].
+ */
+internal fun sysml2OperandStartSeqs(
+    fragments: List<dev.kuml.sysml2.CombinedFragmentUsage>,
+): List<Int> =
+    fragments
+        .flatMap { frag -> frag.operands }
+        .map { op -> op.startSeqNo }
+        .sorted()
+
+/** Kumulativer vertikaler Offset (px) für die gegebene SysML-2-Sequenz-Zeile. */
+internal fun sysml2SeqRowOffset(
+    seqNo: Int,
+    operandStartSeqs: List<Int>,
+): Float = SYSML2_FRAGMENT_HEADER_BAND * operandStartSeqs.count { it <= seqNo }
 
 /** Self-Call U-Pfeil: Breite des Ausschwungs nach rechts. */
 private const val SELF_CALL_WIDTH: Float = 24f

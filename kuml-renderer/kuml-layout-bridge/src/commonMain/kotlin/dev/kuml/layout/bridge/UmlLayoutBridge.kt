@@ -344,9 +344,20 @@ public object UmlLayoutBridge {
                     // messages and fragments are rendered directly by KumlSvgRenderer.
                     val maxSeq = element.messages.maxOfOrNull { it.sequence } ?: 0
                     val rowCount = if (maxSeq < 1) 1 else maxSeq
+                    // Each non-empty combined-fragment operand reserves one header
+                    // band of extra vertical space above its first message (so the
+                    // guard is never overpainted by that message's label — see
+                    // FRAGMENT_HEADER_BAND in UmlSequenceSvg). Grow the lifeline
+                    // height by the total so those bands are not clipped.
+                    val msgIds = element.messages.mapTo(HashSet()) { it.id }
+                    val operandBandCount =
+                        element.fragments.sumOf { frag ->
+                            frag.operands.count { op -> op.messageIds.any { it in msgIds } }
+                        }
                     val nodeH =
                         Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
                             (rowCount + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
+                            operandBandCount * Sysml2LayoutBridge.SEQ_FRAGMENT_HEADER_BAND +
                             Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
                     for (lifeline in element.lifelines) {
                         nodes.add(

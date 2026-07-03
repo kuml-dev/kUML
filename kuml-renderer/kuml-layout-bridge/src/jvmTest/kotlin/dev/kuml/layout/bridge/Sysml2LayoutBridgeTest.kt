@@ -1447,10 +1447,13 @@ class Sysml2LayoutBridgeTest :
             val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
             val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
 
-            // maxSeqNo = 5 (from CF) → rowCount = 6 → height = HEAD + (6+1)*ROW + TAIL
+            // maxSeqNo = 5 (from CF) → rowCount = 6 → height = HEAD + (6+1)*ROW + TAIL.
+            // The loop fragment has one operand → one header band is added on top
+            // so the operand guard clears its first message (SEQ_FRAGMENT_HEADER_BAND).
             val expected =
                 Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
                     (5 + 1 + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
+                    1 * Sysml2LayoutBridge.SEQ_FRAGMENT_HEADER_BAND +
                     Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
             for (n in graph.nodes) {
                 n.intrinsicSize.height shouldBe expected
@@ -1513,10 +1516,13 @@ class Sysml2LayoutBridgeTest :
             val seq = model.diagrams.filterIsInstance<SeqDiagram>().single()
             val graph = Sysml2LayoutBridge.toLayoutGraph(model, seq)
 
-            // maxSeqNo = 10 (message > fragment 3 > execspec 2) → rowCount = 11
+            // maxSeqNo = 10 (message > fragment 3 > execspec 2) → rowCount = 11.
+            // The opt fragment has one operand → one header band is added on top
+            // (SEQ_FRAGMENT_HEADER_BAND) so the operand guard clears its first message.
             val expected =
                 Sysml2LayoutBridge.SEQ_LIFELINE_HEAD_HEIGHT +
                     (10 + 1 + 1) * Sysml2LayoutBridge.SEQ_MESSAGE_ROW_HEIGHT +
+                    1 * Sysml2LayoutBridge.SEQ_FRAGMENT_HEADER_BAND +
                     Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
             for (n in graph.nodes) {
                 n.intrinsicSize.height shouldBe expected

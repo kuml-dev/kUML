@@ -5,12 +5,14 @@ import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.uml.InteractionOperator
 import dev.kuml.uml.MessageSort
 import dev.kuml.uml.UmlCombinedFragment
 import dev.kuml.uml.UmlInteraction
 import dev.kuml.uml.UmlLifeline
 import dev.kuml.uml.UmlMessage
 import dev.kuml.io.svg.fmt3
+import kotlin.math.abs
 
 private const val SEQ_HEAD_HEIGHT = 40f
 private const val SEQ_ROW_HEIGHT = 32f
@@ -61,6 +63,55 @@ private const val FRAGMENT_TAG_W = 50f
 private const val FRAGMENT_TAG_H = 18f
 private const val SELF_CALL_W = 24f
 private const val SELF_CALL_H = 16f
+
+/**
+ * **Header-Band pro Fragment-Operand.**
+ *
+ * Zusätzlicher vertikaler Freiraum (px), der DIREKT ÜBER der ersten Nachricht
+ * jedes Combined-Fragment-Operanden reserviert wird. Ohne dieses Band sitzt der
+ * Operand-Guard (bzw. das Fragment-Pentagon beim ersten Operanden) nur
+ * [FRAGMENT_TOP_OUTSET] über dem ersten Pfeil — dessen Label (Baseline
+ * `arrow - 4`, Oberkante `arrow - 15`) überschneidet sich dann mit dem
+ * Guard-Band. Besonders sichtbar, wenn die erste Nachricht ein Self-Call auf
+ * der linkesten Lifeline ist (z. B. `warteBackoff()` im LOOP von
+ * SEQ-M-02): das Self-Call-Label landet exakt dort, wo der Guard steht, und
+ * verdeckt ihn.
+ *
+ * Das Band verschiebt die erste Nachricht (und alle folgenden) um
+ * [FRAGMENT_HEADER_BAND] nach unten, sodass zwischen Guard-Zeile und erster
+ * Nachricht ein sauberer Korridor entsteht. Damit gestapelte Fragment-Rahmen
+ * dabei NICHT kollidieren, wächst die Lifeline-Höhe im `UmlLayoutBridge` um
+ * dieselbe Menge (`operandenAnzahl * FRAGMENT_HEADER_BAND`). Dieser Wert MUSS
+ * mit der gleichnamigen Konstante im `UmlLayoutBridge` (kuml-layout-bridge)
+ * synchron bleiben.
+ */
+internal const val FRAGMENT_HEADER_BAND = 24f
+
+/**
+ * Aufsteigend sortierte Liste der kleinsten Nachrichten-Sequenznummer jedes
+ * NICHT-leeren Operanden über alle Combined-Fragments der Interaktion hinweg.
+ * Jeder Eintrag bedeutet: „genau ein [FRAGMENT_HEADER_BAND] wird oberhalb dieser
+ * Sequenz-Zeile eingefügt". [umlSeqRowOffset] macht daraus einen kumulativen
+ * Pixel-Offset pro Sequenznummer.
+ */
+internal fun umlOperandFirstSeqs(
+    fragments: List<UmlCombinedFragment>,
+    msgById: Map<String, UmlMessage>,
+): List<Int> =
+    fragments
+        .flatMap { frag -> frag.operands }
+        .mapNotNull { op -> op.messageIds.mapNotNull { msgById[it]?.sequence }.minOrNull() }
+        .sorted()
+
+/**
+ * Kumulativer vertikaler Offset (px) für die gegebene Sequenz-Zeile: ein
+ * [FRAGMENT_HEADER_BAND] pro Operand, dessen erste Nachricht bei oder vor
+ * [sequence] liegt.
+ */
+internal fun umlSeqRowOffset(
+    sequence: Int,
+    operandFirstSeqs: List<Int>,
+): Float = FRAGMENT_HEADER_BAND * operandFirstSeqs.count { it <= sequence }
 
 /**
  * Heuristische Pixel-Breite pro Zeichen für `kuml-body`-Text. Wird genutzt, um
@@ -131,6 +182,7 @@ internal fun renderUmlSeqMessages(
     visibleLifelineIds: Set<String>,
     nodeLayouts: Map<NodeId, NodeLayout>,
     builder: SvgBuilder,
+    operandFirstSeqs: List<Int> = emptyList(),
 ) {
     val visible =
         messages
@@ -139,7 +191,8 @@ internal fun renderUmlSeqMessages(
     for (msg in visible) {
         val srcLayout = nodeLayouts[NodeId(msg.fromLifelineId)] ?: continue
         val tgtLayout = nodeLayouts[NodeId(msg.toLifelineId)] ?: continue
-        renderUmlMessage(msg, srcLayout, tgtLayout, builder)
+        val rowOffset = umlSeqRowOffset(msg.sequence, operandFirstSeqs)
+        renderUmlMessage(msg, srcLayout, tgtLayout, builder, rowOffset)
     }
 }
 
@@ -148,12 +201,13 @@ private fun renderUmlMessage(
     srcLayout: NodeLayout,
     tgtLayout: NodeLayout,
     builder: SvgBuilder,
+    rowOffset: Float,
 ) {
     val srcCx = srcLayout.bounds.origin.x + srcLayout.bounds.size.width / 2f
     val tgtCx = tgtLayout.bounds.origin.x + tgtLayout.bounds.size.width / 2f
     val srcHeadBottom = srcLayout.bounds.origin.y + SEQ_HEAD_HEIGHT
-    // sequence is 1-based; y = headBottom + sequence * rowHeight
-    val y = srcHeadBottom + msg.sequence * SEQ_ROW_HEIGHT
+    // sequence is 1-based; y = headBottom + sequence * rowHeight + fragment-header offset
+    val y = srcHeadBottom + msg.sequence * SEQ_ROW_HEIGHT + rowOffset
 
     if (msg.fromLifelineId == msg.toLifelineId) {
         renderUmlSelfCall(msg, srcCx, y, builder)
@@ -175,21 +229,25 @@ private fun renderUmlMessage(
                 "class" to strokeClass,
             ),
         )
-        when (msg.sort) {
-            MessageSort.SYNC_CALL, MessageSort.CREATE ->
-                renderFilledArrowheadUml(tgtCx, y, arrowDx, this)
-            MessageSort.ASYNC_CALL, MessageSort.REPLY, MessageSort.DELETE ->
-                renderOpenArrowheadUml(tgtCx, y, arrowDx, this)
-        }
+        // Draw label BEFORE arrowhead so the arrowhead is painted on top of the
+        // white background rect and is never obscured by it.
         val labelX = (srcCx + tgtCx) / 2f
         val labelY = y - 4f
+        val availableWidth = (abs(tgtCx - srcCx) - 8f).coerceAtLeast(20f)
         drawLabelWithWhiteBackground(
             label = msg.label,
             x = labelX,
             y = labelY,
             anchor = "middle",
             builder = this,
+            maxWidth = availableWidth,
         )
+        when (msg.sort) {
+            MessageSort.SYNC_CALL, MessageSort.CREATE ->
+                renderFilledArrowheadUml(tgtCx, y, arrowDx, this)
+            MessageSort.ASYNC_CALL, MessageSort.REPLY, MessageSort.DELETE ->
+                renderOpenArrowheadUml(tgtCx, y, arrowDx, this)
+        }
     }
 }
 
@@ -208,6 +266,15 @@ private fun renderUmlMessage(
  * (`BODY_CHAR_WIDTH * label.length`) und [LABEL_BG_HPAD] horizontalem Polster
  * dimensioniert. Bei [anchor] == "middle" wird zentriert, bei "start" links-
  * bündig, bei "end" rechtsbündig gerechnet — analog zu SVG `text-anchor`.
+ *
+ * @param maxWidth Optional maximum rendered width in pixels. When the estimated text
+ *   width exceeds this value, SVG `textLength` + `lengthAdjust="spacingAndGlyphs"` are
+ *   added to the `<text>` element so the browser compresses the glyphs to fit. The
+ *   white background rect is also capped to this width. Used by [renderUmlMessage] to
+ *   prevent message labels from overflowing beyond the two lifeline columns.
+ * @param hPad Horizontal padding added to each side of the text estimate when sizing the
+ *   white background rect. Defaults to [LABEL_BG_HPAD]. Pass `0f` for self-call labels
+ *   so the background matches the text width and does not spill into adjacent lifelines.
  */
 private fun drawLabelWithWhiteBackground(
     label: String,
@@ -216,15 +283,18 @@ private fun drawLabelWithWhiteBackground(
     anchor: String,
     builder: SvgBuilder,
     cssClass: String = "kuml-body",
+    maxWidth: Float? = null,
+    hPad: Float = LABEL_BG_HPAD,
 ) {
     val textW = label.length * BODY_CHAR_WIDTH
-    val bgW = textW + 2f * LABEL_BG_HPAD
+    val constrainedW = if (maxWidth != null && textW > maxWidth) maxWidth else textW
+    val bgW = constrainedW + 2f * hPad
     val bgH = BODY_TEXT_ASCENT + BODY_TEXT_DESCENT
     val bgX =
         when (anchor) {
             "middle" -> x - bgW / 2f
             "end" -> x - bgW
-            else -> x - LABEL_BG_HPAD
+            else -> x - hPad
         }
     // y im `<text>` ist die Baseline. Das Rechteck beginnt eine Cap-Höhe
     // darüber und endet knapp unterhalb der Baseline — knapp genug, um
@@ -242,11 +312,19 @@ private fun drawLabelWithWhiteBackground(
             "stroke" to "none",
         ),
     )
-    val attrs =
+    val baseAttrs =
         if (anchor == "start") {
             mapOf("class" to cssClass, "x" to fmt(x), "y" to fmt(y))
         } else {
             mapOf("class" to cssClass, "x" to fmt(x), "y" to fmt(y), "text-anchor" to anchor)
+        }
+    // When the text is wider than the available span, compress it via textLength so it
+    // stays within the lifeline columns instead of overflowing the diagram frame.
+    val attrs =
+        if (maxWidth != null && textW > maxWidth) {
+            baseAttrs + mapOf("textLength" to fmt(maxWidth), "lengthAdjust" to "spacingAndGlyphs")
+        } else {
+            baseAttrs
         }
     builder.tag("text", attrs) { text(label) }
 }
@@ -274,12 +352,15 @@ private fun renderUmlSelfCall(
             ),
         )
         renderOpenArrowheadUml(cx, y + SELF_CALL_H, +8f, this)
+        // hPad = 0f: background exactly matches the text width estimate so it
+        // does not spill into the next lifeline's dashed time-axis column.
         drawLabelWithWhiteBackground(
             label = msg.label,
             x = cx + SELF_CALL_W + 4f,
             y = y - 2f,
             anchor = "start",
             builder = this,
+            hPad = 0f,
         )
     }
 }
@@ -296,8 +377,16 @@ internal fun renderUmlCombinedFragments(
 ) {
     if (visibleLifelineLayouts.isEmpty()) return
     val msgById: Map<String, UmlMessage> = interaction.messages.associateBy { it.id }
-    for (fragment in fragments) {
-        renderUmlFragment(fragment, msgById, visibleLifelineLayouts, builder)
+    val operandFirstSeqs = umlOperandFirstSeqs(fragments, msgById)
+    // Nested fragments (those referenced by any operand's fragmentIds) must be
+    // rendered AFTER their enclosing outer frames so they appear on top in SVG.
+    // Without this sort, a break_ inside loop is added to the flat list BEFORE
+    // the loop (during operand construction), causing the outer LOOP frame to
+    // overwrite the inner BREAK frame visually.
+    val nestedIds = fragments.flatMap { f -> f.operands.flatMap { o -> o.fragmentIds } }.toSet()
+    val renderOrder = fragments.sortedBy { if (it.id in nestedIds) 1 else 0 }
+    for (fragment in renderOrder) {
+        renderUmlFragment(fragment, msgById, visibleLifelineLayouts, builder, operandFirstSeqs)
     }
 }
 
@@ -306,6 +395,7 @@ private fun renderUmlFragment(
     msgById: Map<String, UmlMessage>,
     visibleLifelineLayouts: List<NodeLayout>,
     builder: SvgBuilder,
+    operandFirstSeqs: List<Int>,
 ) {
     if (fragment.operands.isEmpty()) return
     // Determine min/max seqNo covered by this fragment
@@ -324,27 +414,35 @@ private fun renderUmlFragment(
 
     val frameX = minLifelineX - FRAGMENT_PADDING_H
     val frameW = (maxLifelineX - minLifelineX) + 2f * FRAGMENT_PADDING_H
-    // UML-Pfeil-Y für Sequenz n: `headBottom + n * SEQ_ROW_HEIGHT`. Frame-Top
-    // 24 px ÜBER dem ersten enthaltenen Pfeil, Frame-Bottom 8 px UNTER dem
-    // letzten enthaltenen Pfeil — asymmetrisch wegen Label-Position-Über-Pfeil
-    // (siehe KDoc von FRAGMENT_TOP_OUTSET / FRAGMENT_BOTTOM_OUTSET).
-    val frameY = headBottom + minSeq * SEQ_ROW_HEIGHT - FRAGMENT_TOP_OUTSET
-    val frameBottom = headBottom + maxSeq * SEQ_ROW_HEIGHT + FRAGMENT_BOTTOM_OUTSET
+    // Rendered Y of a message = headBottom + seq * ROW + fragment-header offset.
+    // The first message of this fragment (operand 0) is pushed down by exactly
+    // one FRAGMENT_HEADER_BAND (its own operand's band), which creates the clear
+    // corridor between the pentagon/guard row and that first arrow.
+    val firstMsgY = headBottom + minSeq * SEQ_ROW_HEIGHT + umlSeqRowOffset(minSeq, operandFirstSeqs)
+    val lastMsgY = headBottom + maxSeq * SEQ_ROW_HEIGHT + umlSeqRowOffset(maxSeq, operandFirstSeqs)
+    // Pentagon top sits FRAGMENT_HEADER_BAND + 13 above the first arrow so the
+    // guard (drawn at frameY + FRAGMENT_TAG_H/2 + 4) clears the first message
+    // label. Frame bottom keeps the small asymmetric outset below the last arrow.
+    val frameY = firstMsgY - FRAGMENT_HEADER_BAND - 13f
+    val frameBottom = lastMsgY + FRAGMENT_BOTTOM_OUTSET
     val frameH = frameBottom - frameY
 
+    // BREAK frames: solid border + subtle fill so they visually stand out inside
+    // an enclosing loop/alt frame that uses a dashed border.  All other operators
+    // keep the standard dashed-border / transparent style.
+    val isBreak = fragment.operator == InteractionOperator.BREAK
     builder.tag("g", mapOf("id" to xmlEscapeAttr(fragment.id))) {
-        tag(
-            "rect",
-            mapOf(
-                "x" to fmt(frameX),
-                "y" to fmt(frameY),
-                "width" to fmt(frameW),
-                "height" to fmt(frameH),
-                "class" to "kuml-class",
-                "fill" to "none",
-                "stroke-dasharray" to "6 4",
-            ),
-        )
+        val rectAttrs =
+            buildMap {
+                put("x", fmt(frameX))
+                put("y", fmt(frameY))
+                put("width", fmt(frameW))
+                put("height", fmt(frameH))
+                put("class", "kuml-class")
+                put("fill", if (isBreak) "#eef6ff" else "none")
+                if (!isBreak) put("stroke-dasharray", "6 4")
+            }
+        tag("rect", rectAttrs)
         val tagX = frameX
         val tagY = frameY
         val notch = 6f
@@ -373,28 +471,36 @@ private fun renderUmlFragment(
         for ((index, operand) in fragment.operands.withIndex()) {
             val opMsgSeqs = operand.messageIds.mapNotNull { msgById[it]?.sequence }
             val opMinSeq = opMsgSeqs.minOrNull()
+            val opMaxSeq = opMsgSeqs.maxOrNull()
+            // Rendered Y of the operand's last message row (incl. header offset).
+            val opBottomY =
+                if (opMaxSeq != null) {
+                    headBottom + opMaxSeq * SEQ_ROW_HEIGHT +
+                        umlSeqRowOffset(opMaxSeq, operandFirstSeqs) + FRAGMENT_BOTTOM_OUTSET
+                } else {
+                    null
+                }
             val guardY: Float
             if (index == 0) {
-                // V3.0.x: Guard sits BELOW the ALT pentagon (not next to it) and
-                // an extra +10 below the pentagon's bottom so the body-text
-                // ascenders clear the pentagon outline. Together with the wider
-                // FRAGMENT_PADDING (24) this keeps `[valid]` clear of the
-                // leftmost lifeline's dashed time axis.
-                guardY = tagY + FRAGMENT_TAG_H + 14f
-                val opMaxSeq = opMsgSeqs.maxOrNull()
-                if (opMaxSeq != null) {
-                    prevOperandBottom = headBottom + (opMaxSeq + 0.5f) * SEQ_ROW_HEIGHT
-                }
+                // Guard sits inline with the pentagon keyword (frameY + 13). With
+                // frameY = firstMsgY − FRAGMENT_HEADER_BAND − 13, this puts the
+                // guard exactly one header band above the first arrow — a clear
+                // corridor, so neither a normal arrow nor a self-call arm covers it.
+                guardY = tagY + FRAGMENT_TAG_H / 2f + 4f
+                if (opBottomY != null) prevOperandBottom = opBottomY
             } else {
-                // V2.0.44: use max(computed sep, prevOperandBottom + gap) so guards
-                // of empty operands don't overlap with messages of the previous one.
+                // Each non-first operand's first message is pushed down by its own
+                // header band, opening a (row + band) gap above it. Place the
+                // separator one band + 12 px above that first arrow, and the guard
+                // 12 px below the separator — mirroring the operand-0 corridor.
                 val computedSepY =
                     if (opMinSeq != null) {
-                        headBottom + (opMinSeq - 0.5f) * SEQ_ROW_HEIGHT
+                        headBottom + opMinSeq * SEQ_ROW_HEIGHT +
+                            umlSeqRowOffset(opMinSeq, operandFirstSeqs) - FRAGMENT_HEADER_BAND - 12f
                     } else {
                         prevOperandBottom
                     }
-                val sepY = maxOf(computedSepY, prevOperandBottom + 4f)
+                val sepY = maxOf(computedSepY, prevOperandBottom + 8f)
                 // Draw separator line
                 tag(
                     "line",
@@ -408,36 +514,33 @@ private fun renderUmlFragment(
                     ),
                 )
                 guardY = sepY + 12f
-                val opMaxSeq = opMsgSeqs.maxOrNull()
-                prevOperandBottom =
-                    if (opMaxSeq != null) {
-                        headBottom + (opMaxSeq + 0.5f) * SEQ_ROW_HEIGHT
-                    } else {
-                        guardY + 4f
-                    }
+                prevOperandBottom = opBottomY ?: (guardY + 4f)
             }
             val guard = operand.guard
             if (guard != null) {
-                // V3.0.11: idempotent bracket-wrapping. Authors may write
-                // `guard = "valid"` (DSL adds brackets) or `guard = "[valid]"`
-                // (DSL passes through). Both must render as `[valid]`, not
-                // `[[valid]]`. Trim first so `" [valid] "` is also recognised.
+                // V3.0.11: idempotent bracket-wrapping.
                 val trimmed = guard.trim()
                 val displayGuard =
                     if (trimmed.startsWith("[") && trimmed.endsWith("]")) trimmed else "[$trimmed]"
-                // V3.0.x: Guard sits at the LEFT edge of the frame instead of
-                // hanging off the right side of the ALT pentagon. With the
-                // wider FRAGMENT_PADDING the guard text now lives in the
-                // breathing room left of the leftmost lifeline — its dashed
-                // time-axis no longer crosses through the brackets.
-                // A white background covers any dashed line that still passes
-                // under the text (e.g. the operand-separator).
+                // Index-0 guard lives to the RIGHT of the pentagon keyword label
+                // (same Y as the keyword centre).  This keeps it above the first
+                // message arrow and gives it the full remaining frame width.
+                // Subsequent-operand guards sit at the left of the frame, just
+                // below their separator line — unchanged from before.
+                val guardX = if (index == 0) frameX + FRAGMENT_TAG_W + 4f else frameX + 4f
+                val guardMaxWidth =
+                    if (index == 0) {
+                        (frameW - FRAGMENT_TAG_W - 8f).coerceAtLeast(20f)
+                    } else {
+                        (frameW - 8f).coerceAtLeast(20f)
+                    }
                 drawLabelWithWhiteBackground(
                     label = displayGuard,
-                    x = frameX + 4f,
+                    x = guardX,
                     y = guardY,
                     anchor = "start",
                     builder = this,
+                    maxWidth = guardMaxWidth,
                 )
             }
         }
@@ -451,12 +554,14 @@ private fun renderFilledArrowheadUml(
     builder: SvgBuilder,
 ) {
     val baseX = tipX + baseDx
+    // Use kuml-seq-arrow-filled instead of kuml-edge: `.kuml-edge { fill: none }` has
+    // higher CSS specificity than the `fill="currentColor"` presentation attribute and
+    // would override it, causing the arrowhead to appear hollow.
     builder.tag(
         "polygon",
         mapOf(
             "points" to "${fmt(tipX)},${fmt(y)} ${fmt(baseX)},${fmt(y - 4f)} ${fmt(baseX)},${fmt(y + 4f)}",
-            "class" to "kuml-edge",
-            "fill" to "currentColor",
+            "class" to "kuml-seq-arrow-filled",
         ),
     )
 }

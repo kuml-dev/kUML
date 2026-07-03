@@ -796,6 +796,10 @@ public object KumlSvgRenderer {
                 visibleIds,
                 shiftedLayouts,
                 edgesBuilder,
+                dev.kuml.io.svg.uml.umlOperandFirstSeqs(
+                    interaction.fragments,
+                    interaction.messages.associateBy { it.id },
+                ),
             )
 
             // 5. V0.23.1 — UML Comments. Sequence diagrams route lifelines
@@ -1643,15 +1647,6 @@ public object KumlSvgRenderer {
         // weitergereicht; die `bounds.origin.y` der LayoutNode bleibt für alle
         // Lifelines konstant (= padding), damit die Y-Referenz der Messages
         // (`srcLayout.bounds.origin.y + HEAD_HEIGHT`) gleichmäßig bleibt.
-        val createOffsetById: Map<String, Float> =
-            messages
-                .asSequence()
-                .filter { it.kind == MessageKind.Create && it.targetLifelineId in visibleIds }
-                .associate {
-                    it.targetLifelineId to
-                        (it.seqNo + 1) *
-                        dev.kuml.io.svg.sysml2.SYSML2_SEQ_MESSAGE_ROW_HEIGHT
-                }
         // V2.0.15: Combined Fragments + Execution Specs — auch renderer-direkt
         // (analog zu Messages, keine LayoutGraph-Edges). Werden vor den
         // Messages gezeichnet, damit Message-Pfeile visuell über
@@ -1661,6 +1656,22 @@ public object KumlSvgRenderer {
             model.usages
                 .filterIsInstance<dev.kuml.sysml2.ExecutionSpecificationUsage>()
                 .filter { it.lifelineId in visibleIds }
+        // Fragment-Header-Bänder: jeder Operand reserviert vertikalen Freiraum
+        // über seiner ersten Nachricht (Guard-Sichtbarkeit). Der kumulative
+        // Offset wird an ALLE seqNo→Y-Konsumenten durchgereicht (Messages,
+        // Execution Specs, Fragment-Frames UND den Create-Kopf-Offset), damit
+        // Pfeile, Aktivierungs-Bars und Rahmen synchron bleiben.
+        val operandStartSeqs = dev.kuml.io.svg.sysml2.sysml2OperandStartSeqs(fragments)
+        val createOffsetById: Map<String, Float> =
+            messages
+                .asSequence()
+                .filter { it.kind == MessageKind.Create && it.targetLifelineId in visibleIds }
+                .associate {
+                    it.targetLifelineId to
+                        (it.seqNo + 1) *
+                        dev.kuml.io.svg.sysml2.SYSML2_SEQ_MESSAGE_ROW_HEIGHT +
+                        dev.kuml.io.svg.sysml2.sysml2SeqRowOffset(it.seqNo, operandStartSeqs)
+                }
 
         // V3.0.x: Wenn Fragments existieren, ragt der Frame FRAGMENT_PADDING
         // links und rechts über die äußersten Lifelines hinaus. Das Default-
@@ -1728,6 +1739,7 @@ public object KumlSvgRenderer {
                     fragment = fragment,
                     visibleLifelineLayouts = visibleLifelineLayouts,
                     builder = nodesBuilder,
+                    operandStartSeqs = operandStartSeqs,
                 )
             }
 
@@ -1761,7 +1773,7 @@ public object KumlSvgRenderer {
             for (es in execSpecs) {
                 val lifelineLayout = shiftedLayouts[NodeId(es.lifelineId)] ?: continue
                 dev.kuml.io.svg.sysml2
-                    .renderExecutionSpec(es, lifelineLayout, edgesBuilder)
+                    .renderExecutionSpec(es, lifelineLayout, edgesBuilder, operandStartSeqs)
             }
 
             // 5. Direkt-Render der Nachrichten — siehe Architektur-Divergenz
@@ -1774,6 +1786,7 @@ public object KumlSvgRenderer {
                 visibleLifelineIds = visibleIds,
                 nodeLayouts = shiftedLayouts,
                 builder = edgesBuilder,
+                operandStartSeqs = operandStartSeqs,
             )
         }
     }

@@ -337,6 +337,19 @@ public object Sysml2LayoutBridge {
     public const val SEQ_LIFELINE_TAIL_PADDING: Float = 40f
 
     /**
+     * Zusätzlicher vertikaler Freiraum pro Combined-Fragment-Operand, der über
+     * dessen erster Nachricht reserviert wird, damit der Operand-Guard (bzw. das
+     * Fragment-Pentagon) nicht vom Label der ersten Nachricht überdeckt wird.
+     *
+     * Die Gesamthöhe einer Lifeline wächst um `nichtLeereOperandenAnzahl *
+     * SEQ_FRAGMENT_HEADER_BAND`, damit die eingefügten Bänder nicht abgeschnitten
+     * werden. Dieser Wert MUSS mit `FRAGMENT_HEADER_BAND` in `UmlSequenceSvg`
+     * bzw. dem entsprechenden Wert in `Sysml2SequenceSvg` (kuml-io-svg) synchron
+     * bleiben.
+     */
+    public const val SEQ_FRAGMENT_HEADER_BAND: Float = 24f
+
+    /**
      * Content-aware [SizeProvider] for BDD nodes. Computes node height from
      * the number of features and node **width** from the longest text line
      * (stereotype / name / feature-body), so that long German compound names
@@ -1283,9 +1296,19 @@ public object Sysml2LayoutBridge {
         //    `maxSeqNo + 1` Zeilen Platz (eine pro Nachricht), `+1` zusätzlich
         //    für den Abstand zwischen Kopf und erster Nachricht.
         val rowCount: Int = if (maxSeqNo < 0) 0 else maxSeqNo + 1
+        // Jeder Combined-Fragment-Operand reserviert ein Header-Band vertikalen
+        // Freiraum über seiner ersten Nachricht (Guard-Sichtbarkeit — siehe
+        // SYSML2_FRAGMENT_HEADER_BAND im Sysml2SequenceSvg-Renderer). Die
+        // Lifeline-Höhe wächst um die Summe, damit die Bänder nicht abgeschnitten
+        // werden.
+        val operandBandCount: Int =
+            model.usages
+                .filterIsInstance<CombinedFragmentUsage>()
+                .sumOf { it.operands.size }
         val lifelineHeight: Float =
             SEQ_LIFELINE_HEAD_HEIGHT +
                 (rowCount + 1) * SEQ_MESSAGE_ROW_HEIGHT +
+                operandBandCount * SEQ_FRAGMENT_HEADER_BAND +
                 SEQ_LIFELINE_TAIL_PADDING
 
         // 4. LayoutNodes für die sichtbaren Lifelines — Breite vom SizeProvider,

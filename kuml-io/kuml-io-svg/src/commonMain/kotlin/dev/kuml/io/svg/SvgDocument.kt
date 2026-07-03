@@ -174,6 +174,11 @@ internal object SvgDocument {
                 append(" font-size: ${tvFontSize}px; font-style: italic;")
                 append(" fill: ${c.muted.toHex()}; }\n")
                 append(".kuml-edge { stroke: ${c.edge.toHex()}; stroke-width: ${bo.regularPx}; fill: none; }\n")
+                // Sequence diagram filled arrowhead (SYNC_CALL / CREATE). A separate class
+                // is required because `.kuml-edge { fill: none }` has higher CSS specificity
+                // than SVG presentation attributes, so `fill="currentColor"` on the polygon
+                // would be overridden. This class explicitly sets fill to the edge colour.
+                append(".kuml-seq-arrow-filled { stroke: ${c.edge.toHex()}; stroke-width: ${bo.regularPx}; fill: ${c.edge.toHex()}; }\n")
                 append(
                     ".kuml-edge-dashed { stroke: ${c.edgeMuted.toHex()}; stroke-width: ${bo.regularPx};" +
                         " fill: none; stroke-dasharray: 8 4; }\n",
