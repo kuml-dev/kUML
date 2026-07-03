@@ -156,6 +156,13 @@ internal object SvgDocument {
                 append(" fill: ${c.foreground.toHex()}; }\n")
                 append(".kuml-small { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
                 append(" fill: ${c.muted.toHex()}; }\n")
+                // V0.23.2 — Halo for small endpoint labels (multiplicity, role names on
+                // association ends, link role names). Mirrors the kuml-edge-label-halo
+                // two-pass technique: drawn before the fill text so the background-
+                // coloured stroke clears the edge polyline underneath.
+                append(".kuml-small-halo { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" fill: ${c.background.toHex()}; stroke: ${c.background.toHex()};")
+                append(" stroke-width: 3px; stroke-linejoin: round; }\n")
                 // V2.0.46 — Edge label: two-pass rendering. `kuml-edge-label-halo` is
                 // a thicker stroked version drawn first (renderer emits two <text>
                 // elements). Batik's `paint-order: stroke` is unreliable in 1.x — the

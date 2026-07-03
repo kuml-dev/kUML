@@ -6,6 +6,33 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.23.2] — 2026-07-03
+
+### Fixed
+
+**UML edge labels: halo rendering for association role names, multiplicity and dependency labels**
+
+Labels on UML class-diagram edges — association role names (`role = "orders"`, `role = "items"`),
+multiplicity labels (`0..*`, `1..*`) and dependency/connector names (`"notifies"`, `"«include»"`,
+`"«extend»"`) — were emitted as a single `<text>` element without the two-pass halo that C4 and
+BPMN edges already use. When the edge polyline crossed or ran directly through the label glyph
+run, the stroke was visible through the text, making it hard to read — particularly in the
+Order-Domain sample (`01 UML Klasse – Order Domain`) reported visually in the Obsidian plugin.
+
+Fix: three changes in `UmlEdgesSvg.kt` and one CSS addition in `SvgDocument.kt`:
+
+* `renderEdgeLabel` (mid-edge labels) now delegates to `renderEdgeLabelWithHalo`, emitting the
+  `kuml-edge-label-halo` background pass before the visible `kuml-edge-label` text — identical to
+  what C4 interaction edges and BPMN message flows already do.
+* `endpointLabel` (source/target-end multiplicity and role names) now emits a `kuml-small-halo`
+  background element before the `kuml-small` label text. A matching CSS class is added to
+  `SvgDocument.buildDefs` with the same stroke technique as `kuml-edge-label-halo`.
+* `renderUmlLink` source/target role labels are refactored to use `endpointLabel` (removing the
+  inline duplication), picking up the halo for free.
+
+The fix is Batik-safe (no `paint-order` reliance): the halo is always a separate preceding sibling
+`<text>` element in z-order, identical to the Graphviz `xlabel` technique used elsewhere in kUML.
+
 ## [0.23.1] — 2026-07-03
 
 ### Added

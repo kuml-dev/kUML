@@ -6,6 +6,7 @@ import dev.kuml.io.svg.EdgePathBuilder
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.arrowDirection
 import dev.kuml.io.svg.fmt2
+import dev.kuml.io.svg.renderEdgeLabelWithHalo
 import dev.kuml.io.svg.renderInlineArrow
 import dev.kuml.io.svg.sourceArrowDirection
 import dev.kuml.layout.EdgeRoute
@@ -128,17 +129,24 @@ internal fun renderUmlAssociation(
     }
 }
 
-/** Renders a small endpoint label (multiplicity or role) centred at [x], [y]. */
+/**
+ * Renders a small endpoint label (multiplicity or role) centred at [x], [y].
+ *
+ * V0.23.2 — two-pass halo rendering: a `kuml-small-halo` element (background-
+ * coloured stroke) is drawn first, then the visible `kuml-small` fill text.
+ * This keeps role names ("orders", "items") and multiplicity labels ("0..*",
+ * "1..*") readable when the association/link polyline passes directly through
+ * or near the label position.
+ */
 private fun endpointLabel(
     builder: SvgBuilder,
     x: Float,
     y: Float,
     label: String,
 ) {
-    builder.tag(
-        "text",
-        mapOf("class" to "kuml-small", "x" to fmt(x), "y" to fmt(y), "text-anchor" to "middle"),
-    ) { text(label) }
+    val attrs = mapOf("x" to fmt(x), "y" to fmt(y), "text-anchor" to "middle")
+    builder.tag("text", mapOf("class" to "kuml-small-halo") + attrs) { text(label) }
+    builder.tag("text", mapOf("class" to "kuml-small") + attrs) { text(label) }
 }
 
 /** Returns a multiplicity label string, or null if the multiplicity is the trivial "1". */
@@ -303,29 +311,22 @@ internal fun routeLabelMid(route: EdgeRoute): Pair<Float, Float> {
  * [overrideY] erlaubt es dem Aufrufer, die Y-Position zu überschreiben — z.B.
  * wenn ein Stereotyp-Label bereits direkt über dem Namen gerendert wurde.
  *
- * V2.0.46 — Label nutzt jetzt die `kuml-edge-label`-Klasse (mit Halo) und
- * sitzt auf der echten Polyline-Mitte.
+ * V2.0.46 — Label sitzt auf der echten Polyline-Mitte.
+ * V0.23.2 — nutzt [renderEdgeLabelWithHalo] (zwei `<text>`-Elemente) statt
+ * eines einzelnen `<text class="kuml-edge-label">`. Damit werden Assoziations-
+ * namen ("notifies"), Abhängigkeitsnamen und UC-Stereotypen ("«include»",
+ * "«extend»") lesbar, wenn der Kantenstrich genau durch die Label-Mitte läuft.
  */
 private fun renderEdgeLabel(
     label: String,
     route: EdgeRoute,
-    theme: KumlTheme,
+    @Suppress("UNUSED_PARAMETER") theme: KumlTheme,
     builder: SvgBuilder,
     overrideY: Float? = null,
 ) {
     val (mx, defaultMy) = routeLabelMid(route)
     val my = overrideY ?: defaultMy
-    builder.tag(
-        "text",
-        mapOf(
-            "class" to "kuml-edge-label",
-            "x" to fmt(mx),
-            "y" to fmt(my),
-            "text-anchor" to "middle",
-        ),
-    ) {
-        text(label)
-    }
+    builder.renderEdgeLabelWithHalo(label, mx, my, "middle")
 }
 
 /**
@@ -354,32 +355,22 @@ internal fun renderUmlLink(
 
     rel.sourceRoleName?.let { label ->
         val (tx, ty) = EdgeLabelGeometry.sourceSegmentTangent(route)
-        val lx = route.source.x + tx * margin - ty * perpOff
-        val ly = route.source.y + ty * margin + tx * perpOff
-        builder.tag(
-            "text",
-            mapOf(
-                "class" to "kuml-small",
-                "x" to fmt(lx),
-                "y" to fmt(ly),
-                "text-anchor" to "middle",
-            ),
-        ) { text(label) }
+        endpointLabel(
+            builder,
+            route.source.x + tx * margin - ty * perpOff,
+            route.source.y + ty * margin + tx * perpOff,
+            label,
+        )
     }
 
     rel.targetRoleName?.let { label ->
         val (tx, ty) = EdgeLabelGeometry.targetSegmentTangent(route)
-        val lx = route.target.x - tx * margin - ty * perpOff
-        val ly = route.target.y - ty * margin + tx * perpOff
-        builder.tag(
-            "text",
-            mapOf(
-                "class" to "kuml-small",
-                "x" to fmt(lx),
-                "y" to fmt(ly),
-                "text-anchor" to "middle",
-            ),
-        ) { text(label) }
+        endpointLabel(
+            builder,
+            route.target.x - tx * margin - ty * perpOff,
+            route.target.y - ty * margin + tx * perpOff,
+            label,
+        )
     }
 }
 
