@@ -29,6 +29,8 @@ package dev.kuml.uml.ids
  * | Include                  | `include::Checkout..>ValidateCart`      |
  * | Extend                   | `extend::Checkout..>ApplyDiscount`      |
  * | Connector                | `conn::portA--portB`                    |
+ * | Comment (note)           | `note::1`                                |
+ * | Comment link (anchor)    | `noteanchor::note::1--Order`            |
  *
  * ## User override
  *
@@ -235,6 +237,33 @@ object UmlIds {
         val base = "$stateMachineId${SEP}t$SEP$sourceName->$targetName"
         return if (disambiguationIndex != null) "$base#$disambiguationIndex" else base
     }
+
+    // ── Comments ──────────────────────────────────────────────────────────────
+
+    /**
+     * ID for a [dev.kuml.uml.UmlComment].
+     *
+     * Comments have no qualified name to derive an ID from (no `name`
+     * property), so a 1-based [index] within the enclosing diagram is used
+     * instead — analogous to [message] and [fragment] for interactions.
+     *
+     * `note("ClassDiagram", 1)` → `"ClassDiagram::note::1"`
+     */
+    fun comment(
+        diagramId: String,
+        index: Int,
+    ): String = "$diagramId${SEP}note$SEP$index"
+
+    /**
+     * ID for a [dev.kuml.uml.UmlCommentLink].
+     *
+     * `commentLink("ClassDiagram::note::1", "Order")`
+     * // → "noteanchor::ClassDiagram::note::1--Order"
+     */
+    fun commentLink(
+        commentId: String,
+        annotatedElementId: String,
+    ): String = "noteanchor$SEP$commentId--$annotatedElementId"
 
     // ── Collision handling ────────────────────────────────────────────────────
 

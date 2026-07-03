@@ -133,6 +133,17 @@ class UmlIdsTest :
                 "PlaceOrder::frag::1"
         }
 
+        // ── comment IDs ───────────────────────────────────────────────────────────
+
+        test(name = "comment ID uses diagram prefix and note segment with 1-based index") {
+            UmlIds.comment(diagramId = "OrderClasses", index = 1) shouldBe "OrderClasses::note::1"
+        }
+
+        test(name = "comment link ID uses noteanchor prefix and -- notation") {
+            UmlIds.commentLink(commentId = "OrderClasses::note::1", annotatedElementId = "Order") shouldBe
+                "noteanchor::OrderClasses::note::1--Order"
+        }
+
         // ── state machine IDs ─────────────────────────────────────────────────────
 
         test(name = "vertex ID is stateMachineId :: name") {

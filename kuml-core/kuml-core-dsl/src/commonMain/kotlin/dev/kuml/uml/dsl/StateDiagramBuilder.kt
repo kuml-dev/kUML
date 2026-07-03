@@ -11,6 +11,8 @@ import dev.kuml.profile.KumlProfile
 import dev.kuml.profile.KumlStereotypeApplication
 import dev.kuml.profile.UmlMetaclass
 import dev.kuml.uml.AppliedStereotype
+import dev.kuml.uml.UmlComment
+import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlStateMachine
 import dev.kuml.uml.UmlTransition
@@ -49,6 +51,8 @@ class StateDiagramBuilder(
     private val transitions = mutableListOf<UmlTransition>()
     private val appliedProfilesList = mutableListOf<KumlProfile>()
     private val stateMachineAppliedStereotypes = mutableListOf<KumlStereotypeApplication>()
+    private val comments = mutableListOf<UmlComment>()
+    private val commentLinks = mutableListOf<UmlCommentLink>()
 
     // State machine properties
     var stateMachineVisibility: Visibility = Visibility.PUBLIC
@@ -92,6 +96,14 @@ class StateDiagramBuilder(
     /** State diagrams don't own named elements — this is a no-op (states are UmlVertex, not UmlNamedElement). */
     override fun addNamedElement(element: UmlNamedElement) = Unit
 
+    override fun addComment(comment: UmlComment) {
+        comments += comment
+    }
+
+    override fun addCommentLink(link: UmlCommentLink) {
+        commentLinks += link
+    }
+
     fun build(): KumlDiagram {
         val sm =
             UmlStateMachine(
@@ -112,7 +124,7 @@ class StateDiagramBuilder(
         return KumlDiagram(
             name = name,
             type = DiagramType.STATE,
-            elements = listOf(sm),
+            elements = listOf(sm) + comments + commentLinks,
             metadata = meta,
             config =
                 StateDiagramConfig(

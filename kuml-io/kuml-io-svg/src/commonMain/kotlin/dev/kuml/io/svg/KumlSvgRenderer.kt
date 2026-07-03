@@ -797,6 +797,37 @@ public object KumlSvgRenderer {
                 shiftedLayouts,
                 edgesBuilder,
             )
+
+            // 5. V0.23.1 — UML Comments. Sequence diagrams route lifelines
+            //    through UmlLayoutBridge → ELK like any other diagram type, so
+            //    UmlComment elements placed in diagram.elements already have a
+            //    computed position in layoutResult.nodes. UmlCommentLink edges
+            //    likewise already have a computed route in layoutResult.edges
+            //    (EndpointResolver handles UmlCommentLink like any other
+            //    relationship). Only the comment box + dashed anchor line need
+            //    a render call here — everything else came for free from the
+            //    generic layout pipeline.
+            val commentsById = diagram.elements.filterIsInstance<dev.kuml.uml.UmlComment>().associateBy { it.id }
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val comment = commentsById[nodeId.value] ?: continue
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                NodeRendererDispatcher.dispatch(comment, shifted, theme, nodesBuilder)
+            }
+            val commentLinks = diagram.elements.filterIsInstance<dev.kuml.uml.UmlCommentLink>()
+            for (link in commentLinks) {
+                val route = layoutResult.edges[dev.kuml.layout.EdgeId(link.id)] ?: continue
+                EdgeRendererDispatcher.dispatch(link, shiftRoute(route, padding), theme, edgesBuilder)
+            }
         }
     }
 
@@ -983,6 +1014,33 @@ public object KumlSvgRenderer {
                         labelStackIndex = stmStackIndices[edgeId] ?: 0,
                         overrideLabelAnchor = backEdgeLabelAnchor,
                     )
+            }
+
+            // 4. V0.23.1 — UML Comments. Same rationale as in renderUmlSequence:
+            //    UmlLayoutBridge lays out UmlComment nodes and UmlCommentLink
+            //    edges for STATE diagrams exactly like it does for CLASS
+            //    diagrams — this loop just needs to render what ELK already
+            //    positioned.
+            val commentsById = diagram.elements.filterIsInstance<dev.kuml.uml.UmlComment>().associateBy { it.id }
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val comment = commentsById[nodeId.value] ?: continue
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                NodeRendererDispatcher.dispatch(comment, shifted, theme, nodesBuilder)
+            }
+            val commentLinks = diagram.elements.filterIsInstance<dev.kuml.uml.UmlCommentLink>()
+            for (link in commentLinks) {
+                val route = layoutResult.edges[dev.kuml.layout.EdgeId(link.id)] ?: continue
+                EdgeRendererDispatcher.dispatch(link, shiftRoute(route, padding), theme, edgesBuilder)
             }
         }
     }

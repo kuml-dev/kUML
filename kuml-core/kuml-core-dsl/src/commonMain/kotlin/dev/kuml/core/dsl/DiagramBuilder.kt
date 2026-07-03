@@ -4,6 +4,7 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
 import dev.kuml.profile.KumlProfile
+import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlRelationship
 import dev.kuml.uml.dsl.UmlModelScope
@@ -36,6 +37,11 @@ class DiagramBuilder(
     override fun addRelationship(relationship: UmlRelationship) {
         elements += relationship
         takenIds += relationship.id
+    }
+
+    override fun addComment(comment: UmlComment) {
+        elements += comment
+        takenIds += comment.id
     }
 
     override fun addAppliedProfile(profile: KumlProfile) {

@@ -91,6 +91,13 @@ classDiagram(name = "Order Domain") {
         source { multiplicity(spec = "1") }
         target { multiplicity(spec = "1..*"); role = "items" }
     }
+
+    // UML-Notiz (Comment): Freitext-Kasten mit gefalteter Ecke, per gestrichelter
+    // Linie an ein Element angehängt — hier an Order.
+    comment(
+        text = "Encapsulates the full order lifecycle from placement to fulfillment.",
+        firstAnchor = order,
+    )
 }
 ```
 
@@ -113,6 +120,7 @@ classDiagram(name = "Order Domain") {
 | `aggregation = AggregationKind.COMPOSITE` | Macht aus einer Assoziation eine **Komposition** (gefüllte Raute). `SHARED` für Aggregation, `NONE` für reine Assoziation. |
 | `source { multiplicity(spec = "1"); navigable = false }` | Multiplizität am Quellenende; `navigable = false` blendet den Navigationspfeil an diesem Ende aus. |
 | `target { multiplicity(spec = "0..*"); role = "orders" }` | Multiplizität plus Rollen-Name am Zielende. |
+| `comment(text = …, firstAnchor = …)` | **Notiz** (UML Comment/Note) — Freitext-Kasten mit gefalteter oberer rechter Ecke, per gestrichelter Linie an ein oder mehrere Elemente angehängt. Ohne Anker eine frei stehende Notiz. Aktuell nur für Klassen-, Sequenz- und Zustandsdiagramme verfügbar (v0.23.1). |
 
 ## Beziehungen im Überblick
 

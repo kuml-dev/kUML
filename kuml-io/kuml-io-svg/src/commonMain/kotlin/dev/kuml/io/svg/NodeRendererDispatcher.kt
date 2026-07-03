@@ -33,6 +33,7 @@ import dev.kuml.io.svg.uml.renderUmlActivityNode
 import dev.kuml.io.svg.uml.renderUmlActor
 import dev.kuml.io.svg.uml.renderUmlArtifact
 import dev.kuml.io.svg.uml.renderUmlClass
+import dev.kuml.io.svg.uml.renderUmlComment
 import dev.kuml.io.svg.uml.renderUmlCollaboration
 import dev.kuml.io.svg.uml.renderUmlComponent
 import dev.kuml.io.svg.uml.renderUmlEnum
@@ -57,6 +58,7 @@ import dev.kuml.uml.UmlActor
 import dev.kuml.uml.UmlArtifact
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlCollaboration
+import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlEnumeration
 import dev.kuml.uml.UmlFinalState
@@ -110,6 +112,7 @@ internal object NodeRendererDispatcher {
     ) {
         when (element) {
             is UmlClass -> renderUmlClass(element, layout, theme, builder)
+            is UmlComment -> renderUmlComment(element, layout, theme, builder)
             is UmlInterface -> renderUmlInterface(element, layout, theme, builder)
             is UmlEnumeration -> renderUmlEnum(element, layout, theme, builder)
             is UmlComponent -> renderUmlComponent(element, layout, theme, builder)

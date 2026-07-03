@@ -90,6 +90,10 @@ public val UmlSerializersModule: SerializersModule =
             subclass(UmlInterfaceRealization::class, UmlInterfaceRealization.serializer())
             subclass(UmlDependency::class, UmlDependency.serializer())
 
+            // Comments (V0.23.1)
+            subclass(UmlComment::class, UmlComment.serializer())
+            subclass(UmlCommentLink::class, UmlCommentLink.serializer())
+
             // Use cases
             subclass(UmlActor::class, UmlActor.serializer())
             subclass(UmlUseCase::class, UmlUseCase.serializer())

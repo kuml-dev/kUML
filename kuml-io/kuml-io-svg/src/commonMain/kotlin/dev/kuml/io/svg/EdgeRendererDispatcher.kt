@@ -9,6 +9,7 @@ import dev.kuml.io.svg.bpmn.edge.renderBpmnSequenceFlow
 import dev.kuml.io.svg.c4.renderC4Relationship
 import dev.kuml.io.svg.uml.renderUmlActivityEdge
 import dev.kuml.io.svg.uml.renderUmlAssociation
+import dev.kuml.io.svg.uml.renderUmlCommentLink
 import dev.kuml.io.svg.uml.renderUmlConnector
 import dev.kuml.io.svg.uml.renderUmlDependency
 import dev.kuml.io.svg.uml.renderUmlExtend
@@ -20,6 +21,7 @@ import dev.kuml.layout.EdgeRoute
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlExtend
@@ -59,6 +61,7 @@ internal object EdgeRendererDispatcher {
             is UmlExtend -> renderUmlExtend(relationship, route, theme, builder)
             is UmlLink -> renderUmlLink(relationship, route, theme, builder)
             is UmlActivityEdge -> renderUmlActivityEdge(relationship, route, theme, builder)
+            is UmlCommentLink -> renderUmlCommentLink(route, builder)
             is C4Relationship -> renderC4Relationship(relationship, route, theme, builder)
             // BPMN — V3.1.3
             is SequenceFlow -> renderBpmnSequenceFlow(relationship, route, builder, theme)

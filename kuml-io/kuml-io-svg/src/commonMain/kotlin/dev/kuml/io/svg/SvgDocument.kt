@@ -139,6 +139,14 @@ internal object SvgDocument {
                 // `.kuml-class`: Node-Fill + regulärer Border.
                 append(".kuml-instance { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
+                // V0.23.1 — UML Comment/Note. Same fill/border convention as
+                // `.kuml-class`; the folded corner ("dog-ear") gets its own class
+                // so future themes can style the fold distinctly if desired
+                // (e.g. a subtle shadow) without touching the outline stroke.
+                append(".kuml-comment { fill: $nodeFill; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-comment-fold { fill: none; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.thinPx}; }\n")
                 append(".kuml-title { font-family: ${ty.title.family}; font-size: ${ty.title.sizePt}px;")
                 append(" font-weight: ${ty.title.weight}; fill: ${c.foreground.toHex()}; }\n")
                 append(".kuml-title-abstract { font-style: italic; }\n")

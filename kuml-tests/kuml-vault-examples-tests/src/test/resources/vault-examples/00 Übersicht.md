@@ -165,6 +165,32 @@ Diese Playground-Beispiele leben aktuell nur im Webseiten-Repo und haben kein Va
 > [!note] Sync-Workflow
 > Wenn der ` ```kuml `-Block in einer Vault-Notiz angepasst wird, im Anschluss `playground-sources/<key>.kuml.kts` im Repo `kuml.dev` 1:1 nachziehen (Kotlin-Skript ohne Markdown-Drumherum), danach `npm run build:with-render` für die SVG-Neuerzeugung (nicht das normale `npm run build` — das überspringt den Render-Schritt). Tabellen-Änderungen hier ↔ `src/data/playground-examples.ts` immer parallel.
 
+## Element-Tiefen-Audit (V3.2.18)
+
+Audit-Ergebnis vom 2026-07-02: Alle 28 klassischen Diagrammtypen (UML 14, C4 6, SysML 2 8) sowie BPMN 2.0 (4 Typen) waren bereits **breitenmäßig** abgedeckt. Das Audit prüfte deshalb die **Element-Tiefe** — kommt jede Builder-Funktion/jeder optionale Parameter aus Handbuch + KDoc in mindestens einem Beispiel wirklich im Code vor (nicht nur in der Prosa der "Mögliche Erweiterungen"-Abschnitte)?
+
+**Lücken-Matrix** (gefunden → geschlossen):
+
+| Sprache | Element | Vorher | Geschlossen in |
+|---|---|---|---|
+| UML | `isAbstract`, `visibility`/`isStatic`/`isReadOnly`/`defaultValue` auf `attribute`, `parameter` in `operation`, `constraint`, `dependency`, `navigable = false` | nur in Prosa erwähnt, nie im Code | [[01 UML Klasse – Order Domain]] |
+| UML | `exit`, `doActivity`, `choice`, `shallowHistory`, `deepHistory` (State Machine) | fehlte | [[18 UML State Machine – Order Lifecycle]] |
+| UML | `asyncMessage`, `create`, `delete`, `opt`, `loop` (Sequence) | nur in Prosa erwähnt | [[19 UML Sequence – API Submit]] |
+| SysML 2 | `isAbstract`, `specializesId` auf `partDef` (BDD-Spezialisierung) | fehlte | [[03 SysML 2 BDD – Hybrid Vehicle]] |
+| C4 | `containerInstance`, `location`, `bidirectional` | fehlte | [[25 C4 Deployment – AWS Production]] |
+| BPMN | `dataStore`/`dataObject`/`dataAssociation`, `callActivity`, `standardLoop`, `GatewayType.EVENT_BASED`/`PARALLEL`/`COMPLEX` | fehlte | [[30 BPMN Process – Order Fulfillment]] |
+| BPMN | `multiInstance`, `subProcess(transactional = true)`, `subProcess(triggeredByEvent = true)` | fehlte | [[31 BPMN Process – Sub-Process Loop]] |
+| BPMN | `lane`, `blackBoxPool` | fehlte | [[32 BPMN Collaboration – Customer und Supplier]] |
+
+**Bewusst nicht geschlossen** (Out of scope laut Wellenspezifikation V3.2.18 bzw. objektiv nicht sinnvoll):
+
+- `applyStereotypes(vararg names)` — reiner Namens-Alias für mehrfaches `stereotype(name)`, keine neue Semantik; nicht ergänzt, um Beispiele nicht künstlich aufzublähen.
+- Handbuch-Referenz (`docs/handbook/modules/reference/pages/sysml2.adoc`) beschreibt teils eine **andere, nicht implementierte** SysML-2-API (`blockDef`/`valueProperty`/`composition`/`requirement`/`derives`/`satisfies` statt der tatsächlichen `partDef`/`attribute`/`part`/`requirementDef`/`derive`/`satisfy`). Das ist Doku-Drift, nicht Beispiel-Drift — Korrektur gehört zu V3.2.19 (Handbuch-Update), nicht zu diesem Audit.
+- Journey- und Blueprint-Beispiele ([[33 Blueprint – PdV Mitglieder-Journey]], [[34 User Journey – PdV Mitglieder-Journey]]) wurden nicht auditiert — sie gehören nicht zu den vier in der Wellenspezifikation genannten Kernsprachen (UML/SysML 2/C4/BPMN).
+- Neue Diagrammtypen und Handbuch-Einbettung sind laut Wellenspezifikation explizit out of scope (→ V3.2.19).
+
+**CI-Verifikation**: `./gradlew clean :kuml-tests:kuml-vault-examples-tests:test` — 44 Tests, 0 Failures (Stand 2026-07-02).
+
 ## Wozu diese Notizen?
 
 1. **Smoke-Test** für das obsidian-kuml-Plugin nach Updates des Plugins oder von `kuml-web`

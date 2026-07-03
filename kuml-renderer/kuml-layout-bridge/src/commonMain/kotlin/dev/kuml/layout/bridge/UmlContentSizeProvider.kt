@@ -7,6 +7,7 @@ import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClass
+import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -101,6 +102,7 @@ public class UmlContentSizeProvider
                     is UmlInterface -> out[e.id] = interfaceSize(e)
                     is UmlEnumeration -> out[e.id] = enumSize(e)
                     is UmlInstanceSpecification -> out[e.id] = instanceSize(e)
+                    is UmlComment -> out[e.id] = UmlCommentLayout.sizeOf(e)
                     is UmlComponent -> {
                         out[e.id] = componentSize(e)
                         collect(e.nestedComponents, out)

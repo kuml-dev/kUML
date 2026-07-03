@@ -15,6 +15,7 @@ import dev.kuml.layout.PortId
 import dev.kuml.layout.Size
 import dev.kuml.uml.UmlActivityNode
 import dev.kuml.uml.UmlActivityNodeKind
+import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlFinalState
@@ -431,6 +432,22 @@ public object UmlLayoutBridge {
                 is UmlUseCaseSubject -> {
                     // Already handled in the pre-pass above (LayoutGroup + useCaseGroupMap).
                     // Do NOT add as a LayoutNode — the subject is the bounding box, not a node.
+                }
+                is UmlComment -> {
+                    // V0.23.1 — UML note. Not a UmlNamedElement (no name/visibility),
+                    // so it needs its own branch here instead of falling into the
+                    // UmlNamedElement case below. Sized via UmlCommentLayout so wrapped
+                    // body text fits; positioned freely by ELK like any other node.
+                    // Its dashed anchor line(s) to annotated elements are separate
+                    // UmlCommentLink relationships, handled by the UmlRelationship
+                    // branch above like any other edge.
+                    nodes.add(
+                        LayoutNode(
+                            id = NodeId(element.id),
+                            intrinsicSize = sizeProvider.sizeOf(element.id, "UmlComment"),
+                            hints = HintsReader.read(element.metadata),
+                        ),
+                    )
                 }
                 is UmlActivityNode -> {
                     // V2.0.46: per-kind intrinsic size for activity nodes.

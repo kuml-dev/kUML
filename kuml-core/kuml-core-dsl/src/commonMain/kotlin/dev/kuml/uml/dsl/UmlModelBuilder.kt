@@ -7,6 +7,7 @@ import dev.kuml.core.model.KumlModel
 import dev.kuml.core.model.ModelLevel
 import dev.kuml.core.model.ModelingLanguage
 import dev.kuml.profile.KumlProfile
+import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlElement
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlRelationship
@@ -38,6 +39,11 @@ class UmlModelBuilder(
     override fun addRelationship(relationship: UmlRelationship) {
         elements += relationship
         takenIds += relationship.id
+    }
+
+    override fun addComment(comment: UmlComment) {
+        elements += comment
+        takenIds += comment.id
     }
 
     override fun addAppliedProfile(profile: KumlProfile) {

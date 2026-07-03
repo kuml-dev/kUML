@@ -5,6 +5,8 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.SequenceDiagramConfig
 import dev.kuml.uml.UmlCombinedFragment
+import dev.kuml.uml.UmlComment
+import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlInteraction
 import dev.kuml.uml.UmlLifeline
 import dev.kuml.uml.UmlMessage
@@ -31,6 +33,8 @@ class SequenceDiagramBuilder(
     private val lifelines = mutableListOf<UmlLifeline>()
     private val messages = mutableListOf<UmlMessage>()
     private val fragments = mutableListOf<UmlCombinedFragment>()
+    private val comments = mutableListOf<UmlComment>()
+    private val commentLinks = mutableListOf<UmlCommentLink>()
 
     private var sequenceCounter = 0
     private var fragmentCounter = 0
@@ -49,6 +53,14 @@ class SequenceDiagramBuilder(
 
     override fun addFragment(fragment: UmlCombinedFragment) {
         fragments += fragment
+    }
+
+    override fun addComment(comment: UmlComment) {
+        comments += comment
+    }
+
+    override fun addCommentLink(link: UmlCommentLink) {
+        commentLinks += link
     }
 
     // Interaction properties
@@ -75,7 +87,7 @@ class SequenceDiagramBuilder(
         return KumlDiagram(
             name = name,
             type = DiagramType.SEQUENCE,
-            elements = listOf(interaction),
+            elements = listOf(interaction) + comments + commentLinks,
             config =
                 SequenceDiagramConfig(
                     showActivationBars = showActivationBars,

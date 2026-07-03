@@ -85,6 +85,12 @@ class ClassDiagramBuilder(
         takenIds += relationship.id
     }
 
+    /** Adds a [dev.kuml.uml.UmlComment] (UML note) to this class diagram. */
+    override fun addComment(comment: dev.kuml.uml.UmlComment) {
+        elements += comment
+        takenIds += comment.id
+    }
+
     // ── Validation ────────────────────────────────────────────────────────────
 
     /**

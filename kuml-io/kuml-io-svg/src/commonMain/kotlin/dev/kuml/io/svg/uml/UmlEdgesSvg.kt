@@ -235,6 +235,22 @@ internal fun renderUmlConnector(
 }
 
 /**
+ * UML Comment anchor link — plain dashed line, no arrowhead, no label.
+ *
+ * Per the UML spec, the attachment between a [dev.kuml.uml.UmlComment] (note)
+ * and the element it annotates carries no semantics beyond "this note
+ * describes that element" — so unlike [renderUmlDependency] there is no
+ * arrowhead and no room for a name/stereotype label.
+ */
+internal fun renderUmlCommentLink(
+    route: EdgeRoute,
+    builder: SvgBuilder,
+) {
+    val (tag, attrs) = EdgePathBuilder.build(route)
+    builder.tag(tag, attrs + mapOf("class" to "kuml-edge-dashed"))
+}
+
+/**
  * UML Include — gestrichelte Linie mit offenem Pfeilkopf + festes `«include»`-Label.
  */
 internal fun renderUmlInclude(

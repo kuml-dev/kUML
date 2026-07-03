@@ -62,6 +62,19 @@ public class ProfileDiagramBuilder(
         takenIds += relationship.id
     }
 
+    /**
+     * Adds a [dev.kuml.uml.UmlComment] (UML note) to this diagram.
+     *
+     * Comment/Note support (V0.23.1) currently targets class, sequence, and
+     * state-machine diagrams — see `UmlModelScope.addComment` KDoc. This diagram
+     * type accepts the call for interface completeness but the `comment()` DSL
+     * function is not documented/promoted for this diagram type.
+     */
+    override fun addComment(comment: dev.kuml.uml.UmlComment) {
+        elements += comment
+        takenIds += comment.id
+    }
+
     public fun stereotype(
         name: String,
         metaclasses: List<String> = emptyList(),

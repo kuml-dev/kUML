@@ -230,6 +230,38 @@ classDiagram(name = "Order Domain") {
 }
 ----
 
+== Comments
+
+A UML comment (note) is a free-text annotation box with a folded top-right corner,
+optionally attached to zero or more model elements by a dashed line. Use `comment(...)`
+inside a diagram body:
+
+[source,kotlin]
+----
+classDiagram(name = "Order Domain") {
+    val order = classOf(name = "Order") { /* ... */ }
+
+    // Anchored to one element (the anchor's builder handle)
+    comment(
+        text = "Encapsulates the full order lifecycle from placement to fulfillment.",
+        firstAnchor = order,
+    )
+
+    // Anchored to several elements, or by raw ID instead of a handle
+    // comment(text = "...", firstAnchor = order, moreAnchors = arrayOf(subscription))
+    // comment(text = "...", anchors = arrayOf("Order", "Subscription"))
+
+    // Free-standing note (no anchors)
+    // comment(text = "TODO: model refunds")
+}
+----
+
+TIP: `comment(...)` is available on class, sequence (`UmlInteractionScope`), and
+state-machine (`UmlStateMachineScope`) diagram bodies as of v0.23.1. Other diagram
+types (object, package, component, deployment, use case, activity, BPMN, SysML 2,
+C4, ...) do not have a `comment()` DSL function yet — this is a known, intentional
+scope limitation, not an oversight.
+
 == Object diagrams
 
 Object diagrams show concrete instances. Use them for examples and snapshots.

@@ -163,6 +163,9 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | *Built-in UML profiles*
 | Five profiles ship with v0.3.0 — *AUTOSAR* (Classic Platform R22-11), JavaEE / Jakarta EE, Spring, OpenAPI, SoaML. Discovered through `ServiceLoader`; add your own without touching the CLI.
 
+| *UML Comments (Notes)*
+| Free-text annotation boxes with a folded corner, optionally anchored to one or more elements by a dashed line. `comment(text = ..., firstAnchor = ...)` on class, sequence, and state-machine diagrams (v0.23.1).
+
 | *Web UI (Browser)*
 | `kuml serve` starts a Ktor/Netty HTTP server with a CodeMirror 6 editor, 300 ms live SVG preview, theme and layout dropdowns, and SVG / PNG / LaTeX download buttons. No IDE required. (V2.0.34)
 

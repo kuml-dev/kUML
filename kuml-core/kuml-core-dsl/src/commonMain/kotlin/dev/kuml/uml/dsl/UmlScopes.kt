@@ -4,6 +4,7 @@ import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.profile.KumlProfile
 import dev.kuml.profile.KumlStereotypeApplication
 import dev.kuml.profile.UmlMetaclass
+import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlRelationship
 
@@ -75,6 +76,14 @@ interface UmlElementScope {
 interface UmlModelScope : UmlContainerScope {
     /** Adds a relationship (association, generalization, …) to this diagram or model root. */
     fun addRelationship(relationship: UmlRelationship)
+
+    /**
+     * Adds a [UmlComment] (UML note) to this diagram or model root.
+     *
+     * [UmlComment] is neither a [UmlNamedElement] nor a [UmlRelationship], so it
+     * needs its own registration hook alongside [addNamedElement] / [addRelationship].
+     */
+    fun addComment(comment: UmlComment)
 }
 
 /**
@@ -123,6 +132,12 @@ interface UmlStateMachineScope {
 
     /** Internal: called by [transition] to register a transition. */
     fun addTransition(transition: dev.kuml.uml.UmlTransition)
+
+    /** Internal: called by [comment] to register a [UmlComment] on this state diagram. */
+    fun addComment(comment: UmlComment)
+
+    /** Internal: called by [comment] to register a [dev.kuml.uml.UmlCommentLink] anchor. */
+    fun addCommentLink(link: dev.kuml.uml.UmlCommentLink)
 }
 
 /**
@@ -175,6 +190,12 @@ interface UmlInteractionScope {
 
     /** Internal: called by [fragment] to register a combined fragment. */
     fun addFragment(fragment: dev.kuml.uml.UmlCombinedFragment)
+
+    /** Internal: called by [comment] to register a [UmlComment] on this interaction's diagram. */
+    fun addComment(comment: UmlComment)
+
+    /** Internal: called by [comment] to register a [dev.kuml.uml.UmlCommentLink] anchor. */
+    fun addCommentLink(link: dev.kuml.uml.UmlCommentLink)
 }
 
 /**
