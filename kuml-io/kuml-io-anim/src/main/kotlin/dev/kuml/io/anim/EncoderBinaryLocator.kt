@@ -24,6 +24,11 @@ public object EncoderBinaryLocator {
     public fun findWebpBinary(): String? = CANDIDATES.firstOrNull { isOnPath(it) }
 
     /**
+     * Returns `true` when `ffmpeg` (the only supported MP4/H.264 encoder backend) is on PATH.
+     */
+    public fun isFfmpegAvailable(): Boolean = isOnPath("ffmpeg")
+
+    /**
      * Returns `true` when [name] resolves to an executable on the system PATH.
      *
      * Uses `which` on Unix-like systems and `where` on Windows. Falls back to

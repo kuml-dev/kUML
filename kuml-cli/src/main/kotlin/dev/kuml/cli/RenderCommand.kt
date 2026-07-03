@@ -36,7 +36,7 @@ internal class RenderCommand : CliktCommand(name = "render") {
         .path()
 
     private val format by option("-f", "--format", help = "Output format")
-        .choice("svg", "png", "latex", "tex", "apng", "webp")
+        .choice("svg", "png", "latex", "tex", "apng", "webp", "mp4")
 
     private val width by option("-w", "--width", help = "Width in pixels (PNG only)")
         .int()
@@ -88,12 +88,12 @@ internal class RenderCommand : CliktCommand(name = "render") {
     override fun run() {
         try {
             val resolvedFormat = FormatResolver.resolve(format, output, input)
-            // --animated is required for apng/webp, and only valid for svg/apng/webp
-            val animFormats = setOf("svg", "apng", "webp")
+            // --animated is required for apng/webp/mp4, and only valid for svg/apng/webp/mp4
+            val animFormats = setOf("svg", "apng", "webp", "mp4")
             if (animated && resolvedFormat !in animFormats) {
-                throw UsageError("--animated is only valid with --format=svg|apng|webp (current format: $resolvedFormat)")
+                throw UsageError("--animated is only valid with --format=svg|apng|webp|mp4 (current format: $resolvedFormat)")
             }
-            if (resolvedFormat in setOf("apng", "webp") && !animated) {
+            if (resolvedFormat in setOf("apng", "webp", "mp4") && !animated) {
                 throw UsageError("--format=$resolvedFormat requires --animated")
             }
             // Warn when webp and no encoder binary available
@@ -111,6 +111,23 @@ internal class RenderCommand : CliktCommand(name = "render") {
                             "Install libwebp (provides img2webp) via 'brew install webp' on macOS, " +
                             "'apt-get install webp' on Debian/Ubuntu, or ensure ffmpeg is on PATH. " +
                             "The export will fail unless an encoder is installed.",
+                    )
+                }
+            }
+            // Warn when mp4 and ffmpeg is not available (the only supported MP4 backend)
+            if (resolvedFormat == "mp4") {
+                val ffmpegAvailable =
+                    try {
+                        dev.kuml.io.anim.EncoderBinaryLocator
+                            .isFfmpegAvailable()
+                    } catch (_: Exception) {
+                        false
+                    }
+                if (!ffmpegAvailable) {
+                    System.err.println(
+                        "[kuml] WARNING: --format=mp4 selected but ffmpeg was not found on PATH. " +
+                            "Install ffmpeg via 'brew install ffmpeg' on macOS or 'apt-get install ffmpeg' " +
+                            "on Debian/Ubuntu. The export will fail unless ffmpeg is installed.",
                     )
                 }
             }

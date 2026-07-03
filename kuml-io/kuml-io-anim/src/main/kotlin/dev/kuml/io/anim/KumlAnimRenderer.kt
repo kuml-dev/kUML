@@ -4,12 +4,12 @@ import dev.kuml.render.smil.SmilTimeline
 import java.nio.file.Path
 
 /**
- * Public entry-point for animated APNG / WebP export.
+ * Public entry-point for animated APNG / WebP / MP4 export.
  *
  * Orchestrates:
  * 1. [FrameBudget] computation (with DoS caps).
  * 2. Frame sampling via [BatikFrameSampler] (primary).
- * 3. Encoding via [ApngEncoder] (APNG) or [WebpEncoder] (WebP).
+ * 3. Encoding via [ApngEncoder] (APNG), [WebpEncoder] (WebP), or [Mp4Encoder] (MP4).
  * 4. 50 MiB output-size warning to stderr.
  *
  * Usage:
@@ -44,6 +44,18 @@ public object KumlAnimRenderer {
             )
         }
 
+        // MP4/H.264 has no standardised alpha-channel support in the container/codec
+        // combination kUML targets (see AnimFormat.MP4 KDoc). Rather than silently
+        // discarding the alpha channel and compositing against an undefined background,
+        // reject the combination up front with an actionable message.
+        if (options.format == AnimFormat.MP4 && options.transparent) {
+            throw AnimEncoderException(
+                "MP4 export does not support a transparent background (H.264 has no standard " +
+                    "alpha channel). Set transparent = false and choose a backgroundColor, " +
+                    "or use --format=apng/webp for transparent animated export.",
+            )
+        }
+
         val budget = FrameBudget.compute(totalMs, options)
 
         val frames = SmilTimelineFrameSampler.sample(animatedSvg, timeline, budget, options)
@@ -52,6 +64,7 @@ public object KumlAnimRenderer {
             when (options.format) {
                 AnimFormat.APNG -> ApngEncoder.encode(frames, budget.intervalMs)
                 AnimFormat.WEBP -> WebpEncoder.encode(frames, budget.intervalMs)
+                AnimFormat.MP4 -> Mp4Encoder.encode(frames, budget.intervalMs)
             }
 
         val encodedSize = encoded.size.toLong()

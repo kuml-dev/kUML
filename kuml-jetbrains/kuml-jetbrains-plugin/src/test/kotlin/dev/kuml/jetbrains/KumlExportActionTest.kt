@@ -43,13 +43,20 @@ class KumlExportActionTest :
             KumlExportFormat.fromExtensionOrNull("unknown") shouldBe null
         }
 
-        test("KumlExportFormat has exactly five entries") {
-            KumlExportFormat.entries.size shouldBe 5
+        test("KumlExportFormat has exactly six entries") {
+            KumlExportFormat.entries.size shouldBe 6
         }
 
         test("KumlExportFormat fromExtensionOrNull resolves animated formats") {
             KumlExportFormat.fromExtensionOrNull("apng") shouldBe KumlExportFormat.APNG
             KumlExportFormat.fromExtensionOrNull("webp") shouldBe KumlExportFormat.WEBP
+            KumlExportFormat.fromExtensionOrNull("mp4") shouldBe KumlExportFormat.MP4
+        }
+
+        test("KumlExportFormat.MP4: cliFormat=mp4, extension=mp4") {
+            KumlExportFormat.MP4.cliFormat shouldBe "mp4"
+            KumlExportFormat.MP4.extension shouldBe "mp4"
+            KumlExportFormat.MP4.displayName shouldBe "Animated MP4"
         }
 
         // ── KumlCliRenderer.buildRenderArgs ───────────────────────────────────

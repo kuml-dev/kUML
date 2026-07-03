@@ -304,7 +304,7 @@ internal object RenderPipeline {
         val engine = pickEngine(diagram, layoutEngineOverride)
         val layoutResult: LayoutResult = engine.layout(layoutGraph, hints)
         when (format) {
-            "svg", "apng", "webp" -> {
+            "svg", "apng", "webp", "mp4" -> {
                 when {
                     animated && diagram.type == DiagramType.STATE -> {
                         val sm = diagram.elements.filterIsInstance<dev.kuml.uml.UmlStateMachine>().firstOrNull()
@@ -376,7 +376,7 @@ internal object RenderPipeline {
                             writeAnimated(output, result.svg, result.timeline, format, width)
                         }
                     }
-                    animated && format in setOf("apng", "webp") -> {
+                    animated && format in setOf("apng", "webp", "mp4") -> {
                         throw ScriptEvaluationException(
                             "Animated ${format.uppercase()} export is not supported for diagram type ${diagram.type}. " +
                                 "Supported types: STATE, ACTIVITY, SEQUENCE.",
@@ -586,7 +586,7 @@ internal object RenderPipeline {
                 val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, stmHints)
                 val stmOptions = SvgRenderOptions(paddingPx = 64f)
                 when (format) {
-                    "svg", "apng", "webp" -> {
+                    "svg", "apng", "webp", "mp4" -> {
                         val baseSvg = KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, stmOptions)
                         val umlSm = Sysml2StateMachineAdapter.toUmlStateMachine(model, diagram)
                         val trace = loadOrSynthesiseStmTrace(traceFile, umlSm)
@@ -601,7 +601,7 @@ internal object RenderPipeline {
                                 context = ctx,
                             )
                         when {
-                            format in setOf("apng", "webp") ->
+                            format in setOf("apng", "webp", "mp4") ->
                                 writeAnimated(output, result.svg, result.timeline, format, width)
                             animated -> writeText(output, result.svg)
                             else -> writeText(output, baseSvg)
@@ -636,7 +636,7 @@ internal object RenderPipeline {
                 val layoutResult: LayoutResult = sysml2Engine.layout(layoutGraph, actHints)
                 val actOptions = SvgRenderOptions(paddingPx = 64f)
                 when (format) {
-                    "svg", "apng", "webp" -> {
+                    "svg", "apng", "webp", "mp4" -> {
                         val baseSvg = KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, actOptions)
                         // Build UmlActivityEdge list from model for path resolution
                         val visible = diagram.elementIds.toSet()
@@ -682,7 +682,7 @@ internal object RenderPipeline {
                                 context = ctx,
                             )
                         when {
-                            format in setOf("apng", "webp") ->
+                            format in setOf("apng", "webp", "mp4") ->
                                 writeAnimated(output, result.svg, result.timeline, format, width)
                             animated -> writeText(output, result.svg)
                             else -> writeText(output, baseSvg)
@@ -867,7 +867,7 @@ internal object RenderPipeline {
                 val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
-                    "svg", "apng", "webp" -> {
+                    "svg", "apng", "webp", "mp4" -> {
                         if (animated) {
                             // BPMN animated rendering — trace-driven via BpmnSmilRenderer.
                             // Unlike STM/Activity, no demo trace is synthesised for BPMN without a
@@ -976,9 +976,9 @@ internal object RenderPipeline {
     }
 
     /**
-     * Encode [animatedSvg] + [timeline] to APNG or WebP and write to [output].
+     * Encode [animatedSvg] + [timeline] to APNG, WebP, or MP4 and write to [output].
      *
-     * @param format Must be `"apng"` or `"webp"`.
+     * @param format Must be `"apng"`, `"webp"`, or `"mp4"`.
      * @throws ScriptEvaluationException if the timeline is empty (no animations).
      */
     private fun writeAnimated(
@@ -994,8 +994,23 @@ internal object RenderPipeline {
                     "Check that the trace file contains relevant entries or that the diagram type supports animation.",
             )
         }
-        val animFormat = if (format == "apng") AnimFormat.APNG else AnimFormat.WEBP
-        val opts = AnimRenderOptions(format = animFormat, widthPx = width)
+        val animFormat =
+            when (format) {
+                "apng" -> AnimFormat.APNG
+                "webp" -> AnimFormat.WEBP
+                "mp4" -> AnimFormat.MP4
+                else -> error("Unreachable: unsupported animated format '$format'")
+            }
+        // MP4/H.264 has no standard alpha channel — force an opaque white background
+        // instead of surfacing AnimEncoderException for the common case of a user simply
+        // switching --format from webp/apng to mp4 without also flipping --animated options.
+        // (KumlAnimRenderer still enforces the invariant defensively for direct API callers.)
+        val opts =
+            if (animFormat == AnimFormat.MP4) {
+                AnimRenderOptions(format = animFormat, widthPx = width, transparent = false)
+            } else {
+                AnimRenderOptions(format = animFormat, widthPx = width)
+            }
         val bytes = KumlAnimRenderer.toAnimated(animatedSvg, timeline, opts)
         writeBinary(output, bytes)
     }

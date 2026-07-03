@@ -20,6 +20,7 @@ enum class KumlExportFormat(
     TEX("latex", "tex", "TeX (LaTeX)"),
     APNG("apng", "apng", "Animated PNG"),
     WEBP("webp", "webp", "Animated WebP"),
+    MP4("mp4", "mp4", "Animated MP4"),
     ;
 
     companion object {

@@ -5,10 +5,14 @@ package dev.kuml.io.anim
  *
  * - [APNG]: Animated PNG — no external binary required, pure-JVM assembly.
  * - [WEBP]: Animated WebP — requires `img2webp` (libwebp) or `ffmpeg` on PATH.
+ * - [MP4]: MP4 / H.264 — requires `ffmpeg` on PATH. Does **not** support a transparent
+ *   background (see [AnimRenderOptions.transparent]); [KumlAnimRenderer] rejects
+ *   `format = MP4` combined with `transparent = true` before invoking the encoder.
  */
 public enum class AnimFormat {
     APNG,
     WEBP,
+    MP4,
 }
 
 /**
@@ -21,7 +25,10 @@ public enum class AnimFormat {
  *   prevent per-frame memory exhaustion (500 frames × 4 096 px is already ~500 MiB
  *   of raw RGBA before compression). Must be in 1..4_096.
  * @param transparent When `true` the background is transparent (RGBA).
- *   When `false`, [backgroundColor] fills the background.
+ *   When `false`, [backgroundColor] fills the background. MP4/H.264 has no standardised
+ *   alpha-channel support in the container/codec combination kUML targets — [KumlAnimRenderer]
+ *   throws [AnimEncoderException] when `format = `[AnimFormat.MP4]` is combined with
+ *   `transparent = true` rather than silently discarding the alpha channel.
  * @param backgroundColor Background fill colour when [transparent] is `false`.
  *   Standard CSS/SVG colour string, e.g. `"white"` or `"#ffffff"`.
  * @param maxFrames Hard cap on the number of frames (DoS guard). Default 500.

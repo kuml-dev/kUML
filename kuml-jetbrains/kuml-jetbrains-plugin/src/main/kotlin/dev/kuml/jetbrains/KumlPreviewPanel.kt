@@ -484,6 +484,7 @@ class KumlPreviewPanel(
         btn.isFocusable = false
 
         val webpAvailable = KumlWebpSupport.isAvailable
+        val mp4Available = KumlMp4Support.isAvailable
         val menu = JPopupMenu()
         KumlExportFormat.entries.forEach { format ->
             val item = JMenuItem(format.displayName)
@@ -496,6 +497,14 @@ class KumlPreviewPanel(
                     "Animated WebP requires img2webp (libwebp) or ffmpeg on PATH. " +
                         "Install via 'brew install webp' (macOS) or 'apt-get install webp' (Debian/Ubuntu)."
                 item.toolTipText = webpTooltip
+            } else if (format == KumlExportFormat.MP4 && !mp4Available) {
+                // Disable the Animated MP4 entry when ffmpeg is not on PATH — it is the
+                // only supported MP4/H.264 encoder backend (no img2webp-style alternative).
+                item.isEnabled = false
+                val mp4Tooltip =
+                    "Animated MP4 requires ffmpeg on PATH. " +
+                        "Install via 'brew install ffmpeg' (macOS) or 'apt-get install ffmpeg' (Debian/Ubuntu)."
+                item.toolTipText = mp4Tooltip
             } else {
                 item.addActionListener {
                     val ctx = exportContext ?: return@addActionListener

@@ -89,6 +89,12 @@ kUML renders *pure SMIL SVG animations* directly from execution traces — no Ja
 Pass `--animated` on the CLI (or use a `kuml-animated` code block in Obsidian) and supply a
 `kuml.trace.v1` JSON trace. Any browser that supports SVG SMIL plays them inline.
 
+For sharing outside the browser, animated SVGs can also be exported to *Animated PNG*
+(`--format=apng`, no external dependency), *Animated WebP* (`--format=webp`, requires
+`img2webp` or `ffmpeg` on PATH), or *MP4* (`--format=mp4`, requires `ffmpeg` on PATH, encoded
+as H.264/yuv420p). MP4 does not support a transparent background — use APNG or WebP instead
+when transparency is required.
+
 === UML Sequence — message-dot animation
 
 image::docs/images/anim-sequence-api-submit.svg[UML Sequence: Place Order / API Submit — animated message dots,align=center]
