@@ -30,6 +30,11 @@ private const val SEQ_ROW_HEIGHT = 32f
 internal const val UML_SEQ_FRAGMENT_PADDING = 24f
 private const val FRAGMENT_PADDING_H = UML_SEQ_FRAGMENT_PADDING
 
+/** Horizontal inset applied on each side of a nested (inner) fragment frame.
+ *  Makes nested frames visibly narrower than their enclosing outer frame, providing
+ *  a clear visual hierarchy — e.g. a BREAK inside a LOOP is not the same width. */
+private const val NESTED_FRAGMENT_INSET = 10f
+
 /**
  * **Vertikale Outset-Werte des Frames — asymmetrisch.**
  *
@@ -386,7 +391,14 @@ internal fun renderUmlCombinedFragments(
     val nestedIds = fragments.flatMap { f -> f.operands.flatMap { o -> o.fragmentIds } }.toSet()
     val renderOrder = fragments.sortedBy { if (it.id in nestedIds) 1 else 0 }
     for (fragment in renderOrder) {
-        renderUmlFragment(fragment, msgById, visibleLifelineLayouts, builder, operandFirstSeqs)
+        renderUmlFragment(
+            fragment,
+            msgById,
+            visibleLifelineLayouts,
+            builder,
+            operandFirstSeqs,
+            isNested = fragment.id in nestedIds,
+        )
     }
 }
 
@@ -396,6 +408,7 @@ private fun renderUmlFragment(
     visibleLifelineLayouts: List<NodeLayout>,
     builder: SvgBuilder,
     operandFirstSeqs: List<Int>,
+    isNested: Boolean = false,
 ) {
     if (fragment.operands.isEmpty()) return
     // Determine min/max seqNo covered by this fragment
@@ -412,8 +425,11 @@ private fun renderUmlFragment(
     val minLifelineX = visibleLifelineLayouts.minOf { it.bounds.origin.x }
     val maxLifelineX = visibleLifelineLayouts.maxOf { it.bounds.origin.x + it.bounds.size.width }
 
-    val frameX = minLifelineX - FRAGMENT_PADDING_H
-    val frameW = (maxLifelineX - minLifelineX) + 2f * FRAGMENT_PADDING_H
+    // Nested fragments get an inset on both sides so they appear visually narrower
+    // than their enclosing outer frame, making the nesting hierarchy immediately clear.
+    val nestingInset = if (isNested) NESTED_FRAGMENT_INSET else 0f
+    val frameX = minLifelineX - FRAGMENT_PADDING_H + nestingInset
+    val frameW = (maxLifelineX - minLifelineX) + 2f * FRAGMENT_PADDING_H - 2f * nestingInset
     // Rendered Y of a message = headBottom + seq * ROW + fragment-header offset.
     // The first message of this fragment (operand 0) is pushed down by exactly
     // one FRAGMENT_HEADER_BAND (its own operand's band), which creates the clear

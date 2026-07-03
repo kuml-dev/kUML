@@ -228,4 +228,31 @@ class UmlSeqFragmentSvgTest :
                     "Fragment SVG:\n$breakGroupSvg"
             }
         }
+
+        test("nested BREAK frame is narrower than enclosing LOOP frame") {
+            val svg = KumlSvgRenderer.toSvg(diagram, fakeLayout(), PlainTheme())
+
+            // Extract width from rect attribute: width="NNN"
+            fun extractRectWidth(fragId: String): Float {
+                val groupStart = svg.indexOf("id=\"$fragId\"")
+                assert(groupStart >= 0) { "Fragment <g id=\"$fragId\"> not found in SVG" }
+                val groupEnd = svg.indexOf("</g>", groupStart) + 4
+                val groupSvg = svg.substring(groupStart, groupEnd)
+                val rectStart = groupSvg.indexOf("<rect")
+                assert(rectStart >= 0) { "No <rect> found in fragment group for $fragId" }
+                val rectEnd = groupSvg.indexOf(">", rectStart)
+                val rectTag = groupSvg.substring(rectStart, rectEnd)
+                val widthMatch = Regex("""width="([0-9.]+)"""").find(rectTag)
+                assert(widthMatch != null) { "No width attribute found in <rect> for $fragId: $rectTag" }
+                return widthMatch!!.groupValues[1].toFloat()
+            }
+
+            val loopWidth = extractRectWidth(loopFrag.id)
+            val breakWidth = extractRectWidth(breakFrag.id)
+
+            assert(breakWidth < loopWidth) {
+                "Nested BREAK frame must be narrower than enclosing LOOP frame. " +
+                    "loopWidth=$loopWidth, breakWidth=$breakWidth"
+            }
+        }
     })

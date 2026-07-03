@@ -717,13 +717,15 @@ public object KumlSvgRenderer {
         // reicht dafür nicht — die rechte Frame-Kante wäre außerhalb der
         // SVG-`viewBox` und würde geclippt (Symptom: ALT-Box rechts
         // abgeschnitten). Heben wir das effektive Padding deshalb auf mindestens
-        // `FRAGMENT_PADDING + 4` an, sobald Fragments im Spiel sind. Das ist
-        // sowohl im Layout-Shift der Lifelines als auch in der Canvas-Größe in
-        // `SvgDocument.render` wirksam, weil beide `options.paddingPx` lesen.
+        // `FRAGMENT_PADDING + 16` an, sobald Fragments im Spiel sind. Die Formel
+        // ergibt sich aus: canvasGap = paddingPx − FRAGMENT_PADDING_H. Mit +4 war
+        // der sichtbare Abstand zwischen Frame-Rand und Diagramm-Rand nur 4 px —
+        // der Frame berührte optisch den Rand. Mit +16 bleibt ein komfortabler
+        // 16-px-Puffer auf jeder Seite.
         val effectiveOptions =
             if (interaction.fragments.isNotEmpty()) {
                 options.copy(
-                    paddingPx = maxOf(options.paddingPx, dev.kuml.io.svg.uml.UML_SEQ_FRAGMENT_PADDING + 4f),
+                    paddingPx = maxOf(options.paddingPx, dev.kuml.io.svg.uml.UML_SEQ_FRAGMENT_PADDING + 16f),
                 )
             } else {
                 options
