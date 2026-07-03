@@ -215,6 +215,81 @@ Render it yourself with:
 kuml render pdv-membership-journey.kuml.kts --format svg
 ----
 
+== User journey diagram (simplified view)
+
+When you only need the *customer lane* — no frontstage / backstage / support layers —
+use `journeyDiagram` instead of `blueprintDiagram`. The DSL is the same `blueprint {}`
+container; only the closing call differs.
+
+`journeyDiagram` renders a single-row timeline: phase columns, customer steps,
+touchpoint icons, and the optional emotion curve. It is lighter and fits well in a
+one-pager or presentation slide.
+
+[source,kuml]
+----
+blueprint("PdV Mitglieder-Journey") {
+    // ── Channels ──
+    val web    = channel("pdv.de",       ChannelKind.WEB)
+    val social = channel("Social Media", ChannelKind.SOCIAL)
+    val mailC  = channel("E-Mail",       ChannelKind.EMAIL)
+    val personC = channel("Stammtisch",  ChannelKind.IN_PERSON)
+
+    // ── Touchpoints ──
+    val socialPost   = touchpoint("Social-Post",        channel = social)
+    val programmSeite = touchpoint("Programm-Seite",    channel = web)
+    val onlineAntrag = touchpoint("Online-Antrag",      channel = web)
+    val bestaetigung = touchpoint("Bestätigungs-Mail",  channel = mailC)
+    val willkommensMail = touchpoint("Willkommens-Mail", channel = mailC)
+    val ausweis      = touchpoint("Mitgliedsausweis",   channel = mailC)
+    val stammtisch   = touchpoint("Lokaler Stammtisch", channel = personC)
+
+    phase("Entdeckung") {
+        customer("Stößt auf PdV-Inhalt", Sentiment.NEUTRAL,
+                 touchpoints = listOf(socialPost))
+    }
+    phase("Interessenbekundung") {
+        customer("Besucht Website, liest Programm", Sentiment.POSITIVE,
+                 touchpoints = listOf(programmSeite))
+    }
+    phase("Antragstellung") {
+        customer("Füllt Beitrittsantrag aus", Sentiment.NEUTRAL,
+                 touchpoints = listOf(onlineAntrag, bestaetigung),
+                 pain = "Formular wirkt lang")
+    }
+    phase("Beitrittsprozess") {
+        customer("Wartet auf Aufnahme", Sentiment.NEGATIVE,
+                 pain = "Unklar, wie lange es dauert")
+    }
+    phase("Willkommen") {
+        customer("Erhält Willkommenspaket", Sentiment.VERY_POSITIVE,
+                 touchpoints = listOf(willkommensMail, ausweis))
+    }
+    phase("Erstes Engagement") {
+        customer("Nimmt am Stammtisch teil", Sentiment.VERY_POSITIVE,
+                 touchpoints = listOf(stammtisch))
+    }
+
+    // journeyDiagram = single-row view; blueprintDiagram = 4-layer view
+    journeyDiagram("PdV User Journey", emotionCurve = true)
+}
+----
+
+The `emotionCurve = true` flag overlays a spline through the Sentiment values —
+a quick visual summary of where in the journey friction is highest.
+
+== Diagram type summary
+
+[cols="1,2,2"]
+|===
+| Call | Diagram type | Shows
+
+| `blueprintDiagram("…")` | `DiagramType.BLUEPRINT` | All four layers + dividing lines + phases
+| `journeyDiagram("…")` | `DiagramType.JOURNEY` | Customer lane only + phases + optional emotion curve
+|===
+
+Both calls live inside the same `blueprint { }` container, so you can have both
+diagram types in one script — one file, two SVG outputs.
+
 == Where to go from here
 
 * xref:concepts.adoc[Core concepts] — rendering pipeline and metamodel.

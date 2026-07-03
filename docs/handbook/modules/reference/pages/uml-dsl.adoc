@@ -382,14 +382,222 @@ useCaseDiagram(name = "Customer goals") {
 }
 ----
 
-== Other types
+== Package diagrams
 
-The remaining diagram types (deployment, activity, communication, profile, timing,
-interaction overview, composite structure, package) all follow the same pattern: a
-top-level builder, classifier-like inner constructs, relationships drawn with infix
-helpers or DSL functions. See the
-https://github.com/kuml-dev/kUML/tree/master/docs/examples[examples directory] for
-a script for each type.
+Package diagrams organise classifiers into logical modules and show import/access
+dependencies between packages.
+
+[source,kuml]
+----
+packageDiagram(name = "Order Domain Modules") {
+    val shared = packageOf(name = "shared") {
+        classOf(name = "Money") {
+            attribute(name = "amount", type = "BigDecimal")
+            attribute(name = "currency", type = "String")
+        }
+    }
+
+    val shop = packageOf(name = "shop") {
+        classOf(name = "Customer")
+        classOf(name = "Order")
+    }
+
+    val payment = packageOf(name = "payment") {
+        classOf(name = "Invoice")
+        classOf(name = "Receipt")
+    }
+
+    packageImport(client = shop, supplier = shared)
+    packageImport(client = payment, supplier = shared)
+    packageAccess(client = payment, supplier = shop)
+}
+----
+
+== Deployment diagrams
+
+Deployment diagrams show the physical mapping of software artifacts to execution nodes
+and devices. Nested `executionEnvironment { }`, `node { }`, and `device { }` scopes
+model the hardware/container hierarchy; `artifact` places software inside a node;
+`communicationPath` connects two nodes.
+
+[source,kuml]
+----
+deploymentDiagram(name = "Production Cloud Stack") {
+    val cluster = executionEnvironment(name = "EKS Cluster") {
+        node(name = "Pod: order-service") {
+            artifact(name = "orderservice.jar")
+            artifact(name = "config.yaml")
+        }
+    }
+
+    val db = device(name = "PostgreSQL 16") {
+        artifact(name = "orders.db")
+    }
+
+    val webApp = artifact(name = "webapp.war")
+    val edge = node(name = "Edge Gateway")
+    deploy(artifact = webApp, node = edge)
+
+    communicationPath(end1 = cluster, end2 = db)
+    communicationPath(end1 = edge, end2 = cluster)
+}
+----
+
+== Activity diagrams
+
+Activity diagrams describe workflow and parallel behaviour. Nodes are declared first,
+then connected with `edge(from, to, guard?)`.
+
+[source,kuml]
+----
+activityDiagram(name = "Checkout") {
+    val start   = initialNode()
+    val verify  = action(name = "Verify cart")
+    val ok      = decision(name = "valid?")
+    val charge  = action(name = "Charge card")
+    val confirm = action(name = "Send confirmation")
+    val cancel  = action(name = "Notify error")
+    val done    = finalNode()
+
+    edge(from = start,   to = verify)
+    edge(from = verify,  to = ok)
+    edge(from = ok,      to = charge,  guard = "ok")
+    edge(from = ok,      to = cancel,  guard = "invalid")
+    edge(from = charge,  to = confirm)
+    edge(from = confirm, to = done)
+    edge(from = cancel,  to = done)
+}
+----
+
+== Communication diagrams
+
+Communication diagrams show the same interaction as sequence diagrams but laid out
+spatially — lifelines are nodes, numbered messages are edges.
+
+[source,kuml]
+----
+communicationDiagram(name = "Place Order — Communication") {
+    val ui  = role(classifierName = "Frontend",  roleName = "ui")
+    val api = role(classifierName = "Backend",   roleName = "api")
+    val db  = role(classifierName = "OrderDB",   roleName = "db")
+
+    message(from = ui,  to = api, label = "submitOrder()")
+    message(from = api, to = db,  label = "INSERT order")
+    message(from = db,  to = api, label = "ok")
+    message(from = api, to = ui,  label = "201 Created")
+}
+----
+
+== Profile diagrams
+
+Profile diagrams define stereotypes that extend the UML metamodel. The resulting profile
+can be applied to any diagram with `applyProfile`.
+
+[source,kuml]
+----
+profileDiagram(name = "Java EE Profile") {
+    val classMC = metaclass(name = "Class")
+
+    val entity = stereotype(name = "Entity", metaclasses = listOf("Class")) {
+        tag(name = "tableName", type = "String")
+        tag(name = "schema",    type = "String")
+    }
+
+    val valueObject = stereotype(name = "ValueObject", metaclasses = listOf("Class")) {
+        tag(name = "immutable", type = "Boolean")
+    }
+
+    extension(stereotype = entity,       metaclass = classMC)
+    extension(stereotype = valueObject,  metaclass = classMC)
+}
+----
+
+See xref:profiles.adoc[Profiles] for applying stereotypes to diagrams and validating
+tagged-value types.
+
+== Timing diagrams
+
+Timing diagrams show how lifelines transition between named states over time. Each
+`lifeline { tick(t, state) }` call sets the state of that lifeline at a given time step.
+
+[source,kuml]
+----
+timingDiagram(name = "TCP 3-Way Handshake") {
+    lifeline(name = "client", states = listOf("CLOSED", "SYN_SENT", "ESTABLISHED")) {
+        tick(t = 0, state = "CLOSED")
+        tick(t = 1, state = "SYN_SENT")
+        tick(t = 3, state = "ESTABLISHED")
+    }
+
+    lifeline(name = "server", states = listOf("LISTEN", "SYN_RCVD", "ESTABLISHED")) {
+        tick(t = 0, state = "LISTEN")
+        tick(t = 2, state = "SYN_RCVD")
+        tick(t = 3, state = "ESTABLISHED")
+    }
+}
+----
+
+== Interaction overview diagrams
+
+Interaction overview diagrams combine activity and sequence semantics: nodes are
+`interactionRef` placeholders that stand for full sequence diagrams; control flow
+(`edge`) connects them like an activity.
+
+[source,kuml]
+----
+interactionOverviewDiagram(name = "Order Process Overview") {
+    val start    = initial()
+    val login    = interactionRef(name = "Login")
+    val search   = interactionRef(name = "Search Catalog")
+    val checkout = interactionRef(name = "Checkout")
+    val notify   = interactionRef(name = "Ship Notification")
+    val end      = final()
+
+    edge(from = start,    to = login)
+    edge(from = login,    to = search)
+    edge(from = search,   to = checkout)
+    edge(from = checkout, to = notify)
+    edge(from = notify,   to = end)
+}
+----
+
+== Composite structure diagrams
+
+Composite structure diagrams show the internal architecture of a classifier: nested
+`component` parts, `port` boundary points, and `connect` calls for delegation and
+assembly connectors.
+
+[source,kuml]
+----
+compositeStructureDiagram(name = "OrderService Internals") {
+    val orderApi = interfaceOf(name = "IOrderApi") {
+        operation(name = "placeOrder") { returns(typeName = "OrderId") }
+    }
+    val dbApi = interfaceOf(name = "IPersistence") {
+        operation(name = "save")
+    }
+
+    val service = component(name = "OrderService") {
+        port(name = "api"); provides(iface = orderApi)
+        port(name = "db");  requires(iface = dbApi)
+
+        val validator = component(name = "Validator") {
+            port(name = "in"); port(name = "out")
+        }
+        val persistence = component(name = "Persistence") {
+            port(name = "in"); port(name = "db")
+            requires(iface = dbApi)
+        }
+
+        // Delegation: boundary port → inner part port
+        connect(end1 = service,     port1 = "api", end2 = validator,   port2 = "in")
+        // Assembly: part port → part port
+        connect(end1 = validator,   port1 = "out", end2 = persistence, port2 = "in")
+        // Delegation out: inner port → boundary port
+        connect(end1 = persistence, port1 = "db",  end2 = service,     port2 = "db")
+    }
+}
+----
 
 == Composing diagrams
 
