@@ -25,6 +25,12 @@ public data class AsciidocKumlBlock(
 ) {
     public val name: String? get() = attributes["name"]
     public val width: Int? get() = attributes["width"]?.toIntOrNull()
+
+    /**
+     * Optional per-block theme override, e.g. `[source,kuml,theme=elegant]` or
+     * `kuml::path[theme=playful]`. `null` means "use the processor/pipeline default".
+     */
+    public val theme: String? get() = attributes["theme"]
 }
 
 /** Welche AsciiDoc-Syntax den Block geliefert hat. */

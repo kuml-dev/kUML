@@ -82,11 +82,12 @@ public class AsciidocProcessor(
                 }
 
             val extracted = AsciidocRenderPipeline.evaluate(source, virtualName)
+            val theme = AsciidocRenderPipeline.resolveTheme(block.theme)
 
             val replacement: List<String> =
                 when (mode) {
                     AsciidocOutputMode.InlineSvg -> {
-                        val svg = AsciidocRenderPipeline.renderSvg(extracted)
+                        val svg = AsciidocRenderPipeline.renderSvg(extracted, theme)
                         // Asciidoctor-Passthrough-Block: `++++` öffnet/schließt, alles dazwischen
                         // landet 1:1 im HTML-Output (Antora-kompatibel).
                         listOf("++++", svg, "++++")
@@ -95,7 +96,7 @@ public class AsciidocProcessor(
                         mode.assetsDir.mkdirs()
                         val stem = block.name ?: defaultStem(block, baseName, idx)
                         val file = File(mode.assetsDir, "$stem.svg")
-                        file.writeText(AsciidocRenderPipeline.renderSvg(extracted), Charsets.UTF_8)
+                        file.writeText(AsciidocRenderPipeline.renderSvg(extracted, theme), Charsets.UTF_8)
                         assets += file
                         listOf("image::${file.name}[${AsciidocRenderPipeline.diagramName(extracted)}]")
                     }
@@ -104,7 +105,7 @@ public class AsciidocProcessor(
                         val stem = block.name ?: defaultStem(block, baseName, idx)
                         val width = block.width ?: mode.widthPx
                         val file = File(mode.assetsDir, "$stem.png")
-                        file.writeBytes(AsciidocRenderPipeline.renderPng(extracted, width))
+                        file.writeBytes(AsciidocRenderPipeline.renderPng(extracted, width, theme))
                         assets += file
                         listOf("image::${file.name}[${AsciidocRenderPipeline.diagramName(extracted)}]")
                     }

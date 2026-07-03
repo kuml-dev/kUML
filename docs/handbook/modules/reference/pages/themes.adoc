@@ -40,6 +40,94 @@ kuml {
 }
 ----
 
+== Theme gallery
+
+The kUML DSL itself has no `theme` parameter — themes are a rendering-time concern,
+not part of the diagram model. Documentation authors using the `kuml-asciidoc` Antora
+bridge (see xref:tooling:asciidoc.adoc[the AsciiDoc preprocessor]) can still render the
+same block once per theme with a per-block `theme="..."` AsciiDoc attribute — the
+diagram DSL below is identical in all four blocks; only the attribute differs.
+
+=== `plain`
+
+[source,kuml,theme=plain]
+----
+classDiagram(name = "Order Domain") {
+    val customer = classOf(name = "Customer") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "name", type = "String")
+    }
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "total", type = "BigDecimal")
+    }
+    association(source = customer, target = order) {
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "0..*"); role = "orders" }
+    }
+}
+----
+
+=== `kuml`
+
+[source,kuml,theme=kuml]
+----
+classDiagram(name = "Order Domain") {
+    val customer = classOf(name = "Customer") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "name", type = "String")
+    }
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "total", type = "BigDecimal")
+    }
+    association(source = customer, target = order) {
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "0..*"); role = "orders" }
+    }
+}
+----
+
+=== `elegant`
+
+[source,kuml,theme=elegant]
+----
+classDiagram(name = "Order Domain") {
+    val customer = classOf(name = "Customer") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "name", type = "String")
+    }
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "total", type = "BigDecimal")
+    }
+    association(source = customer, target = order) {
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "0..*"); role = "orders" }
+    }
+}
+----
+
+=== `playful`
+
+[source,kuml,theme=playful]
+----
+classDiagram(name = "Order Domain") {
+    val customer = classOf(name = "Customer") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "name", type = "String")
+    }
+    val order = classOf(name = "Order") {
+        attribute(name = "id", type = "UUID")
+        attribute(name = "total", type = "BigDecimal")
+    }
+    association(source = customer, target = order) {
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "0..*"); role = "orders" }
+    }
+}
+----
+
 == The `kuml.config.kts` DSL
 
 Project-level defaults live in a `kuml.config.kts` file at the repo root (or wherever the

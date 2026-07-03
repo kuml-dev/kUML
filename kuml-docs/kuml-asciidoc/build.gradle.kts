@@ -22,6 +22,8 @@ dependencies {
     implementation(project(":kuml-io:kuml-io-png"))
     implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
     implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
+    implementation(project(":kuml-metamodel:kuml-metamodel-sysml2"))
+    implementation(project(":kuml-metamodel:kuml-metamodel-bpmn"))
     implementation(libs.kotlin.scripting.common)
     implementation(libs.kotlin.scripting.jvm)
     implementation(libs.kotlin.scripting.jvm.host)

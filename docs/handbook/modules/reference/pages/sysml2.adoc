@@ -26,67 +26,77 @@ wrapper is only needed when a single script contains multiple SysML 2 diagrams.
 
 | BDD
 | Block Definition Diagram
-| `blockDef(name) { ... }`
+| `partDef(name) { ... }` + `bdd(name) { include(...) }`
 | Structural decomposition: blocks, value properties, ports, part/reference associations.
 
 | IBD
 | Internal Block Diagram
-| `internalBlock(name) { ... }`
+| `partDef(name) { part(...); connect(...) } }` + `ibd(name, owner)`
 | Internal wiring: parts within a block, connectors between ports, item flows.
 
 | UC
 | Use Case Diagram
-| `useCaseDiagram(name) { ... }`
+| `ucDiagram(name) { ... }`
 | Actor goals: system actors, use cases, include/extend relationships.
 
 | REQ
 | Requirements Diagram
-| `requirementDiagram(name) { ... }`
-| Stakeholder requirements: requirements, derives, refines, satisfies, verifies links.
+| `reqDiagram(name) { ... }`
+| Stakeholder requirements: requirements, derives, satisfies, verifies, contains links.
 
 | STM
 | State Machine Diagram
-| `stateDef(name) { ... }` inside `sysml2Model`
+| `stateDef(name)` + `transition(...)` + `stmDiagram(name) { include(...) }`
 | Executable discrete behaviour: states, transitions, trigger/guard/action triples.
 
 | ACT
 | Activity Diagram
-| `actionDef(name) { ... }` + control flow inside `sysml2Model`
+| `actionDef(name)` + control flow + `actDiagram(name) { include(...) }`
 | Executable workflow: actions, decisions, forks/joins, item flows, object flows.
 
 | SEQ
 | Sequence Diagram
-| `sequenceDiagram(name) { ... }`
+| `lifelineDef(name)` + `message(...)` + `seqDiagram(name) { include(...) }`
 | Time-ordered interaction between blocks: lifelines, messages, combined fragments.
 
 | PAR
 | Parametric Diagram
-| `parametricDiagram(name) { ... }`
+| `constraintDef(...)` + `bind(...)` + `parDiagram(name) { include(...) }`
 | Constraint properties: parameters, equations, numerical constraints.
 |===
 
 == Block Definition Diagrams (BDD)
 
 BDD is the SysML 2 analogue of the UML class diagram. The central classifier is `block`.
+Rendered live below (vault source:
+`03 Bereiche/kUML/Beispiele/03 SysML 2 BDD – Hybrid Vehicle.md`):
 
-[source,kotlin]
+[source,kuml]
 ----
-sysml2Model("Vehicle Propulsion") {
-    blockDef("Propulsion System") {
-        val engine = block("Engine") {
-            valueProperty("displacement", type = "Real", unit = "cc")
-            valueProperty("powerKw",      type = "Real")
-            port("throttle", direction = PortDirection.In)
-            port("shaft",    direction = PortDirection.Out)
-        }
-        val transmission = block("Transmission") {
-            valueProperty("gearCount", type = "Integer")
-            port("shaftIn",  direction = PortDirection.In)
-            port("driveOut", direction = PortDirection.Out)
-        }
+import dev.kuml.sysml2.dsl.sysml2Model
 
-        composition(parent = "Propulsion System", child = engine,  roleName = "engine")
-        composition(parent = "Propulsion System", child = transmission, roleName = "tx")
+sysml2Model(name = "VehicleSystem") {
+    val massType = attributeDef(name = "Mass")
+    val powerType = attributeDef(name = "Power")
+
+    // Abstract base definition — cannot be instantiated directly
+    val powertrain = partDef(name = "Powertrain", isAbstract = true) {
+        attribute(name = "ratedPower", typeId = powerType.id)
+    }
+
+    val vehicle = partDef(name = "Vehicle") {
+        attribute(name = "mass", typeId = massType.id)
+    }
+
+    // Specialisation: Engine is a concrete Powertrain flavour
+    val engine = partDef(name = "Engine", specializesId = powertrain.id) {
+        attribute(name = "ratedPower", typeId = powerType.id)
+    }
+
+    bdd(name = "Vehicle BDD") {
+        include(definition = powertrain)
+        include(definition = vehicle)
+        include(definition = engine)
     }
 }
 ----
@@ -118,67 +128,175 @@ Key BDD elements:
 
 == Internal Block Diagrams (IBD)
 
-IBD shows the internal wiring of a single block context.
+IBD shows the internal wiring of a single block context: parts, ports, and connectors
+between them. Rendered live below (vault source:
+`03 Bereiche/kUML/Beispiele/27 SysML 2 IBD – Hybrid Vehicle Wiring.md`):
 
-[source,kotlin]
+[source,kuml]
 ----
-sysml2Model("Propulsion IBD") {
-    internalBlock("Propulsion System") {
-        val eng = partRef("engine", type = "Engine")
-        val tx  = partRef("tx",     type = "Transmission")
+import dev.kuml.sysml2.dsl.sysml2Model
 
-        connector(eng.port("shaft"), tx.port("shaftIn"),
-                  label = "mechanical coupling")
+sysml2Model(name = "HybridVehicleSystem") {
+    val powerLine  = connectionDef(name = "PowerLine")
+    val driveshaft = connectionDef(name = "Driveshaft")
+
+    val dcPort    = portDef(name = "DcPort")
+    val shaftPort = portDef(name = "ShaftPort")
+
+    val battery = partDef(name = "Battery") {
+        port(name = "dcOut", typeId = dcPort.id)
     }
+    val electricMotor = partDef(name = "ElectricMotor") {
+        port(name = "dcIn",  typeId = dcPort.id)
+        port(name = "shaft", typeId = shaftPort.id)
+    }
+    val iceEngine = partDef(name = "InternalCombustionEngine") {
+        port(name = "shaft", typeId = shaftPort.id)
+    }
+    val powerSplitter = partDef(name = "PowerSplitter") {
+        port(name = "emIn",  typeId = shaftPort.id)
+        port(name = "iceIn", typeId = shaftPort.id)
+    }
+
+    val hybrid = partDef(name = "HybridVehicle") {
+        part(name = "battery",       typeId = battery.id)
+        part(name = "electricMotor", typeId = electricMotor.id)
+        part(name = "iceEngine",     typeId = iceEngine.id)
+        part(name = "powerSplitter", typeId = powerSplitter.id)
+
+        connect(
+            name = "batteryToMotor",
+            typeId = powerLine.id,
+            sourceEndId = "HybridVehicle::battery::dcOut",
+            targetEndId = "HybridVehicle::electricMotor::dcIn",
+        )
+        connect(
+            name = "motorToSplitter",
+            typeId = driveshaft.id,
+            sourceEndId = "HybridVehicle::electricMotor::shaft",
+            targetEndId = "HybridVehicle::powerSplitter::emIn",
+        )
+        connect(
+            name = "iceToSplitter",
+            typeId = driveshaft.id,
+            sourceEndId = "HybridVehicle::iceEngine::shaft",
+            targetEndId = "HybridVehicle::powerSplitter::iceIn",
+        )
+    }
+
+    ibd(name = "HybridVehicle — internal block diagram", owner = hybrid)
 }
 ----
 
 == Use Case Diagrams (UC)
 
-SysML 2 use case syntax is identical to UML use case. The builder is `useCaseDiagram`.
+SysML 2 use case syntax mirrors UML use case: actors, use cases, `include`/`extend`
+relationships. Rendered live below (vault source:
+`03 Bereiche/kUML/Beispiele/05 SysML 2 UC – Library System.md`):
 
-[source,kotlin]
+[source,kuml]
 ----
-sysml2Model("Charging System") {
-    useCaseDiagram("BEV Charging") {
-        val driver  = actor("Driver")
-        val station = actor("ChargingStation")
+import dev.kuml.sysml2.dsl.sysml2Model
 
-        val plug    = useCase("Plug In")
-        val auth    = useCase("Authenticate")
-        val charge  = useCase("Transfer Energy")
+sysml2Model(name = "LibrarySystem") {
+    val reader = actorDef(name = "Reader")
+    val librarian = actorDef(name = "Librarian")
+    val paymentSystem = actorDef(name = "PaymentSystem")
 
-        driver.uses(plug)
-        driver.uses(auth)
-        station.uses(charge)
+    val borrowBook = useCaseDef(name = "BorrowBook")
+    val returnBook = useCaseDef(name = "ReturnBook")
+    val payLateFee = useCaseDef(name = "PayLateFee")
+    val authenticate = useCaseDef(name = "Authenticate")
 
-        plug.includes(auth)
-        charge.extends(auth)
+    ucDiagram(name = "Library — top-level use cases") {
+        include(definition = reader)
+        include(definition = librarian)
+        include(definition = paymentSystem)
+        include(definition = borrowBook)
+        include(definition = returnBook)
+        include(definition = payLateFee)
+        include(definition = authenticate)
+
+        association(actor = reader, useCase = borrowBook)
+        association(actor = reader, useCase = returnBook)
+        association(actor = reader, useCase = payLateFee)
+        association(actor = librarian, useCase = borrowBook)
+        association(actor = paymentSystem, useCase = payLateFee)
+
+        // «include»: target is always executed as part of source
+        include(source = borrowBook, target = authenticate)
+        include(source = returnBook, target = authenticate)
+
+        // «extend»: target's behaviour is optionally extended by source
+        extend(source = payLateFee, target = returnBook)
     }
 }
 ----
 
 == Requirements Diagrams (REQ)
 
-Requirements diagrams trace stakeholder needs through derivation, refinement, and satisfaction.
+Requirements diagrams trace stakeholder needs through derivation, satisfaction,
+verification, and containment. Rendered live below (vault source:
+`03 Bereiche/kUML/Beispiele/08 SysML 2 REQ – Vehicle Requirements.md`):
 
-[source,kotlin]
+[source,kuml]
 ----
-sysml2Model("Safety Requirements") {
-    requirementDiagram("Functional Safety") {
-        val r1 = requirement("REQ-001") {
-            text = "The system shall detect pedestrians within 30 m."
-            category = "functional"
-        }
-        val r2 = requirement("REQ-002") {
-            text = "Detection latency shall be ≤ 100 ms."
-            category = "performance"
-        }
-        val impl = block("PedestrianDetector")
+import dev.kuml.sysml2.dsl.sysml2Model
 
-        derives(child = r2, parent = r1)
-        satisfies(element = impl, requirement = r1)
-        satisfies(element = impl, requirement = r2)
+sysml2Model(name = "VehicleRequirements") {
+    val topSpeed = requirementDef(
+        name = "TopSpeedRequirement",
+        reqId = "R-001",
+        text = "The vehicle shall reach at least 180 km/h on flat road",
+        subject = "Vehicle",
+    )
+    val curbWeight = requirementDef(
+        name = "CurbWeightRequirement",
+        reqId = "R-002",
+        text = "The vehicle curb weight shall not exceed 1500 kg",
+        subject = "Vehicle",
+    )
+    val fuelEfficiency = requirementDef(
+        name = "FuelEfficiencyRequirement",
+        reqId = "R-003",
+        text = "The vehicle shall consume less than 4 l/100km combined",
+        subject = "Vehicle",
+    )
+    val emissions = requirementDef(
+        name = "EmissionsRequirement",
+        reqId = "R-004",
+        text = "The vehicle shall comply with Euro 7 emissions standards",
+        subject = "Vehicle",
+    )
+    val nox = requirementDef(
+        name = "NOxRequirement",
+        reqId = "R-005",
+        text = "NOx emissions shall not exceed 30 mg/km",
+        subject = "Vehicle",
+    )
+
+    val vehicle = partDef(name = "Vehicle")
+    val verifyTopSpeed = useCaseDef(name = "VerifyTopSpeed")
+
+    reqDiagram(name = "Vehicle — top-level requirements") {
+        include(definition = topSpeed)
+        include(definition = curbWeight)
+        include(definition = fuelEfficiency)
+        include(definition = emissions)
+        include(definition = nox)
+        include(definition = vehicle)
+        include(definition = verifyTopSpeed)
+
+        satisfy(source = vehicle, requirement = topSpeed)
+        satisfy(source = vehicle, requirement = curbWeight)
+        satisfy(source = vehicle, requirement = fuelEfficiency)
+
+        verify(source = verifyTopSpeed, requirement = topSpeed)
+
+        // Endgeschwindigkeit vs. Verbrauch ist ein klassischer Trade-off
+        derive(source = topSpeed, target = fuelEfficiency)
+
+        contains(parent = emissions, child = nox)
     }
 }
 ----
@@ -189,35 +307,51 @@ STM is the primary entry point for executable behaviour in SysML 2. kUML impleme
 SysML 2 state machines on top of the same runtime as UML state machines — `kuml simulate`
 works for both.
 
-[source,kotlin]
+Rendered live below (vault source:
+`03 Bereiche/kUML/Beispiele/04 SysML 2 STM – Traffic Light.md`):
+
+[source,kuml]
 ----
-sysml2Model("Thermostat") {
-    val off     = stateDef("Off")
-    val idle    = stateDef("Idle",    entryAction = "display.show('idle')")
-    val heating = stateDef("Heating", entryAction = "relay.heat(true)",
-                                      exitAction  = "relay.heat(false)")
-    val cooling = stateDef("Cooling", entryAction = "relay.cool(true)",
-                                      exitAction  = "relay.cool(false)")
-    val eco     = stateDef("Eco",     entryAction = "setpoint.set(18)")
+import dev.kuml.sysml2.dsl.sysml2Model
 
-    initialState(off)
+sysml2Model(name = "TrafficLight") {
+    val initial = stateDef(name = "Initial", isInitial = true)
+    val red = stateDef(
+        name = "Red",
+        entryAction = "switchLights('red')",
+        exitAction = "logTransition('red')",
+    )
+    val green = stateDef(
+        name = "Green",
+        entryAction = "switchLights('green')",
+        doAction = "tickTimer()",
+    )
+    val yellow = stateDef(
+        name = "Yellow",
+        entryAction = "switchLights('yellow')",
+    )
+    val off = stateDef(name = "Off", isFinal = true)
 
-    transition("powerOn",       off,     idle)
-    transition("startHeating",  idle,    heating,
-        trigger = "tick",
-        guard   = "event.temperature < event.targetTemperature - 1")
-    transition("heatDone",      heating, idle,
-        trigger = "tick",
-        guard   = "event.temperature >= event.targetTemperature")
-    transition("startCooling",  idle,    cooling,
-        trigger = "tick",
-        guard   = "event.temperature > event.targetTemperature + 1")
-    transition("coolDone",      cooling, idle,
-        trigger = "tick",
-        guard   = "event.temperature <= event.targetTemperature")
-    transition("ecoMode",       idle,    eco,    trigger = "ecoMode")
-    transition("normalMode",    eco,     idle,   trigger = "normalMode")
-    transition("powerOff",      idle,    off,    trigger = "powerOff")
+    transition(name = "init", source = initial, target = red)
+    transition(name = "redToGreen", source = red, target = green, trigger = "timer60s")
+    transition(name = "greenToYellow", source = green, target = yellow, trigger = "timer45s")
+    transition(name = "yellowToRed", source = yellow, target = red, trigger = "timer5s")
+    transition(
+        name = "powerOff",
+        source = red,
+        target = off,
+        trigger = "powerOff",
+        guard = "!emergency",
+        effect = "shutdownLights()",
+    )
+
+    stmDiagram(name = "TrafficLight — phase cycle") {
+        include(state = initial)
+        include(state = red)
+        include(state = green)
+        include(state = yellow)
+        include(state = off)
+    }
 }
 ----
 
@@ -239,29 +373,94 @@ SysML 2 `sysml2Model { stateDef / transition }` syntaxes. The underlying runtime
 Activity diagrams in SysML 2 model executable workflows with actions, control flow,
 and parallel branches.
 
-[source,kotlin]
+Rendered live below (vault source:
+`03 Bereiche/kUML/Beispiele/07 SysML 2 ACT – Order Processing.md`) — swimlanes
+(partitions), typed pins, a decision node, and an object flow carrying a typed order:
+
+[source,kuml]
 ----
-sysml2Model("Boot Sequence") {
-    val readSensors   = actionDef("ReadSensors",   action = "sensors.readAll()")
-    val decide        = decisionNode("sensors valid?")
-    val calibrate     = actionDef("Calibrate",     action = "calibration.run()")
-    val fork          = forkNode("bootFork")
-    val updateDisplay = actionDef("UpdateDisplay", action = "display.update()")
-    val logReady      = actionDef("LogReady",      action = "log.info('ready')")
-    val join          = joinNode("bootJoin")
-    val done          = activityFinal("done")
+import dev.kuml.sysml2.ActionPin
+import dev.kuml.sysml2.PinDirection
+import dev.kuml.sysml2.dsl.sysml2Model
 
-    initialNode("start")
+sysml2Model(name = "OrderProcessing") {
+    partDef(name = "Customer")
+    partDef(name = "OrderSystem")
+    partDef(name = "Warehouse")
 
-    controlFlow("toSensors",      "start",        readSensors)
-    controlFlow("toDecision",     readSensors,    decide)
-    controlFlow("validPath",      decide,         calibrate,     guard = "sensorsValid")
-    controlFlow("toFork",         calibrate,      fork)
-    controlFlow("forkToDisplay",  fork,           updateDisplay)
-    controlFlow("forkToLog",      fork,           logReady)
-    controlFlow("displayToJoin",  updateDisplay,  join)
-    controlFlow("logToJoin",      logReady,       join)
-    controlFlow("toDone",         join,           done)
+    val customerLane = activityPartition(name = "Customer", represents = "Customer")
+    val orderSysLane = activityPartition(name = "OrderSystem", represents = "OrderSystem")
+    val warehouseLane = activityPartition(name = "Warehouse", represents = "Warehouse")
+
+    val initial = initialNode(partition = customerLane)
+    val placeOrder = actionDef(
+        name = "PlaceOrder",
+        action = "submit(order)",
+        partition = customerLane,
+        pins = listOf(ActionPin(name = "orderDetails", typeId = "Order", direction = PinDirection.Output)),
+    )
+
+    val validate = actionDef(
+        name = "ValidateOrder",
+        action = "validate(order)",
+        partition = orderSysLane,
+        pins = listOf(
+            ActionPin(name = "orderDetails", typeId = "Order", direction = PinDirection.Input),
+            ActionPin(name = "validation", typeId = "Bool", direction = PinDirection.Output),
+        ),
+    )
+    val decide = decisionNode(name = "valid?", partition = orderSysLane)
+    val pay = actionDef(
+        name = "ProcessPayment",
+        action = "charge(order.total)",
+        partition = orderSysLane,
+        pins = listOf(ActionPin(name = "validation", typeId = "Bool", direction = PinDirection.Input)),
+    )
+    val cancel = actionDef(
+        name = "CancelOrder",
+        action = "notify(order, 'cancelled')",
+        partition = orderSysLane,
+        pins = listOf(ActionPin(name = "validation", typeId = "Bool", direction = PinDirection.Input)),
+    )
+
+    val reserve = actionDef(
+        name = "ReserveInventory",
+        action = "reserve(order.items)",
+        partition = warehouseLane,
+        pins = listOf(ActionPin(name = "orderDetails", typeId = "Order", direction = PinDirection.Input)),
+    )
+    val ship = actionDef(
+        name = "ShipOrder",
+        action = "dispatch(order)",
+        partition = warehouseLane,
+        pins = listOf(ActionPin(name = "inventory", typeId = "Inventory", direction = PinDirection.Input)),
+    )
+    val finalN = finalNode(partition = warehouseLane)
+    val flowFinal = flowFinalNode(partition = warehouseLane)
+
+    controlFlow(name = "start", source = initial, target = placeOrder)
+    controlFlow(name = "validated", source = validate, target = decide)
+    controlFlow(name = "yes", source = decide, target = pay, guard = "valid")
+    controlFlow(name = "payToReserve", source = pay, target = reserve)
+    controlFlow(name = "reserveToShip", source = reserve, target = ship)
+    controlFlow(name = "end", source = ship, target = finalN)
+    controlFlow(name = "no", source = decide, target = cancel, guard = "!valid")
+    controlFlow(name = "cancelEnd", source = cancel, target = flowFinal)
+
+    objectFlow(name = "carryOrder", source = placeOrder, target = validate, objectType = "Order")
+
+    actDiagram(name = "Order Processing — workflow") {
+        include(node = initial)
+        include(node = placeOrder)
+        include(node = validate)
+        include(node = decide)
+        include(node = pay)
+        include(node = cancel)
+        include(node = reserve)
+        include(node = ship)
+        include(node = finalN)
+        include(node = flowFinal)
+    }
 }
 ----
 
@@ -273,18 +472,46 @@ Other diagram types (BDD, IBD, REQ, SEQ, PAR) produce renderable output only.
 
 == Sequence Diagrams (SEQ)
 
-[source,kotlin]
-----
-sysml2Model("ECU Handshake") {
-    sequenceDiagram("CAN Bus Init") {
-        val ecu1  = lifeline("ECU-1",  classifier = "EngineControlUnit")
-        val ecu2  = lifeline("ECU-2",  classifier = "TransmissionControlUnit")
-        val bus   = lifeline("CAN Bus", classifier = "BusController")
+Time-ordered interaction between blocks: lifelines, messages, execution
+specifications, and combined fragments (`alt`, `loop`, ...). Rendered live below
+(vault source: `03 Bereiche/kUML/Beispiele/06 SysML 2 SEQ – Login Flow.md`):
 
-        message(from = ecu1, to = bus,  label = "requestAccess(arbitrationId)")
-        message(from = bus,  to = ecu2, label = "grantToken()")
-        message(from = ecu2, to = bus,  label = "releaseToken()")
-        message(from = bus,  to = ecu1, label = "grantToken()")
+[source,kuml]
+----
+import dev.kuml.sysml2.CombinedFragmentOperand
+import dev.kuml.sysml2.CombinedFragmentOperator
+import dev.kuml.sysml2.MessageKind
+import dev.kuml.sysml2.dsl.sysml2Model
+
+sysml2Model(name = "LoginFlow") {
+    val user = lifelineDef(name = "User")
+    val browser = lifelineDef(name = "Browser")
+    val authService = lifelineDef(name = "AuthService")
+
+    message(label = "new Browser()", source = user, target = browser, seqNo = 0, kind = MessageKind.Create)
+    message(label = "enterCredentials(user, pwd)", source = user, target = browser, seqNo = 1, kind = MessageKind.Sync)
+    message(label = "login(user, pwd)", source = browser, target = authService, seqNo = 2, kind = MessageKind.Sync)
+    message(label = "validateCredentials()", source = authService, target = authService, seqNo = 3, kind = MessageKind.Sync)
+    message(label = "sessionToken", source = authService, target = browser, seqNo = 4, kind = MessageKind.Reply)
+    message(label = "welcomeScreen", source = browser, target = user, seqNo = 5, kind = MessageKind.Reply)
+    message(label = "loginError", source = authService, target = browser, seqNo = 6, kind = MessageKind.Reply)
+    message(label = "errorScreen", source = browser, target = user, seqNo = 7, kind = MessageKind.Reply)
+
+    executionSpec(name = "authServiceActive", lifeline = authService, startSeqNo = 2, endSeqNo = 3)
+
+    combinedFragment(
+        name = "credentialsCheck",
+        operator = CombinedFragmentOperator.Alt,
+        operands = listOf(
+            CombinedFragmentOperand(guard = "credentials valid", startSeqNo = 4, endSeqNo = 5),
+            CombinedFragmentOperand(guard = "credentials invalid", startSeqNo = 6, endSeqNo = 7),
+        ),
+    )
+
+    seqDiagram(name = "Login flow") {
+        include(lifeline = user)
+        include(lifeline = browser)
+        include(lifeline = authService)
     }
 }
 ----
@@ -294,21 +521,43 @@ sysml2Model("ECU Handshake") {
 Parametric diagrams connect constraint properties to value properties, expressing
 numerical relationships.
 
-[source,kotlin]
+Rendered live below (vault source:
+`03 Bereiche/kUML/Beispiele/28 SysML 2 PAR – Newton.md`):
+
+[source,kuml]
 ----
-sysml2Model("Thermal Budget") {
-    parametricDiagram("PowerDissipation") {
-        val totalPower = param("P_total",  unit = "W")
-        val cpuPower   = param("P_cpu",    unit = "W")
-        val gpuPower   = param("P_gpu",    unit = "W")
-        val coolerCop  = param("COP",      unit = "1")
+import dev.kuml.sysml2.ConstraintParameter
+import dev.kuml.sysml2.ConstraintParameterDirection
+import dev.kuml.sysml2.dsl.sysml2Model
 
-        constraint("TotalBudget", expression = "P_total = P_cpu + P_gpu")
-        constraint("CoolerLoad",  expression = "P_total / COP <= 45")
+sysml2Model(name = "NewtonModel") {
+    attributeDef(name = "Mass")
+    attributeDef(name = "Acceleration")
+    attributeDef(name = "Force")
 
-        bindParam(totalPower, "TotalBudget", "P_total")
-        bindParam(cpuPower,   "TotalBudget", "P_cpu")
-        bindParam(gpuPower,   "TotalBudget", "P_gpu")
+    val newton = constraintDef(
+        name = "NewtonsLaw",
+        expression = "F = m * a",
+        parameters = listOf(
+            ConstraintParameter(name = "F", typeId = "Force",        direction = ConstraintParameterDirection.Out),
+            ConstraintParameter(name = "m", typeId = "Mass",         direction = ConstraintParameterDirection.In),
+            ConstraintParameter(name = "a", typeId = "Acceleration", direction = ConstraintParameterDirection.In),
+        ),
+    )
+
+    val vehicle = partDef(name = "Vehicle") {
+        attribute(name = "mass",         typeId = "Mass")
+        attribute(name = "acceleration", typeId = "Acceleration")
+        attribute(name = "force",        typeId = "Force")
+    }
+
+    bind(name = "F_to_force",         source = "NewtonsLaw::F", target = "Vehicle::force")
+    bind(name = "m_to_mass",          source = "NewtonsLaw::m", target = "Vehicle::mass")
+    bind(name = "a_to_acceleration",  source = "NewtonsLaw::a", target = "Vehicle::acceleration")
+
+    parDiagram(name = "Newton — F = m·a applied to Vehicle") {
+        include(definition = newton)
+        include(definition = vehicle)
     }
 }
 ----

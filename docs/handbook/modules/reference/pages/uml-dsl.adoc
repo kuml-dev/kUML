@@ -577,25 +577,30 @@ compositeStructureDiagram(name = "OrderService Internals") {
         operation(name = "save")
     }
 
+    lateinit var validator: UmlComponent
+    lateinit var persistence: UmlComponent
+
     val service = component(name = "OrderService") {
         port(name = "api"); provides(iface = orderApi)
         port(name = "db");  requires(iface = dbApi)
 
-        val validator = component(name = "Validator") {
+        validator = component(name = "Validator") {
             port(name = "in"); port(name = "out")
         }
-        val persistence = component(name = "Persistence") {
+        persistence = component(name = "Persistence") {
             port(name = "in"); port(name = "db")
             requires(iface = dbApi)
         }
-
-        // Delegation: boundary port → inner part port
-        connect(end1 = service,     port1 = "api", end2 = validator,   port2 = "in")
-        // Assembly: part port → part port
-        connect(end1 = validator,   port1 = "out", end2 = persistence, port2 = "in")
-        // Delegation out: inner port → boundary port
-        connect(end1 = persistence, port1 = "db",  end2 = service,     port2 = "db")
     }
+
+    // connect() lives at the diagram (UmlModelScope) level, not inside the
+    // component block — capture the nested components via lateinit above.
+    // Delegation: boundary port → inner part port
+    connect(end1 = service,     port1 = "api", end2 = validator,   port2 = "in")
+    // Assembly: part port → part port
+    connect(end1 = validator,   port1 = "out", end2 = persistence, port2 = "in")
+    // Delegation out: inner port → boundary port
+    connect(end1 = persistence, port1 = "db",  end2 = service,     port2 = "db")
 }
 ----
 

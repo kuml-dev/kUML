@@ -209,12 +209,22 @@ source, never pre-rendered SVGs, so the diagram source is always visible in the
 repository diff. `.github/workflows/docs.yml` runs the same script in CI before
 deploying to https://docs.kuml.dev.
 
-**Coverage** (V3.2.19): UML (`classDiagram`/`stateDiagram`/… family) and Blueprint
-(Service Blueprint / Journey Map) scripts render. C4, SysML 2 and BPMN scripts are
-not yet supported by this pipeline and fail with a clear error naming the
-unsupported kind — `kuml-cli`'s `RenderPipeline` is the reference for extending
-`AsciidocRenderPipeline` with those (ELK layout bridge + kind-specific
-`KumlSvgRenderer.toSvg` overload per kind).
+**Coverage** (V0.23.3): all five diagram families render — UML
+(`classDiagram`/`stateDiagram`/… family), C4, SysML 2 (all eight diagram types),
+BPMN (Process/Collaboration/Choreography/Conversation), and Blueprint (Service
+Blueprint / Journey Map). Dispatch mirrors `kuml-cli`'s `RenderPipeline` (same
+bridges, same ELK engine).
+
+Each block also accepts an optional `theme` attribute to render with a theme other
+than the pipeline default (`plain`):
+
+[source,asciidoc]
+----
+[source,kuml,theme=elegant]
+----
+classDiagram(name = "Demo") { classOf(name = "Widget") }
+----
+----
 
 == When you do NOT need this preprocessor
 
