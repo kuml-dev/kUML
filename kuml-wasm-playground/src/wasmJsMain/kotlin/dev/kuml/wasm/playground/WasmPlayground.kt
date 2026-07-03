@@ -1,5 +1,15 @@
 package dev.kuml.wasm.playground
 
+import dev.kuml.blueprint.model.BlueprintDiagram
+import dev.kuml.blueprint.model.BlueprintModel
+import dev.kuml.bpmn.model.BpmnDiagram
+import dev.kuml.bpmn.model.BpmnModel
+import dev.kuml.bpmn.model.ChoreographyDiagram
+import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ConversationDiagram
+import dev.kuml.bpmn.model.ProcessDiagram
+import dev.kuml.c4.model.C4Diagram
+import dev.kuml.c4.model.C4Model
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
@@ -8,13 +18,27 @@ import dev.kuml.io.svg.SvgRenderOptions
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutEngineId
+import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.layout.bridge.UmlContentSizeProvider
+import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.grid.GridLayoutEngine
 import dev.kuml.renderer.theme.core.PlainTheme
+import dev.kuml.sysml2.ActDiagram
+import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.ParDiagram
+import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.SeqDiagram
+import dev.kuml.sysml2.StmDiagram
+import dev.kuml.sysml2.Sysml2Diagram
+import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.UcDiagram
 import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.UmlAssociation
@@ -25,22 +49,53 @@ import kotlinx.serialization.json.Json
 import kotlin.js.JsExport
 
 /**
- * The `Json` instance used to decode diagrams and layouts posted to the
- * playground as JSON. Registers [UmlSerializersModule] so that the open,
- * polymorphic [KumlElement] / `KumlNamespaceMember` bases can resolve their
- * concrete UML subtypes at decode time (see `UmlSerializersModule` KDoc in
- * `kuml-metamodel-uml`).
+ * Hard cap on the byte length of any JSON payload accepted by the playground
+ * entry points below.
+ *
+ * The playground decodes **untrusted** JSON straight from a browser text area,
+ * so an attacker (or an accidental multi-megabyte paste) could otherwise force
+ * the decoder to allocate an unbounded object graph. kotlinx.serialization has
+ * no built-in size/depth limit, so we guard the raw input length before the
+ * decoder ever sees it. 8 MiB is comfortably above any legitimate hand-written
+ * or `kuml dump-json`-produced diagram while still bounding worst-case memory.
+ *
+ * This is a *coarse* guard (input character length, not decoded object count),
+ * but combined with `ignoreUnknownKeys = true` (which drops rather than
+ * expands unknown fields) it removes the most obvious billion-laughs / giant
+ * payload amplification vectors. The models decoded here are plain data trees
+ * (no back-references, no recursive `@Polymorphic` self-nesting beyond the
+ * sealed diagram hierarchies), so decoding is linear in the input size.
+ */
+private const val MAX_JSON_PAYLOAD_BYTES: Int = 8 * 1024 * 1024
+
+/**
+ * Throws [IllegalArgumentException] if [json] exceeds [MAX_JSON_PAYLOAD_BYTES].
+ *
+ * Uses UTF-8 byte length (not `String.length`) so multi-byte characters cannot
+ * be used to slip past the cap.
+ */
+private fun requireWithinSizeLimit(
+    json: String,
+    label: String,
+) {
+    val bytes = json.encodeToByteArray().size
+    require(bytes <= MAX_JSON_PAYLOAD_BYTES) {
+        "$label JSON payload is $bytes bytes, exceeding the ${MAX_JSON_PAYLOAD_BYTES}-byte playground limit."
+    }
+}
+
+/**
+ * The `Json` instance used to decode **UML** diagrams. Registers
+ * [UmlSerializersModule] so that the open, polymorphic [KumlElement] /
+ * `KumlNamespaceMember` bases can resolve their concrete UML subtypes at
+ * decode time (see `UmlSerializersModule` KDoc in `kuml-metamodel-uml`).
  *
  * `classDiscriminator` is set to `"@type"` instead of the kotlinx default
  * `"type"`, because [KumlDiagram] already has a real field named `type`
  * ([DiagramType]) — using the default discriminator key would collide with
  * it during polymorphic (de)serialization of nested elements.
- *
- * Scope: **UML only** this wave. C4/BPMN/SysML2/KerML/Blueprint diagrams
- * are not decodable via this `Json` instance yet (registering their
- * `SerializersModule`s is the natural V3.2.11 follow-up).
  */
-private val playgroundJson =
+private val umlJson =
     Json {
         serializersModule = UmlSerializersModule
         ignoreUnknownKeys = true
@@ -48,39 +103,73 @@ private val playgroundJson =
     }
 
 /**
- * V3.2.9/V3.2.10 wasmJs render entry points.
+ * The `Json` instance used to decode **C4 / SysML 2 / BPMN / Blueprint**
+ * models and diagrams.
  *
- * What this genuinely does:
- *  - [renderSampleClassDiagram]: build a small, hand-rolled [KumlDiagram] (two
- *    [UmlClass]es + one [UmlAssociation]) directly in Kotlin, lay it out with
- *    a trivial single-row grid (no ELK — ELK is JVM-only), and render it to
- *    SVG via [KumlSvgRenderer.toSvg], the same commonMain renderer used by
- *    the JVM CLI.
- *  - [renderDiagramJson]: decode an arbitrary UML [KumlDiagram] and a
- *    precomputed [LayoutResult], both supplied as JSON, and render to SVG.
- *    This is the real V3.2.10 unblock: [KumlDiagram] and the [KumlElement] /
- *    `KumlNamespaceMember` bases are `@Serializable`/`@Polymorphic`, and the
- *    UML metamodel's concrete subtypes are registered via
- *    [UmlSerializersModule].
- *  - [renderDiagramJsonWithGrid]: convenience wrapper around
- *    [renderDiagramJson] that computes layout with the same demo-only grid
- *    scaffold used by [renderSampleClassDiagram], for callers that only
- *    have a diagram and no layout. NOT a general-purpose layout engine —
- *    single row, fixed box sizes, no collision avoidance, no edge routing
- *    beyond straight lines.
+ * Unlike UML — whose `KumlDiagram.elements: List<KumlElement>` decodes through
+ * the *open* [KumlElement] polymorphic base and therefore needs an explicit
+ * [UmlSerializersModule] — the other metamodels expose their content through
+ * `sealed` `@Serializable` hierarchies (`C4Model`/`C4Element`,
+ * `Sysml2Model`/`Sysml2Diagram`, `BpmnModel`/`BpmnDiagram`,
+ * `BlueprintModel`/`BlueprintDiagram`). kotlinx.serialization auto-derives a
+ * polymorphic serializer for a sealed base, so decoding a concrete model type
+ * needs **no** custom `SerializersModule`.
  *
- * What this explicitly does NOT do:
+ * `classDiscriminator` is still `"@type"` for consistency with [umlJson] and
+ * because these sealed hierarchies also embed a `KumlDiagram`-style `type`
+ * field in some subtypes; keeping a non-`"type"` discriminator avoids any
+ * collision.
+ */
+private val sealedJson =
+    Json {
+        ignoreUnknownKeys = true
+        classDiscriminator = "@type"
+    }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Module KDoc
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * wasmJs render entry points for the browser-hosted kUML playground.
+ *
+ * **What this genuinely does:**
+ *  - [renderSampleClassDiagram]: build a small, hand-rolled UML [KumlDiagram]
+ *    directly in Kotlin, lay it out with the real [GridLayoutEngine], and
+ *    render to SVG via [KumlSvgRenderer.toSvg] (the same commonMain renderer
+ *    used by the JVM CLI).
+ *  - [renderDiagramJson]: decode an arbitrary UML [KumlDiagram] + precomputed
+ *    [LayoutResult] (both JSON) and render to SVG.
+ *  - [renderDiagramJsonWithGrid]: decode a UML [KumlDiagram] and compute a
+ *    **real** multi-column, content-sized grid layout in-wasm via the
+ *    multiplatform [UmlLayoutBridge] + [GridLayoutEngine]. This is a genuine
+ *    layout (multi-row/column slot allocation, content-based node sizing, edge
+ *    routing), not the single-row demo scaffold it replaced. It is still not
+ *    ELK — no crossing minimisation or layered ranking — but it is a real
+ *    fallback for callers that have a diagram and no precomputed layout.
+ *  - [renderC4DiagramJson], [renderSysml2DiagramJson], [renderBpmnDiagramJson]:
+ *    decode a concrete metamodel `Model` + `Diagram` + precomputed
+ *    [LayoutResult] (all JSON) and render via the matching `KumlSvgRenderer`
+ *    overload. Layout is supplied by the caller (typically produced on the JVM
+ *    by `kuml dump-json`) because C4/SysML2/BPMN are laid out with ELK on the
+ *    JVM and grid is a weaker fallback for them.
+ *  - [renderBlueprintDiagramJson]: decode a [BlueprintModel] + [BlueprintDiagram]
+ *    and render. Blueprint is geometry-driven and needs no [LayoutResult] at all.
+ *
+ * **What this explicitly does NOT do (honest scope):**
  *  - Parse arbitrary `.kuml.kts` DSL source. Kotlin scripting
- *    (`kuml-core-script`) has no Kotlin/Wasm backend.
- *  - Compute a *real* layout for an arbitrary [KumlDiagram]. The only
- *    production layout engine (`kuml-layout-elk`) wraps the JVM-only
- *    Eclipse ELK library; `LayoutEngineRegistry`'s wasmJs actual returns an
- *    empty provider list. [renderDiagramJsonWithGrid]'s grid is a demo
- *    convenience only, not a replacement.
- *  - Decode non-UML diagrams (C4/BPMN/SysML2/KerML/Blueprint elements are
- *    `@Serializable` but not registered in [playgroundJson] yet).
- *
- * See CLAUDE.md kUML section "V3.2.10 Plan" for the full design rationale.
+ *    (`kuml-core-script`) has no Kotlin/Wasm backend, so DSL evaluation stays
+ *    JVM-only. Feed pre-decoded `KumlDiagram`/model JSON instead (e.g. from
+ *    `kuml dump-json`).
+ *  - Run the ELK layout engine in wasm. `kuml-layout-elk` wraps the JVM-only
+ *    Eclipse ELK Java library; `LayoutEngineRegistry.loadProvidersFromClasspath()`
+ *    is a no-op on wasmJs. The multiplatform [GridLayoutEngine] is available and
+ *    used for the UML `*WithGrid` path, but it is a simpler algorithm than ELK.
+ *    For C4/SysML2/BPMN, layout must be precomputed (JVM) and shipped as JSON.
+ *  - Render KerML diagrams. There is no `KumlSvgRenderer` overload for KerML in
+ *    `kuml-io-svg` — KerML currently has no SVG renderer on any platform, so it
+ *    is out of scope here regardless of serialization. This is a genuine gap,
+ *    not a wasm-specific limitation.
  */
 @OptIn(kotlin.js.ExperimentalJsExport::class)
 @JsExport
@@ -113,46 +202,7 @@ public fun renderSampleClassDiagram(): String {
             elements = listOf(classA, classB, association),
         )
 
-    // Trivial single-row grid layout — deliberately NOT a general-purpose
-    // layout engine. Fixed box sizes, fixed spacing, no collision avoidance
-    // beyond simple horizontal placement, no edge routing beyond a straight
-    // line between box centers. This exists only to unblock the wasm render
-    // demo; it must not be mistaken for a real ELK replacement.
-    val boxWidth = 160f
-    val boxHeight = 80f
-    val gap = 80f
-
-    val nodeA =
-        NodeLayout(
-            bounds = Rect(origin = Point(x = 40f, y = 40f), size = Size(boxWidth, boxHeight)),
-        )
-    val nodeB =
-        NodeLayout(
-            bounds =
-                Rect(
-                    origin = Point(x = 40f + boxWidth + gap, y = 40f),
-                    size = Size(boxWidth, boxHeight),
-                ),
-        )
-
-    val edgeRoute =
-        EdgeRoute.Direct(
-            source = Point(x = 40f + boxWidth, y = 40f + boxHeight / 2f),
-            target = Point(x = 40f + boxWidth + gap, y = 40f + boxHeight / 2f),
-        )
-
-    val canvasWidth = 40f + boxWidth + gap + boxWidth + 40f
-    val canvasHeight = 40f + boxHeight + 40f
-
-    val layoutResult =
-        LayoutResult(
-            engineId = LayoutEngineId("wasm-grid-scaffold"),
-            seed = null,
-            canvas = Size(canvasWidth, canvasHeight),
-            nodes = mapOf(NodeId("A") to nodeA, NodeId("B") to nodeB),
-            edges = mapOf(EdgeId("assoc-1") to edgeRoute),
-            groups = emptyMap(),
-        )
+    val layoutResult = layoutUmlWithGrid(diagram)
 
     return KumlSvgRenderer.toSvg(
         diagram = diagram,
@@ -163,19 +213,16 @@ public fun renderSampleClassDiagram(): String {
 }
 
 /**
- * Decodes a [KumlDiagram] and a precomputed [LayoutResult] from JSON and
+ * Decodes a UML [KumlDiagram] and a precomputed [LayoutResult] from JSON and
  * renders them to SVG via [KumlSvgRenderer.toSvg].
  *
- * Both JSON payloads must use `"@type"` as the polymorphic class
- * discriminator (not the kotlinx default `"type"`) — see [playgroundJson]
- * KDoc. Only UML elements are decodable; other metamodels throw
- * `SerializationException` because their subtypes are not registered in
- * [UmlSerializersModule].
+ * Both JSON payloads must use `"@type"` as the polymorphic class discriminator
+ * (see [umlJson] KDoc). Only UML elements are decodable through this path;
+ * non-UML metamodels have their own entry points ([renderC4DiagramJson] etc.)
+ * because they render from a `Model` + `Diagram` pair, not a `KumlDiagram`.
  *
- * @param diagramJson JSON encoding of a [KumlDiagram] whose `elements` are
- *   drawn from the UML metamodel (`dev.kuml.uml.*`).
- * @param layoutJson JSON encoding of a [LayoutResult] with node/edge
- *   placements for every element `id` in [diagramJson].
+ * @param diagramJson JSON encoding of a UML [KumlDiagram].
+ * @param layoutJson JSON encoding of a [LayoutResult].
  * @return the rendered SVG document as a string.
  */
 @OptIn(kotlin.js.ExperimentalJsExport::class)
@@ -184,8 +231,10 @@ public fun renderDiagramJson(
     diagramJson: String,
     layoutJson: String,
 ): String {
-    val diagram = playgroundJson.decodeFromString(KumlDiagram.serializer(), diagramJson)
-    val layoutResult = playgroundJson.decodeFromString(LayoutResult.serializer(), layoutJson)
+    requireWithinSizeLimit(diagramJson, "diagram")
+    requireWithinSizeLimit(layoutJson, "layout")
+    val diagram = umlJson.decodeFromString(KumlDiagram.serializer(), diagramJson)
+    val layoutResult = umlJson.decodeFromString(LayoutResult.serializer(), layoutJson)
     return KumlSvgRenderer.toSvg(
         diagram = diagram,
         layoutResult = layoutResult,
@@ -195,62 +244,200 @@ public fun renderDiagramJson(
 }
 
 /**
- * Convenience wrapper around [renderDiagramJson] for callers that only have
- * a diagram and no precomputed layout. Computes a trivial single-row grid
- * layout over the diagram's top-level elements — fixed box sizes, fixed
- * spacing, no collision avoidance, no real edge routing.
+ * Decodes a UML [KumlDiagram] and computes a **real** grid layout in-wasm via
+ * the multiplatform [UmlLayoutBridge] + [GridLayoutEngine], then renders to
+ * SVG. For callers that have a diagram but no precomputed [LayoutResult].
  *
- * This is a demo-only placeholder, NOT a general-purpose layout engine.
- * wasm has no real layout engine available (`kuml-layout-elk` is JVM-only;
- * see the module KDoc above). Prefer [renderDiagramJson] with a real
- * `LayoutResult` (e.g. computed on the JVM side and shipped as JSON) for
- * anything beyond a quick demo.
+ * The layout uses content-aware node sizing ([UmlContentSizeProvider]) and the
+ * grid engine's multi-row/column slot allocation and edge routing — a genuine
+ * improvement over the old single-row demo scaffold. It is not ELK-quality for
+ * dense graphs (no crossing minimisation), so prefer [renderDiagramJson] with a
+ * precomputed layout for complex diagrams.
  *
- * @param diagramJson JSON encoding of a [KumlDiagram] (UML elements only).
+ * @param diagramJson JSON encoding of a UML [KumlDiagram].
  * @return the rendered SVG document as a string.
  */
 @OptIn(kotlin.js.ExperimentalJsExport::class)
 @JsExport
 public fun renderDiagramJsonWithGrid(diagramJson: String): String {
-    val diagram = playgroundJson.decodeFromString(KumlDiagram.serializer(), diagramJson)
-
-    val boxWidth = 160f
-    val boxHeight = 80f
-    val gap = 80f
-    val margin = 40f
-
-    val nodeIds = diagram.elements.map { it.id }
-    val nodes =
-        nodeIds.mapIndexed { index, id ->
-            val x = margin + index * (boxWidth + gap)
-            NodeId(id) to
-                NodeLayout(
-                    bounds = Rect(origin = Point(x = x, y = margin), size = Size(boxWidth, boxHeight)),
-                )
-        }.toMap()
-
-    val canvasWidth =
-        if (nodeIds.isEmpty()) {
-            margin * 2
-        } else {
-            margin + nodeIds.size * boxWidth + (nodeIds.size - 1) * gap + margin
-        }
-    val canvasHeight = margin + boxHeight + margin
-
-    val layoutResult =
-        LayoutResult(
-            engineId = LayoutEngineId("wasm-grid-scaffold"),
-            seed = null,
-            canvas = Size(canvasWidth, canvasHeight),
-            nodes = nodes,
-            edges = emptyMap(),
-            groups = emptyMap(),
-        )
-
+    requireWithinSizeLimit(diagramJson, "diagram")
+    val diagram = umlJson.decodeFromString(KumlDiagram.serializer(), diagramJson)
+    val layoutResult = layoutUmlWithGrid(diagram)
     return KumlSvgRenderer.toSvg(
         diagram = diagram,
         layoutResult = layoutResult,
         theme = PlainTheme(),
         options = SvgRenderOptions.DEFAULT,
     )
+}
+
+/**
+ * Runs the multiplatform UML layout bridge + grid engine over [diagram].
+ *
+ * Mirrors the JVM `RenderPipeline` UML path (`UmlLayoutBridge.toLayoutGraph` +
+ * `UmlContentSizeProvider`) but uses the pure-Kotlin [GridLayoutEngine] instead
+ * of ELK (ELK is JVM-only). Falls back to an empty single-node canvas when the
+ * diagram has no layoutable elements.
+ */
+private fun layoutUmlWithGrid(diagram: KumlDiagram): LayoutResult {
+    val hints = LayoutHints.DEFAULT
+    val graph =
+        UmlLayoutBridge.toLayoutGraph(
+            diagram,
+            UmlContentSizeProvider(diagram, hints.direction),
+        )
+    if (graph.nodes.isEmpty()) {
+        // Nothing to lay out — return an empty canvas so the renderer still
+        // produces a valid (empty) SVG rather than throwing.
+        return LayoutResult(
+            engineId = LayoutEngineId("kuml.grid"),
+            seed = null,
+            canvas = Size(width = 80f, height = 80f),
+            nodes = emptyMap<NodeId, NodeLayout>(),
+            edges = emptyMap<EdgeId, EdgeRoute>(),
+            groups = emptyMap(),
+        )
+    }
+    return GridLayoutEngine().layout(graph, hints)
+}
+
+/**
+ * Decodes a [C4Model] + [C4Diagram] + precomputed [LayoutResult] and renders
+ * to SVG via `KumlSvgRenderer.toSvg(C4Diagram, C4Model, LayoutResult)`.
+ *
+ * The C4 renderer takes the diagram and its owning model (for element lookup)
+ * plus a layout. Grid layout for C4 compound (container/component) diagrams is
+ * possible in principle but weaker than the ELK path used on the JVM, so the
+ * layout is supplied by the caller (e.g. `kuml dump-json`).
+ *
+ * @param modelJson JSON encoding of a [C4Model].
+ * @param diagramJson JSON encoding of a [C4Diagram] (one of the sealed subtypes).
+ * @param layoutJson JSON encoding of a [LayoutResult].
+ */
+@OptIn(kotlin.js.ExperimentalJsExport::class)
+@JsExport
+public fun renderC4DiagramJson(
+    modelJson: String,
+    diagramJson: String,
+    layoutJson: String,
+): String {
+    requireWithinSizeLimit(modelJson, "C4 model")
+    requireWithinSizeLimit(diagramJson, "C4 diagram")
+    requireWithinSizeLimit(layoutJson, "layout")
+    val model = sealedJson.decodeFromString(C4Model.serializer(), modelJson)
+    val diagram = sealedJson.decodeFromString(C4Diagram.serializer(), diagramJson)
+    val layoutResult = sealedJson.decodeFromString(LayoutResult.serializer(), layoutJson)
+    return KumlSvgRenderer.toSvg(
+        diagram = diagram,
+        model = model,
+        layoutResult = layoutResult,
+        theme = PlainTheme(),
+        options = SvgRenderOptions.DEFAULT,
+    )
+}
+
+/**
+ * Decodes a [Sysml2Model] + [Sysml2Diagram] + precomputed [LayoutResult] and
+ * renders to SVG. Dispatches on the concrete sealed [Sysml2Diagram] subtype
+ * (BDD / IBD / UC / REQ / STM / ACT / SEQ / PAR) to the matching renderer
+ * overload — the SVG renderer has no umbrella `Sysml2Diagram` overload.
+ *
+ * @param modelJson JSON encoding of a [Sysml2Model].
+ * @param diagramJson JSON encoding of a [Sysml2Diagram] subtype.
+ * @param layoutJson JSON encoding of a [LayoutResult].
+ */
+@OptIn(kotlin.js.ExperimentalJsExport::class)
+@JsExport
+public fun renderSysml2DiagramJson(
+    modelJson: String,
+    diagramJson: String,
+    layoutJson: String,
+): String {
+    requireWithinSizeLimit(modelJson, "SysML 2 model")
+    requireWithinSizeLimit(diagramJson, "SysML 2 diagram")
+    requireWithinSizeLimit(layoutJson, "layout")
+    val model = sealedJson.decodeFromString(Sysml2Model.serializer(), modelJson)
+    val diagram = sealedJson.decodeFromString(Sysml2Diagram.serializer(), diagramJson)
+    val layoutResult = sealedJson.decodeFromString(LayoutResult.serializer(), layoutJson)
+    val theme = PlainTheme()
+    val options = SvgRenderOptions.DEFAULT
+    return when (diagram) {
+        is BdDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+        is IbdDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+        is UcDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+        is ReqDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+        is StmDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+        is ActDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+        is SeqDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+        is ParDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+    }
+}
+
+/**
+ * Decodes a [BpmnModel] + [BpmnDiagram] + precomputed [LayoutResult] and
+ * renders to SVG. Dispatches on the concrete sealed [BpmnDiagram] subtype.
+ *
+ * A [ProcessDiagram] renders through the UML-style renderer over a synthetic
+ * [KumlDiagram] view (built from `process.renderableElements()`, mirroring the
+ * JVM `RenderPipeline`); the other three subtypes render via their
+ * `KumlSvgRenderer.toSvg(model, diagram, layout)` overloads.
+ *
+ * @param modelJson JSON encoding of a [BpmnModel].
+ * @param diagramJson JSON encoding of a [BpmnDiagram] subtype.
+ * @param layoutJson JSON encoding of a [LayoutResult].
+ */
+@OptIn(kotlin.js.ExperimentalJsExport::class)
+@JsExport
+public fun renderBpmnDiagramJson(
+    modelJson: String,
+    diagramJson: String,
+    layoutJson: String,
+): String {
+    requireWithinSizeLimit(modelJson, "BPMN model")
+    requireWithinSizeLimit(diagramJson, "BPMN diagram")
+    requireWithinSizeLimit(layoutJson, "layout")
+    val model = sealedJson.decodeFromString(BpmnModel.serializer(), modelJson)
+    val diagram = sealedJson.decodeFromString(BpmnDiagram.serializer(), diagramJson)
+    val layoutResult = sealedJson.decodeFromString(LayoutResult.serializer(), layoutJson)
+    val theme = PlainTheme()
+    val options = SvgRenderOptions.DEFAULT
+    return when (diagram) {
+        is ProcessDiagram -> {
+            val process = model.processes.firstOrNull { it.id == diagram.processId }
+            val elements: List<KumlElement> = process?.renderableElements() ?: emptyList()
+            val kumlDiagram =
+                KumlDiagram(
+                    name = diagram.name,
+                    type = DiagramType.BPMN_PROCESS,
+                    elements = elements,
+                )
+            KumlSvgRenderer.toSvg(kumlDiagram, layoutResult, theme, options)
+        }
+        is CollaborationDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+        is ChoreographyDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+        is ConversationDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, options)
+    }
+}
+
+/**
+ * Decodes a [BlueprintModel] + [BlueprintDiagram] and renders to SVG.
+ *
+ * Blueprint / Journey-Map diagrams are geometry-driven: the renderer computes
+ * placement from the model's phases/layers directly, so **no** [LayoutResult]
+ * is needed (unlike every other diagram type).
+ *
+ * @param modelJson JSON encoding of a [BlueprintModel].
+ * @param diagramJson JSON encoding of a [BlueprintDiagram].
+ */
+@OptIn(kotlin.js.ExperimentalJsExport::class)
+@JsExport
+public fun renderBlueprintDiagramJson(
+    modelJson: String,
+    diagramJson: String,
+): String {
+    requireWithinSizeLimit(modelJson, "Blueprint model")
+    requireWithinSizeLimit(diagramJson, "Blueprint diagram")
+    val model = sealedJson.decodeFromString(BlueprintModel.serializer(), modelJson)
+    val diagram = sealedJson.decodeFromString(BlueprintDiagram.serializer(), diagramJson)
+    return KumlSvgRenderer.toSvg(model, diagram, PlainTheme())
 }

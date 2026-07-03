@@ -4,6 +4,16 @@ import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import dev.kuml.blueprint.model.BlueprintDiagram
+import dev.kuml.blueprint.model.BlueprintModel
+import dev.kuml.bpmn.model.BpmnDiagram
+import dev.kuml.bpmn.model.BpmnModel
+import dev.kuml.bpmn.model.ChoreographyDiagram
+import dev.kuml.bpmn.model.CollaborationDiagram
+import dev.kuml.bpmn.model.ConversationDiagram
+import dev.kuml.bpmn.model.ProcessDiagram
+import dev.kuml.c4.model.C4Diagram
+import dev.kuml.c4.model.C4Model
 import dev.kuml.core.dsl.layout.LayoutMetadataKeys
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
@@ -16,10 +26,25 @@ import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.Spacing
+import dev.kuml.layout.bridge.C4ContentSizeProvider
+import dev.kuml.layout.bridge.C4LayoutBridge
+import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
+import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
+import dev.kuml.sysml2.ActDiagram
+import dev.kuml.sysml2.BdDiagram
+import dev.kuml.sysml2.IbdDiagram
+import dev.kuml.sysml2.ParDiagram
+import dev.kuml.sysml2.ReqDiagram
+import dev.kuml.sysml2.SeqDiagram
+import dev.kuml.sysml2.StmDiagram
+import dev.kuml.sysml2.Sysml2Diagram
+import dev.kuml.sysml2.Sysml2Model
+import dev.kuml.sysml2.UcDiagram
 import dev.kuml.uml.UmlSerializersModule
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -27,35 +52,61 @@ import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
 
 /**
- * Prerequisite (V3.2.11) for the Node/wasm playground engine: dumps the
- * JVM-computed `KumlDiagram` + `LayoutResult` for a UML `.kuml.kts` script
- * as two JSON files, using the exact `Json` configuration that the
- * `kuml-wasm-playground` module's `renderDiagramJson(diagramJson,
- * layoutJson)` entry point expects to decode
- * (`serializersModule = UmlSerializersModule`, `classDiscriminator = "@type"`).
+ * Dumps the JVM-computed diagram model + layout for a `.kuml.kts` script as
+ * JSON files that the `kuml-wasm-playground` module can decode and render in
+ * the browser (there is no `.kuml.kts` parser and no ELK on Kotlin/Wasm, so the
+ * JVM does the parsing + layout and ships JSON).
  *
- * Scope: UML only. Non-UML extractions (C4/SysML2/BPMN/Blueprint) are
- * rejected with a clear error, matching the wasm side's decode scope.
+ * **Scope (V0.23.3):** UML, C4, SysML 2, BPMN and Blueprint. The layout is
+ * re-derived exactly the way [RenderPipeline] derives it for the same input
+ * (same bridge, same size provider, same engine + spacing hints), so a
+ * wasm-vs-CLI SVG diff is meaningful.
  *
- * This intentionally re-derives the diagram + layout the same way
- * [RenderPipeline]'s internal UML path does (same `UmlLayoutBridge` +
- * `UmlContentSizeProvider` + engine selection + spacing hints) so the
- * dumped `LayoutResult` is the same one the CLI SVG render path would use
- * for the identical input — this is what makes a wasm-vs-CLI SVG diff
- * meaningful.
+ * **Output files:**
+ *  - `--diagram-out` — the diagram JSON.
+ *    - UML: a `KumlDiagram`.
+ *    - C4/SysML2/BPMN/Blueprint: the concrete diagram (`C4Diagram`,
+ *      `Sysml2Diagram`, `BpmnDiagram`, `BlueprintDiagram`).
+ *  - `--layout-out` — the `LayoutResult` JSON. Written for UML/C4/SysML2/BPMN.
+ *    Blueprint is geometry-driven and has no `LayoutResult`; for Blueprint this
+ *    file is written as an empty object `{}` so downstream tooling can rely on
+ *    its presence, and the wasm `renderBlueprintDiagramJson` ignores it.
+ *  - `--model-out` — the owning model JSON (`C4Model`, `Sysml2Model`,
+ *    `BpmnModel`, `BlueprintModel`). Required for every non-UML metamodel,
+ *    because their renderers take a `(model, diagram, layout)` triple. Not
+ *    written for UML (a `KumlDiagram` is self-contained); if supplied for a UML
+ *    script it is ignored.
+ *
+ * **Serialization config:** UML uses `serializersModule = UmlSerializersModule`
+ * (its `KumlElement` base is an *open* polymorphic type needing an explicit
+ * registry). C4/SysML2/BPMN/Blueprint models are `sealed` `@Serializable`
+ * hierarchies that need no module. Both configs use `classDiscriminator =
+ * "@type"` (the kotlinx default `"type"` collides with `KumlDiagram.type`).
  */
 internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
-    private val input by argument(name = "SCRIPT", help = "Path to a *.kuml.kts script (UML diagrams only).")
-    private val diagramOut by option("--diagram-out", help = "Output path for the KumlDiagram JSON.").required()
+    private val input by argument(name = "SCRIPT", help = "Path to a *.kuml.kts script.")
+    private val diagramOut by option("--diagram-out", help = "Output path for the diagram JSON.").required()
     private val layoutOut by option("--layout-out", help = "Output path for the LayoutResult JSON.").required()
+    private val modelOut by
+        option(
+            "--model-out",
+            help = "Output path for the owning model JSON (required for C4/SysML2/BPMN/Blueprint; ignored for UML).",
+        )
 
     override fun help(context: com.github.ajalt.clikt.core.Context): String =
-        "Dumps the parsed KumlDiagram and computed LayoutResult for a UML script as JSON " +
-            "(prerequisite for the wasm playground render path)."
+        "Dumps the parsed diagram, its owning model, and the computed LayoutResult as JSON " +
+            "(prerequisite for the wasm playground render path). Supports UML, C4, SysML 2, BPMN, Blueprint."
 
-    private val dumpJson =
+    /** UML needs the open-polymorphic element registry; sealed metamodels do not. */
+    private val umlJson =
         Json {
             serializersModule = UmlSerializersModule
+            ignoreUnknownKeys = true
+            classDiscriminator = "@type"
+        }
+
+    private val modelJson =
+        Json {
             ignoreUnknownKeys = true
             classDiscriminator = "@type"
         }
@@ -77,7 +128,8 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
             else -> DiagramKind.Generic
         }
 
-    private fun diagramAndLayout(diagram: KumlDiagram): LayoutResult {
+    // ── UML ──────────────────────────────────────────────────────────────
+    private fun umlLayout(diagram: KumlDiagram): LayoutResult {
         ensureEnginesRegistered()
         val diagramMergeEdges =
             (diagram.metadata[LayoutMetadataKeys.MERGE_EDGES] as? KumlMetaValue.Flag)?.value
@@ -100,6 +152,80 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
         return engine.layout(layoutGraph, hints)
     }
 
+    // ── C4 ───────────────────────────────────────────────────────────────
+    private fun c4Layout(extracted: ExtractedDiagram.C4): LayoutResult {
+        ensureEnginesRegistered()
+        val sizeProvider = C4ContentSizeProvider(extracted.model)
+        val layoutGraph = C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model, sizeProvider)
+        val engine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: error("ELK layout engine not available for C4 diagrams.")
+        val hints =
+            if (extracted.diagram is dev.kuml.c4.model.DynamicDiagram) {
+                LayoutHints.DEFAULT.copy(
+                    spacing = LayoutHints.DEFAULT.spacing.copy(nodeToNode = 100f, edgeToEdge = 28f, layerToLayer = 120f),
+                )
+            } else {
+                LayoutHints.DEFAULT
+            }
+        return engine.layout(layoutGraph, hints)
+    }
+
+    // ── SysML 2 ──────────────────────────────────────────────────────────
+    private fun sysml2Layout(extracted: ExtractedDiagram.Sysml2): LayoutResult {
+        ensureEnginesRegistered()
+        val model = extracted.model
+        val engine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: error("ELK layout engine not available for SysML 2 diagrams.")
+        return when (val diagram = extracted.diagram) {
+            is ReqDiagram -> {
+                val graph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+                val hints =
+                    LayoutHints.DEFAULT.copy(
+                        spacing = LayoutHints.DEFAULT.spacing.copy(nodeToNode = 80f, edgeToEdge = 20f, layerToLayer = 100f),
+                    )
+                engine.layout(graph, hints)
+            }
+            is StmDiagram -> {
+                val graph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+                val hints = LayoutHints.DEFAULT.copy(spacing = Spacing(nodeToNode = 80f, edgeToEdge = 28f, groupPadding = 24f))
+                engine.layout(graph, hints)
+            }
+            is ActDiagram -> {
+                val graph = Sysml2LayoutBridge.toLayoutGraph(model, diagram)
+                val hints =
+                    LayoutHints.DEFAULT.copy(
+                        spacing = LayoutHints.DEFAULT.spacing.copy(nodeToNode = 100f, layerToLayer = 100f),
+                    )
+                engine.layout(graph, hints)
+            }
+            is ParDiagram -> {
+                val graph = Sysml2LayoutBridge.toLayoutGraph(model, diagram, Sysml2LayoutBridge.parContentAwareSizeProvider(model))
+                engine.layout(graph, LayoutHints.DEFAULT)
+            }
+            is BdDiagram -> engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
+            is IbdDiagram -> engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
+            is UcDiagram -> engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
+            is SeqDiagram -> engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
+        }
+    }
+
+    // ── BPMN ─────────────────────────────────────────────────────────────
+    private fun bpmnLayout(extracted: ExtractedDiagram.Bpmn): LayoutResult {
+        ensureEnginesRegistered()
+        val model = extracted.model
+        val engine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: error("ELK layout engine not available for BPMN diagrams.")
+        return when (val diagram = extracted.diagram) {
+            is ChoreographyDiagram -> ChoreographyGridLayout.layout(model, diagram)
+            is ProcessDiagram -> engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
+            is CollaborationDiagram -> engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
+            is ConversationDiagram -> engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
+        }
+    }
+
     override fun run() {
         val scriptFile = File(input)
         val evalResult = KumlScriptHost.eval(scriptFile)
@@ -112,20 +238,59 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
                 ?: throw ScriptEvaluationException("Script evaluation did not produce a result")
         val extracted = DiagramExtractor.extractAny(successResult.value.returnValue, scriptFile)
 
-        val umlExtracted =
-            extracted as? ExtractedDiagram.Uml
-                ?: throw ScriptEvaluationException(
-                    "dump-json only supports UML diagrams (wasm playground decode scope). " +
-                        "Got: ${extracted::class.simpleName}",
-                )
+        when (extracted) {
+            is ExtractedDiagram.Uml -> {
+                val diagram = extracted.diagram
+                val layout = umlLayout(diagram)
+                writeDiagram(umlJson.encodeToString(KumlDiagram.serializer(), diagram))
+                writeLayout(umlJson.encodeToString(LayoutResult.serializer(), layout))
+                // No model file for UML; a KumlDiagram is self-contained.
+            }
+            is ExtractedDiagram.C4 -> {
+                requireModelOut("C4")
+                val layout = c4Layout(extracted)
+                writeModel(modelJson.encodeToString(C4Model.serializer(), extracted.model))
+                writeDiagram(modelJson.encodeToString(C4Diagram.serializer(), extracted.diagram))
+                writeLayout(modelJson.encodeToString(LayoutResult.serializer(), layout))
+            }
+            is ExtractedDiagram.Sysml2 -> {
+                requireModelOut("SysML 2")
+                val layout = sysml2Layout(extracted)
+                writeModel(modelJson.encodeToString(Sysml2Model.serializer(), extracted.model))
+                writeDiagram(modelJson.encodeToString(Sysml2Diagram.serializer(), extracted.diagram))
+                writeLayout(modelJson.encodeToString(LayoutResult.serializer(), layout))
+            }
+            is ExtractedDiagram.Bpmn -> {
+                requireModelOut("BPMN")
+                val layout = bpmnLayout(extracted)
+                writeModel(modelJson.encodeToString(BpmnModel.serializer(), extracted.model))
+                writeDiagram(modelJson.encodeToString(BpmnDiagram.serializer(), extracted.diagram))
+                writeLayout(modelJson.encodeToString(LayoutResult.serializer(), layout))
+            }
+            is ExtractedDiagram.Blueprint -> {
+                requireModelOut("Blueprint")
+                writeModel(modelJson.encodeToString(BlueprintModel.serializer(), extracted.model))
+                writeDiagram(modelJson.encodeToString(BlueprintDiagram.serializer(), extracted.diagram))
+                // Blueprint is geometry-driven — no LayoutResult. Write an empty
+                // object so downstream tooling can rely on the file existing.
+                writeLayout("{}")
+            }
+        }
+    }
 
-        val diagram = umlExtracted.diagram
-        val layoutResult = diagramAndLayout(diagram)
+    private fun requireModelOut(metamodel: String) {
+        if (modelOut == null) {
+            throw ScriptEvaluationException(
+                "$metamodel diagrams need a --model-out path (their renderers take a model + diagram + layout triple).",
+            )
+        }
+    }
 
-        val diagramJson = dumpJson.encodeToString(KumlDiagram.serializer(), diagram)
-        val layoutJson = dumpJson.encodeToString(LayoutResult.serializer(), layoutResult)
+    private fun writeDiagram(json: String) = File(diagramOut).writeText(json)
 
-        File(diagramOut).writeText(diagramJson)
-        File(layoutOut).writeText(layoutJson)
+    private fun writeLayout(json: String) = File(layoutOut).writeText(json)
+
+    private fun writeModel(json: String) {
+        modelOut?.let { File(it).writeText(json) }
     }
 }

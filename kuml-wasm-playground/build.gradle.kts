@@ -3,27 +3,29 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-// V3.2.9/V3.2.10 — Scaffolding module for a browser-hosted kUML renderer.
+// V3.2.9/V3.2.10/V0.23.3 — Browser-hosted kUML renderer (Kotlin/Wasm).
 //
-// HONEST SCOPE (see CLAUDE.md kUML section "V3.2.10 Plan"): this module exposes
-// the render step (KumlDiagram + LayoutResult -> SVG), which genuinely
-// compiles and runs on Kotlin/Wasm today. It does NOT expose `.kuml.kts` DSL
-// parsing (kuml-core-script is JVM-only, Kotlin scripting has no wasm backend)
-// and it does NOT expose the ELK layout engine (kuml-layout-elk is JVM-only,
-// wraps the Java library org.eclipse.elk). The `wasmJs` actual for
-// LayoutEngineRegistry.loadProvidersFromClasspath() returns an empty list —
-// there is currently no registered layout engine that runs in wasm.
+// HONEST SCOPE (see WasmPlayground.kt KDoc for the authoritative, per-function
+// breakdown): this module exposes the render step (Diagram + LayoutResult ->
+// SVG), which genuinely compiles and runs on Kotlin/Wasm today. It does NOT
+// expose `.kuml.kts` DSL parsing (kuml-core-script is JVM-only, Kotlin
+// scripting has no wasm backend) and it does NOT expose the ELK layout engine
+// (kuml-layout-elk is JVM-only, wraps the Java library org.eclipse.elk).
 //
-// As of V3.2.10, `KumlDiagram` is `@Serializable` and the open `KumlElement` /
-// `KumlNamespaceMember` bases are `@Polymorphic`, with the UML metamodel's
-// concrete subtypes registered via `dev.kuml.uml.UmlSerializersModule`. This
-// module therefore accepts an arbitrary UML `KumlDiagram` as JSON
-// (`renderDiagramJson`, `renderDiagramJsonWithGrid`) in addition to the
-// original hand-rolled sample diagram (`renderSampleClassDiagram`). Layout is
-// still supplied by the caller as JSON, or computed with a demo-only single
-// row grid — there is still no real layout engine in wasm. C4/BPMN/SysML2/
-// KerML/Blueprint diagrams are not decodable yet; registering their
-// SerializersModules is the natural V3.2.11 follow-up.
+// V0.23.3 widened the decode scope beyond UML: C4, SysML 2, BPMN and Blueprint
+// diagrams are now decodable and renderable in wasm (their models/diagrams are
+// `sealed` `@Serializable` hierarchies that round-trip through plain kotlinx
+// Json — no custom SerializersModule needed, unlike UML's open `KumlElement`
+// base which still needs `UmlSerializersModule`). KerML is intentionally still
+// out of scope: no `KumlSvgRenderer` overload exists for it.
+//
+// V0.23.3 also made `kuml-layout-grid` multiplatform, so the pure-Kotlin
+// `GridLayoutEngine` now runs in wasm. `renderDiagramJsonWithGrid` uses it via
+// the multiplatform `UmlLayoutBridge` for a real multi-column, content-sized
+// grid layout (replacing the old single-row demo scaffold). For C4/SysML2/BPMN
+// the caller still supplies a precomputed `LayoutResult` (typically from the
+// JVM `kuml dump-json` command), because those diagram types are laid out with
+// ELK on the JVM and grid is a weaker fallback for them.
 @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
 kotlin {
     jvmToolchain(21)
@@ -37,8 +39,13 @@ kotlin {
 
     sourceSets {
         wasmJsMain.dependencies {
+            // kuml-io-svg transitively api-exposes the layout-bridge and all
+            // metamodels (uml/c4/sysml2/bpmn/blueprint), so no separate
+            // metamodel deps are needed here.
             implementation(project(":kuml-io:kuml-io-svg"))
             implementation(project(":kuml-renderer:kuml-layout-api"))
+            implementation(project(":kuml-renderer:kuml-layout-bridge"))
+            implementation(project(":kuml-renderer:kuml-layout-grid")) // V0.23.3 — real wasm grid layout
             implementation(project(":kuml-renderer:kuml-themes-core"))
             implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
             implementation(project(":kuml-core:kuml-core-model"))
