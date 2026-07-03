@@ -113,8 +113,7 @@ class CodeGenAiToolsTest :
             val (ctx, tools) = makeTools()
             runTest {
                 val result = tools.addSpringBean("PaymentService", "service", listOf("NonExistent"))
-                result.shouldBeInstanceOf<PatchApplyResult.Failure>()
-                val failure = result as PatchApplyResult.Failure
+                val failure = result.shouldBeInstanceOf<PatchApplyResult.Failure>()
                 failure.hint shouldNotBe null
             }
         }
@@ -144,8 +143,7 @@ class CodeGenAiToolsTest :
 
                     if ("kotlin" in CodeGenRegistry.names()) {
                         val result = tools.generateCode("kotlin", tempDir.toString())
-                        result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Success>()
-                        val success = result as CodeGenAiTools.CodeGenResult.Success
+                        val success = result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Success>()
                         success.generatedFiles.shouldNotBeEmpty()
                         success.generatorId shouldBe "kotlin"
                     } else {
@@ -166,8 +164,7 @@ class CodeGenAiToolsTest :
             try {
                 runTest {
                     val result = tools.generateCode("kotlin", tempDir.toString())
-                    result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Failure>()
-                    val failure = result as CodeGenAiTools.CodeGenResult.Failure
+                    val failure = result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Failure>()
                     failure.reason shouldContainString "C4"
                 }
             } finally {
@@ -182,8 +179,7 @@ class CodeGenAiToolsTest :
             try {
                 runTest {
                     val result = tools.generateCode("kotlin", tempDir.toString())
-                    result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Failure>()
-                    val failure = result as CodeGenAiTools.CodeGenResult.Failure
+                    val failure = result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Failure>()
                     failure.reason shouldContainString "SysML 2"
                 }
             } finally {
@@ -195,8 +191,7 @@ class CodeGenAiToolsTest :
             val (_, tools) = makeTools()
             runTest {
                 val result = tools.generateCode("kotlin", "../../etc/passwd")
-                result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Failure>()
-                val failure = result as CodeGenAiTools.CodeGenResult.Failure
+                val failure = result.shouldBeInstanceOf<CodeGenAiTools.CodeGenResult.Failure>()
                 failure.reason shouldContainString "path traversal"
             }
         }

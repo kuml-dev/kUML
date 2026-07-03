@@ -45,7 +45,7 @@ class AgentEditingContextTest :
                         )
                     }
                 result.shouldBeInstanceOf<PatchApplyResult.Success>()
-                (result as PatchApplyResult.Success).patchId shouldBe patch.patchId
+                result.patchId shouldBe patch.patchId
             }
         }
 

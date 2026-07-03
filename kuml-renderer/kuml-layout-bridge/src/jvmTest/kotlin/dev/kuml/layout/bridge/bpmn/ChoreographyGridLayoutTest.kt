@@ -178,8 +178,7 @@ class ChoreographyGridLayoutTest :
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
             val result = ChoreographyGridLayout.layout(model(choreo), diagram)
             val loopRoute = result.edges.getValue(EdgeId("loop"))
-            loopRoute.shouldBeInstanceOf<EdgeRoute.OrthogonalRounded>()
-            val loopY = (loopRoute as EdgeRoute.OrthogonalRounded).waypoints.first().y
+            val loopY = loopRoute.shouldBeInstanceOf<EdgeRoute.OrthogonalRounded>().waypoints.first().y
             (loopY < result.canvas.height) shouldBe true
             (
                 loopY >

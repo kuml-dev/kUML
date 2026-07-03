@@ -536,7 +536,6 @@ public object KumlSvgRenderer {
                 is DeploymentDiagram -> "deployment"
                 is DynamicDiagram -> "dynamic"
                 is SystemLandscapeDiagram -> "system landscape"
-                else -> "c4"
             }
         return SvgDocument.render(
             layoutResult,

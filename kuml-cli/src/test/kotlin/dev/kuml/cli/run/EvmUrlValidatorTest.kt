@@ -24,7 +24,7 @@ class EvmUrlValidatorTest :
         test("validateRpcUrl rejects file scheme") {
             val result = EvmUrlValidator.validateRpcUrl("file:///etc/passwd")
             result.shouldBeInstanceOf<EvmUrlValidator.Result.Invalid>()
-            (result as EvmUrlValidator.Result.Invalid).message shouldContainIgnoringCase "http"
+            result.message shouldContainIgnoringCase "http"
         }
 
         test("validateRpcUrl rejects private 10.x") {

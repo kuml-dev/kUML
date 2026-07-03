@@ -33,8 +33,11 @@ class KermlTypeTest :
         "data type is a separate KermlType branch" {
             val dt: KermlType = KermlDataType(id = "Real", name = "Real")
             dt.shouldBeInstanceOf<KermlDataType>()
-            // Not a classifier — that's the structural-vs-value split.
-            (dt is KermlClassifier) shouldBe false
+            // Not a classifier — that's the structural-vs-value split. Check on a
+            // fresh, un-narrowed KermlType reference so the instance check reflects
+            // the runtime type (KermlType is not sealed, so this is a real test).
+            val asType: KermlType = KermlDataType(id = "Real", name = "Real")
+            (asType is KermlClassifier) shouldBe false
         }
 
         "feature default multiplicity is 1..1" {

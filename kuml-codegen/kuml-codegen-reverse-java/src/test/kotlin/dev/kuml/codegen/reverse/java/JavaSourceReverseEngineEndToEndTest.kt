@@ -64,8 +64,7 @@ class JavaSourceReverseEngineEndToEndTest :
                             ),
                         )
                     }
-                result.shouldBeInstanceOf<ReverseResult.Success>()
-                val success = result as ReverseResult.Success
+                val success = result.shouldBeInstanceOf<ReverseResult.Success>()
                 val diagram = success.model.root.shouldBeInstanceOf<KumlDiagram>()
                 val classes = diagram.elements.filterIsInstance<UmlClass>()
                 // User, Account, Transaction
@@ -96,8 +95,7 @@ class JavaSourceReverseEngineEndToEndTest :
                             ),
                         )
                     }
-                result.shouldBeInstanceOf<ReverseResult.Success>()
-                val success = result as ReverseResult.Success
+                val success = result.shouldBeInstanceOf<ReverseResult.Success>()
                 val diagram = success.model.root.shouldBeInstanceOf<KumlDiagram>()
 
                 // Author, Book, Library — 3 classes
@@ -131,8 +129,7 @@ class JavaSourceReverseEngineEndToEndTest :
                             ),
                         )
                     }
-                result.shouldBeInstanceOf<ReverseResult.Success>()
-                val success = result as ReverseResult.Success
+                val success = result.shouldBeInstanceOf<ReverseResult.Success>()
                 val codes = success.diagnostics.map { it.code }
 
                 // REV-J-003: Map<String, T> field in GenericContainer

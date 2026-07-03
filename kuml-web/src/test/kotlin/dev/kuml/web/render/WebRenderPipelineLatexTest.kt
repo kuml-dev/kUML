@@ -44,24 +44,21 @@ class WebRenderPipelineLatexTest :
 
         test("latex format returns TikZ snippet for UML class diagram") {
             val result = WebRenderPipeline.render(umlClassScript, "latex", null, null)
-            result.shouldBeInstanceOf<WebRenderResult.Latex>()
-            val tex = (result as WebRenderResult.Latex).tex
+            val tex = result.shouldBeInstanceOf<WebRenderResult.Latex>().tex
             tex.shouldNotBeEmpty()
             tex shouldContain "tikzpicture"
         }
 
         test("latex format returns TikZ for SysML2 BDD diagram") {
             val result = WebRenderPipeline.render(sysml2BddScript, "latex", null, null)
-            result.shouldBeInstanceOf<WebRenderResult.Latex>()
-            val tex = (result as WebRenderResult.Latex).tex
+            val tex = result.shouldBeInstanceOf<WebRenderResult.Latex>().tex
             tex.shouldNotBeEmpty()
             tex shouldContain "tikzpicture"
         }
 
         test("latex format with standaloneTex=true contains documentclass") {
             val result = WebRenderPipeline.render(umlClassScript, "latex", null, null, standaloneTex = true)
-            result.shouldBeInstanceOf<WebRenderResult.Latex>()
-            val tex = (result as WebRenderResult.Latex).tex
+            val tex = result.shouldBeInstanceOf<WebRenderResult.Latex>().tex
             tex shouldContain "\\documentclass"
             tex shouldContain "\\begin{document}"
             tex shouldContain "\\end{document}"
@@ -69,16 +66,14 @@ class WebRenderPipelineLatexTest :
 
         test("latex format snippet does NOT contain documentclass when standaloneTex=false") {
             val result = WebRenderPipeline.render(umlClassScript, "latex", null, null, standaloneTex = false)
-            result.shouldBeInstanceOf<WebRenderResult.Latex>()
-            val tex = (result as WebRenderResult.Latex).tex
+            val tex = result.shouldBeInstanceOf<WebRenderResult.Latex>().tex
             tex shouldNotContain "\\documentclass"
             tex shouldContain "tikzpicture"
         }
 
         test("unknown format returns WebRenderResult.Error") {
             val result = WebRenderPipeline.render(umlClassScript, "xml", null, null)
-            result.shouldBeInstanceOf<WebRenderResult.Error>()
-            val err = (result as WebRenderResult.Error).message
+            val err = result.shouldBeInstanceOf<WebRenderResult.Error>().message
             err shouldContain "xml"
         }
     })

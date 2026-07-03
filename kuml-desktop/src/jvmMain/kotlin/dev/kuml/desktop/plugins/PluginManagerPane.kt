@@ -99,7 +99,7 @@ fun PluginManagerPane(onClose: () -> Unit) {
                     Spacer(Modifier.height(12.dp))
                     var selected by remember { mutableStateOf(0) }
                     val tabs = registryTabLabels()
-                    TabRow(selectedTabIndex = selected) {
+                    PrimaryTabRow(selectedTabIndex = selected) {
                         tabs.forEachIndexed { i, title ->
                             Tab(
                                 selected = i == selected,

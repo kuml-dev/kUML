@@ -62,8 +62,7 @@ class MultiUserPatchTest :
 
                 val outcome = engine.applyOne(patch.patchId)
 
-                outcome.shouldBeInstanceOf<PatchApplyOutcome.ApplyFailed>()
-                val failed = outcome as PatchApplyOutcome.ApplyFailed
+                val failed = outcome.shouldBeInstanceOf<PatchApplyOutcome.ApplyFailed>()
                 failed.reason shouldContain "ownership-mismatch"
                 failed.reason shouldContain "bob"
                 failed.reason shouldContain "alice"

@@ -167,7 +167,7 @@ class ConversationDslTest :
                     }
                 val node = model.conversations[0].nodes[0]
                 node.shouldBeInstanceOf<CallConversation>()
-                (node as CallConversation).calledCollaborationRef shouldBe "extCollab1"
+                node.calledCollaborationRef shouldBe "extCollab1"
                 node.name shouldBe "External Collab"
                 node.participants shouldBe listOf("A", "B")
             }
@@ -200,7 +200,7 @@ class ConversationDslTest :
                     }
                 val sub = model.conversations[0].nodes[0]
                 sub.shouldBeInstanceOf<SubConversation>()
-                (sub as SubConversation).children shouldHaveSize 1
+                sub.children shouldHaveSize 1
                 sub.children[0].name shouldBe "Child"
             }
 

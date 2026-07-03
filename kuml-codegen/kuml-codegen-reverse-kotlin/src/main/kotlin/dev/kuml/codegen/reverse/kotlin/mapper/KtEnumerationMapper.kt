@@ -32,7 +32,7 @@ internal class KtEnumerationMapper(
                         diagnostics.info(
                             "REV-K-030",
                             "Enum entry '$entryName' in '$name' has a body — body members not modeled.",
-                            file = ktEnum.containingFile?.name,
+                            file = ktEnum.containingFile.name,
                         )
                     }
 

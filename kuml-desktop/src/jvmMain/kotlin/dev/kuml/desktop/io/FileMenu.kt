@@ -61,9 +61,12 @@ object FileMenu {
 }
 
 private fun <T> runOnEdtBlocking(block: () -> T): T =
-    if (SwingUtilities.isEventDispatchThread()) block()
-    else {
-        var result: T? = null
-        SwingUtilities.invokeAndWait { result = block() }
-        @Suppress("UNCHECKED_CAST") result as T
+    if (SwingUtilities.isEventDispatchThread()) {
+        block()
+    } else {
+        // Capture through a typed single-element list so no unchecked cast from
+        // a nullable holder (T?) back to T is needed — the list element is T.
+        val holder = mutableListOf<T>()
+        SwingUtilities.invokeAndWait { holder.add(block()) }
+        holder.single()
     }

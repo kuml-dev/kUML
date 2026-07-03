@@ -79,8 +79,7 @@ class C4ToUmlTransformerTest :
             val model = modelWith(elements = listOf(sys, web))
             val result = transformer.transform(model, ctx)
 
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
+            val content = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output[0].content
             content shouldContain """classOf(name = "WebApplication")"""
             content shouldContain """stereotypes += "container""""
         }
@@ -141,8 +140,7 @@ class C4ToUmlTransformerTest :
 
         test("empty model with no systems produces minimal valid script") {
             val result = transformer.transform(emptyModel("Empty"), ctx)
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val files = (result as TransformResult.Success<List<GeneratedFile>>).output
+            val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 1
             files[0].relativePath shouldBe "uml-from-c4.kuml.kts"
             val content = files[0].content

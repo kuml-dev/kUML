@@ -57,7 +57,7 @@ public object Sysml2ActivityAdapter {
         spec.edges.forEach { edge ->
             if (!edge.guard.isNullOrBlank()) {
                 val errors = mutableListOf<dev.kuml.expr.ParseError>()
-                OclLikeExpressionParser.tryParse(edge.guard!!, errors)
+                OclLikeExpressionParser.tryParse(edge.guard, errors)
                 // Parse failures are intentionally not logged to avoid noise;
                 // the legacy evaluator will handle them at runtime.
             }

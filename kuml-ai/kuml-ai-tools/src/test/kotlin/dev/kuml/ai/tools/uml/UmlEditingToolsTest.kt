@@ -90,7 +90,7 @@ class UmlEditingToolsTest :
             runTest {
                 val result = tools.addAttribute("NonExistent", "id", "String")
                 result.shouldBeInstanceOf<PatchApplyResult.Failure>()
-                (result as PatchApplyResult.Failure).hint.shouldBe("Use list_elements to discover available classifier ids")
+                result.hint.shouldBe("Use list_elements to discover available classifier ids")
             }
         }
 
@@ -161,7 +161,7 @@ class UmlEditingToolsTest :
                 tools.addClass("Animal")
                 val result = tools.addGeneralization("Animal", "Animal")
                 result.shouldBeInstanceOf<PatchApplyResult.Failure>()
-                (result as PatchApplyResult.Failure).hint.shouldBe("Child and parent must be different classifiers")
+                result.hint.shouldBe("Child and parent must be different classifiers")
             }
         }
 

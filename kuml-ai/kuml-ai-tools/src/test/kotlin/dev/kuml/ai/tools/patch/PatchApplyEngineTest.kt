@@ -81,7 +81,7 @@ class PatchApplyEngineTest :
                 engine.buffer(patch2)
                 val outcome = engine.applyOne(patch2.patchId)
                 outcome.shouldBeInstanceOf<PatchApplyOutcome.ValidationFailed>()
-                (outcome as PatchApplyOutcome.ValidationFailed).validation.phase shouldBe
+                outcome.validation.phase shouldBe
                     dev.kuml.ai.tools.patch.validation.ValidationPhase.STRUCTURAL
 
                 val validated = sink.entriesOf<AiTraceEntry.Validated>()

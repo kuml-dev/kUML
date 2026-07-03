@@ -29,8 +29,7 @@ class UmlToDockerTransformerTest :
 
         test("single component produces one Dockerfile with correct FROM") {
             val result = transformer.transform(diagram(component("svc", "OrderService")), ctx)
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val files = (result as TransformResult.Success<List<GeneratedFile>>).output
+            val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 1
             files[0].relativePath shouldBe "OrderService/Dockerfile"
             files[0].content shouldContain "FROM eclipse-temurin:21-jre-alpine"

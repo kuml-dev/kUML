@@ -153,10 +153,11 @@ class SubstrateChainAdapterTest :
                 setupFinalizedHeight(5L)
                 setupBlockHash()
                 setupSystemEvents()
-                // Verify subscribe() returns a flow (cold — not yet started)
+                // subscribe() returns a cold flow — each call yields an independent
+                // flow instance; we don't collect it (would block on poll).
                 val flow = adapter.subscribe()
-                // Just verify the flow object is non-null; we don't collect it (would block on poll)
-                (flow != null) shouldBe true
+                val flow2 = adapter.subscribe()
+                (flow !== flow2) shouldBe true
             }
         }
     })

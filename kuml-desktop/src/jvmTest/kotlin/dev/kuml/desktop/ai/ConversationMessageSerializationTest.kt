@@ -16,7 +16,7 @@ class ConversationMessageSerializationTest : FunSpec({
         val encoded = json.encodeToString(ConversationMessage.serializer(), msg)
         val decoded = json.decodeFromString<ConversationMessage>(encoded)
         decoded.shouldBeInstanceOf<ConversationMessage.User>()
-        (decoded as ConversationMessage.User).text shouldBe "Hello AI"
+        decoded.text shouldBe "Hello AI"
         decoded.id shouldBe "u1"
     }
 
@@ -32,7 +32,7 @@ class ConversationMessageSerializationTest : FunSpec({
         val encoded = json.encodeToString(ConversationMessage.serializer(), msg)
         val decoded = json.decodeFromString<ConversationMessage>(encoded)
         decoded.shouldBeInstanceOf<ConversationMessage.Assistant>()
-        (decoded as ConversationMessage.Assistant).text shouldBe "I can help!"
+        decoded.text shouldBe "I can help!"
         decoded.providerId shouldBe "ollama"
     }
 
@@ -47,7 +47,7 @@ class ConversationMessageSerializationTest : FunSpec({
         val encoded = json.encodeToString(ConversationMessage.serializer(), msg)
         val decoded = json.decodeFromString<ConversationMessage>(encoded)
         decoded.shouldBeInstanceOf<ConversationMessage.ToolCall>()
-        (decoded as ConversationMessage.ToolCall).toolName shouldBe "add_class"
+        decoded.toolName shouldBe "add_class"
         decoded.state shouldBe ToolCallState.RUNNING
     }
 
@@ -62,7 +62,7 @@ class ConversationMessageSerializationTest : FunSpec({
         val encoded = json.encodeToString(ConversationMessage.serializer(), msg)
         val decoded = json.decodeFromString<ConversationMessage>(encoded)
         decoded.shouldBeInstanceOf<ConversationMessage.ToolResult>()
-        (decoded as ConversationMessage.ToolResult).toolCallId shouldBe "tc1"
+        decoded.toolCallId shouldBe "tc1"
     }
 
     test("ErrorMessage roundtrip") {
@@ -75,7 +75,7 @@ class ConversationMessageSerializationTest : FunSpec({
         val encoded = json.encodeToString(ConversationMessage.serializer(), msg)
         val decoded = json.decodeFromString<ConversationMessage>(encoded)
         decoded.shouldBeInstanceOf<ConversationMessage.ErrorMessage>()
-        (decoded as ConversationMessage.ErrorMessage).cause shouldBe "NetworkError"
+        decoded.cause shouldBe "NetworkError"
     }
 
     test("Extra unknown field is ignored via ignoreUnknownKeys") {
@@ -84,7 +84,7 @@ class ConversationMessageSerializationTest : FunSpec({
         """.trimIndent()
         val decoded = json.decodeFromString<ConversationMessage>(jsonWithExtra)
         decoded.shouldBeInstanceOf<ConversationMessage.User>()
-        (decoded as ConversationMessage.User).text shouldBe "Hello"
+        decoded.text shouldBe "Hello"
     }
 
     test("Sealed class polymorphism via @SerialName discriminator") {

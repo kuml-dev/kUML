@@ -24,6 +24,10 @@ import kotlinx.serialization.json.Json
 //   kuml ai provider info   — details + models for one provider
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Single shared pretty-printing Json instance — creating a new Json {} per call
+// is flagged by the kotlinx.serialization compiler plugin as needlessly slow.
+private val kumlPrettyJson = Json { prettyPrint = true }
+
 /**
  * Top-level `kuml ai` subcommand.
  *
@@ -104,7 +108,7 @@ internal class AiProviderListCommand : CliktCommand(name = "list") {
                             modelCount = it.supportedModels.size,
                         )
                     }
-                echo(Json { prettyPrint = true }.encodeToString(ProviderListJson(items)))
+                echo(kumlPrettyJson.encodeToString(ProviderListJson(items)))
             }
             else -> {
                 if (providers.isEmpty()) {
@@ -282,7 +286,7 @@ internal class AiToolsListCommand : CliktCommand(name = "list") {
             )
 
         when (outputFormat) {
-            "json" -> echo(Json { prettyPrint = true }.encodeToString(ToolSetListJson(all)))
+            "json" -> echo(kumlPrettyJson.encodeToString(ToolSetListJson(all)))
             else -> renderTable(all)
         }
     }

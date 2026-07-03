@@ -62,13 +62,12 @@ class WebRenderPipelineTest :
         test("UML class script renders to SVG containing <svg tag") {
             val result = WebRenderPipeline.render(umlClassScript, "svg", null, null)
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
-            (result as WebRenderResult.Svg).svg shouldContain "<svg"
+            result.svg shouldContain "<svg"
         }
 
         test("UML class script renders to PNG with correct magic bytes") {
             val result = WebRenderPipeline.render(umlClassScript, "png", null, null)
-            result.shouldBeInstanceOf<WebRenderResult.Png>()
-            val bytes = (result as WebRenderResult.Png).pngBytes
+            val bytes = result.shouldBeInstanceOf<WebRenderResult.Png>().pngBytes
             // PNG magic bytes: 89 50 4E 47
             bytes[0] shouldBe 0x89.toByte()
             bytes[1] shouldBe 0x50.toByte()
@@ -79,18 +78,18 @@ class WebRenderPipelineTest :
         test("Invalid script returns WebRenderResult.Error") {
             val result = WebRenderPipeline.render(invalidScript, "svg", null, null)
             result.shouldBeInstanceOf<WebRenderResult.Error>()
-            (result as WebRenderResult.Error).message.shouldNotBeEmpty()
+            result.message.shouldNotBeEmpty()
         }
 
         test("C4 container script renders to SVG") {
             val result = WebRenderPipeline.render(c4Script, "svg", null, null)
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
-            (result as WebRenderResult.Svg).svg shouldContain "<svg"
+            result.svg shouldContain "<svg"
         }
 
         test("SysML2 BDD script renders to SVG") {
             val result = WebRenderPipeline.render(sysml2Script, "svg", null, null)
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
-            (result as WebRenderResult.Svg).svg shouldContain "<svg"
+            result.svg shouldContain "<svg"
         }
     })

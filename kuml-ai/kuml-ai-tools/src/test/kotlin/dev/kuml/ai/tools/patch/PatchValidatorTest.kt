@@ -68,7 +68,7 @@ class PatchValidatorTest :
             val mutate = ModelMutationRouter.mutateFor(patch)
             val result = validator.validate(model, patch, mutate)
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
-            (result as PatchValidationResult.Valid).warnings.shouldBeEmpty()
+            result.warnings.shouldBeEmpty()
         }
 
         test("AddElement that duplicates an existing id returns Invalid STRUCTURAL with DUPLICATE_ID") {
@@ -80,8 +80,7 @@ class PatchValidatorTest :
             val patch = addElementPatch("cls1", name = "Duplicate")
             val mutate = ModelMutationRouter.mutateFor(patch)
             val result = validator.validate(model, patch, mutate)
-            result.shouldBeInstanceOf<PatchValidationResult.Invalid>()
-            val invalid = result as PatchValidationResult.Invalid
+            val invalid = result.shouldBeInstanceOf<PatchValidationResult.Invalid>()
             invalid.phase shouldBe ValidationPhase.STRUCTURAL
             invalid.errors.any { it.code == "DUPLICATE_ID" } shouldBe true
         }
@@ -93,7 +92,7 @@ class PatchValidatorTest :
             // Dangling references are warnings in V2.0.31 — patch is still Valid
             val result = validator.validate(model, patch, mutate)
             result.shouldBeInstanceOf<PatchValidationResult.Valid>()
-            (result as PatchValidationResult.Valid).warnings.shouldNotBeEmpty()
+            result.warnings.shouldNotBeEmpty()
         }
 
         test("add_generalization creating a cycle returns Invalid STRUCTURAL with CIRCULAR_INHERITANCE") {
@@ -110,8 +109,7 @@ class PatchValidatorTest :
             val patch = addRelPatch("gen-ba", "B", "A", "uml.generalization")
             val mutate = ModelMutationRouter.mutateFor(patch)
             val result = validator.validate(model, patch, mutate)
-            result.shouldBeInstanceOf<PatchValidationResult.Invalid>()
-            val invalid = result as PatchValidationResult.Invalid
+            val invalid = result.shouldBeInstanceOf<PatchValidationResult.Invalid>()
             invalid.phase shouldBe ValidationPhase.STRUCTURAL
             invalid.errors.any { it.code == "CIRCULAR_INHERITANCE" } shouldBe true
         }

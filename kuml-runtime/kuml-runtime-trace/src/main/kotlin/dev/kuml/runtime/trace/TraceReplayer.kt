@@ -46,7 +46,7 @@ public class TraceReplayer(
         // Guard: model ID mismatch
         val traceModelId = original.modelId
         val smModelId = model.id
-        if (traceModelId != null && smModelId != null && traceModelId != smModelId) {
+        if (traceModelId != null && traceModelId != smModelId) {
             throw IllegalArgumentException(
                 "Model ID mismatch: trace was recorded for model '$traceModelId' " +
                     "but the provided state machine has ID '$smModelId'.",

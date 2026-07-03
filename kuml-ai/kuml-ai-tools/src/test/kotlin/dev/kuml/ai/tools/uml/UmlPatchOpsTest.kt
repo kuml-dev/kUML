@@ -31,7 +31,7 @@ class UmlPatchOpsTest :
                     null,
                 )
             withAttr.shouldNotBeNull()
-            val cls = withAttr!!.elements[0] as UmlClass
+            val cls = withAttr.elements[0] as UmlClass
             cls.attributes shouldHaveSize 1
             cls.attributes[0].name shouldBe "id"
         }
@@ -60,7 +60,7 @@ class UmlPatchOpsTest :
             // Remove class A — should cascade-remove the association
             val afterRemove = UmlPatchOps.removeElement(withAssoc, "cls_a")
             afterRemove.shouldNotBeNull()
-            afterRemove!!.elements shouldHaveSize 1 // only B remains
+            afterRemove.elements shouldHaveSize 1 // only B remains
             afterRemove.relationships shouldHaveSize 0 // association removed
         }
 

@@ -29,8 +29,7 @@ class RenderingToolsTest :
             runTest {
                 umlTools.addClass("Order")
                 val result = tools.renderPreview("svg")
-                result.shouldBeInstanceOf<RenderResult.Svg>()
-                val svg = result as RenderResult.Svg
+                val svg = result.shouldBeInstanceOf<RenderResult.Svg>()
                 File(svg.filePath).exists() shouldBe true
             }
         }
@@ -56,8 +55,7 @@ class RenderingToolsTest :
             runTest {
                 umlTools.addClass("Service")
                 val result = tools.renderPreview("png")
-                result.shouldBeInstanceOf<RenderResult.Png>()
-                val png = result as RenderResult.Png
+                val png = result.shouldBeInstanceOf<RenderResult.Png>()
                 png.widthPx shouldBe 1200
                 File(png.filePath).exists() shouldBe true
             }

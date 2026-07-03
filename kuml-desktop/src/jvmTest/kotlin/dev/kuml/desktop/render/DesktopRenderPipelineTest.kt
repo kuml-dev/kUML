@@ -26,7 +26,7 @@ class DesktopRenderPipelineTest : FunSpec({
         """.trimIndent()
         val result = DesktopRenderPipeline.render(script, "plain")
         result.shouldBeInstanceOf<DesktopRenderResult.Svg>()
-        (result as DesktopRenderResult.Svg).svg shouldContain "<svg"
+        result.svg shouldContain "<svg"
     }
 
     test("render with unknown theme falls back to plain") {

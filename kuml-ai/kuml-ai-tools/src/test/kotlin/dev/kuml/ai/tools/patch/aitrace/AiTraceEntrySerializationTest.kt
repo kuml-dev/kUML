@@ -16,8 +16,7 @@ import kotlinx.serialization.encodeToString
 private inline fun <reified T : AiTraceEntry> roundtrip(entry: T): T {
     val json = KumlRuntimeJson.encodeToString<TraceEntry>(entry)
     val decoded = KumlRuntimeJson.decodeFromString<TraceEntry>(json)
-    decoded.shouldBeInstanceOf<T>()
-    return decoded as T
+    return decoded.shouldBeInstanceOf<T>()
 }
 
 class AiTraceEntrySerializationTest :

@@ -129,7 +129,7 @@ class ClassDiagramBuilderTest :
                 }
             val flag = d.metadata[LayoutMetadataKeys.MERGE_EDGES]
             flag.shouldBeInstanceOf<KumlMetaValue.Flag>()
-            (flag as KumlMetaValue.Flag).value shouldBe true
+            flag.value shouldBe true
         }
 
         test(name = "mergeEdges = false → expliziter Opt-out wird ebenfalls serialisiert") {
@@ -139,7 +139,7 @@ class ClassDiagramBuilderTest :
                 }
             val flag = d.metadata[LayoutMetadataKeys.MERGE_EDGES]
             flag.shouldBeInstanceOf<KumlMetaValue.Flag>()
-            (flag as KumlMetaValue.Flag).value shouldBe false
+            flag.value shouldBe false
         }
 
         test(name = "mergeEdges koexistiert mit layoutEngine im Metadata-Block") {

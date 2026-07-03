@@ -33,9 +33,13 @@ fun ToolArgsInspector(argsJson: String, onDismiss: () -> Unit) {
     }
 }
 
+// Single shared pretty-printing Json instance — creating a new Json {} per call
+// is flagged by the kotlinx.serialization compiler plugin as needlessly slow.
+private val prettyJson = Json { prettyPrint = true }
+
 private fun prettyPrint(json: String): String =
     try {
-        Json { prettyPrint = true }.parseToJsonElement(json).toString()
+        prettyJson.parseToJsonElement(json).toString()
     } catch (_: Exception) {
         json
     }

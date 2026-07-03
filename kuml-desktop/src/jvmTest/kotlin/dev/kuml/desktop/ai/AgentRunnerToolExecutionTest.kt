@@ -185,7 +185,7 @@ class AgentRunnerToolExecutionTest : FunSpec({
         val patch = runner.decodePatch("add_class", """{"name":"Customer"}""")
         patch.shouldNotBeNull()
         patch.shouldBeInstanceOf<ModelPatch.AddElement>()
-        (patch as ModelPatch.AddElement).elementKind shouldBe "uml.class"
+        patch.elementKind shouldBe "uml.class"
         patch.name shouldBe "Customer"
     }
 

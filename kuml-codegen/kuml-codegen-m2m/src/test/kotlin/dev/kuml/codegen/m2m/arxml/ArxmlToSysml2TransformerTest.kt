@@ -84,8 +84,7 @@ class ArxmlToSysml2TransformerTest :
             val comp = makeComponent("BrakeController")
             val model = kumlModel(comp)
             val result = transformer.transform(model, ctx)
-            result.shouldBeInstanceOf<TransformResult.Success<*>>()
-            val success = result as TransformResult.Success<*>
+            val success = result.shouldBeInstanceOf<TransformResult.Success<*>>()
             val sysml2 = success.output as dev.kuml.sysml2.Sysml2Model
             val blocks =
                 sysml2.definitions

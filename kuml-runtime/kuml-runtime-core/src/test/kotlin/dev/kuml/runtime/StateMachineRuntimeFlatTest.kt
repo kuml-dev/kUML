@@ -91,7 +91,7 @@ class StateMachineRuntimeFlatTest :
             rt.step(instance, Event.of("finish"))
             val again = rt.step(instance, Event.of("anything"))
             again.shouldBeInstanceOf<StepResult.Stayed>()
-            (again as StepResult.Stayed).reason shouldBe "state machine terminated"
+            again.reason shouldBe "state machine terminated"
         }
 
         test("trigger arguments are ignored — only the name before '(' matters") {

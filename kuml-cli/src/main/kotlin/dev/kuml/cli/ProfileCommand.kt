@@ -27,6 +27,10 @@ import kotlinx.serialization.json.Json
 private const val PROFILE_NOT_FOUND = 1
 private const val PROFILE_SELF_CHECK_VIOLATION = 4
 
+// Single shared pretty-printing Json instance — creating a new Json {} per call
+// is flagged by the kotlinx.serialization compiler plugin as needlessly slow.
+private val kumlPrettyJson = Json { prettyPrint = true }
+
 /**
  * Top-level `kuml profile` subcommand.
  *
@@ -65,7 +69,7 @@ internal class ProfileListCommand : CliktCommand(name = "list") {
         when (outputFormat) {
             "json" -> {
                 val items = profiles.map { it.toListItem() }
-                echo(Json { prettyPrint = true }.encodeToString(ProfileListJson(items)))
+                echo(kumlPrettyJson.encodeToString(ProfileListJson(items)))
             }
             else -> {
                 if (profiles.isEmpty()) {
@@ -115,7 +119,7 @@ internal class ProfileShowCommand : CliktCommand(name = "show") {
         when (outputFormat) {
             "json" -> {
                 val detail = profile.toDetailJson()
-                echo(Json { prettyPrint = true }.encodeToString(detail))
+                echo(kumlPrettyJson.encodeToString(detail))
             }
             else -> printProfileText(profile)
         }

@@ -444,7 +444,7 @@ internal sealed class RuntimeSession {
 
         override fun activeStates(): List<String> =
             instance.currentVertices.map { v ->
-                if (v is dev.kuml.uml.UmlState) v.name ?: v.id else v.id
+                if (v is dev.kuml.uml.UmlState) v.name else v.id
             }
     }
 

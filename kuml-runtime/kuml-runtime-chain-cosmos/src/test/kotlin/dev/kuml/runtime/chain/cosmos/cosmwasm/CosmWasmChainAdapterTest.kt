@@ -201,10 +201,11 @@ class CosmWasmChainAdapterTest :
                 val adapter = makeAdapter()
                 adapter.connect(server.baseUrl(), contractAddr)
                 setupStatusResponse(5L)
-                // Two separate collections should be independent flows
-                // subscribe() returns a cold flow — verify it can be instantiated
+                // subscribe() returns a cold flow — each call yields an independent
+                // flow instance so separate collections don't share state.
                 val flow = adapter.subscribe()
-                (flow != null) shouldBe true
+                val flow2 = adapter.subscribe()
+                (flow !== flow2) shouldBe true
             }
         }
     })

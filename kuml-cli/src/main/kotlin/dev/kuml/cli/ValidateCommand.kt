@@ -33,6 +33,10 @@ import kotlinx.serialization.json.Json
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
 
+// Single shared pretty-printing Json instance — creating a new Json {} per call
+// is flagged by the kotlinx.serialization compiler plugin as needlessly slow.
+private val kumlPrettyJson = Json { prettyPrint = true }
+
 /**
  * The `validate` subcommand.
  *
@@ -210,7 +214,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                                     structural = structuralViolations.map { it.toJsonViolation() },
                                 ),
                         )
-                    echo(Json { prettyPrint = true }.encodeToString(splitOutput))
+                    echo(kumlPrettyJson.encodeToString(splitOutput))
                 } else if (structuralViolations.isNotEmpty()) {
                     // Emit combined JSON with structural section
                     val splitOutput =
@@ -223,9 +227,9 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                                     structural = structuralViolations.map { it.toJsonViolation() },
                                 ),
                         )
-                    echo(Json { prettyPrint = true }.encodeToString(splitOutput))
+                    echo(kumlPrettyJson.encodeToString(splitOutput))
                 } else {
-                    echo(Json { prettyPrint = true }.encodeToString(KumlValidationResult.serializer(), modelResult))
+                    echo(kumlPrettyJson.encodeToString(KumlValidationResult.serializer(), modelResult))
                 }
             }
             else -> printText(combined, modelResult.violations, stereotypeResult?.violations, structuralViolations)

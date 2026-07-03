@@ -328,7 +328,7 @@ class TypeScriptReversePluginTest :
                 )
             val result = runBlocking { engine.analyze(request) }
             result.shouldBeInstanceOf<ReverseResult.Success>()
-            (result as ReverseResult.Success).filesAnalysed shouldBe 0
+            result.filesAnalysed shouldBe 0
         }
 
         test("analyze() mit .ts-Datei erkennt Klassen") {
@@ -340,8 +340,7 @@ class TypeScriptReversePluginTest :
                     targetModelName = "OrderModel",
                 )
             val result = runBlocking { engine.analyze(request) }
-            result.shouldBeInstanceOf<ReverseResult.Success>()
-            val success = result as ReverseResult.Success
+            val success = result.shouldBeInstanceOf<ReverseResult.Success>()
             success.filesAnalysed shouldBe 1
             val diagram = success.model.root as KumlDiagram
             diagram.elements.filterIsInstance<UmlClass>().map { it.name } shouldContain "Order"

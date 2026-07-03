@@ -53,8 +53,7 @@ class UmlToRestTransformerTest :
                 )
             val result = transformer.transform(diagram(userClass), ctx)
 
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val files = (result as TransformResult.Success<List<GeneratedFile>>).output
+            val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 1
             val content = files[0].content
             content shouldContain "components:"
@@ -218,8 +217,7 @@ class UmlToRestTransformerTest :
             val postClass = cls("post", "Post", listOf(prop("p-id", "id", "UUID")))
             val result = transformer.transform(diagram(userClass, postClass), ctx)
 
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val content = (result as TransformResult.Success<List<GeneratedFile>>).output[0].content
+            val content = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output[0].content
             content shouldContain "    User:"
             content shouldContain "    Post:"
             content shouldContain "/api/v1/users:"

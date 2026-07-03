@@ -5,7 +5,6 @@ import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -166,7 +165,7 @@ class CosmWasmEventDecoderTest :
                     add(base64Attr("_contract_address", contractAddr))
                     add(base64Attr("action", "burn"))
                 }
-            val result = decoder.decodeAttributes(attrs as JsonArray)
+            val result = decoder.decodeAttributes(attrs)
             result["_contract_address"] shouldBe contractAddr
             result["action"] shouldBe "burn"
         }
@@ -177,7 +176,7 @@ class CosmWasmEventDecoderTest :
                     add(plainAttr("_contract_address", contractAddr))
                     add(plainAttr("action", "stake"))
                 }
-            val result = decoder.decodeAttributes(attrs as JsonArray)
+            val result = decoder.decodeAttributes(attrs)
             result["_contract_address"] shouldBe contractAddr
             result["action"] shouldBe "stake"
         }

@@ -57,7 +57,6 @@ class TransformChainTest :
             val result = chain.transform(5, TransformContext())
 
             result.shouldBeInstanceOf<TransformResult.Success<String>>()
-            result as TransformResult.Success<String>
             result.output shouldBe "10"
             result.trace.links shouldHaveSize 2
             result.trace.links[0].ruleId shouldBe "double-rule"
@@ -90,7 +89,7 @@ class TransformChainTest :
 
             result.shouldBeInstanceOf<TransformResult.Failure>()
             secondCalled shouldBe false
-            (result as TransformResult.Failure).errors[0].message shouldBe "Simulated failure"
+            result.errors[0].message shouldBe "Simulated failure"
         }
 
         test("failure in second step propagates after first step ran successfully") {
@@ -125,6 +124,6 @@ class TransformChainTest :
 
             firstRan shouldBe true
             result.shouldBeInstanceOf<TransformResult.Failure>()
-            (result as TransformResult.Failure).errors[0].message shouldBe "Second step failed"
+            result.errors[0].message shouldBe "Second step failed"
         }
     })

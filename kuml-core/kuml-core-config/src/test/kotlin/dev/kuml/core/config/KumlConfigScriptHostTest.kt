@@ -76,7 +76,8 @@ class KumlConfigScriptHostTest :
                     success.value.returnValue,
                     java.io.File("inline.kuml.config.kts"),
                 )
-            cfg.render.stereotypeOverrides!!.showFeatureStereotypes shouldBe false
-            cfg.render.stereotypeOverrides!!.joinSeparator shouldBe " | "
+            val overrides = cfg.render.stereotypeOverrides!!
+            overrides.showFeatureStereotypes shouldBe false
+            overrides.joinSeparator shouldBe " | "
         }
     })

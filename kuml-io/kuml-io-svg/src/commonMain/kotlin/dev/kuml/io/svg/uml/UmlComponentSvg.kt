@@ -617,8 +617,9 @@ private fun buildInternalRoute(
     val r1 = partRects[p1.compId]
     val r2 = partRects[p2.compId]
     val distinctBoxes = p1.compId != p2.compId && r1 != null && r2 != null
-    val p1IsOuter = distinctBoxes && r1 != null && r2 != null && rectContains(r1, r2)
-    val p2IsOuter = distinctBoxes && r1 != null && r2 != null && rectContains(r2, r1)
+    // `distinctBoxes` already smart-casts r1/r2 to non-null in these expressions.
+    val p1IsOuter = distinctBoxes && rectContains(r1, r2)
+    val p2IsOuter = distinctBoxes && rectContains(r2, r1)
 
     // Stub x: inner-part ports leave outward (away from their box body); an outer
     // boundary port leaves inward (its open face points into the composite).

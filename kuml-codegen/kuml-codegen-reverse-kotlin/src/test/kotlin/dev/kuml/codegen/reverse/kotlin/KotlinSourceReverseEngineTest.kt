@@ -31,8 +31,7 @@ class KotlinSourceReverseEngineTest :
                     targetModelName = "Empty",
                 )
             val result = runBlocking { KotlinSourceReverseEngine().analyze(request) }
-            result.shouldBeInstanceOf<ReverseResult.Failure>()
-            val failure = result as ReverseResult.Failure
+            val failure = result.shouldBeInstanceOf<ReverseResult.Failure>()
             failure.errors.any { it.code == "REV-CORE-001" } shouldBe true
         }
     })

@@ -46,7 +46,10 @@ class ElkLayoutPluginTest :
         }
 
         test("plugin implements KumlLayoutPlugin interface") {
-            (plugin is dev.kuml.plugin.api.layout.KumlLayoutPlugin) shouldBe true
+            // Compile-time proof that ElkLayoutPlugin satisfies the plugin contract:
+            // the assignment only compiles if the interface is implemented.
+            val asContract: dev.kuml.plugin.api.layout.KumlLayoutPlugin = plugin
+            asContract.descriptor.id shouldBe plugin.descriptor.id
         }
 
         test("descriptor kumlVersionRange contains version 0.12.0") {

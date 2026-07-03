@@ -80,7 +80,7 @@ public class PatchApplyEngine(
     public val ownerId: String = ownerId ?: System.getProperty("user.name") ?: "unknown"
 
     /** Pre-session snapshot; captured synchronously in the init block. */
-    private lateinit var preSessionSnapshot: Snapshot
+    private val preSessionSnapshot: Snapshot
 
     /** Engine-internal buffer of patches waiting for accept/reject. */
     private val pendingBuffer: MutableList<ModelPatch> = mutableListOf()

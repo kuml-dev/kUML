@@ -45,7 +45,7 @@ class PersistentPatchStoreTest :
                 val patch = addPatch("elem-001")
                 val result = store.insert(patch, "alice", PatchStatus.APPLIED)
                 result.shouldBeInstanceOf<InsertResult.Inserted>()
-                (result as InsertResult.Inserted).patchId shouldBe patch.patchId
+                result.patchId shouldBe patch.patchId
 
                 val rows = store.findBySession(sessionId)
                 rows shouldHaveSize 1
@@ -76,8 +76,7 @@ class PersistentPatchStoreTest :
             PersistentPatchStore.open(sessionId, dir, fixedClock(t1)).use { storeT1 ->
                 val patch2 = addPatch("elem-X")
                 val result = storeT1.insert(patch2, "alice", PatchStatus.APPLIED)
-                result.shouldBeInstanceOf<InsertResult.ConflictDetected>()
-                val conflict = result as InsertResult.ConflictDetected
+                val conflict = result.shouldBeInstanceOf<InsertResult.ConflictDetected>()
                 conflict.patchId shouldBe patch2.patchId
                 conflict.windowMs shouldBe CONFLICT_WINDOW_MS
             }

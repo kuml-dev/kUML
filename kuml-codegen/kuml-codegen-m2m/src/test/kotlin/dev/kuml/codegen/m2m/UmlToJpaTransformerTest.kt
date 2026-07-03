@@ -58,8 +58,7 @@ class UmlToJpaTransformerTest :
                 )
             val result = transformer.transform(diagram(userClass), ctx)
 
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val files = (result as TransformResult.Success<List<GeneratedFile>>).output
+            val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 1
             val content = files[0].content
             content shouldContain "@Entity"
@@ -82,8 +81,7 @@ class UmlToJpaTransformerTest :
                 )
             val result = transformer.transform(diagram(cls), ctx)
 
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val content = (result as TransformResult.Success).output[0].content
+            val content = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output[0].content
             content shouldContain "@Id"
             content shouldContain "@GeneratedValue(strategy = GenerationType.IDENTITY)"
             content shouldContain "val id: Long = 0L"
@@ -94,8 +92,7 @@ class UmlToJpaTransformerTest :
             val cls = cls("product", "Product", listOf(prop("p-name", "name", "String")))
             val result = transformer.transform(diagram(cls), ctx)
 
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val content = (result as TransformResult.Success).output[0].content
+            val content = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output[0].content
             content shouldContain "@Id"
             content shouldContain "@GeneratedValue(strategy = GenerationType.IDENTITY)"
             content shouldContain "val id: Long = 0L"
@@ -137,8 +134,8 @@ class UmlToJpaTransformerTest :
                 )
             val result = transformer.transform(diagram(userClass, addressClass, assoc), ctx)
 
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val userFile = (result as TransformResult.Success).output.first { it.relativePath == "User.kt" }
+            val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
+            val userFile = files.first { it.relativePath == "User.kt" }
             userFile.content shouldContain "@ManyToOne"
             userFile.content shouldContain "@JoinColumn"
             userFile.content shouldContain "val address: Address?"
@@ -158,8 +155,8 @@ class UmlToJpaTransformerTest :
                 )
             val result = transformer.transform(diagram(userClass, postClass, assoc), ctx)
 
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val userFile = (result as TransformResult.Success).output.first { it.relativePath == "User.kt" }
+            val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
+            val userFile = files.first { it.relativePath == "User.kt" }
             userFile.content shouldContain "@OneToMany"
             userFile.content shouldContain "cascade = [CascadeType.ALL]"
             userFile.content shouldContain "fetch = FetchType.LAZY"
@@ -236,8 +233,7 @@ class UmlToJpaTransformerTest :
                 )
             val result = transformer.transform(diagram(authorClass, bookClass, assoc), ctx)
 
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val files = (result as TransformResult.Success).output
+            val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 2
             val paths = files.map { it.relativePath }.toSet()
             paths shouldBe setOf("Author.kt", "Book.kt")

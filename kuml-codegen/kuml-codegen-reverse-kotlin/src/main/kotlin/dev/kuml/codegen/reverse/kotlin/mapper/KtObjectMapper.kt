@@ -28,7 +28,7 @@ internal class KtObjectMapper(
             diagnostics.info(
                 "REV-K-021",
                 "Anonymous object literal skipped — not representable in UML class diagram.",
-                file = obj.containingFile?.name,
+                file = obj.containingFile.name,
             )
             return null
         }

@@ -93,7 +93,7 @@ class ArxmlSysml2RoundtripTest :
                     it.name == "BrakeController"
                 }
             reverseComp.shouldNotBeNull()
-            ("SoftwareComponent" in (reverseComp as UmlComponent).stereotypes) shouldBe true
+            ("SoftwareComponent" in reverseComp.stereotypes) shouldBe true
 
             // Verify: interface preserved
             val reverseIface: UmlInterface? =
@@ -102,7 +102,7 @@ class ArxmlSysml2RoundtripTest :
                         "IBrakeInterface"
                 }
             reverseIface.shouldNotBeNull()
-            ("ComInterface" in (reverseIface as UmlInterface).stereotypes) shouldBe true
+            ("ComInterface" in reverseIface.stereotypes) shouldBe true
         }
 
         test("port direction is preserved through full round-trip") {
@@ -135,12 +135,12 @@ class ArxmlSysml2RoundtripTest :
             val reverseRoot = reverse.root as UmlPackage
             val reverseComp: UmlComponent = reverseRoot.members.filterIsInstance<UmlComponent>().first { it.name == "SomeComp" }
 
-            (reverseComp as UmlComponent)
+            reverseComp
                 .ports
                 .any {
                     it.name == "ProvidedPort" && (it.metadata["direction"] as? KumlMetaValue.Text)?.value == "provided"
                 }.shouldBeTrue()
-            (reverseComp as UmlComponent)
+            reverseComp
                 .ports
                 .any {
                     it.name == "RequiredPort" && (it.metadata["direction"] as? KumlMetaValue.Text)?.value == "required"

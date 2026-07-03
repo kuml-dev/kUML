@@ -25,8 +25,7 @@ class JavaAssociationDetectorTest :
             val variable = field.variables.first()
             val detector = makeDetector(setOf("UserClass"))
             val result = detector.classify(field, variable, "Owner", "Owner.java")
-            result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsAssociation>()
-            val assoc = (result as JavaAssociationDetector.FieldClassification.AsAssociation).association
+            val assoc = result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsAssociation>().association
             assoc.ends[1].typeId shouldBe "UserClass"
             assoc.ends[1].multiplicity.lower shouldBe 1
             assoc.ends[1].multiplicity.upper shouldBe 1
@@ -37,8 +36,7 @@ class JavaAssociationDetectorTest :
             val variable = field.variables.first()
             val detector = makeDetector(setOf("UserClass"))
             val result = detector.classify(field, variable, "Owner", "Owner.java")
-            result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsAssociation>()
-            val assoc = (result as JavaAssociationDetector.FieldClassification.AsAssociation).association
+            val assoc = result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsAssociation>().association
             assoc.ends[1].multiplicity.lower shouldBe 0
             assoc.ends[1].multiplicity.upper shouldBe null
         }
@@ -48,8 +46,7 @@ class JavaAssociationDetectorTest :
             val variable = field.variables.first()
             val detector = makeDetector(setOf("UserClass"))
             val result = detector.classify(field, variable, "Owner", "Owner.java")
-            result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsAssociation>()
-            val assoc = (result as JavaAssociationDetector.FieldClassification.AsAssociation).association
+            val assoc = result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsAssociation>().association
             assoc.ends[1].multiplicity.lower shouldBe 0
             assoc.ends[1].multiplicity.upper shouldBe 1
         }
@@ -59,8 +56,7 @@ class JavaAssociationDetectorTest :
             val variable = field.variables.first()
             val detector = makeDetector(setOf("UserClass"))
             val result = detector.classify(field, variable, "Owner", "Owner.java")
-            result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.Skipped>()
-            val skipped = (result as JavaAssociationDetector.FieldClassification.Skipped)
+            val skipped = result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.Skipped>()
             skipped.diagnostic.code shouldBe "REV-J-003"
             skipped.diagnostic.severity shouldBe ReverseDiagnostic.Severity.WARN
         }
@@ -70,8 +66,7 @@ class JavaAssociationDetectorTest :
             val variable = field.variables.first()
             val detector = makeDetector(emptySet())
             val result = detector.classify(field, variable, "Foo", "Foo.java")
-            result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsProperty>()
-            val prop = (result as JavaAssociationDetector.FieldClassification.AsProperty).property
+            val prop = result.shouldBeInstanceOf<JavaAssociationDetector.FieldClassification.AsProperty>().property
             prop.shouldBeInstanceOf<UmlProperty>()
         }
     })

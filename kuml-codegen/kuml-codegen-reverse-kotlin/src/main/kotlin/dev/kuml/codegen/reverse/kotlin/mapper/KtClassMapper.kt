@@ -34,7 +34,7 @@ internal class KtClassMapper(
             diagnostics.info(
                 "REV-K-020",
                 "Nested class '${nestedCls.name}' inside '$name' emitted as top-level classifier.",
-                file = ktClass.containingFile?.name,
+                file = ktClass.containingFile.name,
             )
         }
 

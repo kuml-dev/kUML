@@ -339,7 +339,7 @@ class BpmnCollaborationTest :
                 model.diagrams shouldHaveSize 1
                 val diag = model.diagrams[0]
                 diag.shouldBeInstanceOf<CollaborationDiagram>()
-                (diag as CollaborationDiagram).collaborationId shouldBe "c1"
+                diag.collaborationId shouldBe "c1"
                 diag.elementIds shouldBe listOf("p1")
             }
 

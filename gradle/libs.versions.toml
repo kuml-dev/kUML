@@ -4,9 +4,10 @@ shadow                 = "9.4.3"
 koog                   = "1.0.0"
 koog-mcp               = "1.0.0-beta-preview7"
 koog-google            = "1.0.0-beta-preview7"
-jna                    = "5.16.0"
+jna                    = "5.19.1"
 batik                  = "1.19"
-compose-multiplatform  = "1.9.0"
+compose-multiplatform  = "1.11.1"
+compose-material3      = "1.9.0"
 kuiver                 = "0.3.0"
 elk                    = "0.11.0"
 xtext-xbase-lib        = "2.43.0"
@@ -16,16 +17,15 @@ ktor                   = "3.5.1"
 coil                   = "3.5.0"
 kotest                 = "6.2.1"
 junit                  = "6.1.1"
-assertj                = "3.28.0"
 ktlint-plugin          = "14.2.0"
 clikt                  = "5.1.0"
-graalvm-native         = "1.1.1"
-vanniktech-publish     = "0.36.0"
+graalvm-native         = "1.1.3"
+vanniktech-publish     = "0.37.0"
 intellij-platform      = "2.17.0"
 intellij-idea          = "2024.3"
 javaparser             = "3.28.2"
-eclipse-emf-ecore      = "2.36.0"
-eclipse-emf-ecore-xmi  = "2.36.0"
+eclipse-emf-ecore      = "2.40.0"
+eclipse-emf-ecore-xmi  = "2.40.0"
 jdom2                  = "2.0.6.1"
 eclipse-uml2           = "5.0.1.v20140910-1354"
 eclipse-uml2-types     = "2.0.0.v20140910-1354"
@@ -35,11 +35,17 @@ atomicfu               = "0.33.0"
 
 [libraries]
 # ── Compose / Kuiver ─────────────────────────────────────────────────────────
+# Note: Since Compose Multiplatform 1.11 the `compose.runtime/foundation/ui/material3`
+# plugin DSL string accessors are deprecated ("Specify dependency directly"), so we
+# reference the artifacts directly through this catalog. material3 ships on its own
+# version cadence since CMP 1.10 (decoupled from `compose-multiplatform`) — hence a
+# separate `compose-material3` version ref. These are the exact coordinates the
+# Compose plugin's dependency resolution selects for CMP 1.11.1.
 kuiver                          = { module = "io.github.justdeko:kuiver",                              version.ref = "kuiver" }
 compose-runtime                 = { module = "org.jetbrains.compose.runtime:runtime",                 version.ref = "compose-multiplatform" }
-compose-foundation               = { module = "org.jetbrains.compose.foundation:foundation",           version.ref = "compose-multiplatform" }
-compose-ui                       = { module = "org.jetbrains.compose.ui:ui",                          version.ref = "compose-multiplatform" }
-compose-material3                = { module = "org.jetbrains.compose.material3:material3",            version.ref = "compose-multiplatform" }
+compose-foundation              = { module = "org.jetbrains.compose.foundation:foundation",           version.ref = "compose-multiplatform" }
+compose-ui                      = { module = "org.jetbrains.compose.ui:ui",                            version.ref = "compose-multiplatform" }
+compose-material3               = { module = "org.jetbrains.compose.material3:material3",              version.ref = "compose-material3" }
 
 # ── Kotlin ──────────────────────────────────────────────────────────────────
 # ── Eclipse Layout Kernel ────────────────────────────────────────────────────
@@ -106,7 +112,6 @@ kotest-assertions-core          = { module = "io.kotest:kotest-assertions-core",
 kotest-property                 = { module = "io.kotest:kotest-property",                           version.ref = "kotest" }
 junit-bom                       = { module = "org.junit:junit-bom",                                version.ref = "junit" }
 junit-jupiter                   = { module = "org.junit.jupiter:junit-jupiter",                    version.ref = "junit" }
-assertj-core                    = { module = "org.assertj:assertj-core",                           version.ref = "assertj" }
 clikt                           = { module = "com.github.ajalt.clikt:clikt",                         version.ref = "clikt" }
 
 # ── Eclipse EMF / UML2 (kuml-io-emf, JVM-only) ──────────────────────────────

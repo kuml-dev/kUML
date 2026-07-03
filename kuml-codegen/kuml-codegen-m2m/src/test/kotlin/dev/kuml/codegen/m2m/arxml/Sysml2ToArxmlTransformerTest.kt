@@ -91,7 +91,7 @@ class Sysml2ToArxmlTransformerTest :
             val rootPkg = kuml.root as UmlPackage
             val comp: UmlComponent? = rootPkg.members.filterIsInstance<UmlComponent>().firstOrNull { it.name == "BrakeController" }
             comp.shouldNotBeNull()
-            ("SoftwareComponent" in (comp as UmlComponent).stereotypes) shouldBe true
+            ("SoftwareComponent" in comp.stereotypes) shouldBe true
         }
 
         test("PortUsage maps back to UmlPort with AutosarPort stereotype and direction") {
@@ -105,8 +105,8 @@ class Sysml2ToArxmlTransformerTest :
             val comp: UmlComponent = rootPkg.members.filterIsInstance<UmlComponent>().first { it.name == "BrakeController" }
             val port: UmlPort? = comp.ports.firstOrNull { it.name == "BrakePort" }
             port.shouldNotBeNull()
-            ("AutosarPort" in (port as UmlPort).stereotypes) shouldBe true
-            ((port as UmlPort).metadata["direction"] as? KumlMetaValue.Text)?.value shouldBe "provided"
+            ("AutosarPort" in port.stereotypes) shouldBe true
+            (port.metadata["direction"] as? KumlMetaValue.Text)?.value shouldBe "provided"
         }
 
         test("interfaceBlock PartDefinition maps back to UmlInterface with ComInterface stereotype") {
@@ -117,7 +117,7 @@ class Sysml2ToArxmlTransformerTest :
             val rootPkg = kuml.root as UmlPackage
             val iface: UmlInterface? = rootPkg.members.filterIsInstance<UmlInterface>().firstOrNull { it.name == "IBrake" }
             iface.shouldNotBeNull()
-            ("ComInterface" in (iface as UmlInterface).stereotypes) shouldBe true
+            ("ComInterface" in iface.stereotypes) shouldBe true
         }
 
         test("result KumlModel root is a UmlPackage named AUTOSAR, language=UML") {

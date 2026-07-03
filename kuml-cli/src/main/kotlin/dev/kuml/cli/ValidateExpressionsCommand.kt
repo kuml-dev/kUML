@@ -23,6 +23,10 @@ import kotlinx.serialization.json.Json
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
 
+// Single shared pretty-printing Json instance — creating a new Json {} per call
+// is flagged by the kotlinx.serialization compiler plugin as needlessly slow.
+private val kumlPrettyJson = Json { prettyPrint = true }
+
 /**
  * The `validate-expressions` subcommand (V2.0.20a).
  *
@@ -110,7 +114,7 @@ internal class ValidateExpressionsCommand : CliktCommand(name = "validate-expres
 
         // 5. Output
         if (jsonOutput) {
-            echo(Json { prettyPrint = true }.encodeToString(results))
+            echo(kumlPrettyJson.encodeToString(results))
         } else {
             printTable(results)
         }

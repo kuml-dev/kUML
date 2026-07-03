@@ -242,7 +242,7 @@ class ArxmlCompositionRoundtripTest :
             // Verify IDiag is a client-server interface (has isService=true)
             val iDiag = ifacesPkg.members.first { it.name == "IDiag" }
             iDiag.shouldBeInstanceOf<dev.kuml.uml.UmlInterface>()
-            (iDiag as dev.kuml.uml.UmlInterface).metadata["isService"].shouldBeInstanceOf<KumlMetaValue.Text>()
+            iDiag.metadata["isService"].shouldBeInstanceOf<KumlMetaValue.Text>()
         }
 
         test("composition: port interface TREFs resolve with zero unresolved refs") {

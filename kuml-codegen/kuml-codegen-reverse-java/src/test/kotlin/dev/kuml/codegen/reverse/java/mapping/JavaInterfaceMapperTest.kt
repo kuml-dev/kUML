@@ -14,9 +14,9 @@ class JavaInterfaceMapperTest :
             val cu = StaticJavaParser.parse("package svc; public interface Runnable {}")
             val decl = cu.findAll(ClassOrInterfaceDeclaration::class.java).first()
             val result = JavaClassMapper.map(decl, "svc")
-            result.umlInterface.shouldNotBeNull()
-            result.umlInterface!!.visibility shouldBe Visibility.PUBLIC
-            result.umlInterface!!.name shouldBe "Runnable"
+            val umlInterface = result.umlInterface.shouldNotBeNull()
+            umlInterface.visibility shouldBe Visibility.PUBLIC
+            umlInterface.name shouldBe "Runnable"
         }
 
         test("interface extends another interface emits UmlGeneralization") {

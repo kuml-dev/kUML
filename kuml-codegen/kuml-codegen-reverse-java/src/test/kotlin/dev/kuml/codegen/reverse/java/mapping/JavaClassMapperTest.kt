@@ -17,25 +17,25 @@ class JavaClassMapperTest :
         test("plain public class becomes UmlClass with PUBLIC visibility") {
             val decl = parseClass("package com.example; public class Foo {}")
             val result = JavaClassMapper.map(decl, "com.example")
-            result.umlClass.shouldNotBeNull()
-            result.umlClass!!.visibility shouldBe Visibility.PUBLIC
-            result.umlClass!!.name shouldBe "Foo"
-            result.umlClass!!.id shouldBe "com.example.Foo"
+            val umlClass = result.umlClass.shouldNotBeNull()
+            umlClass.visibility shouldBe Visibility.PUBLIC
+            umlClass.name shouldBe "Foo"
+            umlClass.id shouldBe "com.example.Foo"
         }
 
         test("abstract class becomes UmlClass with isAbstract true") {
             val decl = parseClass("public abstract class Base {}")
             val result = JavaClassMapper.map(decl, "")
-            result.umlClass.shouldNotBeNull()
-            result.umlClass!!.isAbstract shouldBe true
+            val umlClass = result.umlClass.shouldNotBeNull()
+            umlClass.isAbstract shouldBe true
         }
 
         test("generic class Foo<T> emits «template» stereotype and template-params metadata") {
             val decl = parseClass("public class Foo<T> {}")
             val result = JavaClassMapper.map(decl, "")
-            result.umlClass.shouldNotBeNull()
-            result.umlClass!!.stereotypes shouldContain "template"
-            val params = result.umlClass!!.metadata["kuml.template.params"]
+            val umlClass = result.umlClass.shouldNotBeNull()
+            umlClass.stereotypes shouldContain "template"
+            val params = umlClass.metadata["kuml.template.params"]
             params.shouldNotBeNull()
         }
 
@@ -43,9 +43,9 @@ class JavaClassMapperTest :
             val cu = StaticJavaParser.parse("package pkg; public class Outer { public static class Inner {} }")
             val inner = cu.findAll(ClassOrInterfaceDeclaration::class.java).first { it.nameAsString == "Inner" }
             val result = JavaClassMapper.map(inner, "pkg", "Outer")
-            result.umlClass.shouldNotBeNull()
-            result.umlClass!!.id shouldBe "pkg.Outer.Inner"
-            val enclosing = result.umlClass!!.metadata["kuml.java.enclosing"]
+            val umlClass = result.umlClass.shouldNotBeNull()
+            umlClass.id shouldBe "pkg.Outer.Inner"
+            val enclosing = umlClass.metadata["kuml.java.enclosing"]
             enclosing.shouldNotBeNull()
         }
 

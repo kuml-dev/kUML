@@ -1,7 +1,6 @@
 package dev.kuml.c4.dsl
 
 import dev.kuml.c4.model.C4Model
-import dev.kuml.core.dsl.KumlDsl
 
 /**
  * Constructs a C4 model using a fluent DSL.
@@ -31,7 +30,6 @@ import dev.kuml.core.dsl.KumlDsl
  * @param block Configuration block to define model elements and relationships
  * @return The constructed immutable C4Model
  */
-@KumlDsl
 fun c4Model(
     name: String,
     description: String? = null,

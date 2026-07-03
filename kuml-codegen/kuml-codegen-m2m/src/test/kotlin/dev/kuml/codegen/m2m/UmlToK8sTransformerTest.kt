@@ -30,8 +30,7 @@ class UmlToK8sTransformerTest :
 
         test("single component produces one deployment.yaml file") {
             val result = transformer.transform(diagram(component("svc", "OrderService")), ctx)
-            result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
-            val files = (result as TransformResult.Success<List<GeneratedFile>>).output
+            val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
             files shouldHaveSize 1
             files[0].relativePath shouldBe "order-service/deployment.yaml"
         }
