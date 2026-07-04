@@ -2,6 +2,7 @@ package dev.kuml.core.script
 
 import java.io.BufferedReader
 import java.io.File
+import java.nio.file.Files
 
 /**
  * Shared helpers for launching and talking to a script-evaluation child JVM
@@ -19,11 +20,35 @@ internal object WorkerProcessSupport {
     const val MAX_RESPONSE_LENGTH: Int = 32 * 1024 * 1024
 
     /**
+     * A launched worker process together with the per-worker temp directory that
+     * is its **only** writable location under the OS sandbox (Welle 4). The
+     * directory is created before launch and must be deleted by the caller when
+     * the worker is done (via [LaunchedWorker.cleanup]).
+     */
+    class LaunchedWorker(
+        val process: Process,
+        private val workDir: File,
+    ) {
+        /** Recursively removes the per-worker temp directory. Idempotent, best-effort. */
+        fun cleanup() {
+            runCatching { workDir.deleteRecursively() }
+        }
+    }
+
+    /**
      * Launches a worker JVM with a **fixed argument list** (never a shell string,
      * so there is no command-injection surface — nothing from the untrusted
      * script influences argv) and a **minimal environment** (the parent's env,
-     * which may carry API keys / tokens, is NOT inherited; only `PATH` + `TMPDIR`
-     * are restored so the JVM can boot and write its own temp files).
+     * which may carry API keys / tokens, is NOT inherited; only `PATH` is
+     * restored so the JVM can boot; `TMPDIR` is pinned to the per-worker
+     * sandbox-writable [LaunchedWorker] directory so the child's own temp files
+     * land inside the OS cage).
+     *
+     * On macOS the command is additionally wrapped in `sandbox-exec` with the
+     * strict seatbelt profile ([OsSandbox]); the per-worker temp directory is the
+     * sole writable path. If OS isolation is `required` (default on macOS) but
+     * cannot be applied, this throws [SandboxUnavailableException] — the caller
+     * must fail closed and never launch an un-caged worker.
      *
      * @param warm when true, passes [ScriptWorkerMain.ARG_WARM] so the child
      *   pre-warms and emits a ready line before consuming a request.
@@ -33,8 +58,25 @@ internal object WorkerProcessSupport {
         classpath: String,
         maxHeapMb: Int,
         warm: Boolean,
-    ): Process {
-        val command =
+    ): LaunchedWorker {
+        // Per-worker temp dir: created up front, used as the JVM temp dir AND as
+        // the sole file-write-allowed subpath in the OS sandbox profile.
+        //
+        // Canonicalize the path: on macOS the system temp lives under
+        // /var/folders/… which is a symlink to /private/var/folders/…. The
+        // seatbelt kernel evaluates the *canonical* path, but the JVM writes via
+        // the path we hand it. If the sandbox `subpath` param used the
+        // non-canonical /var/… form, a legitimate write to the canonical
+        // /private/var/… path would be denied. Using the canonical path for both
+        // the sandbox param and java.io.tmpdir keeps them in lockstep.
+        val workDir =
+            Files
+                .createTempDirectory("kuml-worker-work-")
+                .toRealPath()
+                .toFile()
+                .apply { deleteOnExit() }
+
+        val bareCommand =
             buildList {
                 add(javaBinary)
                 add("-Xmx${maxHeapMb}m")
@@ -42,17 +84,36 @@ internal object WorkerProcessSupport {
                 // flags so behaviour cannot be perturbed by inherited JVM options.
                 add("-XX:+UseSerialGC")
                 add("-Djava.awt.headless=true")
+                // Pin the JVM temp dir into the sandbox-writable workdir so the
+                // Kotlin compiler / scripting host can write their scratch files.
+                add("-Djava.io.tmpdir=${workDir.absolutePath}")
                 add("-cp")
                 add(classpath)
                 add(WORKER_MAIN_CLASS)
                 if (warm) add(ScriptWorkerMain.ARG_WARM)
             }
+
+        val command =
+            try {
+                OsSandbox.wrap(bareCommand, workDir)
+            } catch (e: SandboxUnavailableException) {
+                runCatching { workDir.deleteRecursively() }
+                throw e
+            }
+
         val builder = ProcessBuilder(command)
         builder.environment().clear()
         System.getenv("PATH")?.let { builder.environment()["PATH"] = it }
-        System.getenv("TMPDIR")?.let { builder.environment()["TMPDIR"] = it }
+        // TMPDIR is pinned to the writable workdir (not the parent's TMPDIR),
+        // so any tool that honours $TMPDIR also stays inside the cage.
+        builder.environment()["TMPDIR"] = workDir.absolutePath
         builder.redirectErrorStream(false)
-        return builder.start()
+        return try {
+            LaunchedWorker(builder.start(), workDir)
+        } catch (e: Exception) {
+            runCatching { workDir.deleteRecursively() }
+            throw e
+        }
     }
 
     /**

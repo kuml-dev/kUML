@@ -1,7 +1,6 @@
 package dev.kuml.core.script
 
 import kotlinx.serialization.json.Json
-import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
@@ -68,15 +67,26 @@ internal class ChildProcessScriptEvaluator(
             )
         }
 
-        val process =
+        val launched =
             try {
-                startWorker()
+                // Shared launch path: fixed argv, minimal env, heap cap, AND the
+                // Welle-4 OS-native cage (sandbox-exec on macOS). If OS isolation
+                // is required but unavailable this throws SandboxUnavailableException,
+                // which — like any launch failure — is a fail-closed SANDBOX error,
+                // never a fall-through to an un-caged child.
+                WorkerProcessSupport.launch(javaBinary, classpath, maxHeapMb, warm = false)
+            } catch (e: SandboxUnavailableException) {
+                return EvaluatedScript.Failure(
+                    FailureKind.SANDBOX,
+                    "Script sandbox OS isolation unavailable: ${e.message}",
+                )
             } catch (e: Exception) {
                 return EvaluatedScript.Failure(
                     FailureKind.SANDBOX,
                     "Could not start script sandbox worker: ${e::class.simpleName}",
                 )
             }
+        val process = launched.process
 
         // Drain stderr on a daemon thread so a chatty child can never fill the
         // stderr pipe buffer and deadlock (classic Process pitfall). We bound
@@ -141,6 +151,7 @@ internal class ChildProcessScriptEvaluator(
         } finally {
             if (process.isAlive) process.destroyForcibly()
             stderrDrainer.join(READER_JOIN_MILLIS)
+            launched.cleanup()
         }
     }
 
@@ -213,34 +224,6 @@ internal class ChildProcessScriptEvaluator(
         }
     }
 
-    private fun startWorker(): Process {
-        // Fixed argument list — never a shell string — so there is no command
-        // injection surface. Nothing from the (untrusted) script influences argv.
-        val command =
-            listOf(
-                javaBinary,
-                "-Xmx${maxHeapMb}m",
-                // Keep the child headless & quiet; do not inherit agents/JIT flags
-                // that could change behaviour. A conservative, fixed set.
-                "-XX:+UseSerialGC",
-                "-Djava.awt.headless=true",
-                "-cp",
-                classpath,
-                WORKER_MAIN_CLASS,
-            )
-        val builder = ProcessBuilder(command)
-        // Minimal environment: do NOT inherit the parent's env (which may carry
-        // API keys / tokens / credentials that a hostile script could exfiltrate).
-        // Start from empty and restore only what a JVM needs to boot.
-        builder.environment().clear()
-        System.getenv("PATH")?.let { builder.environment()["PATH"] = it }
-        // Preserve a temp dir so the child's own temp-file writes work; fall back
-        // to the platform default if unset.
-        System.getenv("TMPDIR")?.let { builder.environment()["TMPDIR"] = it }
-        builder.redirectErrorStream(false)
-        return builder.start()
-    }
-
     internal companion object {
         const val DEFAULT_TIMEOUT_SECONDS: Long = 15
         const val DEFAULT_MAX_HEAP_MB: Int = 256
@@ -248,17 +231,8 @@ internal class ChildProcessScriptEvaluator(
         private const val READER_JOIN_MILLIS: Long = 2_000
         private const val MAX_STDERR_CAPTURE: Int = 16 * 1024
         private const val MAX_RESPONSE_LENGTH: Int = 32 * 1024 * 1024 // 32 MiB — large models allowed, gibberish not
-        private const val WORKER_MAIN_CLASS: String = "dev.kuml.core.script.ScriptWorkerMain"
 
         /** Absolute path to the `java` binary of the *currently running* JVM. */
-        internal fun defaultJavaBinary(): String {
-            val javaHome = System.getProperty("java.home")
-            val exe = if (System.getProperty("os.name").orEmpty().startsWith("Windows")) "java.exe" else "java"
-            return if (javaHome != null) {
-                File(javaHome, "bin${File.separator}$exe").absolutePath
-            } else {
-                exe // last-resort: rely on PATH
-            }
-        }
+        internal fun defaultJavaBinary(): String = WorkerProcessSupport.defaultJavaBinary()
     }
 }

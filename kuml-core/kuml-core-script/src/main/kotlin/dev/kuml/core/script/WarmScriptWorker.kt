@@ -53,7 +53,9 @@ internal class WarmScriptWorker(
     val isIdle: Boolean get() = state == State.IDLE
     val isDead: Boolean get() = state == State.DEAD
 
-    private val process: Process = WorkerProcessSupport.launch(javaBinary, classpath, maxHeapMb, warm = true)
+    private val launched: WorkerProcessSupport.LaunchedWorker =
+        WorkerProcessSupport.launch(javaBinary, classpath, maxHeapMb, warm = true)
+    private val process: Process = launched.process
     private val reader = process.inputStream.bufferedReader(Charsets.UTF_8)
     private val readyLatch = CountDownLatch(1)
     private val stderrBuf = StringBuilder()
@@ -211,6 +213,7 @@ internal class WarmScriptWorker(
     fun destroy() {
         markDead()
         if (process.isAlive) process.destroyForcibly()
+        launched.cleanup()
     }
 
     private fun markDead() {

@@ -1,0 +1,85 @@
+;; kUML MCP script-sandbox — macOS OS-native isolation profile (Welle 4).
+;;
+;; Apple Sandbox Profile Language ("Seatbelt"). Applied to every script-worker
+;; child JVM (dev.kuml.core.script.ScriptWorkerMain) via:
+;;
+;;     sandbox-exec -D WORKDIR=<per-worker temp dir> \
+;;                  -D USERHOME=<user home> \
+;;                  -f kuml-worker.macos.sb \
+;;                  <java> ... dev.kuml.core.script.ScriptWorkerMain
+;;
+;; Threat model (see the MCP-Skript-Sandbox architecture note): an untrusted
+;; script may attempt to (a) exfiltrate files (~/.ssh, ~/.aws, credentials),
+;; (b) open a network connection to exfiltrate data or pivot, (c) drop a
+;; persistence artefact on disk. Even if the regex denylist (layer 1) and the
+;; process/heap/timeout containment (Wellen 2-3) are all bypassed, this OS layer
+;; must still make those three goals impossible.
+;;
+;; Security posture:
+;;   * DENY BY DEFAULT — nothing is permitted unless explicitly allowed below.
+;;   * NETWORK: fully denied. Blocks both DNS-based and direct-IP connections,
+;;     inbound and outbound (empirically verified: UnknownHostException on
+;;     name resolution, SocketException on raw-IP connect).
+;;   * FILE WRITE: denied everywhere EXCEPT the per-worker temp WORKDIR (which
+;;     the parent creates and destroys) plus the harmless character devices.
+;;     A write to $HOME (e.g. trojanising ~/.zshrc, dropping a launchd plist)
+;;     fails with "Operation not permitted" at the kernel, not merely the JVM.
+;;   * FILE READ: broadly allowed (the embedded Kotlin compiler + jlink runtime
+;;     read from dozens of scattered classpath/JDK locations, so an exact
+;;     per-jar allowlist would be extremely brittle across dependency bumps and
+;;     jlink-layout changes). Broad read is acceptable as a FIRST OS layer
+;;     because the high-value attack goals — exfiltration and network pivot —
+;;     both require WRITE or NETWORK, both of which are denied. As
+;;     defence-in-depth the most sensitive secret directories are additionally
+;;     read-denied below (later rules override the earlier broad allow in SBPL).
+;;   * PROCESS: the worker's own `java` may fork threads/helper processes it
+;;     needs to boot, but every such child inherits THIS sandbox (there is no
+;;     `(with no-sandbox)` escape hatch), so a script cannot exec an unconfined
+;;     subprocess. Combined with the network + write denies, an exec'd child is
+;;     itself caged.
+;;
+;; NB on `sandbox-exec`: officially deprecated by Apple but still present and
+;; heavily used by Apple's own components. It is ORTHOGONAL to AMFI / Library
+;; Validation: `sandbox-exec` itself carries no hardened-runtime / LV codesign
+;; flag, so wrapping an ad-hoc-signed bundled JRE in it does NOT trigger the
+;; separate AMFI adhoc-dylib rejection (empirically verified — see the AMFI note
+;; and the Welle-4 daily log). The two mechanisms do not interact.
+
+(version 1)
+
+;; ── Baseline: refuse everything not explicitly granted ────────────────────
+(deny default)
+
+;; ── Process lifecycle the JVM needs to boot and run ───────────────────────
+;; No (with no-sandbox): every child stays inside this profile.
+(allow process-fork)
+(allow process-exec)
+(allow signal (target self))
+
+;; ── System introspection the JVM performs at startup ──────────────────────
+(allow sysctl-read)
+(allow mach-lookup)
+
+;; ── File reads: broad (see rationale above) ───────────────────────────────
+(allow file-read*)
+(allow file-read-metadata)
+
+;; ── File writes: ONLY the per-worker temp workdir + harmless devices ──────
+(allow file-write* (subpath (param "WORKDIR")))
+(allow file-write-data
+  (literal "/dev/null")
+  (literal "/dev/random")
+  (literal "/dev/urandom")
+  (literal "/dev/zero"))
+
+;; ── Network: fully denied ─────────────────────────────────────────────────
+(deny network*)
+
+;; ── Defence-in-depth read-denies on the highest-value secret stores ───────
+;; These override the broad (allow file-read*) above (last-match-wins in SBPL),
+;; so even a read attempt on these paths fails at the kernel.
+(deny file-read* (subpath (string-append (param "USERHOME") "/.ssh")))
+(deny file-read* (subpath (string-append (param "USERHOME") "/.aws")))
+(deny file-read* (subpath (string-append (param "USERHOME") "/.gnupg")))
+(deny file-read* (subpath (string-append (param "USERHOME") "/.config/gcloud")))
+(deny file-read* (subpath (string-append (param "USERHOME") "/Library/Keychains")))

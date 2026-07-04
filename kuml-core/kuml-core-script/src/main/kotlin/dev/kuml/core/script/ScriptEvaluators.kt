@@ -16,6 +16,18 @@ package dev.kuml.core.script
  * workers held, default 3) and `KUML_MCP_SANDBOX_MAX_WORKERS` (hard ceiling on
  * concurrently-live worker JVMs — the fork-bomb guard, default 2× pool size).
  *
+ * ## OS-native isolation (Welle 4)
+ *
+ * On top of the process/heap/timeout containment, worker child processes are
+ * additionally launched inside an OS-enforced cage: `sandbox-exec` with a strict
+ * seatbelt profile on **macOS** (deny network, writes confined to a per-worker
+ * temp dir, reads of the top secret stores denied). This is what stops a *full
+ * RCE* — even a script that defeats the regex denylist cannot exfiltrate files
+ * or open a network socket. `KUML_MCP_SANDBOX_OS_ISOLATION` controls strictness:
+ * `required` (default on macOS — fail closed if the cage cannot be applied) or
+ * `best-effort` (default on platforms where OS isolation is not yet implemented,
+ * so they keep running with process/heap/timeout containment). See [OsSandbox].
+ *
  * ## Fail-closed default (design decision, Welle 2 point 7)
  *
  * The default is `child-process`, and the [ChildProcessScriptEvaluator] is
