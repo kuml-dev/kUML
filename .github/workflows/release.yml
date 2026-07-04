@@ -201,11 +201,98 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # V3.2.27 — ephemeral Apple signing keychain (macOS legs only; the two
+      # ubuntu-* and windows-* legs skip this because runner.os != 'macOS').
+      # Gated on APPLE_CERTIFICATE_P12_BASE64 being non-empty so this workflow
+      # still produces an unsigned runtime zip on any run where the Apple
+      # secrets aren't available (mirrors the HAS_TOKEN/HAS_KEY idiom used
+      # throughout this file, e.g. HOMEBREW_TAP_TOKEN / SDKMAN_CONSUMER_KEY /
+      # CHOCOLATEY_API_KEY gating above).
+      - name: Detect Apple signing secret presence
+        if: runner.os == 'macOS'
+        id: apple_gate
+        env:
+          HAS_SIGN: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 != '' }}
+        run: |
+          echo "has_sign=$HAS_SIGN" >> $GITHUB_OUTPUT
+          if [ "$HAS_SIGN" != "true" ]; then
+            echo "::notice::APPLE_CERTIFICATE_P12_BASE64 not set — skipping Apple signing/notarization, runtime zip will be unsigned."
+          fi
+
+      - name: Set up Apple signing keychain
+        if: runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true'
+        env:
+          P12_B64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          P12_PW: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KC_PW: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/kuml-signing.keychain-db"
+          security create-keychain -p "$KC_PW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KC_PW" "$KC"
+          echo "$P12_B64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$P12_PW" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          # Mandatory CI fix against the interactive-prompt hang: without this,
+          # codesign blocks on a headless keychain-access prompt that never
+          # gets answered and the job times out.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PW" "$KC"
+          # codesign/notarytool only look at keychains in the search list.
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Set up notarytool API key
+        if: runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true'
+        env:
+          P8_B64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/notary"
+          echo "$P8_B64" | base64 --decode > "$RUNNER_TEMP/notary/AuthKey_${KEY_ID}.p8"
+
       - name: Build bundled jlink runtime zip
         # :kuml-cli:runtimeZip already depends on :kuml-mcp:installDist via the
         # bundledImage -> bundleMcpInstallDist task graph (V3.2.13), but we chain
         # it explicitly here too so CI logs show the kuml-mcp build step distinctly.
+        #
+        # runtimeZip itself depends on signBundledRuntime (kuml-cli/build.gradle.kts),
+        # which signs every Mach-O in the bundled jlink runtime when
+        # KUML_SIGN_IDENTITY is set and the host is macOS; it silently no-ops
+        # otherwise (Linux/Windows legs, or macOS legs without the Apple secrets).
+        env:
+          KUML_SIGN_IDENTITY: ${{ runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true' && secrets.APPLE_SIGN_IDENTITY || '' }}
+          KUML_SIGN_KEYCHAIN: ${{ runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true' && format('{0}/kuml-signing.keychain-db', runner.temp) || '' }}
         run: ./gradlew :kuml-mcp:installDist :kuml-cli:runtimeZip
+
+      - name: Notarize runtime zip
+        # No --staple: a bare zip cannot be stapled (only .app/.pkg/.dmg can).
+        # Gatekeeper does an online check against Apple's notary service
+        # instead, the first time the unzipped binaries run — expected and
+        # fine for a CLI tool distributed via Homebrew/SDKMAN/Chocolatey.
+        if: runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true'
+        env:
+          KUML_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+          # notarizeRuntimeZip depends on runtimeZip, which re-runs
+          # signBundledRuntime (it declares no task outputs, so it's never
+          # up-to-date) — pass the same keychain explicitly rather than
+          # relying on the search-list mutation from the setup step earlier
+          # in this job.
+          KUML_SIGN_KEYCHAIN: ${{ format('{0}/kuml-signing.keychain-db', runner.temp) }}
+          KUML_NOTARY_KEY_PATH: ${{ format('{0}/notary/AuthKey_{1}.p8', runner.temp, secrets.APPLE_API_KEY_ID) }}
+          KUML_NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          KUML_NOTARY_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: ./gradlew :kuml-cli:notarizeRuntimeZip
+
+      - name: Clean up temporary Apple signing secrets
+        if: runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true' && always()
+        run: |
+          rm -f "$RUNNER_TEMP/notary"/AuthKey_*.p8
+          rm -f "$RUNNER_TEMP/cert.p12"
+          # GitHub-hosted runners are ephemeral VMs destroyed after the job
+          # regardless, but delete the imported private key explicitly too —
+          # defense-in-depth in case this workflow is ever pointed at a
+          # persistent (self-hosted) macOS runner.
+          security delete-keychain "$RUNNER_TEMP/kuml-signing.keychain-db" || true
 
       - name: Rename runtime zip with target suffix and compute SHA-256
         id: pack
@@ -294,8 +381,86 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build kuml-desktop DMG (unsigned)
+      # V3.2.27 — same ephemeral Apple signing keychain setup as package-runtime
+      # (macOS legs). Gated on APPLE_CERTIFICATE_P12_BASE64 so this job still
+      # produces an unsigned DMG (as it always has) if the Apple secrets are
+      # ever unavailable — mirrors the HAS_TOKEN/HAS_KEY idiom used throughout
+      # this file.
+      - name: Detect Apple signing secret presence
+        if: runner.os == 'macOS'
+        id: apple_gate
+        env:
+          HAS_SIGN: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 != '' }}
+        run: |
+          echo "has_sign=$HAS_SIGN" >> $GITHUB_OUTPUT
+          if [ "$HAS_SIGN" != "true" ]; then
+            echo "::notice::APPLE_CERTIFICATE_P12_BASE64 not set — skipping Apple signing/notarization, DMG will be unsigned."
+          fi
+
+      - name: Set up Apple signing keychain
+        if: runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true'
+        env:
+          P12_B64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          P12_PW: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KC_PW: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/kuml-signing.keychain-db"
+          security create-keychain -p "$KC_PW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KC_PW" "$KC"
+          echo "$P12_B64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KC" -P "$P12_PW" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          # Mandatory CI fix against the interactive-prompt hang: without this,
+          # codesign blocks on a headless keychain-access prompt that never
+          # gets answered and the job times out.
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PW" "$KC"
+          # codesign/notarytool only look at keychains in the search list.
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+      - name: Set up notarytool API key
+        if: runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true'
+        env:
+          P8_B64: ${{ secrets.APPLE_API_KEY_P8_BASE64 }}
+          KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/notary"
+          echo "$P8_B64" | base64 --decode > "$RUNNER_TEMP/notary/AuthKey_${KEY_ID}.p8"
+
+      - name: Build kuml-desktop DMG
+        # Compose's macOS signing DSL (kuml-desktop/build.gradle.kts, the
+        # nativeDistributions.macOS.signing {} block) signs the app bundle
+        # with a Developer ID + hardened runtime when KUML_SIGN_IDENTITY is
+        # set; it silently no-ops otherwise (unsigned DMG, as before V3.2.27).
+        # Notarization + stapling happen in a separate step below, since
+        # Compose 1.11's notarization {} DSL can't express the API-key
+        # credential flow used here (see the build.gradle.kts comment).
+        env:
+          KUML_SIGN_IDENTITY: ${{ steps.apple_gate.outputs.has_sign == 'true' && secrets.APPLE_SIGN_IDENTITY || '' }}
+          KUML_SIGN_KEYCHAIN: ${{ steps.apple_gate.outputs.has_sign == 'true' && format('{0}/kuml-signing.keychain-db', runner.temp) || '' }}
         run: ./gradlew clean :kuml-desktop:packageDmg
+
+      - name: Notarize and staple DMG
+        if: steps.apple_gate.outputs.has_sign == 'true'
+        env:
+          KUML_NOTARY_KEY_PATH: ${{ format('{0}/notary/AuthKey_{1}.p8', runner.temp, secrets.APPLE_API_KEY_ID) }}
+          KUML_NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          KUML_NOTARY_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          DMG=$(ls kuml-desktop/build/compose/binaries/main/dmg/kuml-desktop-*.dmg | head -n1)
+          kuml-packaging/scripts/notarize-and-staple.sh "$DMG" --staple
+
+      - name: Clean up temporary Apple signing secrets
+        if: runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true' && always()
+        run: |
+          rm -f "$RUNNER_TEMP/notary"/AuthKey_*.p8
+          rm -f "$RUNNER_TEMP/cert.p12"
+          # GitHub-hosted runners are ephemeral VMs destroyed after the job
+          # regardless, but delete the imported private key explicitly too —
+          # defense-in-depth in case this workflow is ever pointed at a
+          # persistent (self-hosted) macOS runner.
+          security delete-keychain "$RUNNER_TEMP/kuml-signing.keychain-db" || true
 
       - name: Rename DMG with version tag, upload, compute SHA-256
         id: pack
