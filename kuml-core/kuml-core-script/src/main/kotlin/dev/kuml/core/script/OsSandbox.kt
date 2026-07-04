@@ -25,14 +25,18 @@ import java.nio.file.attribute.PosixFilePermissions
  *    `$HOME`, DNS- and raw-IP network connects, and reads of `~/.ssh`, while
  *    letting legitimate DSL scripts (which need the embedded Kotlin compiler +
  *    temp writes) run unhindered.
- *  - **Linux** (Welle 5, **UNTESTED on real Linux** — see the honesty note
- *    below) — `bwrap` (bubblewrap) with `--unshare-all` (no network, no PID/IPC/
- *    user namespaces shared), the whole root filesystem bind-mounted read-only,
- *    the per-worker temp dir bind-mounted read-write, a private `/tmp` tmpfs, and
- *    `--die-with-parent`. This mirrors the macOS posture (broad read, no write
- *    outside the workdir, no network) but enforces it via Linux namespaces
- *    instead of a policy filter. There is **no** additional seccomp-bpf filter
- *    in this wave (see the seccomp note below).
+ *  - **Linux** (Welle 5, **verified on real Linux**, 2026-07-04 — see the
+ *    honesty note below) — `bwrap` (bubblewrap) with `--unshare-all` (no
+ *    network, no PID/IPC/user namespaces shared), the whole root filesystem
+ *    bind-mounted read-only, the per-worker temp dir bind-mounted read-write,
+ *    a private `/tmp` tmpfs, `--die-with-parent`, and a private-tmpfs
+ *    read-shadow over the existing entries of [SECRET_HOME_SUBPATHS]
+ *    (defence-in-depth, added after real-kernel testing found the broad
+ *    root read-bind alone left `~/.ssh` etc. readable — see the honesty
+ *    note). This mirrors the macOS posture (broad read, no write outside the
+ *    workdir, no network, secret-dir read denied) but enforces it via Linux
+ *    namespaces instead of a policy filter. There is **no** additional
+ *    seccomp-bpf filter in this wave (see the seccomp note below).
  *  - **Windows** (Welle 6, **UNTESTED on real Windows** — see the honesty note
  *    below) — a **Job Object** ([WindowsJobObjectSandbox]) caps per-process
  *    memory, forbids process spawning (`JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 1`) and
@@ -49,17 +53,57 @@ import java.nio.file.attribute.PosixFilePermissions
  *    [WorkerProcessSupport] decides whether that is tolerated (see
  *    `KUML_MCP_SANDBOX_OS_ISOLATION`).
  *
- * ## ⚠️ Honesty note on the Linux path (Welle 5)
+ * ## ✅ Verified on real Linux (2026-07-04)
  *
- * The Linux `bwrap` command construction was implemented and unit-verified on a
- * **macOS** development machine where `bwrap` does not exist and Linux kernel
- * namespaces cannot be exercised. The tests therefore prove only that the
- * **argument vector is constructed correctly** ([bwrapCommandFor]) — they do
- * **not** prove that the resulting cage actually blocks file-write / network /
- * secret-read on a real Linux kernel the way the macOS tests prove it for
- * `sandbox-exec`. **This path requires CI verification on real Linux before it
- * is relied upon in production.** Until then it is best-effort by default on
- * Linux (see [modeFrom]).
+ * The Linux `bwrap` command construction was originally implemented and only
+ * unit-verified on a macOS development machine where `bwrap` does not exist
+ * and Linux kernel namespaces cannot be exercised — the tests at that point
+ * proved only that the **argument vector is constructed correctly**
+ * ([bwrapCommandFor]), not that the resulting cage blocks anything at
+ * runtime. This was closed out on a real Ubuntu 26.04 / kernel 7.0 host
+ * (unprivileged user namespaces enabled, `bwrap` 0.11.1, not setuid) with the
+ * same denylist-independent, real-kernel methodology used for macOS: a raw
+ * compiled Java escape program (no kUML DSL, no [KumlScriptGuard]) launched
+ * through the exact [wrap] path a worker uses.
+ *
+ * **Result — one real gap found and fixed, everything else confirmed:**
+ *  - File-write escape to `$HOME`: **blocked** (kernel `EROFS`/permission
+ *    denied via the read-only root bind), matching macOS.
+ *  - Network escape (raw-IP connect, `--unshare-all` with no `--share-net`):
+ *    **blocked**, matching macOS.
+ *  - **`~/.ssh` read: initially NOT blocked.** The broad `--ro-bind / /`
+ *    posture (chosen for the same reason as macOS's broad `file-read*`: the
+ *    embedded Kotlin compiler + JDK read from scattered locations) makes
+ *    every path under `/` — including `~/.ssh`, `~/.aws`, `~/.gnupg` —
+ *    **readable**, whereas the macOS `.sb` profile has an explicit
+ *    `(deny file-read* (subpath …))` override for exactly these directories
+ *    that `bwrapCommandFor` had no equivalent for. **Fixed** by shadowing
+ *    each *existing* entry of [SECRET_HOME_SUBPATHS] with a private, empty
+ *    `--tmpfs` mount placed after the root ro-bind (later mounts shadow
+ *    earlier ones for the same subtree, same precedence trick already used
+ *    for the writable workdir `--bind`). Re-verified blocked after the fix.
+ *  - Legitimate renders still work fully caged: a real `javac`-then-`java`
+ *    round-trip (a reasonable proxy for the embedded Kotlin compiler's own
+ *    I/O pattern: broad reads across the JDK, one write inside the workdir)
+ *    completed successfully inside the cage — no false-positive denial.
+ *
+ * **Constraint discovered along the way with no macOS equivalent:** a bwrap
+ * `--tmpfs DEST` target must already exist as a real directory — bwrap tries
+ * to `mkdir` missing targets under the now-read-only root-bind parent, which
+ * fails and aborts the *entire* bwrap invocation (`Read-only file system`),
+ * not just that one mount. SBPL on macOS is inert on a nonexistent path;
+ * bwrap is not. [bwrapCommandFor] therefore only shadows a secret directory
+ * when [File.isDirectory] confirms it is actually present — a host without
+ * e.g. `~/.aws` gets one fewer shadow, never a broken sandbox.
+ *
+ * **Still open** (tracked as follow-up, not blocking): the container/no-userns
+ * degradation path (`best-effort` falling back to a plain child process when
+ * `bwrap` cannot acquire `CAP_SYS_ADMIN`/unprivileged-userns) was not
+ * exercised on this host, because unprivileged user namespaces are enabled
+ * here by default. Seccomp-bpf remains deliberately unimplemented (see below).
+ * Because of the real gap found above, the Linux default remains
+ * **best-effort** (not promoted to `required`) until that container case is
+ * also verified — see [modeFrom].
  *
  * ## ⚠️ Honesty note on the Windows path (Welle 6)
  *
@@ -114,6 +158,15 @@ internal object OsSandbox {
      */
     val BWRAP_CANDIDATE_PATHS: List<String> =
         listOf("/usr/bin/bwrap", "/usr/local/bin/bwrap", "/bin/bwrap")
+
+    /**
+     * Home-relative directories holding the highest-value secrets a script
+     * could try to exfiltrate. Mirrors the macOS profile's defence-in-depth
+     * `(deny file-read* (subpath …))` list ([MACOS_SANDBOX_PROFILE_RESOURCE])
+     * as closely as the two platforms allow — `~/Library/Keychains` is
+     * macOS-only and has no Linux equivalent, so it is omitted here.
+     */
+    val SECRET_HOME_SUBPATHS: List<String> = listOf(".ssh", ".aws", ".gnupg", ".config/gcloud")
 
     /**
      * Per-process committed-memory cap for the Windows Job Object, in bytes.
@@ -438,11 +491,28 @@ internal object OsSandbox {
      *    (the parent already clears its own env in [WorkerProcessSupport], this is
      *    belt-and-braces so nothing leaks through bwrap either). TMPDIR points at
      *    the writable workdir.
+     *  - `--tmpfs <homeDir>/<secret>` (one per existing entry in
+     *    [SECRET_HOME_SUBPATHS]) — defence-in-depth: shadows the highest-value
+     *    secret directories with an empty private tmpfs so the broad
+     *    `--ro-bind / /` read access above cannot see their contents. This is
+     *    the bwrap equivalent of the macOS profile's `(deny file-read*
+     *    (subpath …))` overrides. **Linux-specific constraint with no macOS
+     *    equivalent**: a `--tmpfs DEST` target must already exist as a real
+     *    directory, because bwrap creates missing mount points by `mkdir`ing
+     *    them under the (by then read-only, via the `/`-ro-bind above) parent
+     *    — which fails and aborts the *entire* bwrap launch, not just that one
+     *    mount (empirically verified: an unconditional `--tmpfs` on a missing
+     *    path fails with "Read-only file system" and the worker never starts).
+     *    SBPL on macOS is inert on a nonexistent path; bwrap is not — so each
+     *    secret directory is only shadowed when [File.isDirectory] confirms it
+     *    is actually there. A host without e.g. `~/.aws` simply gets one fewer
+     *    shadow, never a broken sandbox.
      */
     fun bwrapCommandFor(
         bwrapPath: String,
         command: List<String>,
         canonicalWorkDir: String,
+        homeDir: String = userHome(),
     ): List<String> {
         val path = System.getenv("PATH") ?: "/usr/bin:/bin"
         return buildList {
@@ -453,6 +523,14 @@ internal object OsSandbox {
             add("--ro-bind")
             add("/")
             add("/")
+            // Defence-in-depth: shadow existing secret directories (see KDoc).
+            for (subpath in SECRET_HOME_SUBPATHS) {
+                val dir = File(homeDir, subpath)
+                if (dir.isDirectory) {
+                    add("--tmpfs")
+                    add(dir.absolutePath)
+                }
+            }
             // Minimal private /dev and /proc for the new namespaces.
             add("--dev")
             add("/dev")

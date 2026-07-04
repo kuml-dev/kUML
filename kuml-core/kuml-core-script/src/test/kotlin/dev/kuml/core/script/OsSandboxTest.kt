@@ -5,6 +5,7 @@ import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.ints.shouldBeGreaterThan
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import java.io.File
 import java.nio.file.Files
@@ -30,20 +31,24 @@ import io.kotest.matchers.string.shouldContain as shouldContainString
  *
  * ## Coverage per platform
  *
- *  - **macOS (Welle 4)** — the full behavioural escape suite runs here (this is
- *    the dev machine): it actually launches the caged process and asserts the
- *    kernel refuses the escape. This is real **behaviour** verification.
- *  - **Linux (Welle 5)** — the `bwrap` command **construction** is verified
- *    ([bwrapCommandFor]) on any OS, asserting the exact argv. This is
- *    **construction** verification only: on this macOS machine there is no
- *    `bwrap` and no Linux kernel, so we do NOT and CANNOT prove the resulting
- *    cage blocks anything at runtime. Real behavioural verification of the Linux
- *    cage must happen in Linux CI (see the report / the OsSandbox KDoc).
+ *  - **macOS (Welle 4)** — the full behavioural escape suite runs here on a Mac:
+ *    it actually launches the caged process and asserts the kernel refuses the
+ *    escape. This is real **behaviour** verification.
+ *  - **Linux (Welle 5)** — **both** construction and behaviour are verified.
+ *    The `bwrap` command **construction** ([bwrapCommandFor]) is asserted on
+ *    any OS. The `isLinux`-guarded tests below additionally run the **same
+ *    real-kernel behavioural methodology as macOS** (raw Java escape program
+ *    through [OsSandbox.wrap]) on an actual Linux host — this closed the gap
+ *    called out in the architecture report and found one real issue along the
+ *    way (broad `--ro-bind / /` left `~/.ssh` etc. readable; fixed with a
+ *    per-secret-dir `--tmpfs` shadow, see the [OsSandbox] KDoc "Verified on
+ *    real Linux" section). The container/no-unprivileged-userns degradation
+ *    case is still unverified (tracked as a follow-up).
  *  - **Windows (Welle 6)** — mode/platform *logic* + the post-start no-op on
  *    non-Windows + the JNA Job-Object **fail-safe** (returns null, never throws,
- *    when kernel32.dll is absent) are asserted here. NO Job Object runs on this
- *    macOS machine; memory-cap / kill-on-close / process-spawn behaviour needs
- *    real Windows CI (see the report / WindowsJobObjectSandbox KDoc).
+ *    when kernel32.dll is absent) are asserted here. NO Job Object runs on
+ *    macOS or Linux; memory-cap / kill-on-close / process-spawn behaviour
+ *    needs real Windows CI (see the report / WindowsJobObjectSandbox KDoc).
  *  - Mode-resolution / platform-classification / fail-closed logic is asserted
  *    platform-independently.
  *
@@ -58,6 +63,13 @@ class OsSandboxTest :
                 .orEmpty()
                 .lowercase()
                 .let { it.contains("mac") || it.contains("darwin") }
+
+        val isLinux =
+            System
+                .getProperty("os.name")
+                .orEmpty()
+                .lowercase()
+                .let { it.contains("linux") || it.contains("nux") }
 
         /**
          * Compiles a small Java class into [outDir] and returns its runnable
@@ -120,6 +132,12 @@ class OsSandboxTest :
             OsSandbox.isolationAvailable().shouldBeTrue()
         }
 
+        test("on Linux, OS isolation is reported available (bwrap present)") {
+            if (!isLinux) return@test
+            OsSandbox.isolationAvailable().shouldBeTrue()
+            OsSandbox.bwrapPathOrNull().shouldNotBeNull()
+        }
+
         // ── Linux bwrap command CONSTRUCTION (verified on any OS) ──────────────
         //
         // These prove the argument vector is assembled correctly. They do NOT
@@ -129,7 +147,12 @@ class OsSandboxTest :
             val bwrap = "/usr/bin/bwrap"
             val work = "/tmp/kuml-worker-work-abc"
             val bare = listOf("/opt/jdk/bin/java", "-Xmx256m", "-cp", "a.jar:b.jar", "dev.kuml.core.script.ScriptWorkerMain")
-            val cmd = OsSandbox.bwrapCommandFor(bwrap, bare, work)
+            // Fake, guaranteed-nonexistent homeDir so the secret-shadowing loop
+            // adds nothing here — this test is about the base argv shape, not
+            // the (separately tested below) secret-directory shadowing, and
+            // must not depend on which dotfiles happen to exist on the CI/dev
+            // machine's real $HOME.
+            val cmd = OsSandbox.bwrapCommandFor(bwrap, bare, work, homeDir = "/nonexistent-test-home-kuml")
 
             // First token is bwrap itself.
             cmd.first() shouldBe bwrap
@@ -175,6 +198,52 @@ class OsSandboxTest :
             val sepIdx = cmd.indexOf("--")
             (sepIdx >= 0).shouldBeTrue()
             cmd.subList(sepIdx + 1, cmd.size) shouldBe bare
+        }
+
+        test("bwrapCommandFor shadows only EXISTING secret directories with a private tmpfs") {
+            // This is the fix for a real gap the Linux behavioural suite below
+            // caught: --ro-bind / / alone leaves ~/.ssh etc. READABLE (only
+            // writes/network are denied by the base posture). Mirrors the
+            // macOS profile's defence-in-depth (deny file-read* …) overrides.
+            val fakeHome = Files.createTempDirectory("kuml-fakehome-").toFile()
+            try {
+                File(fakeHome, ".ssh").mkdirs()
+                File(fakeHome, ".gnupg").mkdirs()
+                // Deliberately do NOT create .aws or .config/gcloud.
+
+                val cmd = OsSandbox.bwrapCommandFor("/usr/bin/bwrap", listOf("java"), "/tmp/w", homeDir = fakeHome.absolutePath)
+
+                cmd shouldContain File(fakeHome, ".ssh").absolutePath
+                cmd shouldContain File(fakeHome, ".gnupg").absolutePath
+                cmd.none { it == File(fakeHome, ".aws").absolutePath }.shouldBeTrue()
+                cmd.none { it == File(fakeHome, ".config/gcloud").absolutePath }.shouldBeTrue()
+
+                // Each shadowed secret dir must be preceded by its own --tmpfs.
+                val sshIdx = cmd.indexOf(File(fakeHome, ".ssh").absolutePath)
+                cmd[sshIdx - 1] shouldBe "--tmpfs"
+
+                // Shadows must come after the broad root ro-bind (so they win)
+                // and before the --bind of the writable workdir.
+                val roIdx = cmd.indexOf("--ro-bind")
+                val bindIdx = cmd.indexOf("--bind")
+                (sshIdx > roIdx).shouldBeTrue()
+                (sshIdx < bindIdx).shouldBeTrue()
+            } finally {
+                fakeHome.deleteRecursively()
+            }
+        }
+
+        test("bwrapCommandFor adds no secret-dir shadow when none of them exist (no crash, no phantom mounts)") {
+            val cmd =
+                OsSandbox.bwrapCommandFor(
+                    "/usr/bin/bwrap",
+                    listOf("java"),
+                    "/tmp/w",
+                    homeDir = "/nonexistent-test-home-kuml-2",
+                )
+            OsSandbox.SECRET_HOME_SUBPATHS.forEach { subpath ->
+                cmd.none { it == "/nonexistent-test-home-kuml-2/$subpath" }.shouldBeTrue()
+            }
         }
 
         test("bwrapCommandFor puts the writable --bind after --ro-bind / for every arg order") {
@@ -385,6 +454,200 @@ class OsSandboxTest :
                 val (_, out) = run(wrapped)
                 out shouldContainString "OK-WROTE"
                 File(work, "scratch.txt").exists().shouldBeTrue()
+            } finally {
+                work.deleteRecursively()
+            }
+        }
+
+        // ── Linux behavioural verification (real bwrap, real kernel) ───────────
+        //
+        // Mirrors the macOS behavioural suite above exactly, guarded by isLinux
+        // instead of isMac. Closes the "UNTESTED on real Linux" gap called out in
+        // the OsSandbox KDoc and the architecture report: these tests actually
+        // launch bwrap and assert the Linux kernel (not the denylist, not a mock)
+        // refuses the escape.
+
+        test("Linux OS sandbox blocks a file-write escape that has nothing to do with the denylist") {
+            if (!isLinux) return@test
+            val work = Files.createTempDirectory("kuml-ossbx-fw-").toFile().apply { deleteOnExit() }
+            val classes = File(work, "classes").apply { mkdirs() }
+            val escapeTarget = File(System.getProperty("user.home"), "kuml-sandbox-escape-fw-test.txt")
+            escapeTarget.delete()
+
+            try {
+                val cp =
+                    compileJava(
+                        classes,
+                        "FwEscapeLinux",
+                        """
+                        import java.io.FileWriter;
+                        public class FwEscapeLinux {
+                          public static void main(String[] a) throws Exception {
+                            FileWriter w = new FileWriter(a[0]);
+                            w.write("ESCAPED"); w.close();
+                            System.out.println("WROTE");
+                          }
+                        }
+                        """.trimIndent(),
+                    )
+                val bare =
+                    listOf(
+                        WorkerProcessSupport.defaultJavaBinary(),
+                        "-cp",
+                        cp,
+                        "FwEscapeLinux",
+                        escapeTarget.absolutePath,
+                    )
+
+                // Baseline: NO sandbox — the write must succeed (proves the escape is real).
+                val (_, baseOut) = run(bare)
+                baseOut shouldContainString "WROTE"
+                escapeTarget.exists().shouldBeTrue()
+                escapeTarget.delete()
+
+                // Under bwrap: the very same write must FAIL at the kernel (mount
+                // namespace makes $HOME read-only outside the workdir), even though
+                // nothing here ever went near KumlScriptGuard.
+                val wrapped = OsSandbox.wrap(bare, work)
+                wrapped.first() shouldBe OsSandbox.bwrapPathOrNull()
+                run(wrapped)
+                escapeTarget.exists().shouldBeFalse()
+            } finally {
+                escapeTarget.delete()
+                work.deleteRecursively()
+            }
+        }
+
+        test("Linux OS sandbox blocks a network escape (raw-IP), denylist-independent") {
+            if (!isLinux) return@test
+            val work = Files.createTempDirectory("kuml-ossbx-net-").toFile().apply { deleteOnExit() }
+            val classes = File(work, "classes").apply { mkdirs() }
+            try {
+                val cp =
+                    compileJava(
+                        classes,
+                        "NetEscapeLinux",
+                        """
+                        import java.net.*;
+                        public class NetEscapeLinux {
+                          public static void main(String[] a) {
+                            try {
+                              Socket s = new Socket();
+                              s.connect(new InetSocketAddress(a[0], 80), 3000);
+                              System.out.println("NET-OK"); s.close();
+                            } catch (Throwable t) { System.out.println("NET-BLOCKED:" + t.getClass().getSimpleName()); }
+                          }
+                        }
+                        """.trimIndent(),
+                    )
+                // Raw IP (no DNS needed) — --unshare-all removes the network
+                // namespace entirely, so even a direct connect must be refused.
+                val bareIp = listOf(WorkerProcessSupport.defaultJavaBinary(), "-cp", cp, "NetEscapeLinux", "1.1.1.1")
+                val wrapped = OsSandbox.wrap(bareIp, work)
+                wrapped.first() shouldBe OsSandbox.bwrapPathOrNull()
+                val (_, out) = run(wrapped)
+                out shouldContainString "NET-BLOCKED"
+            } finally {
+                work.deleteRecursively()
+            }
+        }
+
+        test("Linux OS sandbox blocks reading ~/.ssh, denylist-independent") {
+            if (!isLinux) return@test
+            val ssh = File(System.getProperty("user.home"), ".ssh")
+            val probe = File(ssh, "kuml_sandbox_probe")
+            val createdSsh = !ssh.exists()
+            val work = Files.createTempDirectory("kuml-ossbx-ssh-").toFile().apply { deleteOnExit() }
+            val classes = File(work, "classes").apply { mkdirs() }
+            try {
+                ssh.mkdirs()
+                probe.writeText("FAKE_KEY")
+                val cp =
+                    compileJava(
+                        classes,
+                        "SshReadLinux",
+                        """
+                        import java.nio.file.*;
+                        public class SshReadLinux {
+                          public static void main(String[] a) {
+                            try {
+                              String s = new String(Files.readAllBytes(Paths.get(a[0])));
+                              System.out.println("SSH-READ:" + s);
+                            } catch (Throwable t) { System.out.println("SSH-BLOCKED:" + t.getClass().getSimpleName()); }
+                          }
+                        }
+                        """.trimIndent(),
+                    )
+                val bare = listOf(WorkerProcessSupport.defaultJavaBinary(), "-cp", cp, "SshReadLinux", probe.absolutePath)
+                val wrapped = OsSandbox.wrap(bare, work)
+                val (_, out) = run(wrapped)
+                out shouldContainString "SSH-BLOCKED"
+            } finally {
+                probe.delete()
+                if (createdSsh) ssh.delete()
+                work.deleteRecursively()
+            }
+        }
+
+        test("Linux legitimate write INSIDE the per-worker workdir is allowed (no false-positive)") {
+            if (!isLinux) return@test
+            val work = Files.createTempDirectory("kuml-ossbx-ok-").toFile().apply { deleteOnExit() }
+            val classes = File(work, "classes").apply { mkdirs() }
+            try {
+                val cp =
+                    compileJava(
+                        classes,
+                        "OkWriteLinux",
+                        """
+                        import java.io.FileWriter;
+                        public class OkWriteLinux {
+                          public static void main(String[] a) throws Exception {
+                            FileWriter w = new FileWriter(a[0] + "/scratch.txt");
+                            w.write("ok"); w.close();
+                            System.out.println("OK-WROTE");
+                          }
+                        }
+                        """.trimIndent(),
+                    )
+                val bare = listOf(WorkerProcessSupport.defaultJavaBinary(), "-cp", cp, "OkWriteLinux", work.absolutePath)
+                val wrapped = OsSandbox.wrap(bare, work)
+                val (_, out) = run(wrapped)
+                out shouldContainString "OK-WROTE"
+                File(work, "scratch.txt").exists().shouldBeTrue()
+            } finally {
+                work.deleteRecursively()
+            }
+        }
+
+        test("Linux: a legitimate multi-JVM render pipeline still works fully caged (compiler warmup + temp writes)") {
+            if (!isLinux) return@test
+            // The real worker launches java, which itself needs to read broadly
+            // (JDK modules, embedded Kotlin compiler jars) and write only inside
+            // the workdir (compiler tmp files, class output). This is the
+            // strongest sanity check that the --ro-bind / posture is not so
+            // strict it breaks a legitimate render: actually run javac (a
+            // reasonable proxy for the embedded Kotlin compiler's own I/O
+            // pattern) fully inside the bwrap cage.
+            val work = Files.createTempDirectory("kuml-ossbx-compiler-").toFile().apply { deleteOnExit() }
+            try {
+                val src =
+                    File(work, "Hello.java").apply {
+                        writeText(
+                            "public class Hello { public static void main(String[] a){ " +
+                                "System.out.println(\"HELLO-FROM-CAGE\"); } }",
+                        )
+                    }
+                val javac = File(WorkerProcessSupport.defaultJavaBinary()).parentFile.resolve("javac").absolutePath
+                val bare = listOf(javac, "-d", work.absolutePath, src.absolutePath)
+                val wrapped = OsSandbox.wrap(bare, work)
+                val (compileExit, compileOut) = run(wrapped)
+                compileExit shouldBe 0
+                File(work, "Hello.class").exists().shouldBeTrue()
+
+                val runBare = listOf(WorkerProcessSupport.defaultJavaBinary(), "-cp", work.absolutePath, "Hello")
+                val runWrapped = OsSandbox.wrap(runBare, work)
+                val (_, runOut) = run(runWrapped)
+                runOut shouldContainString "HELLO-FROM-CAGE"
             } finally {
                 work.deleteRecursively()
             }
