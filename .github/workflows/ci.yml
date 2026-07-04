@@ -31,24 +31,6 @@ jobs:
       - name: Install bubblewrap (Linux OS sandbox test dependency)
         run: sudo apt-get update && sudo apt-get install -y bubblewrap
 
-      # TEMPORARY diagnostic step (to be removed once the real root cause of
-      # https://github.com/kuml-dev/kUML — OsSandboxTest Linux failures is
-      # confirmed). Runs the bare bwrap invocation the tests rely on, with its
-      # raw stderr unfiltered by any Kotlin exception wrapping, plus the two
-      # kernel/AppArmor knobs most likely to explain a failure on a hardened
-      # Ubuntu 24.04+ runner image (unprivileged user namespaces restricted by
-      # default since Ubuntu 23.10/24.04).
-      - name: Diagnose bwrap availability (TEMPORARY)
-        run: |
-          echo "--- bwrap version ---"
-          bwrap --version || true
-          echo "--- kernel.unprivileged_userns_clone ---"
-          sysctl kernel.unprivileged_userns_clone || echo "(sysctl key not present on this kernel)"
-          echo "--- apparmor bwrap profile status ---"
-          sudo aa-status 2>/dev/null | grep -i bwrap || echo "(no bwrap AppArmor profile found / aa-status unavailable)"
-          echo "--- direct bwrap smoke test ---"
-          bwrap --unshare-all --die-with-parent --ro-bind / / -- echo "bwrap-smoke-ok" || echo "bwrap exited with code $?"
-
       - name: Build (excluding live LLM tests)
         run: ./gradlew build -DexcludeTags=live
 
