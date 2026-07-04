@@ -4,6 +4,7 @@ import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermissions
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
@@ -139,11 +140,19 @@ public object Mp4Encoder {
         //   RGBA-sourced input, which many players cannot decode).
         // -movflags +faststart: moves the MOOV atom to the front of the file so the
         //   video can start playing before it is fully downloaded (web-friendly MP4).
+        // scale=trunc(iw/2)*2:trunc(ih/2)*2: yuv420p's 4:2:0 chroma subsampling
+        //   requires EVEN width and height — libx264 refuses to open the encoder
+        //   otherwise ("height not divisible by 2"). kUML diagram renders have no
+        //   such constraint (layout-driven, frequently odd, e.g. 1024x3459), so
+        //   every MP4 export needs this rounding-down-to-even filter. Cropping at
+        //   most 1px off the bottom/right is imperceptible for a diagram render and
+        //   is the standard fix documented on the FFmpeg wiki for this exact error
+        //   — chosen over padding to avoid introducing a visible border colour.
         return listOf(
             "ffmpeg",
             "-y",
             "-framerate",
-            "%.3f".format(fps),
+            String.format(Locale.ROOT, "%.3f", fps),
             "-i",
             pattern,
             "-c:v",
@@ -153,7 +162,7 @@ public object Mp4Encoder {
             "-movflags",
             "+faststart",
             "-vf",
-            "fps=%.3f".format(fps),
+            "fps=" + String.format(Locale.ROOT, "%.3f", fps) + ",scale=trunc(iw/2)*2:trunc(ih/2)*2",
             outputFile.absolutePath,
         )
     }

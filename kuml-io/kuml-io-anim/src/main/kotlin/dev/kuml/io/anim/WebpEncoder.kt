@@ -4,6 +4,7 @@ import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermissions
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 
@@ -173,7 +174,7 @@ public object WebpEncoder {
             "ffmpeg",
             "-y",
             "-framerate",
-            "%.3f".format(fps),
+            String.format(Locale.ROOT, "%.3f", fps),
             "-i",
             pattern,
             "-c:v",
@@ -181,7 +182,7 @@ public object WebpEncoder {
             "-loop",
             "0",
             "-vf",
-            "fps=%.3f".format(fps),
+            "fps=" + String.format(Locale.ROOT, "%.3f", fps),
             outputFile.absolutePath,
         )
     }

@@ -57,6 +57,31 @@ class Mp4EncoderTest :
             ftypStr shouldBe "ftyp"
         }
 
+        test("encode handles odd frame dimensions (H.264/yuv420p requires even width and height)").config(
+            enabled = EncoderBinaryLocator.isFfmpegAvailable(),
+        ) {
+            // Regression test: kUML diagram renders have layout-driven dimensions with
+            // no even-number guarantee (a real STM render came out at 1024x3459).
+            // yuv420p's 4:2:0 chroma subsampling requires EVEN width AND height —
+            // libx264 fails with "height not divisible by 2" otherwise. The synthetic
+            // 4x4 frames above are both even and would never have caught this; 5x7 is
+            // odd on both axes.
+            fun oddSyntheticPng(): ByteArray {
+                val img = BufferedImage(5, 7, BufferedImage.TYPE_INT_RGB)
+                val graphics = img.createGraphics()
+                graphics.color = Color(10, 20, 30)
+                graphics.fillRect(0, 0, 5, 7)
+                graphics.dispose()
+                val baos = ByteArrayOutputStream()
+                ImageIO.write(img, "png", baos)
+                return baos.toByteArray()
+            }
+            val oddFrames = listOf(oddSyntheticPng(), oddSyntheticPng())
+            val bytes = Mp4Encoder.encode(oddFrames, 200L)
+            val ftyp = bytes.copyOfRange(4, 8)
+            String(ftyp, Charsets.ISO_8859_1) shouldBe "ftyp"
+        }
+
         test("AnimEncoderException thrown with actionable message when ffmpeg not available") {
             if (!EncoderBinaryLocator.isFfmpegAvailable()) {
                 val ex =
