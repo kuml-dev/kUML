@@ -94,7 +94,7 @@ xcrun notarytool "${NOTARY_ARGS[@]}"
 if [ "$STAPLE" = true ]; then
     case "$ARTIFACT" in
         *.dmg | *.pkg | *.app)
-            echo "notarize-and-staple.sh: stapling $ARTIFACT…"
+            echo "notarize-and-staple.sh: stapling ${ARTIFACT}…"
             xcrun stapler staple "$ARTIFACT"
             ;;
         *)
