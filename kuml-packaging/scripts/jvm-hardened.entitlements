@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  jvm-hardened.entitlements
+
+  Entitlements required so a Developer-ID-signed, hardened-runtime JVM can
+  still JIT-compile code at runtime (HotSpot C1/C2). Without these, macOS
+  hardened runtime rejects the JIT-generated executable memory pages and the
+  JVM crashes (SIGKILL) the first time it tries to JIT-compile — a distinct,
+  new bug class from the AMFI ad-hoc-signing problem this signing pass fixes.
+  See "03 Bereiche/kUML/MCP-Server AMFI-Signierungsproblem (macOS)" and the
+  "V3.2-Apple-Signierung-Wellenplan" plan (V3.2.26) in the Obsidian vault.
+
+  Used by kuml-cli's signBundledRuntime Gradle task when codesigning every
+  Mach-O under the bundled jlink runtime image (runtime/lib, runtime/bin).
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+</dict>
+</plist>

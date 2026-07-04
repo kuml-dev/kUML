@@ -621,10 +621,204 @@ tasks.register("bundledImage") {
     )
 }
 
+// V3.2.26 — Developer ID sign every Mach-O in the bundled jlink runtime image
+// (the actual AMFI fix, see "MCP-Server AMFI-Signierungsproblem (macOS)" and the
+// "V3.2-Apple-Signierung-Wellenplan" plan).
+//
+// Gate: only active when KUML_SIGN_IDENTITY is set AND the host is macOS.
+// Silent no-op otherwise — must not break Linux/Windows CI legs, nor local
+// builds on a machine without a Developer ID certificate.
+//
+// Signing order is bottom-up: every leaf Mach-O (dylibs, JDK binaries) is
+// signed individually via kuml-packaging/scripts/sign-macho.sh with the
+// hardened-runtime + JIT entitlements (jvm-hardened.entitlements). There is
+// no outer app-bundle wrapper for a bare jlink tree, so there is no "outer
+// signing invalidates inner signing" concern here — but every single file
+// must still be signed on its own (`codesign --deep` is unreliable/deprecated
+// and is deliberately not used).
+//
+// Deviation from the original plan (discovered during local verification,
+// not called out in the plan document): the plan scoped this task to
+// `imageDir/runtime/` only (the jlink JRE's own native libs — libjli, libjvm,
+// etc., the actual AMFI root cause for kuml-mcp's startup failure). But a
+// real `notarytool submit` on the resulting runtimeZip additionally rejects
+// with "Archive contains critical validation errors" for several *nested*
+// Mach-O files shipped inside third-party dependency JARs under
+// `imageDir/lib/` and `imageDir/mcp/lib/` (JNA's libjnidispatch.jnilib,
+// sqlite-jdbc's libsqlitejdbc.dylib, and Jansi's libjansi.jnilib bundled
+// inside kotlin-compiler-embeddable.jar) — all ad-hoc/unsigned. Apple's
+// notary service scans every Mach-O in the archive, not just the ones the
+// JVM loads at startup, so these must be signed too for notarization to
+// succeed (status: Accepted) — even though they are not the AMFI/Library-
+// Validation root cause fixed by signing runtime/. Handled by unpacking each
+// affected jar, signing the embedded native libs, and repacking in place.
+val signBundledRuntime =
+    tasks.register("signBundledRuntime") {
+        group = "distribution"
+        description =
+            "Developer-ID-signs every Mach-O in the bundled jlink runtime image, " +
+            "including native libs nested inside dependency jars " +
+            "(no-op unless KUML_SIGN_IDENTITY is set and host is macOS)."
+        dependsOn("bundledImage")
+        mustRunAfter("bundledImage")
+
+        val signIdentity = providers.environmentVariable("KUML_SIGN_IDENTITY").orNull
+        val isMacOs =
+            org.gradle.internal.os.OperatingSystem
+                .current()
+                .isMacOsX
+        val imageRootPath: String = imageDir.get().asFile.absolutePath
+        val runtimeDirPath: String =
+            imageDir
+                .get()
+                .asFile
+                .resolve("runtime")
+                .absolutePath
+        val signScriptPath: String =
+            rootProject.file("kuml-packaging/scripts/sign-macho.sh").absolutePath
+        val entitlementsPath: String =
+            rootProject.file("kuml-packaging/scripts/jvm-hardened.entitlements").absolutePath
+        val keychainPath: String? = providers.environmentVariable("KUML_SIGN_KEYCHAIN").orNull
+
+        onlyIf { signIdentity != null && isMacOs }
+
+        doLast(
+            object : Action<Task> {
+                override fun execute(task: Task) {
+                    val runtimeDir = File(runtimeDirPath)
+                    require(runtimeDir.isDirectory) {
+                        "Expected bundled runtime dir at $runtimeDir — did bundledImage run?"
+                    }
+                    val env = mutableMapOf("KUML_SIGN_IDENTITY" to signIdentity!!)
+                    if (keychainPath != null) env["KUML_SIGN_KEYCHAIN"] = keychainPath
+
+                    fun isMachO(file: File): Boolean =
+                        try {
+                            val fileOutput =
+                                ProcessBuilder("file", file.absolutePath)
+                                    .redirectErrorStream(true)
+                                    .start()
+                                    .let { proc ->
+                                        val out = proc.inputStream.bufferedReader().readText()
+                                        proc.waitFor()
+                                        out
+                                    }
+                            fileOutput.contains("Mach-O")
+                        } catch (e: Exception) {
+                            false
+                        }
+
+                    fun signFile(file: File) {
+                        // Plain ProcessBuilder rather than Gradle's exec APIs: this
+                        // runs inside a doLast Action, where `project.exec` is
+                        // unavailable (Gradle 9 configuration-cache constraints —
+                        // same reasoning as the jlinkRuntime comment above on why
+                        // this repo avoids project.exec() in task actions).
+                        val processBuilder =
+                            ProcessBuilder(signScriptPath, file.absolutePath, entitlementsPath)
+                                .redirectErrorStream(true)
+                        processBuilder.environment().putAll(env)
+                        val proc = processBuilder.start()
+                        val output = proc.inputStream.bufferedReader().readText()
+                        val exitCode = proc.waitFor()
+                        require(exitCode == 0) {
+                            "sign-macho.sh failed (exit $exitCode) for $file:\n$output"
+                        }
+                    }
+
+                    var signedCount = 0
+
+                    // 1. Every real Mach-O directly under runtime/ (the jlink JRE
+                    // itself — the actual AMFI root cause).
+                    runtimeDir.walkTopDown().filter { it.isFile }.forEach { file ->
+                        if (isMachO(file)) {
+                            signFile(file)
+                            signedCount++
+                        }
+                    }
+
+                    // 2. Native libs nested inside dependency jars anywhere under
+                    // the assembled image (lib/, mcp/lib/) — required for
+                    // notarytool to accept the archive (see deviation note above).
+                    // Unzip to a scratch dir, sign, rezip in place with `zip`
+                    // (Info-ZIP), which by default only replaces the changed
+                    // entries and preserves the rest of the archive byte-for-byte.
+                    val imageRoot = File(imageRootPath)
+                    imageRoot
+                        .walkTopDown()
+                        .filter { it.isFile && it.extension == "jar" }
+                        .forEach { jar ->
+                            // `-Z1` (zipinfo short format) prints one bare entry path per
+                            // line with no columns to parse — unlike `-l`, it survives
+                            // entry paths containing spaces.
+                            val nativeEntries =
+                                ProcessBuilder("unzip", "-Z1", jar.absolutePath)
+                                    .redirectErrorStream(true)
+                                    .start()
+                                    .let { proc ->
+                                        val out = proc.inputStream.bufferedReader().readText()
+                                        proc.waitFor()
+                                        out
+                                    }.lineSequence()
+                                    .map { it.trim() }
+                                    .filter { it.endsWith(".dylib") || it.endsWith(".jnilib") }
+                                    .toList()
+                            if (nativeEntries.isEmpty()) return@forEach
+
+                            val scratchDir =
+                                File(temporaryDir, jar.nameWithoutExtension + "-" + jar.parentFile.name)
+                            scratchDir.deleteRecursively()
+                            scratchDir.mkdirs()
+
+                            val extractProc =
+                                ProcessBuilder("unzip", "-oq", jar.absolutePath, "-d", scratchDir.absolutePath)
+                                    .redirectErrorStream(true)
+                                    .start()
+                            val extractOut = extractProc.inputStream.bufferedReader().readText()
+                            require(extractProc.waitFor() == 0) {
+                                "unzip failed for $jar:\n$extractOut"
+                            }
+
+                            var jarHadSignedEntry = false
+                            nativeEntries.forEach { entryPath ->
+                                val extracted = File(scratchDir, entryPath)
+                                if (extracted.isFile && isMachO(extracted)) {
+                                    signFile(extracted)
+                                    signedCount++
+                                    jarHadSignedEntry = true
+                                }
+                            }
+
+                            if (jarHadSignedEntry) {
+                                // Update just the signed entries in place — `zip -j`
+                                // would flatten paths, so cd into scratchDir and use
+                                // relative entry paths instead.
+                                val updateProc =
+                                    ProcessBuilder(
+                                        listOf("zip", jar.absolutePath) + nativeEntries,
+                                    ).directory(scratchDir)
+                                        .redirectErrorStream(true)
+                                        .start()
+                                val updateOut = updateProc.inputStream.bufferedReader().readText()
+                                require(updateProc.waitFor() == 0) {
+                                    "zip (repack) failed for $jar:\n$updateOut"
+                                }
+                            }
+                        }
+
+                    logger.lifecycle(
+                        "signBundledRuntime: signed $signedCount Mach-O file(s) " +
+                            "under $runtimeDir and nested inside dependency jars",
+                    )
+                }
+            },
+        )
+    }
+
 tasks.register<Zip>("runtimeZip") {
     group = "distribution"
     description = "Zips the bundled kuml runtime image for release distribution."
-    dependsOn("bundledImage")
+    dependsOn("bundledImage", signBundledRuntime)
     archiveBaseName.set("kuml-runtime")
     archiveVersion.set(version.toString())
 
@@ -658,4 +852,55 @@ tasks.register<Zip>("runtimeZip") {
         }
     }
     destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+}
+
+// V3.2.26 — Notarize the signed runtimeZip. Gated identically to
+// signBundledRuntime (KUML_SIGN_IDENTITY set + macOS host); silent no-op
+// otherwise. No --staple: a bare zip cannot be stapled (only .app/.pkg/.dmg
+// can). Gatekeeper instead does an online check against Apple's notary
+// service the first time the unzipped binaries run — expected and fine for
+// a CLI tool distributed via Homebrew/SDKMAN.
+tasks.register("notarizeRuntimeZip") {
+    group = "distribution"
+    description =
+        "Notarizes the signed kuml-runtime zip (no-op unless KUML_SIGN_IDENTITY is set and host is macOS)."
+    dependsOn("runtimeZip")
+
+    val signIdentity = providers.environmentVariable("KUML_SIGN_IDENTITY").orNull
+    val isMacOs =
+        org.gradle.internal.os.OperatingSystem
+            .current()
+            .isMacOsX
+    val notarizeScriptPath: String =
+        rootProject.file("kuml-packaging/scripts/notarize-and-staple.sh").absolutePath
+    val zipPath: String =
+        layout.buildDirectory
+            .dir("distributions")
+            .get()
+            .asFile
+            .resolve("kuml-runtime-${project.version}.zip")
+            .absolutePath
+
+    onlyIf { signIdentity != null && isMacOs }
+
+    doLast(
+        object : Action<Task> {
+            override fun execute(task: Task) {
+                val zip = File(zipPath)
+                require(zip.isFile) { "Expected runtimeZip output at $zip — did runtimeZip run?" }
+                // Plain ProcessBuilder — see signBundledRuntime above for why
+                // project.exec() is avoided inside a doLast Action here.
+                val proc =
+                    ProcessBuilder(notarizeScriptPath, zip.absolutePath)
+                        .redirectErrorStream(true)
+                        .start()
+                // Stream output live rather than buffering — notarization can take
+                // several minutes and this keeps the build log informative while
+                // waiting on Apple's servers.
+                proc.inputStream.bufferedReader().forEachLine { println(it) }
+                val exitCode = proc.waitFor()
+                require(exitCode == 0) { "notarize-and-staple.sh failed (exit $exitCode) for $zip" }
+            }
+        },
+    )
 }

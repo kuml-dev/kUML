@@ -103,6 +103,37 @@ compose.desktop {
                 // Icon nur setzen wenn vorhanden — Build schlägt sonst mit Missing-File-Fehler fehl
                 val macIcon = file("src/jvmMain/resources/icons/kuml-desktop.icns")
                 if (macIcon.exists()) iconFile.set(macIcon)
+
+                // V3.2.25 — Developer ID signing (local, gated on KUML_SIGN_IDENTITY).
+                //
+                // Verified against the actual Compose Multiplatform 1.11.1 Gradle
+                // plugin classes (org.jetbrains.compose.desktop.application.dsl.
+                // MacOSSigningSettings / MacOSNotarizationSettings, decompiled via
+                // javap): `signing { sign, identity, keychain, prefix }` exists and
+                // works as expected for hardened-runtime signing. `notarization {}`
+                // on this Compose version only exposes `appleID` / `password` /
+                // `teamID` / `ascProvider` (the legacy Apple-ID + app-specific-
+                // password flow) — it has NO support for notarytool keychain
+                // profiles or App Store Connect API keys, which is the credential
+                // path already proven on this machine (`kuml-notary` profile).
+                //
+                // Resolution (per the V3.2.25 plan's documented fallback): use
+                // Compose only for signing; run notarization + stapling as a
+                // separate external step via
+                // kuml-packaging/scripts/notarize-and-staple.sh after packageDmg
+                // produces the DMG, rather than fighting a DSL that can't express
+                // the credential flow we use.
+                val signIdentity = providers.environmentVariable("KUML_SIGN_IDENTITY").orNull
+                if (signIdentity != null) {
+                    signing {
+                        sign.set(true)
+                        identity.set(signIdentity)
+                        // Only needed in CI with an ephemeral keychain (V3.2.27).
+                        providers.environmentVariable("KUML_SIGN_KEYCHAIN").orNull?.let {
+                            keychain.set(it)
+                        }
+                    }
+                }
             }
             windows {
                 val winIcon = file("src/jvmMain/resources/icons/kuml-desktop.ico")
