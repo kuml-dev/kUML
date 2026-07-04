@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>kuml-desktop</id>
+    <version>__VERSION__</version>
+    <title>kUML Desktop</title>
+    <authors>Irakli Betchvaia</authors>
+    <owners>kuml-dev</owners>
+    <projectUrl>https://kuml.dev</projectUrl>
+    <projectSourceUrl>https://github.com/kuml-dev/kuml</projectSourceUrl>
+    <packageSourceUrl>https://github.com/kuml-dev/kuml/tree/master/kuml-packaging/chocolatey-desktop</packageSourceUrl>
+    <docsUrl>https://kuml.dev/docs</docsUrl>
+    <bugTrackerUrl>https://github.com/kuml-dev/kuml/issues</bugTrackerUrl>
+    <licenseUrl>https://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <iconUrl>https://kuml.dev/og-image.png</iconUrl>
+    <summary>kUML Desktop — visual editor for UML, SysML 2, and C4 diagrams with an AI assistant panel.</summary>
+    <description>kUML Desktop is the graphical companion to the `kuml` CLI: a Compose Multiplatform
+desktop application for editing kUML models with live preview, plugin marketplace
+browsing, and an integrated AI assistant panel (Koog-based agents) for diagram
+authoring.
+
+This package ships the unsigned Windows MSI produced by jpackage. It bundles its
+own Java 21 runtime, so **no separate JDK installation is required**.
+
+* Homepage: https://kuml.dev
+* Source:   https://github.com/kuml-dev/kuml
+* License:  Apache-2.0</description>
+    <tags>kuml kuml-desktop uml sysml c4 kotlin diagram modeling architecture ai developer-tools admin</tags>
+    <releaseNotes>https://github.com/kuml-dev/kuml/releases/tag/v__VERSION__</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
