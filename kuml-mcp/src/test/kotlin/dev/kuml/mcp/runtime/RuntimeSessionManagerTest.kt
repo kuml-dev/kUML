@@ -110,6 +110,87 @@ class RuntimeSessionManagerTest :
             result.message shouldContain "Script evaluation failed"
         }
 
+        // ── Security guard ────────────────────────────────────────────────────
+
+        test("start with malicious inline script is rejected by KumlScriptGuard, not executed") {
+            val manager = RuntimeSessionManager()
+            val maliciousScript =
+                """
+                import dev.kuml.sysml2.dsl.sysml2Model
+
+                val rt = Runtime::class.java.getMethod("getRuntime").invoke(null)
+
+                sysml2Model("Evil") {
+                    val initial = stateDef("Initial", isInitial = true)
+                    stmDiagram("Evil STM") {
+                        include(initial)
+                    }
+                }
+                """.trimIndent()
+
+            val result = manager.start(maliciousScript, "stm", null)
+            result as SessionResult.Error
+            result.message shouldContain "kUML script rejected"
+        }
+
+        test("start with malicious script from file path is rejected by KumlScriptGuard, not executed") {
+            val manager = RuntimeSessionManager()
+            val maliciousScript =
+                """
+                import dev.kuml.sysml2.dsl.sysml2Model
+
+                val rt = Runtime::class.java.getMethod("getRuntime").invoke(null)
+
+                sysml2Model("Evil") {
+                    val initial = stateDef("Initial", isInitial = true)
+                    stmDiagram("Evil STM") {
+                        include(initial)
+                    }
+                }
+                """.trimIndent()
+            val file = writeScript(maliciousScript)
+            try {
+                val result = manager.start(file.absolutePath, "stm", null)
+                result as SessionResult.Error
+                result.message shouldContain "kUML script rejected"
+            } finally {
+                file.delete()
+            }
+        }
+
+        test("start with denylisted Thread pattern is rejected") {
+            val manager = RuntimeSessionManager()
+            val maliciousScript =
+                """
+                import dev.kuml.sysml2.dsl.sysml2Model
+
+                Thread { println("side effect") }.start()
+
+                sysml2Model("Evil") {
+                    val initial = stateDef("Initial", isInitial = true)
+                    stmDiagram("Evil STM") {
+                        include(initial)
+                    }
+                }
+                """.trimIndent()
+
+            val result = manager.start(maliciousScript, "stm", null)
+            result as SessionResult.Error
+            result.message shouldContain "kUML script rejected"
+        }
+
+        test("legitimate STM script passes the guard without false positive") {
+            val manager = RuntimeSessionManager()
+            val result = manager.start(thermostatStmScript, "stm", null) as SessionResult.Started
+            result.activeStates shouldContain "Off"
+        }
+
+        test("legitimate ACT script passes the guard without false positive") {
+            val manager = RuntimeSessionManager()
+            val result = manager.start(thermostatActScript, "act", null) as SessionResult.Started
+            result.kind shouldBe "act"
+        }
+
         // ── STM: event ────────────────────────────────────────────────────────
 
         test("event powerOn transitions STM from Off to Idle") {

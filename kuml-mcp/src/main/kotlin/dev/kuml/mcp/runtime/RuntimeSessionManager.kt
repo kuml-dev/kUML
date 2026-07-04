@@ -2,7 +2,9 @@ package dev.kuml.mcp.runtime
 
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
+import dev.kuml.core.script.KumlScriptGuard
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.core.script.ScriptSecurityException
 import dev.kuml.runtime.Event
 import dev.kuml.runtime.OclGuardEvaluator
 import dev.kuml.runtime.Snapshot
@@ -77,6 +79,12 @@ internal class RuntimeSessionManager(
         val (file, tempCreated) = resolveScriptFile(source)
 
         return try {
+            try {
+                KumlScriptGuard.validate(file.readText())
+            } catch (e: ScriptSecurityException) {
+                return SessionResult.Error(e.message ?: "kUML script rejected by security guard.")
+            }
+
             val evalResult = KumlScriptHost.eval(file)
 
             val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
