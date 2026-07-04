@@ -1,10 +1,8 @@
 package dev.kuml.mcp.runtime
 
-import dev.kuml.core.script.DiagramExtractor
+import dev.kuml.core.script.EvaluatedScript
 import dev.kuml.core.script.ExtractedDiagram
-import dev.kuml.core.script.KumlScriptGuard
-import dev.kuml.core.script.KumlScriptHost
-import dev.kuml.core.script.ScriptSecurityException
+import dev.kuml.mcp.McpScriptEvaluator
 import dev.kuml.runtime.Event
 import dev.kuml.runtime.OclGuardEvaluator
 import dev.kuml.runtime.Snapshot
@@ -25,13 +23,10 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
-import java.nio.file.Files
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import kotlin.script.experimental.api.ResultWithDiagnostics
-import kotlin.script.experimental.api.ScriptDiagnostic
 
 /**
  * In-memory session manager for the `kuml.run.*` MCP tools.
@@ -76,55 +71,39 @@ internal class RuntimeSessionManager(
         kind: String?,
         elementName: String?,
     ): SessionResult {
-        val (file, tempCreated) = resolveScriptFile(source)
+        // V0.23.3 — evaluation + extraction go through the shared sandboxed
+        // evaluator (guard is enforced inside it as layer 1). This closes the
+        // sixth attack vector: the kuml.run.* path was the last one still
+        // calling KumlScriptHost.eval directly.
+        //
+        // `source` may be a file path or inline script text. Read a file path
+        // to text so the evaluator (which takes source, not a File) can run it
+        // out of process — the sandbox child never touches the caller's path.
+        val scriptText = readSourceOrInline(source)
 
-        return try {
-            try {
-                KumlScriptGuard.validate(file.readText())
-            } catch (e: ScriptSecurityException) {
-                return SessionResult.Error(e.message ?: "kUML script rejected by security guard.")
+        val extracted =
+            when (val result = McpScriptEvaluator.evaluate(scriptText, "run.kuml.kts")) {
+                is EvaluatedScript.Success -> result.diagram
+                is EvaluatedScript.Failure -> return SessionResult.Error(result.message)
             }
 
-            val evalResult = KumlScriptHost.eval(file)
+        val sessionId = "rs-${UUID.randomUUID().toString().take(8)}"
+        val effectiveKind = resolveKind(extracted, kind, elementName)
 
-            val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
-            if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
-                val msg = errors.joinToString("\n") { it.message }
-                return SessionResult.Error("Script evaluation failed:\n$msg")
+        val session =
+            when (effectiveKind) {
+                "stm" -> buildStmSession(sessionId, extracted, elementName)
+                "act" -> buildActSession(sessionId, extracted, elementName)
+                else -> return SessionResult.Error("Unknown kind '$effectiveKind'; expected 'stm' or 'act'")
             }
 
-            val success =
-                evalResult as? ResultWithDiagnostics.Success
-                    ?: return SessionResult.Error("Script evaluation produced no result")
-
-            val extracted =
-                try {
-                    DiagramExtractor.extractAny(success.value.returnValue, file)
-                } catch (_: Throwable) {
-                    val diagram = DiagramExtractor.extract(success.value.returnValue, file)
-                    ExtractedDiagram.Uml(diagram)
-                }
-
-            val sessionId = "rs-${UUID.randomUUID().toString().take(8)}"
-            val effectiveKind = resolveKind(extracted, kind, elementName)
-
-            val session =
-                when (effectiveKind) {
-                    "stm" -> buildStmSession(sessionId, extracted, elementName)
-                    "act" -> buildActSession(sessionId, extracted, elementName)
-                    else -> return SessionResult.Error("Unknown kind '$effectiveKind'; expected 'stm' or 'act'")
-                }
-
-            sessions[sessionId] = session
-            SessionResult.Started(
-                sessionId = sessionId,
-                kind = effectiveKind,
-                activeStates = session.activeStates(),
-                trace = emptyList(),
-            )
-        } finally {
-            if (tempCreated) file.delete()
-        }
+        sessions[sessionId] = session
+        return SessionResult.Started(
+            sessionId = sessionId,
+            kind = effectiveKind,
+            activeStates = session.activeStates(),
+            trace = emptyList(),
+        )
     }
 
     /** Send an event to an STM session; not supported for ACT sessions. */
@@ -297,19 +276,16 @@ internal class RuntimeSessionManager(
     }
 
     /**
-     * Resolves the script file.  Returns (file, wasTemporary).
+     * Resolves [source] to script text.
      *
-     * If [source] is an existing file path, use it directly.
-     * Otherwise treat it as inline script content and write to a temp file.
+     * If [source] is an existing file path, read its contents; otherwise treat
+     * it as inline script content. The evaluator takes source text and runs it
+     * in the sandbox, so we never hand a caller-controlled file path to the
+     * evaluation itself.
      */
-    private fun resolveScriptFile(source: String): Pair<File, Boolean> {
+    private fun readSourceOrInline(source: String): String {
         val asFile = File(source)
-        if (asFile.exists() && asFile.isFile) {
-            return asFile to false
-        }
-        val tmp = Files.createTempFile("kuml-mcp-run-", ".kuml.kts").toFile()
-        tmp.writeText(source)
-        return tmp to true
+        return if (asFile.exists() && asFile.isFile) asFile.readText() else source
     }
 
     private fun resolveKind(

@@ -1,8 +1,6 @@
 package dev.kuml.mcp
 
-import dev.kuml.core.script.DiagramExtractor
-import dev.kuml.core.script.KumlScriptHost
-import dev.kuml.core.script.ScriptEvaluationException
+import dev.kuml.core.model.KumlDiagram
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.io.svg.KumlSvgRenderer
@@ -11,31 +9,26 @@ import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.PlainTheme
-import java.io.File
 import java.nio.file.Files
-import kotlin.script.experimental.api.ResultWithDiagnostics
-import kotlin.script.experimental.api.ScriptDiagnostic
 
 internal object McpRenderPipeline {
     private val layoutEngine = ElkLayoutEngine()
 
-    /** Evaluates a script file, returning (SVG string, null) or (null, PNG bytes). */
+    /**
+     * Lays out and renders an already-extracted UML [diagram].
+     *
+     * V0.23.3: script evaluation + extraction moved out of this pipeline into
+     * the sandboxed [dev.kuml.core.script.ScriptEvaluator] (see
+     * [McpScriptEvaluator]); this method now only does layout + render, which
+     * are pure/trusted operations on a validated model.
+     *
+     * @return (SVG string, null) or (null, PNG bytes).
+     */
     internal fun render(
-        scriptFile: File,
+        diagram: KumlDiagram,
         format: String,
         widthPx: Int = 1024,
     ): RenderResult {
-        val evalResult = KumlScriptHost.eval(scriptFile)
-        val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
-        if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
-            val msg = errors.joinToString("\n") { it.message }
-            throw ScriptEvaluationException("Script evaluation failed:\n$msg")
-        }
-        val success =
-            evalResult as? ResultWithDiagnostics.Success
-                ?: throw ScriptEvaluationException("Script evaluation produced no result")
-
-        val diagram = DiagramExtractor.extract(success.value.returnValue, scriptFile)
         val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
         val layoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
         val theme = PlainTheme()

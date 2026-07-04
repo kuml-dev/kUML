@@ -1,11 +1,10 @@
 package dev.kuml.mcp.tools
 
 import dev.kuml.codegen.api.CodeGenRegistry
-import dev.kuml.core.script.DiagramExtractor
-import dev.kuml.core.script.KumlScriptGuard
-import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.ScriptEvaluationException
 import dev.kuml.mcp.McpContent
+import dev.kuml.mcp.McpScriptEvaluator
 import dev.kuml.mcp.McpToolDescriptor
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -15,8 +14,6 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 import java.nio.file.Files
-import kotlin.script.experimental.api.ResultWithDiagnostics
-import kotlin.script.experimental.api.ScriptDiagnostic
 
 internal object GenerateTool : McpTool {
     override val descriptor: McpToolDescriptor =
@@ -59,25 +56,17 @@ internal object GenerateTool : McpTool {
         val pluginId = arguments["plugin"]?.jsonPrimitive?.content ?: "kotlin"
         val packageName = arguments["package"]?.jsonPrimitive?.content
 
-        KumlScriptGuard.validate(script)
-        val scriptFile = Files.createTempFile("kuml-mcp-generate-", ".kuml.kts").toFile()
-        scriptFile.writeText(script)
+        val extracted = McpScriptEvaluator.extract(script, "generate.kuml.kts")
+        val diagram =
+            (extracted as? ExtractedDiagram.Uml)?.diagram
+                ?: throw ScriptEvaluationException(
+                    "kuml.generate currently supports UML class diagrams. " +
+                        "End the script with a `classDiagram { … }` / `diagram { … }` expression.",
+                )
 
         val outputDir = Files.createTempDirectory("kuml-mcp-generated-").toFile()
 
         return try {
-            val evalResult = KumlScriptHost.eval(scriptFile)
-            val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
-            if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
-                val msg = errors.joinToString("\n") { it.message }
-                throw ScriptEvaluationException("Script evaluation failed:\n$msg")
-            }
-            val success =
-                evalResult as? ResultWithDiagnostics.Success
-                    ?: throw ScriptEvaluationException("Script evaluation produced no result")
-
-            val diagram = DiagramExtractor.extract(success.value.returnValue, scriptFile)
-
             if (CodeGenRegistry.names().isEmpty()) {
                 CodeGenRegistry.loadFromClasspath()
             }
@@ -101,7 +90,6 @@ internal object GenerateTool : McpTool {
                 )
             }
         } finally {
-            scriptFile.delete()
             outputDir.deleteRecursively()
         }
     }

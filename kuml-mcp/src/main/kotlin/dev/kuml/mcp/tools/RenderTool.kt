@@ -1,8 +1,10 @@
 package dev.kuml.mcp.tools
 
-import dev.kuml.core.script.KumlScriptGuard
+import dev.kuml.core.script.ExtractedDiagram
+import dev.kuml.core.script.ScriptEvaluationException
 import dev.kuml.mcp.McpContent
 import dev.kuml.mcp.McpRenderPipeline
+import dev.kuml.mcp.McpScriptEvaluator
 import dev.kuml.mcp.McpToolDescriptor
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -12,8 +14,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
-import java.io.File
-import java.nio.file.Files
 import java.util.Base64
 
 internal object RenderTool : McpTool {
@@ -56,31 +56,30 @@ internal object RenderTool : McpTool {
         val format = arguments["format"]?.jsonPrimitive?.content ?: "svg"
         val width = arguments["width"]?.jsonPrimitive?.int ?: 1024
 
-        KumlScriptGuard.validate(script)
-        val scriptFile = writeTemp(script)
-        return try {
-            when (val result = McpRenderPipeline.render(scriptFile, format, width)) {
-                is McpRenderPipeline.RenderResult.Svg ->
-                    listOf(
-                        McpContent(type = "text", text = result.content),
-                    )
-                is McpRenderPipeline.RenderResult.Png ->
-                    listOf(
-                        McpContent(
-                            type = "image",
-                            data = Base64.getEncoder().encodeToString(result.bytes),
-                            mimeType = "image/png",
-                        ),
-                    )
-            }
-        } finally {
-            scriptFile.delete()
-        }
-    }
+        // V0.23.3 — evaluation runs through the sandboxed evaluator (guard is
+        // enforced inside it as layer 1). Render is UML-only, matching the
+        // historical `extract()` contract.
+        val extracted = McpScriptEvaluator.extract(script, "render.kuml.kts")
+        val diagram =
+            (extracted as? ExtractedDiagram.Uml)?.diagram
+                ?: throw ScriptEvaluationException(
+                    "kuml.render currently supports UML diagrams. " +
+                        "End the script with a `classDiagram { … }` / `diagram { … }` expression.",
+                )
 
-    private fun writeTemp(script: String): File {
-        val tmp = Files.createTempFile("kuml-mcp-script-", ".kuml.kts").toFile()
-        tmp.writeText(script)
-        return tmp
+        return when (val result = McpRenderPipeline.render(diagram, format, width)) {
+            is McpRenderPipeline.RenderResult.Svg ->
+                listOf(
+                    McpContent(type = "text", text = result.content),
+                )
+            is McpRenderPipeline.RenderResult.Png ->
+                listOf(
+                    McpContent(
+                        type = "image",
+                        data = Base64.getEncoder().encodeToString(result.bytes),
+                        mimeType = "image/png",
+                    ),
+                )
+        }
     }
 }

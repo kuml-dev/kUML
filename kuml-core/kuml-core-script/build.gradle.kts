@@ -1,5 +1,9 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    // V0.23.3 — the child-process script sandbox serializes the extracted
+    // diagram/model across the IPC boundary (ExtractedDiagramCodec) and uses
+    // @Serializable worker request/response envelopes (ScriptWorkerProtocol).
+    alias(libs.plugins.kotlin.serialization)
 }
 
 kotlin {
@@ -18,6 +22,9 @@ dependencies {
     api(project(":kuml-metamodel:kuml-metamodel-sysml2")) // V2.0.4 — SysML 2 BDD-Extraktion
     api(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN CLI-Integration
     api(project(":kuml-metamodel:kuml-metamodel-blueprint")) // V3.1.24 — Blueprint/Journey-Map-Extraktion
+
+    // V0.23.3 — JSON (de)serialization for the child-process IPC protocol.
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.kotlin.scripting.common)
     implementation(libs.kotlin.scripting.jvm)
