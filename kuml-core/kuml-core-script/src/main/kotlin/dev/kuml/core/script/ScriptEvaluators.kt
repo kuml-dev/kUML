@@ -57,8 +57,56 @@ public object ScriptEvaluators {
     public const val MODE_CHILD_PROCESS: String = "child-process"
     public const val MODE_POOL: String = "pool"
 
+    /**
+     * Selects the *evaluation strategy* — the fundamentally different way a
+     * script is turned into a model (Welle 9). Orthogonal to [ENV_VAR], which
+     * only chooses the process-isolation *containment* of the compiler path.
+     *
+     * | Value          | Behaviour                                                        |
+     * |----------------|------------------------------------------------------------------|
+     * | `compiler`     | **Default.** The embedded Kotlin compiler path with all of       |
+     * |                | Wellen 1-8's layers (denylist + child-process/pool + OS cage +   |
+     * |                | classloader allowlist). Full DSL, all diagram types.             |
+     * | `interpreter`  | **Experimental.** The data-DSL interpreter (Welle 9, Option D):  |
+     * |                | no compiler, RCE structurally impossible — but UML class         |
+     * |                | diagrams only, in-process. See [dev.kuml.core.script.interpreter. |
+     * |                | InterpreterScriptEvaluator].                                     |
+     * | (unset / other)| Same as `compiler`.                                              |
+     *
+     * The interpreter is intentionally **not** the default: it is a narrow slice
+     * (class diagrams) and must not silently become the sole path — that would be
+     * a regression against the already-hardened compiler+sandbox chain for every
+     * other diagram type.
+     */
+    public const val EVAL_STRATEGY_ENV_VAR: String = "KUML_MCP_SANDBOX_EVAL_STRATEGY"
+    public const val STRATEGY_COMPILER: String = "compiler"
+    public const val STRATEGY_INTERPRETER: String = "interpreter"
+
     /** Resolves the evaluator from the environment (secure default: warm pool). */
-    public fun forCurrentConfig(): ScriptEvaluator = forMode(System.getenv(ENV_VAR))
+    public fun forCurrentConfig(): ScriptEvaluator =
+        forStrategyAndMode(
+            strategy = System.getenv(EVAL_STRATEGY_ENV_VAR),
+            mode = System.getenv(ENV_VAR),
+        )
+
+    /**
+     * Resolves the evaluator from an explicit [strategy] and [mode] (testable).
+     *
+     * When [strategy] is `interpreter`, the [mode] is ignored: the interpreter
+     * runs in-process (it is safe in-process precisely because it never compiles
+     * or executes untrusted bytecode). Otherwise the compiler-path [mode]
+     * selection applies unchanged.
+     */
+    public fun forStrategyAndMode(
+        strategy: String?,
+        mode: String?,
+    ): ScriptEvaluator =
+        when (strategy?.trim()?.lowercase()) {
+            STRATEGY_INTERPRETER ->
+                dev.kuml.core.script.interpreter.InterpreterScriptEvaluator
+            // "compiler", null, or anything else → the historical compiler path.
+            else -> forMode(mode)
+        }
 
     /**
      * Resolves the evaluator for an explicit [mode] string (testable).
