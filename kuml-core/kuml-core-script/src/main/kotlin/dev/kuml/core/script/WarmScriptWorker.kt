@@ -226,6 +226,13 @@ internal class WarmScriptWorker(
     /** The OS pid of the worker process (test/diagnostic use). */
     fun pid(): Long = process.pid()
 
+    /**
+     * Captured child stderr so far (diagnostic use) — e.g. surfaces a `bwrap`
+     * cage-setup error when a worker dies before printing the ready sentinel,
+     * which would otherwise only show up as a silent "not ready" timeout.
+     */
+    fun stderrSnapshot(): String = synchronized(stderrBuf) { stderrBuf.toString() }
+
     internal companion object {
         private const val READER_JOIN_MILLIS: Long = 2_000
         private const val MAX_STDERR_CAPTURE: Int = 16 * 1024

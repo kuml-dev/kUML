@@ -210,8 +210,15 @@ internal class WorkerPool(
                 idle.add(worker)
                 logState("worker ready pid=${worker.pid()}")
             } else {
+                // Diagnostic: a worker that dies before the ready sentinel (e.g. a
+                // failed bwrap cage setup on the child side) would otherwise only
+                // ever show up as a silent timeout — surface its captured stderr.
+                val stderr = worker.stderrSnapshot().trim()
                 retire(worker)
-                log("worker failed to become ready; discarded")
+                log(
+                    "worker failed to become ready; discarded" +
+                        if (stderr.isNotEmpty()) " — child stderr: $stderr" else " (no child stderr captured)",
+                )
             }
         }
     }
@@ -229,7 +236,7 @@ internal class WorkerPool(
             live.add(w)
             w
         } catch (e: Exception) {
-            log("failed to launch worker: ${e::class.simpleName}")
+            log("failed to launch worker: ${e::class.simpleName}: ${e.message}")
             null
         } finally {
             startingCount.decrementAndGet()
