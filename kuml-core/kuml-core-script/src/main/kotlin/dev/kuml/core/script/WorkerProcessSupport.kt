@@ -28,9 +28,15 @@ internal object WorkerProcessSupport {
     class LaunchedWorker(
         val process: Process,
         private val workDir: File,
+        private val cage: OsSandbox.PostStartCage = OsSandbox.PostStartCage.NONE,
     ) {
-        /** Recursively removes the per-worker temp directory. Idempotent, best-effort. */
+        /**
+         * Closes the post-start OS cage (on Windows this kills the caged process
+         * via `KILL_ON_JOB_CLOSE`) and recursively removes the per-worker temp
+         * directory. Idempotent, best-effort.
+         */
         fun cleanup() {
+            runCatching { cage.close() }
             runCatching { workDir.deleteRecursively() }
         }
     }
@@ -45,10 +51,16 @@ internal object WorkerProcessSupport {
      * land inside the OS cage).
      *
      * On macOS the command is additionally wrapped in `sandbox-exec` with the
-     * strict seatbelt profile ([OsSandbox]); the per-worker temp directory is the
-     * sole writable path. If OS isolation is `required` (default on macOS) but
+     * strict seatbelt profile ([OsSandbox]) and on Linux in `bwrap`; the per-worker
+     * temp directory is the sole writable path. If OS isolation is `required` but
      * cannot be applied, this throws [SandboxUnavailableException] — the caller
      * must fail closed and never launch an un-caged worker.
+     *
+     * On **Windows** the cage cannot be a command prefix: the process is started
+     * first, then [OsSandbox.applyPostStart] installs a Job Object on it (memory
+     * cap + single-process + kill-on-close). If that fails under `required`, the
+     * just-started process is destroyed and [SandboxUnavailableException] is
+     * rethrown — again, never a surviving un-caged worker.
      *
      * @param warm when true, passes [ScriptWorkerMain.ARG_WARM] so the child
      *   pre-warms and emits a ready line before consuming a request.
@@ -108,12 +120,28 @@ internal object WorkerProcessSupport {
         // so any tool that honours $TMPDIR also stays inside the cage.
         builder.environment()["TMPDIR"] = workDir.absolutePath
         builder.redirectErrorStream(false)
-        return try {
-            LaunchedWorker(builder.start(), workDir)
-        } catch (e: Exception) {
-            runCatching { workDir.deleteRecursively() }
-            throw e
-        }
+        val process =
+            try {
+                builder.start()
+            } catch (e: Exception) {
+                runCatching { workDir.deleteRecursively() }
+                throw e
+            }
+
+        // Post-start OS cage (Windows Job Object; no-op elsewhere). Applied AFTER
+        // start because a Job Object cannot be a command prefix. Under `required`,
+        // a cage failure destroys the just-started process and rethrows, so no
+        // un-caged worker ever survives.
+        val cage =
+            try {
+                OsSandbox.applyPostStart(process, workDir)
+            } catch (e: SandboxUnavailableException) {
+                runCatching { process.destroyForcibly() }
+                runCatching { workDir.deleteRecursively() }
+                throw e
+            }
+
+        return LaunchedWorker(process, workDir, cage)
     }
 
     /**

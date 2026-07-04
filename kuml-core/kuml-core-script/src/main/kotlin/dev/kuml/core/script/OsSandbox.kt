@@ -33,10 +33,21 @@ import java.nio.file.attribute.PosixFilePermissions
  *    outside the workdir, no network) but enforces it via Linux namespaces
  *    instead of a policy filter. There is **no** additional seccomp-bpf filter
  *    in this wave (see the seccomp note below).
- *  - **Windows / other** — not yet (separate later wave). On those platforms
- *    [wrap] returns the command unchanged and [isolationAvailable] is false, so
- *    the fail-closed policy in [WorkerProcessSupport] decides whether that is
- *    tolerated (see `KUML_MCP_SANDBOX_OS_ISOLATION`).
+ *  - **Windows** (Welle 6, **UNTESTED on real Windows** — see the honesty note
+ *    below) — a **Job Object** ([WindowsJobObjectSandbox]) caps per-process
+ *    memory, forbids process spawning (`JOB_OBJECT_LIMIT_ACTIVE_PROCESS = 1`) and
+ *    kills the worker when the parent releases the job (`KILL_ON_JOB_CLOSE`).
+ *    Unlike macOS/Linux this cannot be a command prefix — a Job Object is applied
+ *    **after** the process starts — so on Windows [wrap] returns the command
+ *    **unchanged** and the cage is installed by the **post-start hook**
+ *    [applyPostStart]. **Network and tight filesystem confinement are NOT solved
+ *    by the Job Object** (see [WindowsJobObjectSandbox]'s "open gaps"): the Job
+ *    Object reliably contains memory + process-spawn + parent-death, but network
+ *    egress and per-path FS confinement are documented gaps on this platform.
+ *  - **Other** (BSD/Solaris/…) — not implemented. [wrap] returns the command
+ *    unchanged and [isolationAvailable] is false, so the fail-closed policy in
+ *    [WorkerProcessSupport] decides whether that is tolerated (see
+ *    `KUML_MCP_SANDBOX_OS_ISOLATION`).
  *
  * ## ⚠️ Honesty note on the Linux path (Welle 5)
  *
@@ -49,6 +60,21 @@ import java.nio.file.attribute.PosixFilePermissions
  * `sandbox-exec`. **This path requires CI verification on real Linux before it
  * is relied upon in production.** Until then it is best-effort by default on
  * Linux (see [modeFrom]).
+ *
+ * ## ⚠️ Honesty note on the Windows path (Welle 6)
+ *
+ * Same situation, worse: the Windows Job-Object path in [WindowsJobObjectSandbox]
+ * was written and compile-verified on **macOS**, where there is no `kernel32.dll`
+ * and not a single Win32 call can run. Struct layouts, flag constants and the
+ * whole CreateJobObject → SetInformationJobObject → AssignProcessToJobObject flow
+ * are transcribed from documented Win32 but **run nowhere in this build**. The
+ * tests here verify only mode/platform *logic* and that [wrap] leaves the Windows
+ * command unchanged — they do **not** exercise any Job Object. In addition, even
+ * once verified, the Windows cage is **weaker than macOS/Linux**: it does not
+ * block network egress and does not confine the filesystem to the workdir (see
+ * [WindowsJobObjectSandbox]). **This path requires CI verification on real Windows
+ * before it is relied upon in production**, and Windows stays best-effort by
+ * default (see [modeFrom]).
  *
  * ## Why no seccomp-bpf in Welle 5
  *
@@ -66,7 +92,7 @@ import java.nio.file.attribute.PosixFilePermissions
  * real risk of breaking every legitimate render. A seccomp layer is a sound
  * *future* enhancement but must be developed and tuned against real Linux CI.
  *
- * V0.23.3 — Wellen 4-5.
+ * V0.23.3 — Wellen 4-6.
  */
 internal object OsSandbox {
     /** Classpath resource holding the macOS seatbelt profile. */
@@ -88,6 +114,15 @@ internal object OsSandbox {
      */
     val BWRAP_CANDIDATE_PATHS: List<String> =
         listOf("/usr/bin/bwrap", "/usr/local/bin/bwrap", "/bin/bwrap")
+
+    /**
+     * Per-process committed-memory cap for the Windows Job Object, in bytes.
+     * Sized above the worker heap ([WorkerProcessSupport] uses `-Xmx256m`) plus
+     * JVM native overhead (metaspace, code cache, thread stacks, embedded Kotlin
+     * compiler): 768 MiB leaves generous headroom for a legitimate render while
+     * still hard-stopping a native-memory blow-up the `-Xmx` cap would miss.
+     */
+    const val WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES: Long = 768L * 1024 * 1024
 
     /**
      * The three OS platforms whose isolation is planned. `OTHER` covers anything
@@ -167,7 +202,27 @@ internal object OsSandbox {
         when (platform) {
             Platform.MAC -> File(SANDBOX_EXEC_PATH).canExecute() && macProfileFileOrNull() != null
             Platform.LINUX -> bwrapPathOrNull() != null
+            // Windows: the Job Object cage is applied post-start (not via wrap), so
+            // "available" means the JNA runtime is loadable. Whether the actual
+            // CreateJobObject/AssignProcessToJobObject calls succeed can only be
+            // known when [applyPostStart] runs; a failure there is handled
+            // fail-closed by the launcher under `required`.
+            Platform.WINDOWS -> jnaRuntimeLoadable()
             else -> false
+        }
+
+    /**
+     * True if the JNA runtime classes needed for the Windows Job Object cage are
+     * on the classpath and loadable. Uses reflection so this compiles and returns
+     * a safe answer on every OS. (On non-Windows this is irrelevant — the value is
+     * only consulted from the Windows branch above.)
+     */
+    private fun jnaRuntimeLoadable(): Boolean =
+        try {
+            Class.forName("com.sun.jna.Native")
+            true
+        } catch (_: Throwable) {
+            false
         }
 
     /**
@@ -180,6 +235,13 @@ internal object OsSandbox {
      *
      * On a platform/mode where OS isolation is not applied under `best-effort`,
      * the command is returned unchanged.
+     *
+     * **Windows is special**: its Job-Object cage cannot be a command prefix (it
+     * is applied *after* `ProcessBuilder.start()`), so [wrap] returns the Windows
+     * command **unchanged** and does not fail-closed here — the cage, and the
+     * fail-closed decision, live in [applyPostStart]. This is the architecture
+     * difference Welle 6 had to introduce: macOS/Linux cage *before* exec via
+     * argv, Windows cages *after* start via a handle.
      */
     fun wrap(
         command: List<String>,
@@ -196,18 +258,89 @@ internal object OsSandbox {
         return when (platform) {
             Platform.MAC -> wrapMac(command, canonicalWorkDir, mode)
             Platform.LINUX -> wrapLinux(command, canonicalWorkDir, mode)
+            Platform.WINDOWS -> {
+                // The Job-Object cage is applied post-start (see applyPostStart),
+                // not as a command prefix. Return the command unchanged; do NOT
+                // fail-closed here — the required/best-effort decision is made in
+                // applyPostStart once the cage has actually been attempted.
+                command
+            }
             else -> {
-                // Windows / other: OS isolation is a later wave. Fail closed only
-                // if the operator explicitly demanded `required`.
+                // Truly unsupported platform (BSD/Solaris/…): fail closed only if
+                // the operator explicitly demanded `required`.
                 if (mode == Mode.REQUIRED) {
                     throw SandboxUnavailableException(
                         "OS-level sandbox isolation is required but not implemented on this platform " +
                             "(${System.getProperty("os.name")}). Set $ENV_OS_ISOLATION=$MODE_BEST_EFFORT to allow " +
-                            "process/heap/timeout containment without an OS cage, or run on macOS/Linux.",
+                            "process/heap/timeout containment without an OS cage, or run on macOS/Linux/Windows.",
                     )
                 }
                 command
             }
+        }
+    }
+
+    /**
+     * A cage installed *after* the worker process started. Currently only the
+     * Windows Job Object uses this; on macOS/Linux the cage is already in argv, so
+     * [applyPostStart] returns a no-op handle. The caller must [PostStartCage.close]
+     * it when the worker is done (on Windows, closing the job handle kills the
+     * caged process via `KILL_ON_JOB_CLOSE`).
+     */
+    interface PostStartCage {
+        fun close()
+
+        companion object {
+            /** A cage that holds nothing — used on platforms that cage via argv. */
+            val NONE: PostStartCage =
+                object : PostStartCage {
+                    override fun close() = Unit
+                }
+        }
+    }
+
+    /**
+     * Installs the OS cage that can only be applied *after* the process exists.
+     *
+     *  - **Windows**: creates a Job Object (memory cap + single-process +
+     *    kill-on-close) and assigns the running [process] into it. If the cage
+     *    cannot be installed and the resolved [Mode] is `required`, throws
+     *    [SandboxUnavailableException] so the caller fails closed (and MUST kill
+     *    the un-caged process). Under `best-effort`, a failure returns
+     *    [PostStartCage.NONE] and the un-caged process is tolerated.
+     *  - **macOS/Linux/other**: no-op ([PostStartCage.NONE]) — the cage (if any)
+     *    was already applied via [wrap].
+     *
+     * @param process the just-started worker process.
+     * @param workDir the per-worker writable dir (reserved for future ACL-based
+     *   Windows FS confinement; currently unused by the Job Object path).
+     */
+    fun applyPostStart(
+        process: Process,
+        @Suppress("UNUSED_PARAMETER") workDir: File,
+    ): PostStartCage {
+        if (platform != Platform.WINDOWS) return PostStartCage.NONE
+        val mode = mode()
+        val handle =
+            runCatching {
+                WindowsJobObjectSandbox.applyJobObject(
+                    pid = process.pid(),
+                    maxProcessMemoryBytes = WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES,
+                )
+            }.getOrNull()
+        if (handle == null) {
+            if (mode == Mode.REQUIRED) {
+                throw SandboxUnavailableException(
+                    "OS-level sandbox isolation is required but the Windows Job Object cage could not be " +
+                        "installed on the worker process. Refusing to run an un-caged worker. Set " +
+                        "$ENV_OS_ISOLATION=$MODE_BEST_EFFORT to allow process/heap/timeout containment without " +
+                        "an OS cage.",
+                )
+            }
+            return PostStartCage.NONE
+        }
+        return object : PostStartCage {
+            override fun close() = handle.close()
         }
     }
 

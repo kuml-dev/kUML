@@ -9,10 +9,11 @@ import io.kotest.matchers.shouldBe
 import java.io.File
 import java.nio.file.Files
 import javax.tools.ToolProvider
+import io.kotest.matchers.longs.shouldBeGreaterThan as shouldBeGreaterThanLong
 import io.kotest.matchers.string.shouldContain as shouldContainString
 
 /**
- * Wellen-4/5 tests: **OS-native isolation** of the script-worker child processes.
+ * Wellen-4/5/6 tests: **OS-native isolation** of the script-worker child processes.
  *
  * The critical thing these tests prove is not "a sandboxed worker still starts"
  * but that the **OS layer itself is what cages the process** — independent of
@@ -38,10 +39,15 @@ import io.kotest.matchers.string.shouldContain as shouldContainString
  *    `bwrap` and no Linux kernel, so we do NOT and CANNOT prove the resulting
  *    cage blocks anything at runtime. Real behavioural verification of the Linux
  *    cage must happen in Linux CI (see the report / the OsSandbox KDoc).
+ *  - **Windows (Welle 6)** — mode/platform *logic* + the post-start no-op on
+ *    non-Windows + the JNA Job-Object **fail-safe** (returns null, never throws,
+ *    when kernel32.dll is absent) are asserted here. NO Job Object runs on this
+ *    macOS machine; memory-cap / kill-on-close / process-spawn behaviour needs
+ *    real Windows CI (see the report / WindowsJobObjectSandbox KDoc).
  *  - Mode-resolution / platform-classification / fail-closed logic is asserted
  *    platform-independently.
  *
- * V0.23.3 — Wellen 4-5.
+ * V0.23.3 — Wellen 4-6.
  */
 class OsSandboxTest :
     FunSpec({
@@ -92,6 +98,7 @@ class OsSandboxTest :
             OsSandbox.detectPlatform("Darwin") shouldBe OsSandbox.Platform.MAC
             OsSandbox.detectPlatform("Linux") shouldBe OsSandbox.Platform.LINUX
             OsSandbox.detectPlatform("Windows 11") shouldBe OsSandbox.Platform.WINDOWS
+            OsSandbox.detectPlatform("Windows Server 2022") shouldBe OsSandbox.Platform.WINDOWS
             OsSandbox.detectPlatform("SunOS") shouldBe OsSandbox.Platform.OTHER
             OsSandbox.detectPlatform(null) shouldBe OsSandbox.Platform.OTHER
         }
@@ -176,6 +183,63 @@ class OsSandboxTest :
             // would be denied on real Linux.
             val cmd = OsSandbox.bwrapCommandFor("/usr/bin/bwrap", listOf("java"), "/tmp/w")
             cmd.indexOf("--bind") shouldBeGreaterThan cmd.indexOf("--ro-bind")
+        }
+
+        // ── Windows Job Object (Welle 6): LOGIC + FAIL-SAFE, not behaviour ─────
+        //
+        // ⚠️ These prove the mode/platform logic, the post-start no-op on
+        // non-Windows, and that the JNA Job-Object path fails SAFELY (returns null,
+        // never throws) when kernel32.dll is absent — i.e. always, on this macOS
+        // machine. They do NOT and CANNOT prove that a Job Object actually caps
+        // memory / kills-on-close / forbids process spawn: that needs real Windows
+        // CI (see the report and the WindowsJobObjectSandbox KDoc).
+
+        test("Windows Job Object memory cap is a sane, sized value") {
+            // Above the -Xmx256m worker heap, with headroom for JVM native memory
+            // (metaspace, code cache, thread stacks, embedded Kotlin compiler).
+            OsSandbox.WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES shouldBeGreaterThanLong (256L * 1024 * 1024)
+        }
+
+        test("applyJobObject fails safely (returns null, never throws) when kernel32 is unavailable") {
+            // On this macOS machine there is no kernel32.dll, so Native.load must
+            // fail INSIDE the function and be swallowed → null. A thrown exception
+            // here would mean an un-caged Windows launch could crash the launcher
+            // instead of degrading via the documented fail-closed/best-effort path.
+            val result = WindowsJobObjectSandbox.applyJobObject(pid = 424242L, maxProcessMemoryBytes = 64L * 1024 * 1024)
+            (result == null).shouldBeTrue()
+        }
+
+        test("restricted-token launch is documented-but-not-active (honest scaffold flag)") {
+            // Welle 6 documents CreateRestrictedToken but does NOT wire up a
+            // restricted-token CreateProcess (that would mean abandoning
+            // ProcessBuilder). The flag must say so plainly rather than imply an
+            // active token restriction that isn't there.
+            WindowsJobObjectSandbox.restrictedTokenSupported().shouldBeFalse()
+        }
+
+        test("applyPostStart is a no-op on non-Windows (cage lives in argv there)") {
+            // On macOS/Linux the OS cage is applied via wrap() before exec, so the
+            // post-start hook must be a harmless no-op that never throws and yields
+            // a closable NONE cage. We run a trivial short-lived process to have a
+            // real Process handle to pass.
+            if (isMac) {
+                val p = ProcessBuilder(WorkerProcessSupport.defaultJavaBinary(), "-version").start()
+                p.waitFor()
+                val work = Files.createTempDirectory("kuml-poststart-").toFile().apply { deleteOnExit() }
+                try {
+                    val cage = OsSandbox.applyPostStart(p, work)
+                    // No-op cage identity on non-Windows.
+                    (cage === OsSandbox.PostStartCage.NONE).shouldBeTrue()
+                    cage.close() // must not throw
+                } finally {
+                    work.deleteRecursively()
+                }
+            }
+        }
+
+        test("PostStartCage.NONE.close() is idempotent and side-effect-free") {
+            OsSandbox.PostStartCage.NONE.close()
+            OsSandbox.PostStartCage.NONE.close()
         }
 
         // ── The core proof: the OS cage blocks file-write and network ──────────

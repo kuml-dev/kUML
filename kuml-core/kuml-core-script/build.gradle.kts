@@ -32,6 +32,13 @@ dependencies {
     // kotlin-reflect required by DiagramExtractor (script instance property scanning)
     implementation(libs.kotlin.reflect)
 
+    // V0.23.3 — Welle 6: Windows OS-native isolation (Job Object) via JNA.
+    // The JNA declarations compile on every OS (plain Java bindings); they are
+    // only bound to kernel32.dll at runtime, which can only succeed on Windows.
+    // Same JNA pattern already used by kuml-ai-core's WindowsDpapiBackend.
+    implementation(libs.jna)
+    implementation(libs.jna.platform)
+
     testImplementation(libs.kotest.runner.junit5)
     testImplementation(libs.kotest.assertions.core)
 }
