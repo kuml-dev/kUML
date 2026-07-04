@@ -132,10 +132,45 @@ class OsSandboxTest :
             OsSandbox.isolationAvailable().shouldBeTrue()
         }
 
-        test("on Linux, OS isolation is reported available (bwrap present)") {
+        test("on Linux, isolationAvailable() reflects a real smoke test, not just bwrap's presence on disk") {
             if (!isLinux) return@test
-            OsSandbox.isolationAvailable().shouldBeTrue()
-            OsSandbox.bwrapPathOrNull().shouldNotBeNull()
+            // bwrap being present on disk does NOT guarantee it actually works —
+            // found 2026-07-04 on GitHub Actions' ubuntu-latest runners, where
+            // bwrap's automatic loopback setup is rejected
+            // ("RTM_NEWADDR: Operation not permitted") despite the binary being
+            // installed and unprivileged user namespaces being enabled. This test
+            // asserts the graceful-degradation *contract* rather than a specific
+            // outcome, so it is meaningful on both a host where the cage truly
+            // works (developer's own verified Ubuntu hardware) and one where it
+            // doesn't (this exact CI case):
+            //  - if bwrap isn't even on disk, isolationAvailable() must be false.
+            //  - if bwrap IS on disk but isolationAvailable() is false anyway (the
+            //    smoke test failed), wrap() on best-effort must return the BARE
+            //    command completely unchanged — never a broken bwrap prefix that
+            //    would make every worker launch fail.
+            //  - if isolationAvailable() is true, wrap() must actually prefix bwrap.
+            val bwrapPath = OsSandbox.bwrapPathOrNull()
+            if (bwrapPath == null) {
+                OsSandbox.isolationAvailable().shouldBeFalse()
+                return@test
+            }
+            val work = Files.createTempDirectory("kuml-ossbx-avail-").toFile().apply { deleteOnExit() }
+            try {
+                val bare = listOf("/bin/true")
+                val wrapped = OsSandbox.wrap(bare, work)
+                if (OsSandbox.isolationAvailable()) {
+                    wrapped.first() shouldBe bwrapPath
+                    println("[os-sandbox] Linux: bwrap present at $bwrapPath and smoke test passed — cage is active.")
+                } else {
+                    wrapped shouldBe bare
+                    println(
+                        "[os-sandbox] Linux: bwrap present at $bwrapPath but smoke test failed — best-effort " +
+                            "correctly degraded to an un-caged command instead of a broken bwrap prefix.",
+                    )
+                }
+            } finally {
+                work.deleteRecursively()
+            }
         }
 
         // ── Linux bwrap command CONSTRUCTION (verified on any OS) ──────────────
@@ -469,6 +504,10 @@ class OsSandboxTest :
 
         test("Linux OS sandbox blocks a file-write escape that has nothing to do with the denylist") {
             if (!isLinux) return@test
+            if (!OsSandbox.isolationAvailable()) {
+                println("[os-sandbox] skipping: bwrap present but non-functional on this host (see availability test)")
+                return@test
+            }
             val work = Files.createTempDirectory("kuml-ossbx-fw-").toFile().apply { deleteOnExit() }
             val classes = File(work, "classes").apply { mkdirs() }
             val escapeTarget = File(System.getProperty("user.home"), "kuml-sandbox-escape-fw-test.txt")
@@ -520,6 +559,10 @@ class OsSandboxTest :
 
         test("Linux OS sandbox blocks a network escape (raw-IP), denylist-independent") {
             if (!isLinux) return@test
+            if (!OsSandbox.isolationAvailable()) {
+                println("[os-sandbox] skipping: bwrap present but non-functional on this host (see availability test)")
+                return@test
+            }
             val work = Files.createTempDirectory("kuml-ossbx-net-").toFile().apply { deleteOnExit() }
             val classes = File(work, "classes").apply { mkdirs() }
             try {
@@ -554,6 +597,10 @@ class OsSandboxTest :
 
         test("Linux OS sandbox blocks reading ~/.ssh, denylist-independent") {
             if (!isLinux) return@test
+            if (!OsSandbox.isolationAvailable()) {
+                println("[os-sandbox] skipping: bwrap present but non-functional on this host (see availability test)")
+                return@test
+            }
             val ssh = File(System.getProperty("user.home"), ".ssh")
             val probe = File(ssh, "kuml_sandbox_probe")
             val createdSsh = !ssh.exists()
@@ -591,6 +638,10 @@ class OsSandboxTest :
 
         test("Linux legitimate write INSIDE the per-worker workdir is allowed (no false-positive)") {
             if (!isLinux) return@test
+            if (!OsSandbox.isolationAvailable()) {
+                println("[os-sandbox] skipping: bwrap present but non-functional on this host (see availability test)")
+                return@test
+            }
             val work = Files.createTempDirectory("kuml-ossbx-ok-").toFile().apply { deleteOnExit() }
             val classes = File(work, "classes").apply { mkdirs() }
             try {
@@ -621,6 +672,10 @@ class OsSandboxTest :
 
         test("Linux: a legitimate multi-JVM render pipeline still works fully caged (compiler warmup + temp writes)") {
             if (!isLinux) return@test
+            if (!OsSandbox.isolationAvailable()) {
+                println("[os-sandbox] skipping: bwrap present but non-functional on this host (see availability test)")
+                return@test
+            }
             // The real worker launches java, which itself needs to read broadly
             // (JDK modules, embedded Kotlin compiler jars) and write only inside
             // the workdir (compiler tmp files, class output). This is the

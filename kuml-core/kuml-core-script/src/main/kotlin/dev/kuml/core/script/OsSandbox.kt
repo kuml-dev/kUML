@@ -159,6 +159,9 @@ internal object OsSandbox {
     val BWRAP_CANDIDATE_PATHS: List<String> =
         listOf("/usr/bin/bwrap", "/usr/local/bin/bwrap", "/bin/bwrap")
 
+    /** Generous ceiling for [runBwrapSmokeTest] — `true` should return in milliseconds. */
+    private const val BWRAP_SMOKE_TEST_TIMEOUT_MILLIS = 5_000L
+
     /**
      * Home-relative directories holding the highest-value secrets a script
      * could try to exfiltrate. Mirrors the macOS profile's defence-in-depth
@@ -244,17 +247,19 @@ internal object OsSandbox {
     /**
      * True if this host can actually enforce OS isolation right now:
      *  - macOS: an executable `sandbox-exec` and an extractable profile.
-     *  - Linux: an executable `bwrap` on disk. (Whether `bwrap` will *succeed*
-     *    at runtime — unprivileged userns available, `CAP_SYS_ADMIN` in a
-     *    container, etc. — cannot be answered without actually running it; the
-     *    fail-closed launch path treats a bwrap launch failure as a SANDBOX
-     *    error, so a false-positive here degrades to a clear per-call failure
-     *    under `required`, not to an un-caged worker.)
+     *  - Linux: an executable `bwrap` on disk **that a real smoke-test
+     *    invocation confirms actually works** — see [bwrapActuallyWorks]. A
+     *    present-but-non-functional binary (e.g. bwrap's automatic loopback
+     *    setup rejected with `RTM_NEWADDR: Operation not permitted`, observed
+     *    on GitHub Actions' `ubuntu-latest` runners — found 2026-07-04 when
+     *    this code ran in real CI for the first time) is now treated the same
+     *    as a missing binary: `best-effort` degrades to an un-caged worker
+     *    instead of every worker launch silently failing.
      */
     fun isolationAvailable(): Boolean =
         when (platform) {
             Platform.MAC -> File(SANDBOX_EXEC_PATH).canExecute() && macProfileFileOrNull() != null
-            Platform.LINUX -> bwrapPathOrNull() != null
+            Platform.LINUX -> bwrapPathOrNull()?.let { bwrapActuallyWorks(it) } ?: false
             // Windows: the Job Object cage is applied post-start (not via wrap), so
             // "available" means the JNA runtime is loadable. Whether the actual
             // CreateJobObject/AssignProcessToJobObject calls succeed can only be
@@ -447,8 +452,89 @@ internal object OsSandbox {
             }
             return command
         }
+        if (!bwrapActuallyWorks(bwrap)) {
+            if (mode == Mode.REQUIRED) {
+                throw SandboxUnavailableException(
+                    "OS-level sandbox isolation is required, and `bwrap` is present at $bwrap, but a smoke-test " +
+                        "invocation failed: ${bwrapSmokeTestFailureReason(bwrap).orEmpty()} — this host cannot " +
+                        "actually enforce the cage (a known cause: some container/CI environments reject the " +
+                        "network-namespace loopback setup `--unshare-all` performs, e.g. GitHub Actions' " +
+                        "ubuntu-latest runners as of 2026-07). Set $ENV_OS_ISOLATION=$MODE_BEST_EFFORT to allow " +
+                        "process/heap/timeout containment without an OS cage. Refusing to launch an un-caged worker.",
+                )
+            }
+            logBwrapSmokeTestFailureOnce(bwrap)
+            return command
+        }
         return bwrapCommandFor(bwrap, command, canonicalWorkDir)
     }
+
+    @Volatile private var cachedBwrapWorks: Boolean? = null
+
+    @Volatile private var cachedBwrapFailureReason: String? = null
+
+    @Volatile private var loggedBwrapSmokeTestFailure = false
+
+    /**
+     * Runs a minimal, real `bwrap --unshare-all … -- true` invocation once per
+     * JVM lifetime and caches the result. [isolationAvailable] answering `true`
+     * must mean "a worker launched through [wrapLinux] will actually be caged",
+     * not merely "the binary exists on disk" — a present-but-non-functional
+     * `bwrap` (see [wrapLinux] KDoc) previously made every worker launch fail
+     * under `best-effort`, which defeats the whole point of that mode.
+     */
+    @Synchronized
+    private fun bwrapActuallyWorks(bwrapPath: String): Boolean {
+        cachedBwrapWorks?.let { return it }
+        val (works, reason) = runBwrapSmokeTest(bwrapPath)
+        cachedBwrapWorks = works
+        cachedBwrapFailureReason = reason
+        return works
+    }
+
+    private fun bwrapSmokeTestFailureReason(bwrapPath: String): String? {
+        bwrapActuallyWorks(bwrapPath)
+        return cachedBwrapFailureReason
+    }
+
+    @Synchronized
+    private fun logBwrapSmokeTestFailureOnce(bwrapPath: String) {
+        if (loggedBwrapSmokeTestFailure) return
+        loggedBwrapSmokeTestFailure = true
+        System.err.println(
+            "[kuml-os-sandbox] WARNING: bwrap is present at $bwrapPath but failed a smoke test " +
+                "(${bwrapSmokeTestFailureReason(bwrapPath).orEmpty()}) — OS-level sandboxing is DISABLED for all " +
+                "script-worker processes on this host for the rest of this run (mode=best-effort). Denylist + " +
+                "child-process isolation (timeout/heap-cap/no-shell) still apply. Set " +
+                "$ENV_OS_ISOLATION=$MODE_REQUIRED to fail closed instead of degrading.",
+        )
+    }
+
+    /**
+     * Runs `bwrap --unshare-all --die-with-parent --ro-bind / / -- true` — the
+     * cheapest possible invocation that exercises the exact namespace setup
+     * [bwrapCommandFor] always includes, so a failure here reliably predicts a
+     * failure of every real worker launch. Returns (worked, failureReasonOrNull).
+     */
+    private fun runBwrapSmokeTest(bwrapPath: String): Pair<Boolean, String?> =
+        try {
+            val process =
+                ProcessBuilder(bwrapPath, "--unshare-all", "--die-with-parent", "--ro-bind", "/", "/", "--", "true")
+                    .redirectErrorStream(true)
+                    .start()
+            val output = process.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            val finished = process.waitFor(BWRAP_SMOKE_TEST_TIMEOUT_MILLIS, java.util.concurrent.TimeUnit.MILLISECONDS)
+            if (!finished) {
+                process.destroyForcibly()
+                false to "smoke test did not exit within ${BWRAP_SMOKE_TEST_TIMEOUT_MILLIS}ms"
+            } else if (process.exitValue() != 0) {
+                false to "exit code ${process.exitValue()}: ${output.trim().ifEmpty { "(no output)" }}"
+            } else {
+                true to null
+            }
+        } catch (e: Exception) {
+            false to "${e::class.simpleName}: ${e.message}"
+        }
 
     /**
      * Builds the full `bwrap … -- <command>` argument vector. Extracted and
