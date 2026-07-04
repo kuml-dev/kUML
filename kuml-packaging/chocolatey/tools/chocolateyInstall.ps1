@@ -34,3 +34,20 @@ $shellLauncher = Join-Path $toolsDir "kuml-$version\bin\kuml"
 if (Test-Path $shellLauncher) {
   New-Item "$shellLauncher.ignore" -ItemType File -Force | Out-Null
 }
+
+# kuml-mcp (v0.23.4): the zip ships TWO functioning kuml-mcp launchers —
+# kuml-$version\bin\kuml-mcp.bat (the thin top-level wrapper Chocolatey should
+# shim, matching how kuml.bat becomes the `kuml` command) and
+# kuml-$version\mcp\bin\kuml-mcp.bat (the real installDist launcher the
+# wrapper CALLs into, one directory level down). Both are valid .bat files
+# with the same base name, so without an .ignore Chocolatey's auto-shim step
+# would try to create two `kuml-mcp` shims from the same package. Ignore the
+# nested one — same "single shim per command" hygiene as the shellLauncher
+# ignore above and the runtime .exe loop below. The Unix-style extension-less
+# kuml-mcp launchers (bin\kuml-mcp, mcp\bin\kuml-mcp) need no .ignore: choco
+# only auto-shims .exe/.bat/.cmd, and Windows has no execute-bit for it to
+# accidentally treat them as runnable.
+$nestedMcpBatLauncher = Join-Path $toolsDir "kuml-$version\mcp\bin\kuml-mcp.bat"
+if (Test-Path $nestedMcpBatLauncher) {
+  New-Item "$nestedMcpBatLauncher.ignore" -ItemType File -Force | Out-Null
+}
