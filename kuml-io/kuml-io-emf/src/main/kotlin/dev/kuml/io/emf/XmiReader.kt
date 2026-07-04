@@ -24,7 +24,11 @@ public class XmiReader {
         resourceSet.resourceFactoryRegistry.extensionToFactoryMap["xmi"] = XMIResourceFactoryImpl()
         resourceSet.resourceFactoryRegistry.extensionToFactoryMap["uml"] = XMIResourceFactoryImpl()
         resourceSet.resourceFactoryRegistry.extensionToFactoryMap["*"] = XMIResourceFactoryImpl()
-        val resource = resourceSet.getResource(URI.createFileURI(file.absolutePath), true)
+        // XXE hardening: create the resource without eager load, then load with a
+        // secured SAX parser (no DOCTYPE, no external entities). Using the
+        // getResource(uri, true) overload would load with default options.
+        val resource = resourceSet.createResource(URI.createFileURI(file.absolutePath))
+        resource.load(EmfXmlSecurity.secureLoadOptions())
         return resource.contents.filterIsInstance<EmfModel>().firstOrNull()
             ?: error("No UML Model found in XMI: ${file.name}")
     }

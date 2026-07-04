@@ -26,6 +26,11 @@ package dev.kuml.core.script
  * V3.1.23
  */
 object KumlScriptGuard {
+    // Hard upper bound on the size of a submitted script. Legitimate kUML DSL
+    // scripts are a few KiB at most; a multi-MiB payload is either abusive or an
+    // attempt to exhaust the compiler. Rejected before any regex scan or eval.
+    const val MAX_SCRIPT_LENGTH: Int = 256 * 1024 // 256 KiB
+
     /**
      * Validates that [script] does not contain patterns indicative of arbitrary
      * code execution attempts.
@@ -33,6 +38,11 @@ object KumlScriptGuard {
      * @throws ScriptSecurityException if a forbidden pattern is detected.
      */
     fun validate(script: String) {
+        if (script.length > MAX_SCRIPT_LENGTH) {
+            throw ScriptSecurityException(
+                "kUML script rejected: exceeds maximum length of $MAX_SCRIPT_LENGTH characters.",
+            )
+        }
         FORBIDDEN_PATTERNS.forEach { (pattern, reason) ->
             if (pattern.containsMatchIn(script)) {
                 throw ScriptSecurityException(
@@ -76,17 +86,47 @@ object KumlScriptGuard {
             Regex("""(?i)\bHttpClient\b""") to "HttpClient reference",
             Regex("""(?i)\bURLConnection\b""") to "URLConnection reference",
             Regex("""(?i)\bSocket\s*\(""") to "Socket constructor call",
+            // Additional file I/O primitives (readText/writeText alone were insufficient)
+            Regex("""(?i)\breadBytes\s*\(""") to "readBytes() file read call",
+            Regex("""(?i)\breadLines\s*\(""") to "readLines() file read call",
+            Regex("""(?i)\bappendText\s*\(""") to "appendText() file write call",
+            Regex("""(?i)\bappendBytes\s*\(""") to "appendBytes() file write call",
+            Regex("""(?i)\bwriteBytes\s*\(""") to "writeBytes() file write call",
+            Regex("""(?i)\bbufferedReader\s*\(""") to "bufferedReader() call",
+            Regex("""(?i)\bbufferedWriter\s*\(""") to "bufferedWriter() call",
+            Regex("""(?i)\bprintWriter\s*\(""") to "printWriter() call",
+            Regex("""(?i)\binputStream\b""") to "inputStream reference",
+            Regex("""(?i)\boutputStream\b""") to "outputStream reference",
             // Reflection / classloading
             Regex("""(?i)\bClass\.forName\s*\(""") to "Class.forName() call",
             Regex("""(?i)\bclassLoader\b""") to "classLoader reference",
             Regex("""(?i)\bgetDeclaredMethod\s*\(""") to "getDeclaredMethod() reflection call",
+            Regex("""(?i)\bgetDeclaredMethods\s*\(""") to "getDeclaredMethods() reflection call",
+            Regex("""(?i)\bgetMethod\s*\(""") to "getMethod() reflection call",
+            Regex("""(?i)\bgetMethods\s*\(""") to "getMethods() reflection call",
             Regex("""(?i)\bgetDeclaredField\s*\(""") to "getDeclaredField() reflection call",
+            Regex("""(?i)\bgetDeclaredFields\s*\(""") to "getDeclaredFields() reflection call",
+            Regex("""(?i)\bgetField\s*\(""") to "getField() reflection call",
+            Regex("""(?i)\bgetDeclaredConstructor""") to "getDeclaredConstructor() reflection call",
+            Regex("""(?i)\bgetConstructor""") to "getConstructor() reflection call",
+            Regex("""(?i)\bnewInstance\s*\(""") to "newInstance() reflection call",
+            Regex("""(?i)\.\s*invoke\s*\(""") to "reflective invoke() call",
             Regex("""(?i)\bsetAccessible\s*\(""") to "setAccessible() reflection call",
+            Regex("""(?i)\bisAccessible\b""") to "isAccessible reflection reference",
+            Regex("""(?i)\bloadClass\s*\(""") to "loadClass() call",
+            Regex("""(?i)\bMethodHandles\b""") to "MethodHandles reference",
+            Regex("""(?i)\bKCallable\b""") to "KCallable reflection reference",
+            Regex("""(?i)::\s*class\s*\.\s*java\b""") to "::class.java reflection bridge",
+            // Threading — matches Thread(...), Thread { ... } (trailing lambda), and Thread.foo()
+            Regex("""(?i)\bThread\s*[({.]""") to "Thread reference",
             // System-level access
             Regex("""(?i)\bSystem\s*\.\s*exit\b""") to "System.exit() call",
+            Regex("""(?i)\bexitProcess\s*\(""") to "kotlin.system.exitProcess() call",
             Regex("""(?i)\bSystem\s*\.\s*getenv\b""") to "System.getenv() call",
             Regex("""(?i)\bSystem\s*\.\s*getProperty\b""") to "System.getProperty() call",
+            Regex("""(?i)\bSystem\s*\.\s*getProperties\b""") to "System.getProperties() call",
             Regex("""(?i)\bSystem\s*\.\s*setProperty\b""") to "System.setProperty() call",
+            Regex("""(?i)\bkotlin\.system\b""") to "kotlin.system reference",
             // Dynamic code loading
             Regex("""(?i)\beval\s*\(""") to "eval() call",
             Regex("""(?i)\bgroovy\b""") to "Groovy scripting reference",

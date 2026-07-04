@@ -39,7 +39,11 @@ public class ProfileXmiImporter {
         resourceSet.resourceFactoryRegistry.extensionToFactoryMap["xmi"] = XMIResourceFactoryImpl()
         resourceSet.resourceFactoryRegistry.extensionToFactoryMap["*"] = XMIResourceFactoryImpl()
 
-        val resource = resourceSet.getResource(URI.createFileURI(file.absolutePath), true)
+        // XXE hardening: create the resource without eager load, then load with a
+        // secured SAX parser (no DOCTYPE, no external entities). Using the
+        // getResource(uri, true) overload would load with default options.
+        val resource = resourceSet.createResource(URI.createFileURI(file.absolutePath))
+        resource.load(EmfXmlSecurity.secureLoadOptions())
         val emfProfile =
             resource.contents.filterIsInstance<Profile>().firstOrNull()
                 ?: error("No uml:Profile found in XMI: ${file.name}")

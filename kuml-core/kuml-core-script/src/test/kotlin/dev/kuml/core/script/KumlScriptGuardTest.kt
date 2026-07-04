@@ -125,4 +125,50 @@ class KumlScriptGuardTest :
             val attack = """java.nio.file.Files.write(java.nio.file.Paths.get("/tmp/x"), "y".toByteArray())"""
             shouldThrow<ScriptSecurityException> { KumlScriptGuard.validate(attack) }
         }
+
+        // ── Reflection-based bypasses of the earlier denylist (V0.23.3 audit) ─────
+
+        test("reflection getMethod + invoke bypass is rejected") {
+            // This payload previously PASSED the guard: it never names ProcessBuilder,
+            // Class.forName, Runtime.getRuntime, or java.io directly — it reaches
+            // Runtime.exec purely through reflection.
+            val attack =
+                """java.lang.Runtime::class.java.getMethod("getRuntime").invoke(null)"""
+            shouldThrow<ScriptSecurityException> { KumlScriptGuard.validate(attack) }
+        }
+
+        test("getConstructor + newInstance is rejected") {
+            val attack = """Class::class.java.getConstructor().newInstance()"""
+            shouldThrow<ScriptSecurityException> { KumlScriptGuard.validate(attack) }
+        }
+
+        test("::class.java reflection bridge is rejected") {
+            val attack = """val k = Thread::class.java"""
+            shouldThrow<ScriptSecurityException> { KumlScriptGuard.validate(attack) }
+        }
+
+        test("kotlin.system.exitProcess is rejected") {
+            val attack = """kotlin.system.exitProcess(1)"""
+            shouldThrow<ScriptSecurityException> { KumlScriptGuard.validate(attack) }
+        }
+
+        test("System.getProperties() is rejected") {
+            val attack = """System.getProperties()"""
+            shouldThrow<ScriptSecurityException> { KumlScriptGuard.validate(attack) }
+        }
+
+        test("readBytes / appendText file primitives are rejected") {
+            shouldThrow<ScriptSecurityException> { KumlScriptGuard.validate("""x.readBytes()""") }
+            shouldThrow<ScriptSecurityException> { KumlScriptGuard.validate("""x.appendText("y")""") }
+        }
+
+        test("Thread construction is rejected") {
+            val attack = """Thread { doEvil() }.start()"""
+            shouldThrow<ScriptSecurityException> { KumlScriptGuard.validate(attack) }
+        }
+
+        test("oversized script is rejected") {
+            val huge = "a".repeat(KumlScriptGuard.MAX_SCRIPT_LENGTH + 1)
+            shouldThrow<ScriptSecurityException> { KumlScriptGuard.validate(huge) }
+        }
     })

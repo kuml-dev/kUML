@@ -84,16 +84,41 @@ public class PlainJsonFallbackBackend(
             Files.createDirectories(storagePath.parent)
             val tmp = Files.createTempFile(storagePath.parent, "secrets", ".json.tmp")
             Files.writeString(tmp, json.encodeToString(JsonObject.serializer(), data), StandardCharsets.UTF_8)
+            // Best-effort: restrict the plaintext-secrets file to owner read/write only
+            // (0600) on POSIX systems, so other local users cannot read the API keys.
+            // No-op on filesystems without POSIX permissions (e.g. Windows).
+            restrictToOwnerOnly(tmp)
             try {
                 Files.move(tmp, storagePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
             } catch (_: java.nio.file.AtomicMoveNotSupportedException) {
                 Files.move(tmp, storagePath, StandardCopyOption.REPLACE_EXISTING)
             }
+            restrictToOwnerOnly(storagePath)
         } catch (e: Exception) {
             throw KumlAiException.VaultUnavailable(
                 "Cannot write plain JSON secrets to $storagePath: ${e.message}",
                 e,
             )
+        }
+    }
+
+    /**
+     * Restricts [path] to owner read/write only (POSIX 0600). Silently no-ops on
+     * non-POSIX filesystems (Windows) or if permissions cannot be applied.
+     */
+    private fun restrictToOwnerOnly(path: Path) {
+        try {
+            val view =
+                Files.getFileAttributeView(path, java.nio.file.attribute.PosixFileAttributeView::class.java)
+                    ?: return
+            view.setPermissions(
+                setOf(
+                    java.nio.file.attribute.PosixFilePermission.OWNER_READ,
+                    java.nio.file.attribute.PosixFilePermission.OWNER_WRITE,
+                ),
+            )
+        } catch (_: Exception) {
+            // Best-effort hardening only — never fail the write because perms could not be tightened.
         }
     }
 }
