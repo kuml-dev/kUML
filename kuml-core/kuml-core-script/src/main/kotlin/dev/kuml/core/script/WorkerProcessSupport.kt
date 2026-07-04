@@ -119,6 +119,15 @@ internal object WorkerProcessSupport {
         // TMPDIR is pinned to the writable workdir (not the parent's TMPDIR),
         // so any tool that honours $TMPDIR also stays inside the cage.
         builder.environment()["TMPDIR"] = workDir.absolutePath
+        // Welle 7: propagate the allowlist-classloader policy to the child. The
+        // env is otherwise cleared (no secret inheritance), so this one flag must
+        // be forwarded explicitly. Absent → the child defaults to `enforced`
+        // (secure default), so forwarding only matters when an operator set
+        // `disabled` to debug a suspected false-positive. Never forwarded as a
+        // secret; it is a boolean policy switch.
+        System.getenv(WorkerClassLoaderPolicy.ENV_VAR)?.let {
+            builder.environment()[WorkerClassLoaderPolicy.ENV_VAR] = it
+        }
         builder.redirectErrorStream(false)
         val process =
             try {

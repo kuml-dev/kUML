@@ -28,6 +28,7 @@ internal object ScriptEvaluationCore {
     internal fun evaluateAndExtract(
         source: String,
         fileName: String,
+        evaluationClassLoader: ClassLoader? = null,
     ): EvaluatedScript {
         // Layer 1: cheap regex denylist, before the compiler is ever invoked.
         try {
@@ -42,7 +43,12 @@ internal object ScriptEvaluationCore {
         val tmp = Files.createTempFile("kuml-eval-", ".kuml.kts").toFile()
         return try {
             tmp.writeText(source)
-            val evalResult = KumlScriptHost.eval(tmp)
+            // Layer B (Welle 7): when a filtering base classloader is supplied
+            // (sandbox worker path), the compiled script's class references
+            // resolve through it — a reference to a denied class (java.net.Socket,
+            // ProcessBuilder, …) fails to link before the script body runs. The
+            // in-process trusted path passes null → no filtering (unchanged).
+            val evalResult = KumlScriptHost.eval(tmp, evaluationClassLoader)
             val errors = evalResult.reports.filter { it.severity == ScriptDiagnostic.Severity.ERROR }
             if (errors.isNotEmpty() || evalResult is ResultWithDiagnostics.Failure) {
                 return EvaluatedScript.Failure(

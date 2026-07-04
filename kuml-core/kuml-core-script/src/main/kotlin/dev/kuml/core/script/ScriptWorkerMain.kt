@@ -75,14 +75,28 @@ public object ScriptWorkerMain {
         val stderrStream = System.err
         System.setOut(stderrStream)
 
+        // Welle 7 (layer B): decide once — before any script runs — whether the
+        // compiled script is evaluated behind an AllowlistClassLoader. Default is
+        // enforced in the worker; only KUML_MCP_SANDBOX_CLASSLOADER=disabled opts
+        // out. A fresh loader is built per evaluation (see [evaluate]) so state
+        // never leaks across the warmup and the one real request.
+        val enforceAllowlist = WorkerClassLoaderPolicy.enforcedFromEnv()
+
         val warm = args.any { it == ARG_WARM }
         if (warm) {
             // Pre-warm the embedded Kotlin compiler with a fixed trivial script,
             // so the request served after READY pays no compiler-init cost. Any
             // failure here is non-fatal — we still signal ready and let the real
             // request run (it will just pay the lazy warm-up like a cold worker).
+            // The warmup is a fixed trusted script, but we run it behind the SAME
+            // allowlist so the warmup exercises (and thus initialises) the exact
+            // evaluation path the real request will take.
             try {
-                ScriptEvaluationCore.evaluateAndExtract(WARMUP_SCRIPT, "warmup.kuml.kts")
+                ScriptEvaluationCore.evaluateAndExtract(
+                    WARMUP_SCRIPT,
+                    "warmup.kuml.kts",
+                    WorkerClassLoaderPolicy.evaluationClassLoader(enforceAllowlist),
+                )
             } catch (_: Throwable) {
                 // Ignore: worst case is a cold-start-like latency on the real call.
             }
@@ -97,7 +111,7 @@ public object ScriptWorkerMain {
                     System.`in`.bufferedReader(Charsets.UTF_8).readLine()
                         ?: return respond(realStdout, sandboxFailure("No request received on stdin"))
                 val request = json.decodeFromString(WorkerRequest.serializer(), requestLine)
-                evaluate(request)
+                evaluate(request, enforceAllowlist)
             } catch (e: Throwable) {
                 // Any framing/decoding error is a sandbox-level failure. Do not
                 // leak the exception's toString (may contain internals) beyond
@@ -116,8 +130,19 @@ public object ScriptWorkerMain {
     private const val WARMUP_SCRIPT: String =
         """diagram(name = "warmup", type = DiagramType.CLASS) {}"""
 
-    private fun evaluate(request: WorkerRequest): WorkerResponse =
-        when (val result = ScriptEvaluationCore.evaluateAndExtract(request.source, request.fileName)) {
+    private fun evaluate(
+        request: WorkerRequest,
+        enforceAllowlist: Boolean,
+    ): WorkerResponse =
+        when (
+            val result =
+                ScriptEvaluationCore.evaluateAndExtract(
+                    request.source,
+                    request.fileName,
+                    // Fresh allowlist loader per request (no cross-script state).
+                    WorkerClassLoaderPolicy.evaluationClassLoader(enforceAllowlist),
+                )
+        ) {
             is EvaluatedScript.Success ->
                 WorkerResponse(ok = true, envelope = ExtractedDiagramCodec.encode(result.diagram))
             is EvaluatedScript.Failure ->
