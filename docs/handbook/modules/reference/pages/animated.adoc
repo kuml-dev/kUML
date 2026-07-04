@@ -17,7 +17,7 @@ kuml simulate order-lifecycle.kuml.kts \
 
 # 2. Render the animated SVG
 kuml render order-lifecycle.kuml.kts \
-    --animated order-lifecycle.trace.json \
+    --animated --trace order-lifecycle.trace.json \
     --format svg \
     --output order-lifecycle-animated.svg
 ----
@@ -34,7 +34,7 @@ kuml simulate membership-process.kuml.kts \
     --output membership.trace.json
 
 kuml render membership-process.kuml.kts \
-    --animated membership.trace.json \
+    --animated --trace membership.trace.json \
     --format svg
 ----
 
@@ -106,7 +106,7 @@ Scale the entire timeline with `--speed`:
 [source,bash]
 ----
 kuml render machine.kuml.kts \
-    --animated trace.json \
+    --animated --trace trace.json \
     --speed 2.0 \
     --output fast.svg
 ----
@@ -121,15 +121,15 @@ An animated SVG can be transcoded to a self-contained animated file with `--form
 [source,bash]
 ----
 kuml render order-lifecycle.kuml.kts \
-    --animated order-lifecycle.trace.json \
+    --animated --trace order-lifecycle.trace.json \
     --format apng
 
 kuml render order-lifecycle.kuml.kts \
-    --animated order-lifecycle.trace.json \
+    --animated --trace order-lifecycle.trace.json \
     --format webp
 
 kuml render order-lifecycle.kuml.kts \
-    --animated order-lifecycle.trace.json \
+    --animated --trace order-lifecycle.trace.json \
     --format mp4
 ----
 
