@@ -4,11 +4,17 @@ package dev.kuml.core.script
  * Selects the [ScriptEvaluator] for the MCP server based on the
  * `KUML_MCP_SANDBOX_MODE` environment variable.
  *
- * | Value            | Behaviour                                                        |
- * |------------------|------------------------------------------------------------------|
- * | `child-process`  | **Default.** Evaluate each script in an isolated child JVM.      |
- * | `in-process`     | Evaluate in the server JVM (no isolation — explicit opt-out).    |
- * | (unset / other)  | Same as `child-process`.                                          |
+ * | Value            | Behaviour                                                          |
+ * |------------------|--------------------------------------------------------------------|
+ * | `pool`           | **Default.** Warm-worker pool (Welle 3): each script runs in an     |
+ * |                  | isolated, pre-started child JVM — interactive latency, use-once.    |
+ * | `child-process`  | Cold-start child JVM per call (Welle 2): isolated but ~1.5 s each.  |
+ * | `in-process`     | Evaluate in the server JVM (no isolation — explicit opt-out).       |
+ * | (unset / other)  | Same as `pool`.                                                     |
+ *
+ * The warm-pool sizing is tuned by `KUML_MCP_SANDBOX_POOL_SIZE` (idle warm
+ * workers held, default 3) and `KUML_MCP_SANDBOX_MAX_WORKERS` (hard ceiling on
+ * concurrently-live worker JVMs — the fork-bomb guard, default 2× pool size).
  *
  * ## Fail-closed default (design decision, Welle 2 point 7)
  *
@@ -37,15 +43,29 @@ public object ScriptEvaluators {
     public const val ENV_VAR: String = "KUML_MCP_SANDBOX_MODE"
     public const val MODE_IN_PROCESS: String = "in-process"
     public const val MODE_CHILD_PROCESS: String = "child-process"
+    public const val MODE_POOL: String = "pool"
 
-    /** Resolves the evaluator from the environment (secure default: child-process). */
+    /** Resolves the evaluator from the environment (secure default: warm pool). */
     public fun forCurrentConfig(): ScriptEvaluator = forMode(System.getenv(ENV_VAR))
 
-    /** Resolves the evaluator for an explicit [mode] string (testable). */
+    /**
+     * Resolves the evaluator for an explicit [mode] string (testable).
+     *
+     * If a [PooledScriptEvaluator] is created it is registered with a JVM
+     * shutdown hook so its worker processes are terminated even on abrupt exit —
+     * belt-and-braces on top of the MCP server's own shutdown path.
+     */
     public fun forMode(mode: String?): ScriptEvaluator =
         when (mode?.trim()?.lowercase()) {
             MODE_IN_PROCESS -> InProcessScriptEvaluator
-            // Default and explicit child-process both use the sandbox.
-            else -> ChildProcessScriptEvaluator()
+            MODE_CHILD_PROCESS -> ChildProcessScriptEvaluator()
+            // Default and explicit "pool" both use the warm-worker pool.
+            else -> PooledScriptEvaluator().also { registerShutdownHook(it) }
         }
+
+    private fun registerShutdownHook(closeable: AutoCloseable) {
+        Runtime.getRuntime().addShutdownHook(
+            Thread({ runCatching { closeable.close() } }, "kuml-worker-pool-shutdown"),
+        )
+    }
 }
