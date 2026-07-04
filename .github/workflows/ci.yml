@@ -24,6 +24,13 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # OsSandboxTest's Linux suite (kuml-core-script) is a real behavioural
+      # test, not a construction-only test — it launches bwrap and asserts
+      # the cage actually blocks filesystem/network escapes. ubuntu-latest
+      # does not ship bubblewrap by default.
+      - name: Install bubblewrap (Linux OS sandbox test dependency)
+        run: sudo apt-get update && sudo apt-get install -y bubblewrap
+
       - name: Build (excluding live LLM tests)
         run: ./gradlew build -DexcludeTags=live
 
