@@ -36,7 +36,7 @@ KumlPngRenderer.toPngFile(KumlSvgRenderer.toSvg(diagram, layoutResult, theme), o
 [source,kotlin]
 ----
 dependencies {
-    implementation("dev.kuml:kuml-io-png:0.23.2")
+    implementation("dev.kuml:kuml-io-png:0.24.0")
 }
 ----
 

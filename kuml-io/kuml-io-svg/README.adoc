@@ -47,7 +47,7 @@ KumlSvgRenderer.toSvgFile(diagram, layoutResult, outputPath, theme)
 [source,kotlin]
 ----
 dependencies {
-    implementation("dev.kuml:kuml-io-svg:0.23.2")
+    implementation("dev.kuml:kuml-io-svg:0.24.0")
 }
 ----
 

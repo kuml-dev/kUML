@@ -217,7 +217,7 @@ Explicit overrides are always possible via the `id = "…"` parameter.
 [source,kotlin]
 ----
 dependencies {
-    implementation("dev.kuml:kuml-core-dsl:0.23.2")
+    implementation("dev.kuml:kuml-core-dsl:0.24.0")
     // kuml-core-model is exposed transitively via api()
     // kuml-metamodel-uml is an implementation dependency (builders only)
 }

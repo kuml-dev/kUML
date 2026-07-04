@@ -6,6 +6,231 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-07-04
+
+### Added
+
+**MCP script-evaluation sandbox — a nine-wave defence-in-depth overhaul**
+
+Prior to this release the `kuml-mcp` server evaluated untrusted scripts (from `kuml.render`/
+`validate`/`list_elements`/`describe`/`generate` and the `kuml.run.*` runtime tools) in-process,
+in the server's own JVM, with `wholeClasspath = true` and no isolation. The only barrier was the
+`KumlScriptGuard` static denylist — and even that had a hole. This release rebuilds the evaluation
+path as a layered sandbox. The layers are honest about what each does and does not stop; a
+consolidated `SECURITY-COVERAGE.md` matrix (attack vector × layer) ships alongside the code, and a
+`SandboxSecurityAcceptanceTest` walks the full threat model (filesystem exfiltration, network
+pivot, persistence, DoS, denylist bypass, process-start) end-to-end through the real evaluator.
+
+* **`KumlScriptGuard` denylist hardening (layer 1).** Closed reflection-based bypasses: the prior
+  list blocked `Class.forName`/`ProcessBuilder`/`Runtime.getRuntime` literally, but a payload
+  routing through `getMethod("getRuntime").invoke(null)` or `getConstructor().newInstance()` passed
+  cleanly and reached arbitrary code execution. Added patterns for `getMethod`/`getMethods`,
+  `getField`, `getConstructor`/`getDeclaredConstructor`, `newInstance`, reflective `.invoke(`,
+  `loadClass`, `MethodHandles`, `KCallable`, `::class.java` and `isAccessible`; added missing
+  file-I/O primitives, `System.getProperties()`, `kotlin.system.exitProcess`, thread constructors,
+  and a 256 KiB script-length cap before the regex scan. This remains a denylist, **not** a
+  sandbox — which is why the following waves exist.
+
+* **Child-process isolation + warm worker pool (layers 2–3).** A new `ScriptEvaluator` abstraction
+  runs each untrusted script in a fresh, short-lived child JVM communicating over a minimal
+  newline-delimited JSON IPC protocol, with a wall-clock timeout (default 15 s →
+  `destroyForcibly()`), an `-Xmx` cap (default 256m) so a child OOM never touches the server heap,
+  a fixed argv (no shell → no command injection), a cleared child environment (only `PATH`+`TMPDIR`
+  restored, so server secrets are not inherited), and bounded stdout reads. The cold-start cost
+  (~1.6 s/call measured on macOS) is then amortised by a `WorkerPool` of pre-started, use-once
+  workers, cutting per-call overhead to roughly ~280 ms. The evaluator is **fail-closed**: an
+  IPC/launch failure returns a `SANDBOX` error rather than silently re-running the script in-process
+  (`KUML_MCP_SANDBOX_MODE`, default child-process; operators who cannot spawn child JVMs opt out
+  explicitly with `KUML_MCP_SANDBOX_MODE=in-process`). Its value over the denylist alone is proven
+  by a `while(true){}` test — not caught by any denylist — that the timeout kills while the parent
+  stays responsive.
+
+* **OS-native cages around the worker (layers 4–6, `KUML_MCP_SANDBOX_OS_ISOLATION`).**
+  * **macOS** (`OsSandbox` + a bundled `kuml-worker.macos.sb` seatbelt profile via `sandbox-exec`):
+    deny-by-default — network denied, file-writes confined to a per-worker temp dir, reads of
+    `~/.ssh`/`~/.aws`/`~/.gnupg`/`~/.config/gcloud`/Keychains explicitly denied. Default `required`
+    on macOS (launch fails closed if the cage cannot be applied). Behavioural escape tests
+    (denylist-independent raw Java file-write to `$HOME`, raw-IP + DNS connect, `~/.ssh` read)
+    confirm each is allowed with no sandbox and blocked by the kernel under the profile.
+  * **Linux** (`bwrap`/bubblewrap): mirrors the macOS posture with `--unshare-all`, a per-worker
+    read-write bind shadowing a broad root ro-bind, and no network. This wave was first written on
+    a macOS machine and shipped construction-verified only; it has since been **verified on real
+    Ubuntu 26.04 / kernel 7.0 hardware** using the same raw-escape methodology. That verification
+    uncovered and fixed a real gap: the broad `--ro-bind / /` posture (needed for the embedded
+    Kotlin compiler's scattered reads) left `~/.ssh`/`~/.aws`/`~/.gnupg`/`~/.config/gcloud`
+    **readable** — the macOS profile had an explicit read-deny for these, the Linux command did not.
+    Fixed by shadowing each existing secret directory with a private empty `--tmpfs` after the root
+    ro-bind. Linux stays **best-effort** (not `required`): `bwrap` availability is inconsistent
+    across distros/containers, and the container / no-unprivileged-userns degradation path is not
+    yet verified.
+  * **Windows** (`WindowsJobObjectSandbox`, JNA-bound Job Object: memory cap, active-process=1
+    anti-fork-bomb, kill-on-close). **This path has never run on real Windows** — it was implemented
+    on macOS with no ability to make a single Win32 call. It is default best-effort and honestly
+    documents its gaps: Job Objects have **no network egress control** (not faked with UI-restriction
+    flags), filesystem confinement is process/memory/kill-on-close only (no bind-mount equivalent),
+    and there is a theoretical post-start race before `AssignProcessToJobObject`. Needs
+    `windows-latest` CI before its default can move to `required`.
+
+* **Restricted ClassLoader + curated classpath inside the worker (layer 7,
+  `KUML_MCP_SANDBOX_CLASSLOADER`).** A second in-JVM defence behind the OS cage, fully testable on
+  macOS. `SandboxClasspath` replaces `wholeClasspath = true` with a narrow jar set (`kuml-*`,
+  kotlin-stdlib/-reflect, kotlinx-serialization/-io/atomicfu), so a script naming JNA or the Kotlin
+  compiler fails with an unresolved-reference **compile** error before its body runs; an
+  `AllowlistClassLoader` (real default-deny) sits behind it as belt-and-braces. Documented limit:
+  JDK boot-layer classes (`java.*`, most `jdk.*`) are **not** filterable by a user classloader —
+  neutralising their effects stays the OS cage's job. The trusted in-process CLI path is unchanged.
+
+* **Experimental Data-DSL interpreter (layer 9, `KUML_MCP_SANDBOX_EVAL_STRATEGY=interpreter`).**
+  An opt-in strategy that **interprets** the kUML DSL (`DslLexer` → `DslParser` → `DslInterpreter`
+  driving the real DSL builders) instead of compiling it through the embedded Kotlin compiler, so
+  RCE is structurally impossible — there is no grammar production for reflection/process/IO.
+  **Deliberately partial: UML class diagrams only** (a fixed builder vocabulary and a small language
+  subset — `val` bindings, positional/named args, trailing lambdas, string/int/bool literals, enum
+  refs; no loops, conditionals, arithmetic, method chains, or string interpolation). All other
+  diagram types are recognised by name and rejected with a "use `--eval-strategy=compiler`" message.
+  The production default stays `compiler` (all containment layers active); a test proves the
+  interpreter and compiler produce a byte-identical `KumlDiagram` for the supported subset.
+
+**MP4 export for animated diagrams**
+
+`kuml render --animated -f mp4` now encodes SMIL-animated diagrams to H.264/yuv420p MP4 via
+`ffmpeg` (new `Mp4Encoder` in `kuml-io-anim`), alongside the existing APNG/WebP outputs. The
+alpha-channel limitation of H.264 is documented rather than papered over.
+
+**WASM playground: C4 / SysML 2 / BPMN / Blueprint rendering + real grid layout**
+
+The browser-hosted Kotlin/Wasm playground previously rendered only UML class diagrams. New wasmJs
+entry points (`renderC4DiagramJson`, `renderSysml2DiagramJson`, `renderBpmnDiagramJson`,
+`renderBlueprintDiagramJson`) now decode and render C4, all 8 SysML 2 diagram kinds, all 4 BPMN
+diagram types, and Blueprint diagrams entirely client-side. `kuml-layout-grid` was converted from a
+JVM-only module to multiplatform, so `renderDiagramJsonWithGrid` computes a real multi-column,
+content-sized layout instead of the previous single-row demo scaffold (ELK remains JVM-only). `kuml
+dump-json` gained `--model-out` and now supports the same metamodels. All wasm entry points enforce
+an 8 MiB UTF-8 payload cap before decoding untrusted browser JSON. KerML remains out of scope — no
+`KumlSvgRenderer` overload exists for it on any platform, documented rather than faked.
+
+**Chocolatey packaging for Windows**
+
+A self-contained `kuml-mcp` launcher (`bin/kuml-mcp.bat`, patched the same way `kuml.bat` already
+is) is now bundled so `kuml-mcp` runs without a system JDK on Windows and Chocolatey can shim a
+`kuml-mcp` command. `kuml-desktop` is additionally published as its **own** Chocolatey package (own
+package ID, MSI-based install via a new `packageMsi`/`publish-chocolatey-desktop` release job) —
+the Windows counterpart to the macOS DMG/Cask channel. Neither has been exercised by a real `choco
+install` yet — the MSI/WiX backend is Windows-only and both need Windows CI verification before
+they can be trusted end-to-end.
+
+**Handbook: live-rendered C4 / BPMN / SysML 2 diagrams + theme gallery**
+
+The Antora pre-render bridge (`AsciidocRenderPipeline`) now renders C4, all 8 SysML 2 diagram
+types, and all 4 BPMN diagram types inline — previously only UML and Blueprint blocks rendered and
+the rest threw a "not yet supported" error. Dispatch mirrors the CLI `RenderPipeline` (same ELK
+bridges, same per-kind `toSvg` overloads). A per-block `theme="..."` AsciiDoc attribute was added,
+used by a new "Theme gallery" in `themes.adoc` that renders the same diagram once per built-in theme
+(plain/kuml/elegant/playful). The `c4-dsl`/`bpmn-dsl`/`sysml2` pages now carry full runnable
+`[source,kuml]` blocks sourced from the vault examples in place of Kotlin-only fragments, and
+`uml-dsl.adoc` also documents all 8 previously-undocumented UML types (Package, Deployment,
+Activity, Communication, Profile, Timing, Interaction Overview, Composite Structure).
+
+**Apple Developer ID signing + notarization for the macOS artifacts (V3.2.25–27)**
+
+The `kuml-desktop` DMG and the jlink-bundled JRE runtime (`kuml`/`kuml-mcp` CLI) are now signed
+with a Developer ID identity under the hardened runtime and notarized (the DMG is additionally
+stapled; the bare runtime zip cannot be stapled and correctly falls back to an online Gatekeeper
+check). This fixes a real, previously-documented startup failure: `kuml-mcp` (and `kuml`) refused
+to launch as a child of a hardened parent process (e.g. Claude Desktop) because macOS AMFI /
+Library Validation rejected the bundled jlink JRE's ad-hoc-signed native libraries. A new
+`signBundledRuntime` Gradle task signs every Mach-O under the runtime image bottom-up — including
+native libraries **nested inside dependency jars** (JNA, sqlite-jdbc, Jansi), which notarytool
+requires and which was discovered during local end-to-end verification. The hardened-runtime
+entitlements are the minimum a HotSpot-JIT'd JVM needs (`allow-jit` +
+`allow-unsigned-executable-memory`); a broader `disable-library-validation` entitlement was tried
+and dropped after security review found it added attack surface without capability, since every
+native lib is now signed with the same identity. All signing is gated on `KUML_SIGN_IDENTITY`, so
+unsigned local/CI builds are unaffected. The pipeline (`release.yml`) now builds an ephemeral
+signing keychain from repo secrets on both macOS runtime legs and the desktop-DMG job, with an
+`apple_gate` step that makes every signing step no-op cleanly when the secrets are absent.
+
+Honesty note: this was all verified **locally** against a real Developer ID certificate and App
+Store Connect API key (signed DMG passes `spctl` + `stapler validate`; the runtime zip notarizes;
+`kuml --version`, a real `classDiagram` render, and the `kuml-mcp` JSON-RPC handshake all succeed
+post-signing). No real GitHub Actions run has exercised the CI wiring — that needs an actual tag
+push. If the pipeline behaves as intended, **v0.24.0 should be the first release whose macOS
+artifacts actually ship signed + notarized**, but that has not been proven against a real CI run.
+
+### Changed
+
+**Build: Gradle 10 preparation, dependency bumps, warning cleanup**
+
+Bumped JNA (5.16.0 → 5.19.1), Compose Multiplatform (1.9.0 → 1.11.1, with material3 decoupled to
+its own ref), graalvm-native (1.1.1 → 1.1.3), vanniktech-publish (0.36.0 → 0.37.0), and eclipse-emf
+(2.36.0 → 2.40.0); removed a dead assertj catalog entry. Migrated the deprecated Compose plugin-DSL
+string accessors to catalog refs and `TabRow` → `PrimaryTabRow`. The Problems report is now empty
+with zero `@Suppress`/`-nowarn`/level downgrades — `@OptIn(ExperimentalWasmDsl)` added to the wasmJs
+build scripts, redundant null checks / casts / `else` branches removed, and per-call `Json { … }`
+instances hoisted into shared ones. The single remaining Gradle-10 "Project object as dependency
+notation" warning originates inside the third-party GraalVM native-build-tools plugin (fixed
+upstream, not yet released past 1.1.3), not in any kUML-authored build script.
+
+**Docs: stale README facts corrected across many files**
+
+Bumped stale `v0.20.5` version pins (Docker image, native installers, Maven Central coordinate) to
+current across `README.adoc`; replaced a placeholder `0.1.0` Maven Central version — never actually
+published — in ten module READMEs with the real released version; added the `kuml-wasm-playground`
+module entry and marked `kuml-layout-grid` multiplatform; corrected the `kuml-packaging` entry
+(jpackage installers, not GraalVM Native Image); rewrote `kuml-cli/README.adoc`'s Subcommands and
+Options sections (17 missing subcommands added, `--theme` default corrected to `kuml`, and the
+`--layout`/`--animated`/`--trace`/`--speed`/`--config` options plus latex/apng/webp/mp4 formats
+documented); and updated the `kuml-ai-*` and `kuml-metamodel-bpmn` READMEs that still described
+already-shipped features as deferred. Added `FUNDING.yml` with GitHub and PayPal links.
+
+### Fixed
+
+**MP4/WebP encoder: locale-dependent framerate formatting**
+
+`"%.3f".format(fps)` used Kotlin's default-locale `String.format`, so on a non-US system (e.g.
+`de_DE`) it emitted a decimal comma (`5,000`) for ffmpeg's `-framerate`, which ffmpeg's parser
+rejects. Both `Mp4Encoder` and `WebpEncoder` now use `String.format(Locale.ROOT, "%.3f", fps)`,
+matching the fix `SmilTimelineFrameSampler` already applies for this exact bug class. Found during a
+real end-to-end MP4 verification on a German-locale machine — invisible on the English-locale
+machines the feature was originally built on.
+
+**MP4 encoder: odd frame dimensions rejected by libx264**
+
+H.264/yuv420p requires even width and height, but kUML renders have layout-driven, frequently-odd
+dimensions (a real STM render came out at 1024×3459), which made libx264 refuse with "height not
+divisible by 2". `Mp4Encoder` now appends `scale=trunc(iw/2)*2:trunc(ih/2)*2` to the `-vf` chain
+(the standard fix), cropping at most 1 px. WebP has no such constraint, so this is an MP4-only fix.
+A new regression case covers odd (5×7) frame dimensions.
+
+**Handbook: `--animated` CLI syntax in the SMIL Animation page**
+
+Every example showed `--animated <trace-file>` as a single valued option, but the CLI has
+`--animated` as a boolean flag plus a separate `--trace <file>` option — the documented form failed
+with "got unexpected extra argument". Fixed all six examples to `--animated --trace <file>`
+(confirmed while verifying MP4 export end-to-end).
+
+### Security
+
+**`KumlScriptGuard` bypass in the `kuml.run.*` MCP tools — guard was never invoked on the runtime
+script path**
+
+The five authoring tools ran their scripts through `KumlScriptGuard`, but the `kuml.run.*` runtime
+tools evaluated scripts through `RuntimeSessionManager` on a path that **never called the guard at
+all** — the denylist that was the sole barrier for authoring tools did not apply to the runtime
+session path. All MCP script paths now route through a single `McpScriptEvaluator`; no direct
+`KumlScriptHost.eval` call remains in `kuml-mcp` production code. This closed the immediate hole; the
+sandbox overhaul in **Added** replaces the "denylist is the only barrier" posture entirely.
+
+**Additional defence-in-depth from the full-project security audit**
+
+EMF XMI import (`XmiReader`, `ProfileXmiImporter`) used EMF's eager `getResource(uri, true)` overload
+whose default SAX parser resolves external entities and processes DOCTYPE — an XXE / billion-laughs
+vector on attacker-supplied `.xmi`/`.uml` files. A shared `EmfXmlSecurity.secureLoadOptions()`
+(disallow-doctype-decl, external entities off, external-DTD off) now hardens those load paths,
+mirroring the existing ARXML/BPMN importer hardening. Separately, the last-resort plaintext API-key
+store (`PlainJsonFallbackBackend`) now best-effort restricts its file to POSIX `0600` so other local
+users cannot read stored keys (no-op on non-POSIX filesystems).
+
 ## [0.23.2] — 2026-07-03
 
 ### Fixed
