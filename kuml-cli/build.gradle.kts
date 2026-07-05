@@ -1,4 +1,7 @@
 import java.time.Instant
+import java.util.jar.JarOutputStream
+import java.util.jar.Attributes as JarAttributes
+import java.util.jar.Manifest as JarManifest
 
 plugins {
     alias(libs.plugins.kotlin.jvm)
@@ -371,6 +374,108 @@ val bundleJlinkRuntime =
 // path into the doLast lambda — no Provider, no Project, no script object
 // (Gradle 9's cache serialiser otherwise complains about "Gradle script
 // object references").
+// cmd.exe refuses to read any single batch-script source line longer than
+// ~8191 characters ("Die eingegebene Zeile ist zu lang." / "The input line
+// is too long."), and Gradle's `application` plugin unconditionally emits
+// the ENTIRE classpath as one `set CLASSPATH=...` line. That's harmless for
+// small dependency trees, but kuml-cli bundles ~300 jars (AI providers,
+// Compose Multiplatform, AWS Bedrock SDK, Kotlin compiler-embeddable, ELK,
+// Batik, Ktor, ...) and that line is ~14.9 KB — cmd.exe rejects it outright,
+// so kuml.bat never even reaches java.exe. Confirmed on real Windows 11
+// (2026-07-05, first-ever real Windows test of this launcher): every
+// invocation failed immediately with the error above. This affects every
+// Windows distribution channel that ships this launcher (Chocolatey, direct
+// runtimeZip download) — not something specific to Chocolatey packaging.
+//
+// Fix attempt #1 (superseded — kept here as a documented dead end): rewrite
+// the single `set CLASSPATH=...` line into one short `set CLASSPATH=%CLASSPATH%;...`
+// append per jar. That does NOT work: cmd.exe's ~8191 char ceiling applies to
+// the FINAL, fully-expanded command it executes, not just to raw source
+// lines. The launcher's closing
+// `"%JAVA_EXE%" ... -classpath "%CLASSPATH%" dev.kuml.cli.MainKt %*` line is
+// short as written, but once %CLASSPATH% (still ~14.9 KB) is substituted at
+// execution time, cmd.exe hits the identical limit and fails identically —
+// confirmed on real Windows 11, 2026-07-05, immediately after "fixing" it
+// this way.
+//
+// Actual fix: a "pathing jar" — the standard, widely-used technique for JVM
+// launchers with huge classpaths on Windows (used by Maven's
+// maven-jar-plugin classpath mode, sbt-native-packager, and others facing
+// the identical problem). A stub jar with no class files, just a
+// META-INF/MANIFEST.MF `Class-Path:` attribute listing every real jar as a
+// space-separated *relative* filename. Per the JAR spec, manifest Class-Path
+// entries resolve relative to the jar that CONTAINS the manifest — not the
+// process's working directory — so bare filenames are enough since every
+// jar lives flat in the same lib/ directory as the stub. The launcher then
+// only ever needs `-classpath <stub.jar>` (one short path); the JVM reads
+// the rest straight out of the manifest with no OS command-line involved at
+// all, so no length limit applies. `java.util.jar.Manifest`'s writer also
+// handles the JAR spec's 72-byte-line-plus-continuation wrapping for long
+// attribute values automatically — no manual line-wrapping needed here.
+//
+// Preserves the exact original jar order (unlike a `%APP_HOME%\lib\*`
+// wildcard, whose expansion order follows NTFS directory enumeration and
+// isn't guaranteed to match) — order matters here because the bundled
+// Compose Multiplatform dependency tree pulls in more than one version of a
+// handful of jars (e.g. two `runtime-desktop-*.jar` releases) and
+// classloading currently relies on the existing explicit sequence to pick
+// the intended one, same as on Linux/macOS.
+//
+// Applied unconditionally, regardless of how short the *source* line looks —
+// deliberately NOT gated behind a source-line-length safety margin. The
+// source line only ever contains the short `%APP_HOME%` token per entry;
+// the string cmd.exe actually has to execute is the *expanded* one, with
+// %APP_HOME% substituted by the real install path — and that varies by
+// install location in a way this build cannot predict (e.g. kuml-mcp.bat's
+// source line is a modest ~3.5 KB with ~90 jars, but a length check against
+// THAT number is meaningless: at a sufficiently deep install path — plenty
+// of real Chocolatey/user-profile paths qualify — the expanded line still
+// exceeds cmd.exe's ~8191 char ceiling and fails identically. Confirmed by
+// direct reproduction on real Windows 11 (2026-07-05): kuml-mcp.bat failed
+// with the exact same "Die eingegebene Zeile ist zu lang." even though its
+// own source CLASSPATH line is nowhere near 8000 chars. The fix is cheap
+// (one small manifest-only jar) and correct at any classpath size or
+// install depth, so there is no real benefit to skipping it selectively —
+// only risk in guessing wrong about "long enough to matter".
+//
+// Declared as a top-level `object` (not a top-level `fun`): a plain script
+// function becomes an instance method of the synthesized build-script class,
+// so calling it from inside a `doLast(object : Action<Task> { ... })` block
+// captures an unserializable reference to the script instance itself —
+// exactly the "cannot serialize Gradle script object references" failure
+// this module's other doFirst/doLast blocks already work around (see
+// signBundledRuntime below). A top-level `object` compiles as a genuinely
+// independent class with no such implicit outer reference.
+object WindowsClasspathFix {
+    fun explodeIfNeeded(batFile: File) {
+        val eol = "\r\n"
+        val lines = batFile.readText().split(eol)
+        val idx = lines.indexOfFirst { it.startsWith("set CLASSPATH=") }
+        if (idx < 0) return
+        val line = lines[idx]
+
+        val entries = line.removePrefix("set CLASSPATH=").split(";")
+        val jarNames = entries.map { it.substringAfterLast('\\') }
+
+        // bin/ and lib/ are siblings directly under the image root (or, for
+        // kuml-mcp, under mcp/) — batFile is .../<root>/bin/kuml.bat.
+        val libDir = File(batFile.parentFile.parentFile, "lib")
+        require(libDir.isDirectory) { "Expected lib dir at $libDir next to $batFile" }
+        val pathingJar = File(libDir, "kuml-windows-classpath.jar")
+        val manifest =
+            JarManifest().apply {
+                mainAttributes[JarAttributes.Name.MANIFEST_VERSION] = "1.0"
+                mainAttributes[JarAttributes.Name.CLASS_PATH] = jarNames.joinToString(" ")
+            }
+        val jarOut = JarOutputStream(pathingJar.outputStream(), manifest)
+        jarOut.close()
+
+        val newLines = lines.toMutableList()
+        newLines[idx] = "set CLASSPATH=%APP_HOME%\\lib\\${pathingJar.name}"
+        batFile.writeText(newLines.joinToString(eol))
+    }
+}
+
 tasks.register("bundledImage") {
     group = "distribution"
     description =
@@ -496,6 +601,7 @@ tasks.register("bundledImage") {
                             batMarker,
                     )
                 batLauncher.writeText(batPatched)
+                WindowsClasspathFix.explodeIfNeeded(batLauncher)
 
                 // ── kuml-mcp launcher (V3.2.13) ──────────────────────────────
                 // Same self-containment fix as bin/kuml, applied to the
@@ -594,6 +700,7 @@ tasks.register("bundledImage") {
                             batMarker,
                     )
                 mcpBatLauncher.writeText(mcpBatPatched)
+                WindowsClasspathFix.explodeIfNeeded(mcpBatLauncher)
 
                 // ── bin/kuml-mcp.bat wrapper ───────────────────────────────────
                 // Windows counterpart of the bin/kuml-mcp sh wrapper above: a

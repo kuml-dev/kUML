@@ -6,6 +6,73 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.24.4] — 2026-07-05
+
+### Fixed
+
+**Critical: `kuml.bat` could not start on Windows at all — Chocolatey, Homebrew-equivalent
+runtime-zip download, every Windows channel affected**
+
+This is the first release verified against a real Windows 11 host end-to-end (previously only
+constructed/build-verified — no Windows machine had ever actually run `kuml.bat`). The Gradle
+`application` plugin's generated Windows launcher lists the CLI's entire classpath (~300 jars —
+AI providers, Compose Multiplatform, the AWS Bedrock SDK, the Kotlin compiler-embeddable, ELK,
+Batik, Ktor, ...) on a single `set CLASSPATH=...` line, roughly 14.9 KB long. `cmd.exe` refuses to
+read or execute any single line longer than ~8191 characters ("Die eingegebene Zeile ist zu
+lang." / "The input line is too long."), so `kuml.bat` failed on every invocation before ever
+reaching `java.exe` — on every Windows install of every version to date.
+
+Splitting the assignment into many short `set CLASSPATH=%CLASSPATH%;...` appends does **not** fix
+this: cmd.exe's ~8191-char ceiling also applies to the fully-expanded command it ultimately
+executes, not just to literal source lines, so the launcher's closing invocation line hits the
+identical limit once `%CLASSPATH%` is substituted at runtime.
+
+Fixed with a "pathing jar" — the standard technique used by `maven-jar-plugin`'s classpath mode,
+sbt-native-packager, and other JVM launchers facing the same problem: a stub jar with no class
+files, just a `META-INF/MANIFEST.MF` `Class-Path:` attribute listing every real jar as a relative
+filename. Per the JAR spec, manifest `Class-Path` entries resolve relative to the *containing
+jar*, not the process's working directory, so the launcher now only ever needs
+`-classpath kuml-windows-classpath.jar` — a single short path — and the JVM reads the rest
+straight out of the manifest with no OS command-line involved, so no length limit applies.
+Preserves the exact original jar order (unlike a `lib\*` wildcard, whose expansion order follows
+NTFS directory enumeration and isn't guaranteed to match, which matters here because the bundled
+Compose Multiplatform dependency tree intentionally carries more than one version of a handful of
+jars).
+
+Applied unconditionally to every generated Windows launcher (`kuml.bat` and `kuml-mcp.bat`),
+regardless of how short its own classpath line looks: the actual failure depends on the
+*expanded* line length, which varies with install path depth, not on jar count — confirmed by
+reproducing the identical failure with `kuml-mcp.bat`'s much smaller (~90 jar) classpath at a
+sufficiently deep install path.
+
+Verified end-to-end on real Windows 11 without any system JDK on `PATH`/`JAVA_HOME`: `kuml
+--version`, `kuml --help`, `kuml ai --help`, a full `kuml render` of
+`docs/examples/kuml-getting-started.kuml.kts` (exercises the Kotlin scripting compiler, ELK
+layout, and Batik SVG rendering), and a real `choco install kuml` against this release's own
+published `kuml-runtime-*-windows-x86_64.zip` asset.
+
+### Verified (no code change)
+
+- **Windows Job Object sandbox** (`kuml-mcp` script execution cage, added in v0.23.3): closed the
+  long-standing "constructed but never run on real Windows" gap. 8 new behavioural tests
+  (`OsSandboxTest`) drive `WindowsJobObjectSandbox`/`OsSandbox.applyPostStart` against real running
+  processes on a real Windows kernel — Job Object creation, `KILL_ON_JOB_CLOSE`,
+  `JOB_OBJECT_LIMIT_PROCESS_MEMORY`, `JOB_OBJECT_LIMIT_ACTIVE_PROCESS=1` child-spawn blocking, and
+  fail-closed/best-effort degradation. All 29 `OsSandboxTest` and all 22
+  `SandboxSecurityAcceptanceTest` cases pass.
+- **`kuml-desktop` Windows MSI** (`:kuml-desktop:packageMsi`): builds successfully on a real
+  Windows host for the first time; structure validated via administrative MSI extraction (bundled
+  JRE, correctly resolved classpath via jpackage's own per-jar `.cfg` mechanism, which is
+  unaffected by the `cmd.exe` line-length bug above since it isn't a batch script).
+
+### Changed
+
+- A previously silent Windows sandbox degradation path (best-effort mode failing to install the
+  Job Object cage) now logs a warning instead of failing silently, mirroring the existing Linux
+  bwrap-missing warning.
+- `.gitignore`: exclude `hs_err_pid*.log` — the Job Object memory-cap test intentionally drives a
+  child JVM to a native OOM crash instead of a clean exit as part of verifying the cap works.
+
 ## [0.24.3] — 2026-07-05
 
 ### Fixed

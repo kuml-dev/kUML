@@ -46,5 +46,12 @@ dependencies {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     // Script compilation is memory-intensive
-    jvmArgs("-Xmx512m")
+    jvmArgs(
+        "-Xmx512m",
+        // OsSandboxTest (Windows behavioural suite) mutates the test JVM's own
+        // environment map via reflection on java.lang.ProcessEnvironment to
+        // exercise OsSandbox.mode()'s required/best-effort branches without
+        // forking a second JVM. Only affects this test task's JVM.
+        "--add-opens=java.base/java.lang=ALL-UNNAMED",
+    )
 }

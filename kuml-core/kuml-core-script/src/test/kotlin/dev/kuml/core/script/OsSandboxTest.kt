@@ -1,5 +1,6 @@
 package dev.kuml.core.script
 
+import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeFalse
 import io.kotest.matchers.booleans.shouldBeTrue
@@ -8,6 +9,7 @@ import io.kotest.matchers.ints.shouldBeGreaterThan
 import io.kotest.matchers.shouldBe
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.TimeUnit
 import javax.tools.ToolProvider
 import io.kotest.matchers.longs.shouldBeGreaterThan as shouldBeGreaterThanLong
 import io.kotest.matchers.string.shouldContain as shouldContainString
@@ -69,6 +71,49 @@ class OsSandboxTest :
                 .orEmpty()
                 .lowercase()
                 .let { it.contains("linux") || it.contains("nux") }
+
+        val isWindows =
+            System
+                .getProperty("os.name")
+                .orEmpty()
+                .lowercase()
+                .contains("windows")
+
+        /**
+         * Mutates the CURRENT JVM's environment map via reflection on
+         * `java.lang.ProcessEnvironment` so [System.getenv] observes
+         * `name=value` for the duration of [block], then restores whatever was
+         * there before. [OsSandbox.mode] reads `System.getenv` directly and there
+         * is no lower-level seam that takes a [OsSandbox.Mode] parameter, so this
+         * is the standard (if unglamorous) technique for exercising
+         * environment-dependent branches without forking a second JVM per case.
+         * Requires `--add-opens java.base/java.lang=ALL-UNNAMED` (configured on
+         * this module's test task for exactly this purpose).
+         */
+        @Suppress("UNCHECKED_CAST")
+        fun withEnvVar(
+            name: String,
+            value: String,
+            block: () -> Unit,
+        ) {
+            val previous = System.getenv(name)
+            val processEnvironmentClass = Class.forName("java.lang.ProcessEnvironment")
+            val maps =
+                listOf("theEnvironment", "theCaseInsensitiveEnvironment").mapNotNull { fieldName ->
+                    runCatching {
+                        val field = processEnvironmentClass.getDeclaredField(fieldName)
+                        field.isAccessible = true
+                        field.get(null) as MutableMap<String, String>
+                    }.getOrNull()
+                }
+            check(maps.isNotEmpty()) { "could not access ProcessEnvironment internals — is --add-opens set?" }
+            try {
+                maps.forEach { it[name] = value }
+                block()
+            } finally {
+                maps.forEach { m -> if (previous == null) m.remove(name) else m[name] = previous }
+            }
+        }
 
         /**
          * Compiles a small Java class into [outDir] and returns its runnable
@@ -702,6 +747,233 @@ class OsSandboxTest :
                 val runWrapped = OsSandbox.wrap(runBare, work)
                 val (_, runOut) = run(runWrapped)
                 runOut shouldContainString "HELLO-FROM-CAGE"
+            } finally {
+                work.deleteRecursively()
+            }
+        }
+
+        // ── Windows behavioural verification (real Job Object, real kernel) ────
+        //
+        // Closes the "UNTESTED on real Windows" gap called out in the
+        // OsSandbox/WindowsJobObjectSandbox KDoc and the architecture report.
+        // Mirrors the macOS/Linux behavioural suites above exactly in spirit
+        // (real mechanism, no mocks) but the mechanism itself is fundamentally
+        // different: a Job Object is applied AFTER process start, so these
+        // tests drive [WindowsJobObjectSandbox.applyJobObject] /
+        // [OsSandbox.applyPostStart] directly on real running processes instead
+        // of wrapping argv.
+
+        /**
+         * Compiles and starts a long-lived Java process that prints `STARTED`
+         * immediately and then sleeps, giving the caller a real, running PID to
+         * assign a Job Object to before the process would naturally exit.
+         */
+        fun startSleeper(workDir: File): Process {
+            val classes = File(workDir, "classes").apply { mkdirs() }
+            val cp =
+                compileJava(
+                    classes,
+                    "Sleeper",
+                    """
+                    public class Sleeper {
+                      public static void main(String[] a) throws Exception {
+                        System.out.println("STARTED");
+                        System.out.flush();
+                        Thread.sleep(60_000);
+                        System.out.println("SURVIVED");
+                      }
+                    }
+                    """.trimIndent(),
+                )
+            val p =
+                ProcessBuilder(WorkerProcessSupport.defaultJavaBinary(), "-cp", cp, "Sleeper")
+                    .redirectErrorStream(true)
+                    .start()
+            val firstLine = p.inputStream.bufferedReader().readLine()
+            check(firstLine == "STARTED") { "sleeper did not start cleanly: $firstLine" }
+            return p
+        }
+
+        test("Windows: applyJobObject actually creates+assigns a Job Object to a real running process") {
+            if (!isWindows) return@test
+            val work = Files.createTempDirectory("kuml-win-basic-").toFile().apply { deleteOnExit() }
+            try {
+                val p = startSleeper(work)
+                try {
+                    val handle =
+                        WindowsJobObjectSandbox.applyJobObject(p.pid(), OsSandbox.WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES)
+                    (handle != null).shouldBeTrue()
+                    p.isAlive.shouldBeTrue()
+                    handle!!.close()
+                } finally {
+                    p.destroyForcibly()
+                    p.waitFor()
+                }
+            } finally {
+                work.deleteRecursively()
+            }
+        }
+
+        test(
+            "Windows Job Object: KILL_ON_JOB_CLOSE terminates the caged process (no zombie) when the handle is closed",
+        ) {
+            if (!isWindows) return@test
+            val work = Files.createTempDirectory("kuml-win-kill-").toFile().apply { deleteOnExit() }
+            try {
+                val p = startSleeper(work)
+                val handle =
+                    WindowsJobObjectSandbox.applyJobObject(p.pid(), OsSandbox.WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES)
+                (handle != null).shouldBeTrue()
+                p.isAlive.shouldBeTrue()
+                handle!!.close()
+                val exitedInTime = p.waitFor(10, TimeUnit.SECONDS)
+                exitedInTime.shouldBeTrue()
+                p.isAlive.shouldBeFalse()
+            } finally {
+                work.deleteRecursively()
+            }
+        }
+
+        test("Windows Job Object: JOB_OBJECT_LIMIT_PROCESS_MEMORY kills a process that exceeds the memory cap") {
+            if (!isWindows) return@test
+            val work = Files.createTempDirectory("kuml-win-mem-").toFile().apply { deleteOnExit() }
+            val classes = File(work, "classes").apply { mkdirs() }
+            try {
+                val cp =
+                    compileJava(
+                        classes,
+                        "MemHog",
+                        """
+                        import java.util.*;
+                        public class MemHog {
+                          public static void main(String[] a) throws Exception {
+                            System.out.println("STARTED"); System.out.flush();
+                            List<byte[]> keep = new ArrayList<>();
+                            for (int i = 0; i < 100; i++) {
+                              keep.add(new byte[10_000_000]); // 10MB chunks, up to ~1GB held
+                              System.out.println("ALLOC " + i); System.out.flush();
+                              Thread.sleep(30);
+                            }
+                            System.out.println("SURVIVED");
+                          }
+                        }
+                        """.trimIndent(),
+                    )
+                val p =
+                    ProcessBuilder(WorkerProcessSupport.defaultJavaBinary(), "-Xmx900m", "-cp", cp, "MemHog")
+                        .redirectErrorStream(true)
+                        .start()
+                val reader = p.inputStream.bufferedReader()
+                val first = reader.readLine()
+                check(first == "STARTED") { "MemHog did not start cleanly: $first" }
+                // 96 MiB cap: comfortably above a bare JVM's own boot footprint,
+                // far below the ~1GB this program tries to accumulate — a clean
+                // separation so the assertion isn't sensitive to exact JVM
+                // baseline memory use on this host.
+                val cap = 96L * 1024 * 1024
+                val handle = WindowsJobObjectSandbox.applyJobObject(p.pid(), cap)
+                (handle != null).shouldBeTrue()
+                val output = reader.readText()
+                val finished = p.waitFor(20, TimeUnit.SECONDS)
+                finished.shouldBeTrue()
+                output.contains("SURVIVED").shouldBeFalse()
+                (p.exitValue() != 0).shouldBeTrue()
+                handle?.close()
+            } finally {
+                work.deleteRecursively()
+            }
+        }
+
+        test("Windows Job Object: JOB_OBJECT_LIMIT_ACTIVE_PROCESS=1 blocks the caged process from spawning a child") {
+            if (!isWindows) return@test
+            val work = Files.createTempDirectory("kuml-win-spawn-").toFile().apply { deleteOnExit() }
+            val classes = File(work, "classes").apply { mkdirs() }
+            try {
+                val cp =
+                    compileJava(
+                        classes,
+                        "SpawnChild",
+                        """
+                        public class SpawnChild {
+                          public static void main(String[] a) throws Exception {
+                            System.out.println("STARTED"); System.out.flush();
+                            Thread.sleep(500); // give the parent time to assign the Job Object first
+                            try {
+                              Process child = new ProcessBuilder("cmd", "/c", "echo", "hi").start();
+                              child.waitFor();
+                              System.out.println("CHILD-OK");
+                            } catch (Throwable t) {
+                              System.out.println("CHILD-BLOCKED:" + t.getClass().getSimpleName());
+                            }
+                          }
+                        }
+                        """.trimIndent(),
+                    )
+                val p =
+                    ProcessBuilder(WorkerProcessSupport.defaultJavaBinary(), "-cp", cp, "SpawnChild")
+                        .redirectErrorStream(true)
+                        .start()
+                val reader = p.inputStream.bufferedReader()
+                val first = reader.readLine()
+                check(first == "STARTED") { "SpawnChild did not start cleanly: $first" }
+                val handle =
+                    WindowsJobObjectSandbox.applyJobObject(p.pid(), OsSandbox.WINDOWS_JOB_MAX_PROCESS_MEMORY_BYTES)
+                (handle != null).shouldBeTrue()
+                val output = reader.readText()
+                p.waitFor(15, TimeUnit.SECONDS)
+                output shouldContainString "CHILD-BLOCKED"
+                handle?.close()
+            } finally {
+                work.deleteRecursively()
+            }
+        }
+
+        test("Windows: OsSandbox.applyPostStart installs a real (non no-op) cage and closing it kills the process") {
+            if (!isWindows) return@test
+            val work = Files.createTempDirectory("kuml-win-poststart-").toFile().apply { deleteOnExit() }
+            try {
+                val p = startSleeper(work)
+                val cage = OsSandbox.applyPostStart(p, work)
+                (cage === OsSandbox.PostStartCage.NONE).shouldBeFalse()
+                p.isAlive.shouldBeTrue()
+                cage.close()
+                val exitedInTime = p.waitFor(10, TimeUnit.SECONDS)
+                exitedInTime.shouldBeTrue()
+            } finally {
+                work.deleteRecursively()
+            }
+        }
+
+        test("Windows: applyPostStart fails closed under required when the cage cannot be installed") {
+            if (!isWindows) return@test
+            val work = Files.createTempDirectory("kuml-win-failclosed-").toFile().apply { deleteOnExit() }
+            try {
+                // A process that has already exited can no longer be OpenProcess'd
+                // with PROCESS_SET_QUOTA|PROCESS_TERMINATE — applyJobObject
+                // returns null here for a genuine "cage failed" reason, distinct
+                // from the "kernel32 missing" path already covered above.
+                val dead = ProcessBuilder(WorkerProcessSupport.defaultJavaBinary(), "-version").start()
+                dead.waitFor()
+                withEnvVar(OsSandbox.ENV_OS_ISOLATION, "required") {
+                    shouldThrow<SandboxUnavailableException> {
+                        OsSandbox.applyPostStart(dead, work)
+                    }
+                }
+            } finally {
+                work.deleteRecursively()
+            }
+        }
+
+        test("Windows: applyPostStart degrades to a no-op cage under best-effort when it cannot be installed") {
+            if (!isWindows) return@test
+            val work = Files.createTempDirectory("kuml-win-besteffort-").toFile().apply { deleteOnExit() }
+            try {
+                val dead = ProcessBuilder(WorkerProcessSupport.defaultJavaBinary(), "-version").start()
+                dead.waitFor()
+                withEnvVar(OsSandbox.ENV_OS_ISOLATION, "best-effort") {
+                    val cage = OsSandbox.applyPostStart(dead, work)
+                    (cage === OsSandbox.PostStartCage.NONE).shouldBeTrue()
+                }
             } finally {
                 work.deleteRecursively()
             }

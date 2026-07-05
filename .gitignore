@@ -128,3 +128,9 @@ gradle-app.setting
 # IntelliJ Platform Gradle Plugin caches (V1.1.10 — kuml-jetbrains-plugin)
 .intellijPlatform/
 .DS_Store
+
+# JVM crash dumps — the Windows Job Object memory-cap test (OsSandboxTest,
+# MemHog) intentionally drives a child JVM into the cap and it can crash hard
+# with a native OOM instead of exiting cleanly. Expected byproduct, not build
+# output worth tracking.
+hs_err_pid*.log

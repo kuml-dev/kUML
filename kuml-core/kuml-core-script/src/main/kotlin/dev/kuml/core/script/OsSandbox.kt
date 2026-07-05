@@ -395,11 +395,30 @@ internal object OsSandbox {
                         "an OS cage.",
                 )
             }
+            // Avoid silent degradation (named risk in the architecture report):
+            // under best-effort, a failed Job Object install must be visible, not
+            // a quiet fall-through to an un-caged worker — mirrors
+            // logBwrapSmokeTestFailureOnce on Linux.
+            logWindowsJobObjectFailureOnce()
             return PostStartCage.NONE
         }
         return object : PostStartCage {
             override fun close() = handle.close()
         }
+    }
+
+    @Volatile private var loggedWindowsJobObjectFailure = false
+
+    @Synchronized
+    private fun logWindowsJobObjectFailureOnce() {
+        if (loggedWindowsJobObjectFailure) return
+        loggedWindowsJobObjectFailure = true
+        System.err.println(
+            "[kuml-os-sandbox] WARNING: the Windows Job Object cage could not be installed on a script-worker " +
+                "process — OS-level memory/process-spawn/kill-on-close containment is DISABLED for this worker " +
+                "(mode=best-effort). Denylist + child-process isolation (timeout/heap-cap/no-shell) still apply. " +
+                "Set $ENV_OS_ISOLATION=$MODE_REQUIRED to fail closed instead of degrading.",
+        )
     }
 
     // ── macOS: sandbox-exec (Welle 4) ─────────────────────────────────────────
