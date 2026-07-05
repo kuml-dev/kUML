@@ -6,6 +6,54 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.24.5] — 2026-07-05
+
+### Fixed
+
+**Chocolatey: `chocolateyUninstall.ps1` (kuml-desktop) could not be parsed at all**
+
+Found during the first-ever real elevated `choco uninstall kuml-desktop` on Windows: the
+script failed immediately with a PowerShell parse error ("The string is missing the
+terminator: '.") before running any of its logic. Root cause: the script used a UTF-8
+em-dash inside an active `Write-Warning` string, but the file had no UTF-8 BOM. Windows
+PowerShell 5.1 reads BOM-less `.ps1` files using the system's ANSI codepage rather than
+UTF-8, so those bytes decoded as unexpected characters and broke the tokenizer — since
+PowerShell parses an entire script before executing any of it, this broke the whole file
+regardless of which branch would actually have run. Fixed by replacing the em-dash with a
+plain hyphen and adding a UTF-8 BOM to all four Chocolatey install/uninstall scripts as
+defense-in-depth. Verified with `[System.Management.Automation.Language.Parser]::ParseFile`
+(0 syntax errors) and a real elevated `choco uninstall kuml-desktop` round-trip.
+
+**Test suite: `PluginScanPath.userPluginDir` had no test seam, silently writing into the
+real `~/.kuml/plugins`**
+
+`PluginInstallCommand`, `PluginRemoveCommand`, and `PluginUpgradeCommand` all read/write
+`PluginScanPath.userPluginDir` directly, with no way to redirect it in tests (unlike
+`KumlHome.base()`, which already supports a test-override system property). On a
+development machine where the CLI test suite is rerun repeatedly, successful-upgrade test
+cases in `PluginUpgradeCommandTest` copied their in-memory fixture JARs into the real
+`~/.kuml/plugins/`, where they accumulated and were later picked up by unrelated test runs
+(`PluginCommandTest`, `PluginCheckUpdatesCommandTest`), which then failed with
+`ClassNotFoundException` for a class that only ever existed as an in-memory fixture. Added
+the same test-seam pattern already used by `KumlHome` (`overrideUserPluginDirForTest` /
+`clearTestOverride`, backed by a `kuml.plugins.dir` system property) and wired it into the
+three affected test files. Test-only change; no production behaviour affected. Verified
+with two consecutive full test suite runs, both green, with the real `~/.kuml/plugins`
+left completely untouched.
+
+### Also included in this release (test-only, no shipped-artifact change)
+
+- Clikt's `CliktCommand.test(String)` testing helper tokenizes its argument with an
+  escape-aware parser that treats backslash as an escape character, silently corrupting
+  any Windows path passed as a single interpolated string (e.g.
+  `C:\Users\...\kuml-trace-....json` arrived as `C:Users...kuml-trace-....json`). This is
+  a test-only bug — production invocations are never affected, since the OS already splits
+  the command line before the process starts. Converted 26 affected test files across
+  `kuml-cli` to Clikt's `test(List<String>)` overload, which performs no re-tokenization.
+  `:kuml-cli:test` went from 111 failing / 502 total to 0 failing on real Windows 11. (Not
+  merged as a standalone release at the time — landed on `master` alongside v0.24.4's
+  packaging fixes and ships in this version.)
+
 ## [0.24.4] — 2026-07-05
 
 ### Fixed
