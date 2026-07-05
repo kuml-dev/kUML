@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 # Install-ChocolateyZipPackage records every extracted file in
 # <packageName>.zip.txt and removes them automatically on uninstall, including

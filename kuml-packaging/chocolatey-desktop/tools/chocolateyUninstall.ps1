@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 # jpackage's `--name kuml-desktop` (set via Compose Desktop's `packageName`)
 # becomes the MSI's ProductName / the "Display name" shown in Windows'
@@ -33,5 +33,5 @@ if ($key.Count -eq 1) {
 } elseif ($key.Count -eq 0) {
   Write-Warning "$env:ChocolateyPackageName has already been uninstalled by other means."
 } elseif ($key.Count -gt 1) {
-  Write-Warning "$($key.Count) matches found for kuml-desktop's uninstall registry key — expected exactly one. Uninstall manually via Windows' Apps & features."
+  Write-Warning "$($key.Count) matches found for kuml-desktop's uninstall registry key - expected exactly one. Uninstall manually via Windows Apps & features."
 }
