@@ -71,6 +71,44 @@ jobs:
           KUML_SIGN_KEYCHAIN: ${{ steps.apple_gate.outputs.has_sign == 'true' && format('{0}/kuml-signing.keychain-db', runner.temp) || '' }}
         run: ./gradlew clean :kuml-mcp:installDist :kuml-cli:runtimeZip --info 2>&1 | tee "$RUNNER_TEMP/build.log"
 
+      - name: Check zip AFTER FIRST invocation (before notarize step)
+        run: |
+          ZIP=$(find kuml-cli/build/distributions -iname "kuml-runtime-*.zip" | head -1)
+          EXTRACT_DIR="$RUNNER_TEMP/zip-check-1"
+          mkdir -p "$EXTRACT_DIR"
+          ZIP_ENTRY=$(unzip -Z1 "$ZIP" | grep "runtime/lib/libjli.dylib$" | head -1)
+          unzip -oq "$ZIP" "$ZIP_ENTRY" -d "$EXTRACT_DIR"
+          echo "=== libjli.dylib in zip AFTER 1st invocation ==="
+          codesign -dv "$EXTRACT_DIR/$ZIP_ENTRY" 2>&1
+
+      # Exactly mirrors release.yml's "Notarize runtime zip" step (same env
+      # vars, same command) — this is a SEPARATE ./gradlew invocation, just
+      # like the real release pipeline, to test whether that specific
+      # two-invocation pattern is what reintroduces the ad-hoc signature.
+      - name: Notarize runtime zip (mirrors release.yml exactly)
+        if: steps.apple_gate.outputs.has_sign == 'true'
+        env:
+          KUML_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+          KUML_SIGN_KEYCHAIN: ${{ format('{0}/kuml-signing.keychain-db', runner.temp) }}
+          KUML_NOTARY_KEY_PATH: ${{ format('{0}/notary/AuthKey_{1}.p8', runner.temp, secrets.APPLE_API_KEY_ID) }}
+          KUML_NOTARY_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          KUML_NOTARY_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: ./gradlew :kuml-cli:notarizeRuntimeZip --info 2>&1 | tee "$RUNNER_TEMP/build2.log"
+
+      - name: Check zip AFTER SECOND invocation (after notarize step)
+        if: always()
+        run: |
+          ZIP=$(find kuml-cli/build/distributions -iname "kuml-runtime-*.zip" | head -1)
+          ls -la "$ZIP"
+          EXTRACT_DIR="$RUNNER_TEMP/zip-check-2"
+          mkdir -p "$EXTRACT_DIR"
+          ZIP_ENTRY=$(unzip -Z1 "$ZIP" | grep "runtime/lib/libjli.dylib$" | head -1)
+          unzip -oq "$ZIP" "$ZIP_ENTRY" -d "$EXTRACT_DIR"
+          echo "=== libjli.dylib in zip AFTER 2nd invocation (notarize step) ==="
+          codesign -dv "$EXTRACT_DIR/$ZIP_ENTRY" 2>&1
+          echo "=== signBundledRuntime lines from the SECOND build's log ==="
+          grep -i "signBundledRuntime\|isMachO\|libjli\|libjvm\|critical-file\|UP-TO-DATE.*bundledImage\|Task :kuml-cli:bundledImage\|Task :kuml-cli:runtimeZip" "$RUNNER_TEMP/build2.log" | head -40
+
       - name: Post-build filesystem diagnostics
         if: always()
         run: |
