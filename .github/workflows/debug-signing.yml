@@ -77,12 +77,36 @@ jobs:
           IMG="kuml-cli/build/image/kuml"
           echo "--- full listing of runtime/lib ---"
           find "$IMG/runtime/lib" -maxdepth 2 -exec ls -la {} \; 2>&1 || echo "runtime/lib missing entirely"
-          echo "--- libjli.dylib specifically ---"
+          echo "--- libjli.dylib specifically (LOOSE FILE on disk, pre-zip) ---"
           find "$IMG/runtime" -iname "libjli*" -exec ls -la {} \; -exec file {} \; -exec codesign -dv {} \; 2>&1 || echo "libjli.dylib not found anywhere"
-          echo "--- libjvm.dylib specifically ---"
+          echo "--- libjvm.dylib specifically (LOOSE FILE on disk, pre-zip) ---"
           find "$IMG/runtime" -iname "libjvm*" -exec ls -la {} \; -exec file {} \; -exec codesign -dv {} \; 2>&1 || echo "libjvm.dylib not found anywhere"
           echo "--- grep signBundledRuntime lines from build.log ---"
           grep -i "signBundledRuntime\|isMachO\|libjli\|libjvm\|critical-file" "$RUNNER_TEMP/build.log" || echo "no matching lines found"
+
+      - name: Inspect the actual produced zip (not just the loose files)
+        if: always()
+        run: |
+          ZIP=$(find kuml-cli/build/distributions -iname "kuml-runtime-*.zip" | head -1)
+          echo "--- zip file: $ZIP ---"
+          ls -la "$ZIP" 2>&1 || echo "zip not found"
+          echo "--- zip listing (looking for libjli/libjvm entries) ---"
+          unzip -l "$ZIP" 2>&1 | grep -iE "libjli|libjvm" || echo "no matching entries in zip listing"
+          echo "--- extracting libjli.dylib FROM THE ZIP and checking its signature ---"
+          EXTRACT_DIR="$RUNNER_TEMP/zip-extract-check"
+          mkdir -p "$EXTRACT_DIR"
+          ZIP_ENTRY=$(unzip -Z1 "$ZIP" | grep "runtime/lib/libjli.dylib$" | head -1)
+          echo "zip entry path: $ZIP_ENTRY"
+          if [ -n "$ZIP_ENTRY" ]; then
+            unzip -oq "$ZIP" "$ZIP_ENTRY" -d "$EXTRACT_DIR"
+            EXTRACTED="$EXTRACT_DIR/$ZIP_ENTRY"
+            ls -la "$EXTRACTED"
+            file "$EXTRACTED"
+            echo "--- codesign on the file AS IT EXISTS INSIDE THE ZIP ---"
+            codesign -dv "$EXTRACTED" 2>&1
+          else
+            echo "libjli.dylib entry not found in zip listing at all"
+          fi
 
       - name: Upload full build log
         if: always()
