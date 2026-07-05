@@ -6,6 +6,27 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.24.6] — 2026-07-05
+
+### Fixed
+
+**`kuml-mcp`: every JSON-RPC response failed strict client-side validation, so the MCP
+server never connected from Claude Code**
+
+`McpServer`'s JSON encoder was configured with `encodeDefaults = true` but without
+`explicitNulls = false`, so every response serialized *both* `result` and `error` — the
+unused member as a literal `null` (e.g. `{"jsonrpc":"2.0","id":1,"result":{...},"error":null}`).
+Strict MCP clients (Claude Code among them) validate responses against a JSON-RPC 2.0 union
+schema that rejects a `result`/`error` pair appearing together at all, even when one side is
+`null` — every otherwise-correct kuml-mcp response failed that validation, and the client
+reported the connection itself as broken (not a per-call error) with no indication that the
+payload shape was the cause. Fixed by adding `explicitNulls = false` to the encoder so only
+the field that's actually set is serialized. Added a regression test
+(`McpServerProtocolTest`) asserting neither key appears when unused. Verified with a manual
+JSON-RPC handshake (`initialize` / `tools/list` / `tools/call` / an unknown-method error) and
+a real `claude mcp list` connection, which now reports `✔ Connected` in ~4.5s instead of
+timing out.
+
 ## [0.24.5] — 2026-07-05
 
 ### Fixed

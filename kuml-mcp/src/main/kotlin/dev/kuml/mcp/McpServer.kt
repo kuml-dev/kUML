@@ -33,10 +33,11 @@ import kotlinx.serialization.json.putJsonObject
  * - resources/read
  */
 internal object McpServer {
-    private val json =
+    internal val json =
         Json {
             ignoreUnknownKeys = true
             encodeDefaults = true
+            explicitNulls = false
         }
 
     /** Run the server, reading from stdin and writing to stdout until EOF. */
