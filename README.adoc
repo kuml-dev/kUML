@@ -127,7 +127,7 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | `brew install kuml-dev/kuml/kuml`
 
 | *Homebrew Cask* (macOS, `kuml-desktop`)
-| `brew install --cask kuml-dev/kuml/kuml-desktop` — installs the Compose Multiplatform desktop app (`kuml-desktop.app`), Developer ID signed and notarized as of v0.24.0.
+| `brew install --cask kuml-dev/kuml/kuml-desktop` — installs the Compose Multiplatform desktop app (`kuml-desktop.app`), Developer ID signed and notarized as of v0.24.1.
 
 | *Chocolatey* (Windows)
 | `choco install kuml` — self-contained, bundles a Java 21 runtime (no JDK required). Published automatically on each release; the first version of a new package enters Chocolatey community moderation (typically 1–3 days) before it installs without an explicit source.
@@ -136,13 +136,13 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | `sdk install kuml` — *not available yet*; SDKMAN! vendor onboarding (API keys) is still pending. Planned platforms: Linux x86_64, Linux ARM64, macOS, Windows x86_64. Use Homebrew or the native installers in the meantime.
 
 | *Docker*
-| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.24.0` — minimal CLI image.
+| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.24.1` — minimal CLI image.
 
 | *Native installers*
-| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.24.0). Download from the GitHub Releases page.
+| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.24.1). Download from the GitHub Releases page.
 
 | *Maven Central* (library modules)
-| `implementation("dev.kuml:kuml-core-dsl:0.24.0")` — library modules published to Maven Central.
+| `implementation("dev.kuml:kuml-core-dsl:0.24.1")` — library modules published to Maven Central.
 |===
 
 == Features

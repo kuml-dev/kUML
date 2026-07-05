@@ -62,7 +62,7 @@ umlModel("Order Domain") {
 [source,kotlin]
 ----
 dependencies {
-    implementation("dev.kuml:kuml-core-model:0.24.0")
+    implementation("dev.kuml:kuml-core-model:0.24.1")
 }
 ----
 

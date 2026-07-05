@@ -90,7 +90,7 @@ dependencies transitively.
 [source,kotlin]
 ----
 dependencies {
-    implementation("dev.kuml:kuml-core-script:0.24.0")
+    implementation("dev.kuml:kuml-core-script:0.24.1")
     // kuml-core-model, kuml-core-dsl, kuml-metamodel-uml, and kuml-metamodel-c4
     // are exposed transitively via api()
 }

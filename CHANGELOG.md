@@ -6,6 +6,34 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.24.1] — 2026-07-05
+
+### Fixed
+
+**Critical: Homebrew `kuml`/`kuml-mcp` failed to launch — `libjli.dylib` shipped ad-hoc-signed
+despite v0.24.0's signing work**
+
+The v0.24.0 release's `signBundledRuntime` task detected Mach-O files by shelling out to the
+`file` command and pattern-matching its text output. On the actual GitHub Actions macOS release
+runner, this signed only 43 of the 44 Mach-O files a local build signs — `runtime/lib/libjli.dylib`
+(the exact file the original AMFI bug report named) was never recognized as Mach-O in that
+environment, so it was never signed at all and shipped with its original ad-hoc signature. Every
+real `brew install kuml` / `brew install --cask kuml-desktop` user hit a hard crash on launch:
+
+```
+dyld: Library not loaded: @rpath/libjli.dylib
+code signature ... not valid for use in process: mapping process and mapped file
+(non-platform) have different Team IDs
+```
+
+Fixed by replacing the `file`-command text match with direct magic-byte detection (reads each
+file's first 4 bytes, compares against the six known Mach-O/fat-binary magic numbers) — no
+external process, no version/environment drift possible. Also added a post-signing verification
+gate: `signBundledRuntime` now independently re-scans the entire runtime image after signing and
+fails the build if any Mach-O file — not just the ones the task believed it signed — still shows an
+ad-hoc signature or missing Team ID. This closes the exact blind spot that let v0.24.0 ship broken:
+a file invisible to the signing loop was previously invisible to verification too.
+
 ## [0.24.0] — 2026-07-04
 
 ### Added
