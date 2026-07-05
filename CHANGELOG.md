@@ -6,6 +6,20 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.24.2] — 2026-07-05
+
+### Still broken — see below
+
+**v0.24.1's fix for the `libjli.dylib` ad-hoc-signing bug did not actually work.** The real
+release build again signed only 43 of 44 Mach-O files and shipped the identical broken artifact —
+confirmed by upgrading via Homebrew and hitting the same `dyld: ... different Team IDs` crash
+again. This release does not claim to have fixed it; it adds real diagnostics (no more silently
+swallowed read errors in the Mach-O detector, a hard build-time gate that locates
+`libjli.dylib`/`libjvm.dylib` by filename and fails loudly with a full directory listing if either
+is missing) so the next attempt is based on actual CI data instead of another guess. If you
+installed v0.24.0 or v0.24.1 via Homebrew, `kuml`/`kuml-mcp` will not run — do not upgrade to
+v0.24.2 expecting a fix; wait for the version that follows it.
+
 ## [0.24.1] — 2026-07-05
 
 ### Fixed

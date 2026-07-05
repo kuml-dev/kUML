@@ -46,7 +46,7 @@ directly from `LayoutResult` without going through Compose.
 [source,kotlin]
 ----
 dependencies {
-    implementation("dev.kuml:kuml-kuiver:0.24.1")
+    implementation("dev.kuml:kuml-kuiver:0.24.2")
 }
 ----
 
