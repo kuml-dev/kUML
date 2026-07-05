@@ -6,6 +6,27 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.24.3] — 2026-07-05
+
+### Fixed
+
+**Actual root cause of the `libjli.dylib` ad-hoc-signing bug found and fixed: a missing `clean`**
+
+v0.24.0, v0.24.1, and v0.24.2 all shipped believing signing was fixed; none of them actually were.
+Root-caused via an isolated, temporary debug workflow (manual-dispatch-only, touched no release
+channel) run directly against a real GitHub Actions macOS runner: `release.yml`'s "Build bundled
+jlink runtime zip" step ran `./gradlew :kuml-mcp:installDist :kuml-cli:runtimeZip` without `clean`
+first — the only signing-critical `./gradlew` invocation in the whole workflow that omitted it, in
+violation of this project's own standing convention (always `clean` before any gradlew invocation,
+adopted after past incidents of incremental-build/configuration-cache staleness). The sibling
+`kuml-desktop` DMG build already ran with `clean` and was signed + notarized correctly in every
+prior release attempt; the runtime-zip step, missing it, shipped ad-hoc every time. Multiple rounds
+of live debug-workflow experimentation (mirroring `release.yml`'s exact two-invocation build+notarize
+pattern, inspecting the signature of `libjli.dylib` both as a loose file and as packed inside the
+actual zip) consistently signed correctly whenever `clean` was present and never reproduced the bug
+under that condition. Added `clean` to the step; the debug workflow used to find this has been
+deleted.
+
 ## [0.24.2] — 2026-07-05
 
 ### Still broken — see below

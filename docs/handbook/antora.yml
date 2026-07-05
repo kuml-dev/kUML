@@ -10,5 +10,5 @@ asciidoc:
     # Project-wide attributes referenced from any page
     project-url: https://github.com/kuml-dev/kUML
     project-site: https://kuml.dev
-    kuml-version: 0.24.2
+    kuml-version: 0.24.3
     page-toclevels: 3

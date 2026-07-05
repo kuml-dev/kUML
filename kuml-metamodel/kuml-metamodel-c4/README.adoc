@@ -55,7 +55,7 @@ c4Model(name = "Internet Banking") {
 [source,kotlin]
 ----
 dependencies {
-    implementation("dev.kuml:kuml-metamodel-c4:0.24.2")
+    implementation("dev.kuml:kuml-metamodel-c4:0.24.3")
 }
 ----
 
