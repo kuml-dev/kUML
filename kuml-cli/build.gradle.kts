@@ -714,21 +714,53 @@ val signBundledRuntime =
                             0xbebafeca.toInt(), // FAT_CIGAM (universal binary, byte-swapped)
                         )
 
-                    fun isMachO(file: File): Boolean =
-                        try {
-                            file.inputStream().use { stream ->
-                                val header = ByteArray(4)
-                                if (stream.read(header) != 4) return false
-                                val magic =
-                                    ((header[0].toInt() and 0xff) shl 24) or
-                                        ((header[1].toInt() and 0xff) shl 16) or
-                                        ((header[2].toInt() and 0xff) shl 8) or
-                                        (header[3].toInt() and 0xff)
-                                magic in machOMagicNumbers
+                    // v0.24.1 shipped STILL broken despite the magic-byte rewrite above:
+                    // the real CI build again signed 43/44 files, and the real shipped
+                    // artifact again had runtime/lib/libjli.dylib ad-hoc. So the `file`
+                    // command wasn't the (only) cause — something makes this file
+                    // invisible to a plain directory walk on that runner at the moment
+                    // signBundledRuntime executes. Two changes to actually find out why
+                    // instead of guessing again: (1) never silently swallow a read
+                    // failure — log it, so a future CI run's log shows the real reason
+                    // if this file (or any other) can't be read; (2) retry briefly, in
+                    // case of a transient I/O hiccup (e.g. a security-scanning process
+                    // holding the file open right after it's written) rather than a
+                    // structural miss.
+                    fun isMachO(file: File): Boolean {
+                        var lastError: Exception? = null
+                        repeat(3) { attempt ->
+                            try {
+                                file.inputStream().use { stream ->
+                                    val header = ByteArray(4)
+                                    val read = stream.read(header)
+                                    if (read != 4) {
+                                        logger.warn(
+                                            "signBundledRuntime: isMachO($file) read only $read/4 header " +
+                                                "bytes (attempt ${attempt + 1}/3)",
+                                        )
+                                        return@repeat
+                                    }
+                                    val magic =
+                                        ((header[0].toInt() and 0xff) shl 24) or
+                                            ((header[1].toInt() and 0xff) shl 16) or
+                                            ((header[2].toInt() and 0xff) shl 8) or
+                                            (header[3].toInt() and 0xff)
+                                    return magic in machOMagicNumbers
+                                }
+                            } catch (e: Exception) {
+                                lastError = e
+                                logger.warn(
+                                    "signBundledRuntime: isMachO($file) failed on attempt " +
+                                        "${attempt + 1}/3: ${e::class.simpleName}: ${e.message}",
+                                )
+                                Thread.sleep(200)
                             }
-                        } catch (e: Exception) {
-                            false
                         }
+                        if (lastError != null) {
+                            logger.warn("signBundledRuntime: isMachO($file) gave up after 3 attempts, treating as non-Mach-O")
+                        }
+                        return false
+                    }
 
                     val signedFiles = mutableListOf<File>()
 
@@ -864,6 +896,36 @@ val signBundledRuntime =
                     }
                     runtimeDir.walkTopDown().filter { it.isFile && isMachO(it) }.forEach(::verifyNoAdhocMachO)
                     logger.lifecycle("signBundledRuntime: verified ${signedFiles.size} signed file(s), 0 ad-hoc")
+
+                    // Extra diagnostic + hard gate for the exact file that shipped
+                    // broken in both v0.24.0 and v0.24.1 despite the fixes above —
+                    // located by FILENAME, independent of isMachO()/walkTopDown()
+                    // entirely, so this tells us definitively whether the problem is
+                    // "file not found by this task at all" (timing/materialization —
+                    // Gradle Sync hasn't finished writing it into imageDir yet when
+                    // this doLast runs) vs. "file found but something about signing/
+                    // detection still misses it".
+                    val criticalFilenames = setOf("libjli.dylib", "libjvm.dylib")
+                    val foundCritical = runtimeDir.walkTopDown().filter { it.isFile && it.name in criticalFilenames }.toList()
+                    logger.lifecycle(
+                        "signBundledRuntime: critical-file check — looked for $criticalFilenames under " +
+                            "$runtimeDir, found ${foundCritical.size}: ${foundCritical.map { it.absolutePath }}",
+                    )
+                    criticalFilenames.forEach { name ->
+                        val match = foundCritical.find { it.name == name }
+                        require(match != null) {
+                            "signBundledRuntime: $name does not exist anywhere under $runtimeDir at the " +
+                                "point this task ran — bundledImage did not finish materializing the " +
+                                "runtime image before signing started. Directory listing of " +
+                                "$runtimeDir/lib: " +
+                                (File(runtimeDir, "lib").listFiles()?.map { it.name }?.sorted() ?: "lib/ missing entirely")
+                        }
+                        logger.lifecycle(
+                            "signBundledRuntime: $name found at ${match.absolutePath}, " +
+                                "size=${match.length()} bytes, isMachO=${isMachO(match)}",
+                        )
+                        verifyNoAdhocMachO(match)
+                    }
 
                     logger.lifecycle(
                         "signBundledRuntime: signed $signedCount Mach-O file(s) " +
