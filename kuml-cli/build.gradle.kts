@@ -692,21 +692,45 @@ val signBundledRuntime =
                     val env = mutableMapOf("KUML_SIGN_IDENTITY" to signIdentity!!)
                     if (keychainPath != null) env["KUML_SIGN_KEYCHAIN"] = keychainPath
 
+                    // Detects Mach-O files by reading their first 4 bytes directly and
+                    // comparing against the known magic numbers, rather than shelling
+                    // out to the external `file` command and pattern-matching its
+                    // text output. Found 2026-07-05: the CI-built v0.24.0 release
+                    // signed 43 Mach-O files instead of the 44 a local build signs —
+                    // `runtime/lib/libjli.dylib` (the exact file the original AMFI bug
+                    // report named) shipped still ad-hoc-signed, breaking `kuml`/
+                    // `kuml-mcp` for every real Homebrew install with a dyld
+                    // "different Team IDs" error. The `file`(1) utility's output can
+                    // vary across libmagic database versions/OS images in ways a
+                    // substring match doesn't survive; magic-byte detection has no
+                    // external-tool dependency to drift.
+                    val machOMagicNumbers =
+                        setOf(
+                            0xfeedface.toInt(), // MH_MAGIC (32-bit)
+                            0xcefaedfe.toInt(), // MH_CIGAM (32-bit, byte-swapped)
+                            0xfeedfacf.toInt(), // MH_MAGIC_64
+                            0xcffaedfe.toInt(), // MH_CIGAM_64 (byte-swapped)
+                            0xcafebabe.toInt(), // FAT_MAGIC (universal binary)
+                            0xbebafeca.toInt(), // FAT_CIGAM (universal binary, byte-swapped)
+                        )
+
                     fun isMachO(file: File): Boolean =
                         try {
-                            val fileOutput =
-                                ProcessBuilder("file", file.absolutePath)
-                                    .redirectErrorStream(true)
-                                    .start()
-                                    .let { proc ->
-                                        val out = proc.inputStream.bufferedReader().readText()
-                                        proc.waitFor()
-                                        out
-                                    }
-                            fileOutput.contains("Mach-O")
+                            file.inputStream().use { stream ->
+                                val header = ByteArray(4)
+                                if (stream.read(header) != 4) return false
+                                val magic =
+                                    ((header[0].toInt() and 0xff) shl 24) or
+                                        ((header[1].toInt() and 0xff) shl 16) or
+                                        ((header[2].toInt() and 0xff) shl 8) or
+                                        (header[3].toInt() and 0xff)
+                                magic in machOMagicNumbers
+                            }
                         } catch (e: Exception) {
                             false
                         }
+
+                    val signedFiles = mutableListOf<File>()
 
                     fun signFile(file: File) {
                         // Plain ProcessBuilder rather than Gradle's exec APIs: this
@@ -724,6 +748,7 @@ val signBundledRuntime =
                         require(exitCode == 0) {
                             "sign-macho.sh failed (exit $exitCode) for $file:\n$output"
                         }
+                        signedFiles.add(file)
                     }
 
                     var signedCount = 0
@@ -806,9 +831,44 @@ val signBundledRuntime =
                             }
                         }
 
+                    // Post-signing safety net (added 2026-07-05 after v0.24.0 shipped
+                    // with runtime/lib/libjli.dylib still ad-hoc-signed — a Mach-O
+                    // detection miss let it silently skip signFile() entirely, so it
+                    // never even entered `signedFiles`, and nothing caught the gap
+                    // before release). Checking only `signedFiles` would repeat that
+                    // exact mistake: a file this loop never recognized as Mach-O in
+                    // the first place would be invisible to it too. Instead,
+                    // independently re-walk the actual filesystem state with the same
+                    // magic-byte detector and verify every Mach-O found — signed by
+                    // this task or not — carries a real, non-ad-hoc signature.
+                    fun verifyNoAdhocMachO(file: File) {
+                        val verifyProc =
+                            ProcessBuilder("codesign", "-dv", file.absolutePath)
+                                .redirectErrorStream(true)
+                                .start()
+                        val verifyOutput = verifyProc.inputStream.bufferedReader().readText()
+                        verifyProc.waitFor()
+                        require(!verifyOutput.contains("Signature=adhoc")) {
+                            "signBundledRuntime: $file is still ad-hoc-signed after this task " +
+                                "completed — refusing to ship a broken runtime image. " +
+                                "codesign output:\n$verifyOutput"
+                        }
+                        require(
+                            verifyOutput.contains("TeamIdentifier=") &&
+                                !verifyOutput.contains("TeamIdentifier=not set"),
+                        ) {
+                            "signBundledRuntime: $file has no real TeamIdentifier after this " +
+                                "task completed — refusing to ship a broken runtime image. " +
+                                "codesign output:\n$verifyOutput"
+                        }
+                    }
+                    runtimeDir.walkTopDown().filter { it.isFile && isMachO(it) }.forEach(::verifyNoAdhocMachO)
+                    logger.lifecycle("signBundledRuntime: verified ${signedFiles.size} signed file(s), 0 ad-hoc")
+
                     logger.lifecycle(
                         "signBundledRuntime: signed $signedCount Mach-O file(s) " +
-                            "under $runtimeDir and nested inside dependency jars",
+                            "under $runtimeDir and nested inside dependency jars " +
+                            "(verified: none ad-hoc, all carry a real TeamIdentifier)",
                     )
                 }
             },
