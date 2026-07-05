@@ -39,8 +39,14 @@ class PepelaThermostatSmokeTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${stmScript.absolutePath} ${stmEvents.absolutePath} " +
-                            "--out ${out.absolutePath} --epoch-clock",
+                        listOf(
+                            "simulate",
+                            stmScript.absolutePath,
+                            stmEvents.absolutePath,
+                            "--out",
+                            out.absolutePath,
+                            "--epoch-clock",
+                        ),
                     )
                 result.statusCode shouldBe 0
                 out.exists() shouldBe true
@@ -57,8 +63,14 @@ class PepelaThermostatSmokeTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${stmScript.absolutePath} ${stmEvents.absolutePath} " +
-                            "--out ${out.absolutePath} --epoch-clock",
+                        listOf(
+                            "simulate",
+                            stmScript.absolutePath,
+                            stmEvents.absolutePath,
+                            "--out",
+                            out.absolutePath,
+                            "--epoch-clock",
+                        ),
                     )
                 result.statusCode shouldBe 0
 
@@ -94,17 +106,29 @@ class PepelaThermostatSmokeTest :
             try {
                 // First produce a trace from the traffic-light to use as a "wrong" expected
                 KumlCli().test(
-                    "simulate ${File("src/test/resources/simulate/sysml2/traffic-light.kuml.kts").absolutePath}" +
-                        " ${wrongExpected.absolutePath} " +
-                        "--out ${expectedTraceFile.absolutePath} --epoch-clock",
+                    listOf(
+                        "simulate",
+                        File("src/test/resources/simulate/sysml2/traffic-light.kuml.kts").absolutePath,
+                        wrongExpected.absolutePath,
+                        "--out",
+                        expectedTraceFile.absolutePath,
+                        "--epoch-clock",
+                    ),
                 )
 
                 // Now compare our thermostat trace against that incompatible expected trace
                 val result =
                     KumlCli().test(
-                        "simulate ${stmScript.absolutePath} ${stmEvents.absolutePath} " +
-                            "--out ${out.absolutePath} --epoch-clock " +
-                            "--expected ${expectedTraceFile.absolutePath}",
+                        listOf(
+                            "simulate",
+                            stmScript.absolutePath,
+                            stmEvents.absolutePath,
+                            "--out",
+                            out.absolutePath,
+                            "--epoch-clock",
+                            "--expected",
+                            expectedTraceFile.absolutePath,
+                        ),
                     )
                 // Should detect mismatch and return non-zero
                 result.statusCode shouldNotBe 0
@@ -121,8 +145,7 @@ class PepelaThermostatSmokeTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${flowScript.absolutePath} ${flowEvents.absolutePath} " +
-                            "--out ${out.absolutePath}",
+                        listOf("simulate", flowScript.absolutePath, flowEvents.absolutePath, "--out", out.absolutePath),
                     )
                 result.statusCode shouldBe 0
 
@@ -141,8 +164,7 @@ class PepelaThermostatSmokeTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${flowScript.absolutePath} ${flowEvents.absolutePath} " +
-                            "--out ${out.absolutePath}",
+                        listOf("simulate", flowScript.absolutePath, flowEvents.absolutePath, "--out", out.absolutePath),
                     )
                 result.statusCode shouldBe 0
 
@@ -168,12 +190,24 @@ class PepelaThermostatSmokeTest :
             val out2 = Files.createTempFile("pepela-det-2-", ".trace.json").toFile()
             try {
                 KumlCli().test(
-                    "simulate ${stmScript.absolutePath} ${stmEvents.absolutePath} " +
-                        "--out ${out1.absolutePath} --epoch-clock",
+                    listOf(
+                        "simulate",
+                        stmScript.absolutePath,
+                        stmEvents.absolutePath,
+                        "--out",
+                        out1.absolutePath,
+                        "--epoch-clock",
+                    ),
                 )
                 KumlCli().test(
-                    "simulate ${stmScript.absolutePath} ${stmEvents.absolutePath} " +
-                        "--out ${out2.absolutePath} --epoch-clock",
+                    listOf(
+                        "simulate",
+                        stmScript.absolutePath,
+                        stmEvents.absolutePath,
+                        "--out",
+                        out2.absolutePath,
+                        "--epoch-clock",
+                    ),
                 )
                 out1.readText() shouldBe out2.readText()
             } finally {

@@ -258,7 +258,20 @@ class PluginInitCommandTest :
                 try {
                     val result =
                         KumlCli().test(
-                            "plugin init theme --non-interactive --id com.example.t --name T --maintainer Alice --output ${outputDir.absolutePath}",
+                            listOf(
+                                "plugin",
+                                "init",
+                                "theme",
+                                "--non-interactive",
+                                "--id",
+                                "com.example.t",
+                                "--name",
+                                "T",
+                                "--maintainer",
+                                "Alice",
+                                "--output",
+                                outputDir.absolutePath,
+                            ),
                         )
                     result.statusCode shouldBe 0
                     outputDir.exists() shouldBe true
@@ -273,7 +286,18 @@ class PluginInitCommandTest :
                 try {
                     val result =
                         KumlCli().test(
-                            "plugin init theme --non-interactive --name T --maintainer Alice --output ${tmpDir.absolutePath}",
+                            listOf(
+                                "plugin",
+                                "init",
+                                "theme",
+                                "--non-interactive",
+                                "--name",
+                                "T",
+                                "--maintainer",
+                                "Alice",
+                                "--output",
+                                tmpDir.absolutePath,
+                            ),
                         )
                     result.statusCode shouldBe ExitCodes.USAGE
                 } finally {
@@ -286,7 +310,19 @@ class PluginInitCommandTest :
                 try {
                     val result =
                         KumlCli().test(
-                            "plugin init --non-interactive --id com.example.t --name T --maintainer Alice --output ${tmpDir.absolutePath}",
+                            listOf(
+                                "plugin",
+                                "init",
+                                "--non-interactive",
+                                "--id",
+                                "com.example.t",
+                                "--name",
+                                "T",
+                                "--maintainer",
+                                "Alice",
+                                "--output",
+                                tmpDir.absolutePath,
+                            ),
                         )
                     result.statusCode shouldBe ExitCodes.USAGE
                 } finally {

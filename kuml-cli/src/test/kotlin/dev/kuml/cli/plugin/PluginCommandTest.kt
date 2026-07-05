@@ -191,7 +191,7 @@ class PluginCommandTest :
         "install: jar without manifest exits with PLUGIN_NOT_FOUND (40)" {
             val jar = createJarWithoutManifest()
             try {
-                val result = PluginInstallCommand().test(jar.absolutePath)
+                val result = PluginInstallCommand().test(listOf(jar.absolutePath))
                 result.statusCode shouldBe 40
             } finally {
                 jar.delete()
@@ -201,7 +201,7 @@ class PluginCommandTest :
         "install: jar with invalid JSON manifest exits with PLUGIN_NOT_FOUND (40)" {
             val jar = createJarWithManifest("{invalid json}")
             try {
-                val result = PluginInstallCommand().test(jar.absolutePath)
+                val result = PluginInstallCommand().test(listOf(jar.absolutePath))
                 result.statusCode shouldBe 40
             } finally {
                 jar.delete()

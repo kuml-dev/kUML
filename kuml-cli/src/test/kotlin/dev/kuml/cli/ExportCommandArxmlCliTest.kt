@@ -67,7 +67,10 @@ class ExportCommandArxmlCliTest :
             val script = writeArxmlCompatibleScript(tmpDir)
             val out = tmpDir.resolve("output.arxml")
             try {
-                val result = KumlCli().test("export --format arxml ${script.absolutePath} -o ${out.absolutePath}")
+                val result =
+                    KumlCli().test(
+                        listOf("export", "--format", "arxml", script.absolutePath, "-o", out.absolutePath),
+                    )
                 result.statusCode shouldBe 0
                 out.exists() shouldBe true
                 val content = out.readText()
@@ -83,7 +86,7 @@ class ExportCommandArxmlCliTest :
             val tmpDir = Files.createTempDirectory("kuml-arxml-c4-").toFile()
             val script = writeC4Script(tmpDir)
             try {
-                val result = KumlCli().test("export --format arxml ${script.absolutePath}")
+                val result = KumlCli().test(listOf("export", "--format", "arxml", script.absolutePath))
                 result.statusCode shouldBe ExitCodes.SCRIPT_ERROR
             } finally {
                 tmpDir.deleteRecursively()
@@ -95,7 +98,7 @@ class ExportCommandArxmlCliTest :
             val tmpDir = Files.createTempDirectory("kuml-arxml-derive-").toFile()
             val script = writeArxmlCompatibleScript(tmpDir)
             try {
-                val result = KumlCli().test("export --format arxml ${script.absolutePath}")
+                val result = KumlCli().test(listOf("export", "--format", "arxml", script.absolutePath))
                 result.statusCode shouldBe 0
                 // The derived output file should be next to the script
                 val derived = tmpDir.resolve("autosar-test.arxml")
@@ -113,7 +116,7 @@ class ExportCommandArxmlCliTest :
             val tmpDir = Files.createTempDirectory("kuml-arxml-unavail-").toFile()
             val script = writeArxmlCompatibleScript(tmpDir)
             try {
-                val result = KumlCli().test("export --format arxml ${script.absolutePath}")
+                val result = KumlCli().test(listOf("export", "--format", "arxml", script.absolutePath))
                 result.statusCode shouldBe ExitCodes.FORMAT_NOT_AVAILABLE
             } finally {
                 tmpDir.deleteRecursively()

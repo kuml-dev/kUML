@@ -13,7 +13,7 @@ class FmtCommandTest :
             val tmpFile = Files.createTempFile("kuml-fmt-test", ".kuml.kts").toFile()
             tmpFile.writeText("classOf(\"A\")   \n\n\n\tattribute(\"id\", \"UUID\")  \n")
 
-            KumlCli().test("fmt ${tmpFile.absolutePath}")
+            KumlCli().test(listOf("fmt", tmpFile.absolutePath))
 
             tmpFile.readText() shouldBe "classOf(\"A\")\n\n    attribute(\"id\", \"UUID\")\n"
             tmpFile.delete()
@@ -24,7 +24,7 @@ class FmtCommandTest :
             val originalContent = "classOf(\"A\")   \n"
             tmpFile.writeText(originalContent)
 
-            val result = KumlCli().test("fmt --check ${tmpFile.absolutePath}")
+            val result = KumlCli().test(listOf("fmt", "--check", tmpFile.absolutePath))
             result.statusCode shouldBe ExitCodes.FMT_CHECK_FAILED
 
             // File must NOT be modified in check mode

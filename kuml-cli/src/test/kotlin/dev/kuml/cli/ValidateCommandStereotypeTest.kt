@@ -22,7 +22,7 @@ class ValidateCommandStereotypeTest :
         test("validate with --check-stereotypes on model without stereotypes exits 0") {
             val fixture = File("src/test/resources/minimal.kuml.kts")
 
-            val result = KumlCli().test("validate ${fixture.absolutePath} --check-stereotypes")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath, "--check-stereotypes"))
             result.statusCode shouldBe 0
             result.output shouldContain "valid"
         }
@@ -32,7 +32,7 @@ class ValidateCommandStereotypeTest :
         test("validate with --check-stereotypes reports missing required tag with exit 5") {
             val fixture = File("src/test/resources/stereotype-missing-required.kuml.kts")
 
-            val result = KumlCli().test("validate ${fixture.absolutePath} --check-stereotypes")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath, "--check-stereotypes"))
             result.statusCode shouldBe ExitCodes.VALIDATION_VIOLATIONS
             // Must mention the stereotype name and property name
             result.output shouldContain "Entity"
@@ -44,7 +44,7 @@ class ValidateCommandStereotypeTest :
         test("validate without --check-stereotypes ignores stereotype violations (backward compat)") {
             val fixture = File("src/test/resources/stereotype-missing-required.kuml.kts")
 
-            val result = KumlCli().test("validate ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath))
             // Without --check-stereotypes, stereotype violations must NOT appear
             result.statusCode shouldBe 0
             result.output shouldNotContain "tableName"

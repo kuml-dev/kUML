@@ -58,7 +58,7 @@ class ExportCommandProfileUmlCliTest :
             val scriptFile = writeProfileScript(tmpDir)
             val outputFile = tmpDir.resolve("output.profile.uml")
             val cmd = KumlCli()
-            val result = cmd.test("export --format profile-uml ${scriptFile.absolutePath} -o ${outputFile.absolutePath}")
+            val result = cmd.test(listOf("export", "--format", "profile-uml", scriptFile.absolutePath, "-o", outputFile.absolutePath))
             // Should not mention "Invalid value" (i.e. the choice is registered)
             result.output shouldNotContain "Invalid value"
         }
@@ -70,7 +70,7 @@ class ExportCommandProfileUmlCliTest :
             val scriptFile = writeProfileScript(tmpDir)
             val outputFile = tmpDir.resolve("autosar.profile.uml")
             val cmd = KumlCli()
-            val result = cmd.test("export --format profile-uml ${scriptFile.absolutePath} -o ${outputFile.absolutePath}")
+            val result = cmd.test(listOf("export", "--format", "profile-uml", scriptFile.absolutePath, "-o", outputFile.absolutePath))
             result.statusCode shouldBe 0
             outputFile.exists() shouldBe true
         }
@@ -82,7 +82,7 @@ class ExportCommandProfileUmlCliTest :
             val scriptFile = writeProfileScript(tmpDir)
             val outputFile = tmpDir.resolve("autosar.profile.uml")
             val cmd = KumlCli()
-            cmd.test("export --format profile-uml ${scriptFile.absolutePath} -o ${outputFile.absolutePath}")
+            cmd.test(listOf("export", "--format", "profile-uml", scriptFile.absolutePath, "-o", outputFile.absolutePath))
             outputFile.readText() shouldContain "Profile"
         }
 
@@ -93,7 +93,7 @@ class ExportCommandProfileUmlCliTest :
             val scriptFile = writeProfileScript(tmpDir)
             val outputFile = tmpDir.resolve("autosar.profile.uml")
             val cmd = KumlCli()
-            val result = cmd.test("export --format profile-uml ${scriptFile.absolutePath} -o ${outputFile.absolutePath}")
+            val result = cmd.test(listOf("export", "--format", "profile-uml", scriptFile.absolutePath, "-o", outputFile.absolutePath))
             result.output shouldContain "Exported profile UML"
         }
 
@@ -104,7 +104,7 @@ class ExportCommandProfileUmlCliTest :
             val scriptFile = writeUmlScript(tmpDir)
             val outputFile = tmpDir.resolve("bad.profile.uml")
             val cmd = KumlCli()
-            val result = cmd.test("export --format profile-uml ${scriptFile.absolutePath} -o ${outputFile.absolutePath}")
+            val result = cmd.test(listOf("export", "--format", "profile-uml", scriptFile.absolutePath, "-o", outputFile.absolutePath))
             result.statusCode shouldBe ExitCodes.SCRIPT_ERROR
         }
 
@@ -116,7 +116,7 @@ class ExportCommandProfileUmlCliTest :
             val scriptFile = writeProfileScript(tmpDir)
             val outputFile = tmpDir.resolve("autosar.profile.uml")
             val cmd = KumlCli()
-            val result = cmd.test("export --format profile-uml ${scriptFile.absolutePath} -o ${outputFile.absolutePath}")
+            val result = cmd.test(listOf("export", "--format", "profile-uml", scriptFile.absolutePath, "-o", outputFile.absolutePath))
             result.statusCode shouldBe ExitCodes.FORMAT_NOT_AVAILABLE
         }
 
@@ -128,7 +128,7 @@ class ExportCommandProfileUmlCliTest :
             val scriptFile = writeProfileScript(tmpDir)
             val expectedOutput = tmpDir.resolve("my-profile.profile.uml")
             val cmd = KumlCli()
-            cmd.test("export --format profile-uml ${scriptFile.absolutePath}")
+            cmd.test(listOf("export", "--format", "profile-uml", scriptFile.absolutePath))
             expectedOutput.exists() shouldBe true
         }
     })

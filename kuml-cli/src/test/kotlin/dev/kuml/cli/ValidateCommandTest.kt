@@ -14,21 +14,21 @@ class ValidateCommandTest :
             val fixture = File("src/test/resources/minimal.kuml.kts")
 
             // Should complete without throwing ProgramResult (exit code 0)
-            val result = KumlCli().test("validate ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath))
             result.statusCode shouldBe 0
         }
 
         test("validate detects violation and exits with code 5") {
             val fixture = File("src/test/resources/violated-constraints.kuml.kts")
 
-            val result = KumlCli().test("validate ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath))
             result.statusCode shouldBe ExitCodes.VALIDATION_VIOLATIONS
         }
 
         test("validate --output json produces valid JSON") {
             val fixture = File("src/test/resources/violated-constraints.kuml.kts")
 
-            val result = KumlCli().test("validate ${fixture.absolutePath} --output json")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath, "--output", "json"))
             result.statusCode shouldBe ExitCodes.VALIDATION_VIOLATIONS
             result.output shouldContain "\"valid\""
             result.output shouldContain "\"violations\""

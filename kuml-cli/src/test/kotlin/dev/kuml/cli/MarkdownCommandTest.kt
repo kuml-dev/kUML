@@ -37,7 +37,10 @@ class MarkdownCommandTest :
         test("inline mode replaces block with inline <svg>") {
             val input = mdFile()
             val out = Files.createTempFile("kuml-cli-out", ".md").toFile()
-            val result = KumlCli().test("markdown --input ${input.absolutePath} --output ${out.absolutePath} --mode inline")
+            val result =
+                KumlCli().test(
+                    listOf("markdown", "--input", input.absolutePath, "--output", out.absolutePath, "--mode", "inline"),
+                )
             result.statusCode shouldBe 0
             val produced = out.readText()
             produced shouldContain "<svg"
@@ -54,8 +57,17 @@ class MarkdownCommandTest :
 
             val result =
                 KumlCli().test(
-                    "markdown --input ${input.absolutePath} --output ${out.absolutePath} " +
-                        "--mode linked-svg --assets-dir ${assets.absolutePath}",
+                    listOf(
+                        "markdown",
+                        "--input",
+                        input.absolutePath,
+                        "--output",
+                        out.absolutePath,
+                        "--mode",
+                        "linked-svg",
+                        "--assets-dir",
+                        assets.absolutePath,
+                    ),
                 )
             result.statusCode shouldBe 0
             out.readText() shouldContain "](" // Markdown image link
@@ -74,8 +86,19 @@ class MarkdownCommandTest :
 
             val result =
                 KumlCli().test(
-                    "markdown --input ${input.absolutePath} --output ${out.absolutePath} " +
-                        "--mode linked-png --assets-dir ${assets.absolutePath} --width 600",
+                    listOf(
+                        "markdown",
+                        "--input",
+                        input.absolutePath,
+                        "--output",
+                        out.absolutePath,
+                        "--mode",
+                        "linked-png",
+                        "--assets-dir",
+                        assets.absolutePath,
+                        "--width",
+                        "600",
+                    ),
                 )
             result.statusCode shouldBe 0
             out.readText() shouldContain ".png)"

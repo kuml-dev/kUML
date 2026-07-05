@@ -20,7 +20,7 @@ class FmtCommandCanonicalTest :
         "fmt --canonical: writes canonical form to file" {
             val file = createTempKumlFile("model {\n\n    state(\"A\")\n\n}\n")
             try {
-                val result = FmtCommand().test("--canonical ${file.absolutePath}")
+                val result = FmtCommand().test(listOf("--canonical", file.absolutePath))
                 result.statusCode shouldBe 0
                 result.output shouldContain "formatted"
                 // File must now contain no blank lines
@@ -34,7 +34,7 @@ class FmtCommandCanonicalTest :
             // A file with blank lines is valid fmt-output but not canonical
             val file = createTempKumlFile("model {\n\n    state(\"A\")\n\n}\n")
             try {
-                val result = FmtCommand().test("--canonical --check ${file.absolutePath}")
+                val result = FmtCommand().test(listOf("--canonical", "--check", file.absolutePath))
                 result.statusCode shouldBe ExitCodes.FMT_CHECK_FAILED
                 result.output shouldContain "needs formatting"
             } finally {
@@ -46,7 +46,7 @@ class FmtCommandCanonicalTest :
             val canonical = "model {\n    state(\"A\")\n}\n"
             val file = createTempKumlFile(canonical)
             try {
-                val result = FmtCommand().test("--canonical --check ${file.absolutePath}")
+                val result = FmtCommand().test(listOf("--canonical", "--check", file.absolutePath))
                 result.statusCode shouldBe 0
                 result.output shouldContain ": ok"
             } finally {
@@ -59,7 +59,7 @@ class FmtCommandCanonicalTest :
             val alreadyFormatted = "model {\n\n    state(\"A\")\n}\n"
             val file = createTempKumlFile(alreadyFormatted)
             try {
-                val result = FmtCommand().test("--check ${file.absolutePath}")
+                val result = FmtCommand().test(listOf("--check", file.absolutePath))
                 result.statusCode shouldBe 0
                 result.output shouldContain ": ok"
                 // File must be untouched

@@ -240,7 +240,7 @@ class StructuralValidatorTest :
             val fixture = File("src/test/resources/minimal.kuml.kts")
             // Without --no-check-structure: may or may not have violations,
             // but the flag makes the run succeed even if the model has issues.
-            val result = KumlCli().test("validate ${fixture.absolutePath} --no-check-structure")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath, "--no-check-structure"))
             result.statusCode shouldBe 0
             // The structural section should not appear in text output
             result.output.shouldBe(result.output) // baseline: just ensure no crash
@@ -265,7 +265,7 @@ class StructuralValidatorTest :
 
         test("validate --output json includes 'structural' key in violations split") {
             val fixture = File("src/test/resources/minimal.kuml.kts")
-            val result = KumlCli().test("validate ${fixture.absolutePath} --output json")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath, "--output", "json"))
             // Default JSON output (no structural issues) uses KumlValidationResult serializer
             // which has "violations" as an array — key exists
             result.output shouldContain "\"violations\""

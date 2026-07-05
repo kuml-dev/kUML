@@ -22,7 +22,7 @@ class ExportCommandCliTest :
             try {
                 val result =
                     KumlCli().test(
-                        "export --format structurizr ${sample.absolutePath} -o ${out.absolutePath}",
+                        listOf("export", "--format", "structurizr", sample.absolutePath, "-o", out.absolutePath),
                     )
                 result.statusCode shouldBe 0
                 val text = out.readText()
@@ -54,7 +54,7 @@ class ExportCommandCliTest :
             try {
                 val result =
                     KumlCli().test(
-                        "export --format structurizr ${script.absolutePath}",
+                        listOf("export", "--format", "structurizr", script.absolutePath),
                     )
                 result.statusCode shouldBe ExitCodes.SCRIPT_ERROR
             } finally {

@@ -38,7 +38,10 @@ class AsciidocCommandTest :
         test("inline mode replaces block with inline <svg> passthrough") {
             val input = adocFile()
             val out = Files.createTempFile("kuml-cli-out", ".adoc").toFile()
-            val result = KumlCli().test("asciidoc --input ${input.absolutePath} --output ${out.absolutePath} --mode inline")
+            val result =
+                KumlCli().test(
+                    listOf("asciidoc", "--input", input.absolutePath, "--output", out.absolutePath, "--mode", "inline"),
+                )
             result.statusCode shouldBe 0
             val produced = out.readText()
             produced shouldContain "<svg"
@@ -56,8 +59,17 @@ class AsciidocCommandTest :
 
             val result =
                 KumlCli().test(
-                    "asciidoc --input ${input.absolutePath} --output ${out.absolutePath} " +
-                        "--mode linked-svg --assets-dir ${assets.absolutePath}",
+                    listOf(
+                        "asciidoc",
+                        "--input",
+                        input.absolutePath,
+                        "--output",
+                        out.absolutePath,
+                        "--mode",
+                        "linked-svg",
+                        "--assets-dir",
+                        assets.absolutePath,
+                    ),
                 )
             result.statusCode shouldBe 0
             out.readText() shouldContain "image::"
@@ -76,8 +88,19 @@ class AsciidocCommandTest :
 
             val result =
                 KumlCli().test(
-                    "asciidoc --input ${input.absolutePath} --output ${out.absolutePath} " +
-                        "--mode linked-png --assets-dir ${assets.absolutePath} --width 600",
+                    listOf(
+                        "asciidoc",
+                        "--input",
+                        input.absolutePath,
+                        "--output",
+                        out.absolutePath,
+                        "--mode",
+                        "linked-png",
+                        "--assets-dir",
+                        assets.absolutePath,
+                        "--width",
+                        "600",
+                    ),
                 )
             result.statusCode shouldBe 0
             out.readText() shouldContain ".png["
@@ -110,7 +133,15 @@ class AsciidocCommandTest :
 
             val result =
                 KumlCli().test(
-                    "asciidoc --input-dir ${inDir.absolutePath} --output-dir ${outDir.absolutePath} --mode linked-svg",
+                    listOf(
+                        "asciidoc",
+                        "--input-dir",
+                        inDir.absolutePath,
+                        "--output-dir",
+                        outDir.absolutePath,
+                        "--mode",
+                        "linked-svg",
+                    ),
                 )
             result.statusCode shouldBe 0
 
@@ -152,7 +183,15 @@ class AsciidocCommandTest :
 
             val result =
                 KumlCli().test(
-                    "asciidoc --input-dir ${inDir.absolutePath} --output-dir ${outDir.absolutePath} --mode linked-svg",
+                    listOf(
+                        "asciidoc",
+                        "--input-dir",
+                        inDir.absolutePath,
+                        "--output-dir",
+                        outDir.absolutePath,
+                        "--mode",
+                        "linked-svg",
+                    ),
                 )
             result.statusCode shouldBe 0
 
@@ -184,7 +223,15 @@ class AsciidocCommandTest :
 
             val result =
                 KumlCli().test(
-                    "asciidoc --input-dir ${inDir.absolutePath} --output-dir ${outDir.absolutePath} --mode inline",
+                    listOf(
+                        "asciidoc",
+                        "--input-dir",
+                        inDir.absolutePath,
+                        "--output-dir",
+                        outDir.absolutePath,
+                        "--mode",
+                        "inline",
+                    ),
                 )
             result.statusCode shouldBe 0
 
@@ -201,7 +248,7 @@ class AsciidocCommandTest :
             val outDir = Files.createTempDirectory("kuml-cli-outdir").toFile()
             val result =
                 KumlCli().test(
-                    "asciidoc --input ${input.absolutePath} --input-dir ${outDir.absolutePath}",
+                    listOf("asciidoc", "--input", input.absolutePath, "--input-dir", outDir.absolutePath),
                 )
             result.statusCode shouldBe ExitCodes.IO_ERROR
             input.delete()

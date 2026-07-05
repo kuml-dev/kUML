@@ -30,8 +30,7 @@ class SimulateCommandActTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${simpleScript.absolutePath} ${simpleEvents.absolutePath} " +
-                            "--out ${out.absolutePath}",
+                        listOf("simulate", simpleScript.absolutePath, simpleEvents.absolutePath, "--out", out.absolutePath),
                     )
 
                 result.statusCode shouldBe 0
@@ -54,8 +53,15 @@ class SimulateCommandActTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${loopScript.absolutePath} ${simpleEvents.absolutePath} " +
-                            "--max-steps 3 --out ${out.absolutePath}",
+                        listOf(
+                            "simulate",
+                            loopScript.absolutePath,
+                            simpleEvents.absolutePath,
+                            "--max-steps",
+                            "3",
+                            "--out",
+                            out.absolutePath,
+                        ),
                     )
 
                 // ActivityDeadlockException is caught and printed to System.err, then
@@ -73,8 +79,14 @@ class SimulateCommandActTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${stmScript.absolutePath} ${stmEvents.absolutePath} " +
-                            "--out ${out.absolutePath} --epoch-clock",
+                        listOf(
+                            "simulate",
+                            stmScript.absolutePath,
+                            stmEvents.absolutePath,
+                            "--out",
+                            out.absolutePath,
+                            "--epoch-clock",
+                        ),
                     )
 
                 result.statusCode shouldBe 0
@@ -92,8 +104,7 @@ class SimulateCommandActTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${simpleScript.absolutePath} ${simpleEvents.absolutePath} " +
-                            "--out ${out.absolutePath}",
+                        listOf("simulate", simpleScript.absolutePath, simpleEvents.absolutePath, "--out", out.absolutePath),
                     )
 
                 result.statusCode shouldBe 0

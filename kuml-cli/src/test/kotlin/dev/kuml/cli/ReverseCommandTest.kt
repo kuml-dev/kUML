@@ -24,7 +24,7 @@ class ReverseCommandTest :
             Files.writeString(tmp.resolve("C.java"), "public class C {}")
             Files.writeString(tmp.resolve("One.kt"), "class One")
 
-            val result = KumlCli().test("reverse $tmp")
+            val result = KumlCli().test(listOf("reverse", tmp.toString()))
             result.statusCode shouldBe 0
             result.stdout shouldContain "classDiagram"
             result.stdout shouldContain "class(name = \"A\""
@@ -38,7 +38,7 @@ class ReverseCommandTest :
             Files.writeString(tmp.resolve("C.kt"), "class C")
             Files.writeString(tmp.resolve("One.java"), "public class One {}")
 
-            val result = KumlCli().test("reverse $tmp")
+            val result = KumlCli().test(listOf("reverse", tmp.toString()))
             result.statusCode shouldBe 0
             result.stdout shouldContain "'kotlin' engine"
             result.stdout shouldContain "class(name = \"A\""
@@ -48,7 +48,7 @@ class ReverseCommandTest :
             val tmp = Files.createTempDirectory("rev-explicit-")
             Files.writeString(tmp.resolve("Foo.kt"), "class Foo")
 
-            val result = KumlCli().test("reverse $tmp --lang kotlin")
+            val result = KumlCli().test(listOf("reverse", tmp.toString(), "--lang", "kotlin"))
             result.statusCode shouldBe 0
             result.stdout shouldContain "'kotlin' engine"
         }
@@ -57,14 +57,14 @@ class ReverseCommandTest :
             val tmp = Files.createTempDirectory("rev-unknown-")
             Files.writeString(tmp.resolve("Foo.kt"), "class Foo")
 
-            val result = KumlCli().test("reverse $tmp --lang elixir")
+            val result = KumlCli().test(listOf("reverse", tmp.toString(), "--lang", "elixir"))
             result.statusCode shouldBe ExitCodes.REVERSE_ENGINE_NOT_FOUND
             result.stderr shouldContain "Unknown reverse engine 'elixir'"
         }
 
         test("empty source directory exits with REVERSE_NO_SOURCES") {
             val tmp = Files.createTempDirectory("rev-empty-")
-            val result = KumlCli().test("reverse $tmp")
+            val result = KumlCli().test(listOf("reverse", tmp.toString()))
             result.statusCode shouldBe ExitCodes.REVERSE_NO_SOURCES
             result.stderr shouldContain "No source files"
         }
@@ -74,7 +74,7 @@ class ReverseCommandTest :
             Files.writeString(tmp.resolve("Foo.kt"), "class Foo")
             val outFile = Files.createTempFile("rev-out-", ".kuml.kts").toFile()
 
-            val result = KumlCli().test("reverse $tmp --output ${outFile.absolutePath}")
+            val result = KumlCli().test(listOf("reverse", tmp.toString(), "--output", outFile.absolutePath))
             result.statusCode shouldBe 0
             outFile.exists() shouldBe true
             val text = outFile.readText()
@@ -91,7 +91,7 @@ class ReverseCommandTest :
         test("--model-name is reflected in classDiagram name") {
             val tmp = Files.createTempDirectory("rev-name-")
             Files.writeString(tmp.resolve("Foo.kt"), "class Foo")
-            val result = KumlCli().test("reverse $tmp --model-name MyDomain")
+            val result = KumlCli().test(listOf("reverse", tmp.toString(), "--model-name", "MyDomain"))
             result.statusCode shouldBe 0
             result.stdout shouldContain "classDiagram(name = \"MyDomain\")"
         }
@@ -106,7 +106,7 @@ class ReverseCommandTest :
                 fun topLevelFunc() {}
                 """.trimIndent(),
             )
-            val result = KumlCli().test("reverse $tmp --lang kotlin")
+            val result = KumlCli().test(listOf("reverse", tmp.toString(), "--lang", "kotlin"))
             result.statusCode shouldBe 0
             // Either summary or some INFO message should be on stderr
             result.stderr.shouldNotBeEmpty()

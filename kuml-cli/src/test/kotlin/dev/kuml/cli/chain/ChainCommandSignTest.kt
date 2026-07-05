@@ -31,7 +31,7 @@ class ChainCommandSignTest :
                 modelFile.writeText(MODEL_CONTENT)
                 val result =
                     ChainCommand().test(
-                        "sign ${modelFile.absolutePath} --private-key $PRIV_KEY_0",
+                        listOf("sign", modelFile.absolutePath, "--private-key", PRIV_KEY_0),
                     )
                 result.statusCode shouldBe 0
 
@@ -58,7 +58,14 @@ class ChainCommandSignTest :
                 outFile.delete() // start from absent state
                 val result =
                     ChainCommand().test(
-                        "sign ${modelFile.absolutePath} --private-key $PRIV_KEY_0 --out ${outFile.absolutePath}",
+                        listOf(
+                            "sign",
+                            modelFile.absolutePath,
+                            "--private-key",
+                            PRIV_KEY_0,
+                            "--out",
+                            outFile.absolutePath,
+                        ),
                     )
                 result.statusCode shouldBe 0
                 outFile.exists() shouldBe true
@@ -75,7 +82,7 @@ class ChainCommandSignTest :
         "sign: nonexistent model file → IO_ERROR (exit 4)" {
             val result =
                 ChainCommand().test(
-                    "sign /no/such/file.kuml.kts --private-key $PRIV_KEY_0",
+                    listOf("sign", "/no/such/file.kuml.kts", "--private-key", PRIV_KEY_0),
                 )
             result.statusCode shouldBe 4
             result.stderr shouldContain "I/O error reading"
@@ -87,7 +94,7 @@ class ChainCommandSignTest :
                 modelFile.writeText(MODEL_CONTENT)
                 val result =
                     ChainCommand().test(
-                        "sign ${modelFile.absolutePath} --private-key 0xDEAD",
+                        listOf("sign", modelFile.absolutePath, "--private-key", "0xDEAD"),
                     )
                 result.statusCode shouldBe 52
                 result.stderr shouldContain "Invalid private key"
@@ -102,7 +109,7 @@ class ChainCommandSignTest :
                 modelFile.writeText(MODEL_CONTENT)
                 val result =
                     ChainCommand().test(
-                        "sign ${modelFile.absolutePath} --private-key $PRIV_KEY_0",
+                        listOf("sign", modelFile.absolutePath, "--private-key", PRIV_KEY_0),
                     )
                 result.statusCode shouldBe 0
                 result.output shouldContain ADDR_0
@@ -119,10 +126,10 @@ class ChainCommandSignTest :
             val sigFile = java.io.File("${modelFile.absolutePath}.sig")
             try {
                 modelFile.writeText(MODEL_CONTENT)
-                ChainCommand().test("sign ${modelFile.absolutePath} --private-key $PRIV_KEY_0")
+                ChainCommand().test(listOf("sign", modelFile.absolutePath, "--private-key", PRIV_KEY_0))
 
                 val result =
-                    ChainCommand().test("verify-sig ${modelFile.absolutePath}")
+                    ChainCommand().test(listOf("verify-sig", modelFile.absolutePath))
                 result.statusCode shouldBe 0
                 result.output shouldContain "VALID"
             } finally {
@@ -139,7 +146,7 @@ class ChainCommandSignTest :
                 sigFile.writeText("{ not valid json at all }")
 
                 val result =
-                    ChainCommand().test("verify-sig ${modelFile.absolutePath}")
+                    ChainCommand().test(listOf("verify-sig", modelFile.absolutePath))
                 result.statusCode shouldBe 52
                 result.stderr shouldContain "Malformed signature file"
             } finally {
@@ -154,7 +161,7 @@ class ChainCommandSignTest :
                 modelFile.writeText(MODEL_CONTENT)
                 // Do NOT create the .sig file
                 val result =
-                    ChainCommand().test("verify-sig ${modelFile.absolutePath}")
+                    ChainCommand().test(listOf("verify-sig", modelFile.absolutePath))
                 result.statusCode shouldBe 4
                 result.stderr shouldContain "I/O error reading"
             } finally {
@@ -167,11 +174,11 @@ class ChainCommandSignTest :
             val sigFile = java.io.File("${modelFile.absolutePath}.sig")
             try {
                 modelFile.writeText(MODEL_CONTENT)
-                ChainCommand().test("sign ${modelFile.absolutePath} --private-key $PRIV_KEY_0")
+                ChainCommand().test(listOf("sign", modelFile.absolutePath, "--private-key", PRIV_KEY_0))
 
                 val result =
                     ChainCommand().test(
-                        "verify-sig ${modelFile.absolutePath} --expected-signer $ADDR_0",
+                        listOf("verify-sig", modelFile.absolutePath, "--expected-signer", ADDR_0),
                     )
                 result.statusCode shouldBe 0
                 result.output shouldContain "Signer matches expected address"
@@ -186,11 +193,11 @@ class ChainCommandSignTest :
             val sigFile = java.io.File("${modelFile.absolutePath}.sig")
             try {
                 modelFile.writeText(MODEL_CONTENT)
-                ChainCommand().test("sign ${modelFile.absolutePath} --private-key $PRIV_KEY_0")
+                ChainCommand().test(listOf("sign", modelFile.absolutePath, "--private-key", PRIV_KEY_0))
 
                 val result =
                     ChainCommand().test(
-                        "verify-sig ${modelFile.absolutePath} --expected-signer $ADDR_1",
+                        listOf("verify-sig", modelFile.absolutePath, "--expected-signer", ADDR_1),
                     )
                 result.statusCode shouldBe 53
                 result.stderr shouldContain "SIGNER MISMATCH"
@@ -209,13 +216,13 @@ class ChainCommandSignTest :
                 altModelFile.writeText("diagram(\"Tampered\") { }\n")
 
                 // Sign the original model, then try to verify against altModel
-                ChainCommand().test("sign ${modelFile.absolutePath} --private-key $PRIV_KEY_0")
+                ChainCommand().test(listOf("sign", modelFile.absolutePath, "--private-key", PRIV_KEY_0))
                 // Copy .sig to altModel's default path
                 val altSigFile = java.io.File("${altModelFile.absolutePath}.sig")
                 altSigFile.writeText(sigFile.readText())
 
                 val result =
-                    ChainCommand().test("verify-sig ${altModelFile.absolutePath}")
+                    ChainCommand().test(listOf("verify-sig", altModelFile.absolutePath))
                 result.statusCode shouldBe 52
             } finally {
                 modelFile.delete()

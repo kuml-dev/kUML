@@ -18,8 +18,14 @@ class TraceExportCommandTest :
         fun generateTrace(): File {
             val traceOut = Files.createTempFile("kuml-trace-export-", ".json").toFile()
             KumlCli().test(
-                "simulate ${script.absolutePath} ${events.absolutePath} " +
-                    "--out ${traceOut.absolutePath} --epoch-clock",
+                listOf(
+                    "simulate",
+                    script.absolutePath,
+                    events.absolutePath,
+                    "--out",
+                    traceOut.absolutePath,
+                    "--epoch-clock",
+                ),
             )
             return traceOut
         }
@@ -30,7 +36,7 @@ class TraceExportCommandTest :
             try {
                 val result =
                     KumlCli().test(
-                        "trace export ${traceFile.absolutePath} --output ${outputFile.absolutePath}",
+                        listOf("trace", "export", traceFile.absolutePath, "--output", outputFile.absolutePath),
                     )
                 result.statusCode shouldBe 0
                 val content = outputFile.readText()
@@ -47,7 +53,7 @@ class TraceExportCommandTest :
             try {
                 val result =
                     KumlCli().test(
-                        "trace export ${traceFile.absolutePath}",
+                        listOf("trace", "export", traceFile.absolutePath),
                     )
                 result.statusCode shouldBe 0
                 result.output shouldContain "resourceSpans"
@@ -62,9 +68,15 @@ class TraceExportCommandTest :
             try {
                 val result =
                     KumlCli().test(
-                        "trace export ${traceFile.absolutePath} " +
-                            "--service-name my-custom-service " +
-                            "--output ${outputFile.absolutePath}",
+                        listOf(
+                            "trace",
+                            "export",
+                            traceFile.absolutePath,
+                            "--service-name",
+                            "my-custom-service",
+                            "--output",
+                            outputFile.absolutePath,
+                        ),
                     )
                 result.statusCode shouldBe 0
                 val content = outputFile.readText()

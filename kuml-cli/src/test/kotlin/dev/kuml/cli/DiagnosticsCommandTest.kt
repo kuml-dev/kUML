@@ -12,7 +12,7 @@ class DiagnosticsCommandTest :
 
         test("valid script emits no diagnostics and exits 0") {
             val fixture = File("src/test/resources/minimal.kuml.kts")
-            val result = KumlCli().test("diagnostics ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("diagnostics", fixture.absolutePath))
             result.statusCode shouldBe 0
             result.output
                 .lineSequence()
@@ -22,7 +22,7 @@ class DiagnosticsCommandTest :
 
         test("broken script emits error diagnostics and still exits 0") {
             val fixture = File("src/test/resources/broken-unresolved.kuml.kts")
-            val result = KumlCli().test("diagnostics ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("diagnostics", fixture.absolutePath))
 
             // Exit 0: validity is conveyed in the payload, not the exit code.
             result.statusCode shouldBe 0

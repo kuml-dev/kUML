@@ -24,8 +24,14 @@ class TraceReplayCommandTest :
         fun generateStmTrace(): File {
             val traceOut = Files.createTempFile("kuml-trace-", ".json").toFile()
             KumlCli().test(
-                "simulate ${script.absolutePath} ${events.absolutePath} " +
-                    "--out ${traceOut.absolutePath} --epoch-clock",
+                listOf(
+                    "simulate",
+                    script.absolutePath,
+                    events.absolutePath,
+                    "--out",
+                    traceOut.absolutePath,
+                    "--epoch-clock",
+                ),
             )
             return traceOut
         }
@@ -34,8 +40,7 @@ class TraceReplayCommandTest :
         fun generateActTrace(): File {
             val traceOut = Files.createTempFile("kuml-act-trace-", ".json").toFile()
             KumlCli().test(
-                "simulate ${actScript.absolutePath} ${actEvents.absolutePath} " +
-                    "--out ${traceOut.absolutePath}",
+                listOf("simulate", actScript.absolutePath, actEvents.absolutePath, "--out", traceOut.absolutePath),
             )
             return traceOut
         }
@@ -47,7 +52,7 @@ class TraceReplayCommandTest :
             try {
                 val result =
                     KumlCli().test(
-                        "trace replay ${traceFile.absolutePath} ${script.absolutePath}",
+                        listOf("trace", "replay", traceFile.absolutePath, script.absolutePath),
                     )
                 result.statusCode shouldBe 0
             } finally {
@@ -77,7 +82,7 @@ class TraceReplayCommandTest :
 
                 val result =
                     KumlCli().test(
-                        "trace replay ${divergentTrace.absolutePath} ${script.absolutePath}",
+                        listOf("trace", "replay", divergentTrace.absolutePath, script.absolutePath),
                     )
                 result.statusCode shouldBe ExitCodes.TRACE_REPLAY_MISMATCH
             } finally {
@@ -105,7 +110,7 @@ class TraceReplayCommandTest :
 
                 val result =
                     KumlCli().test(
-                        "trace replay ${divergentTrace.absolutePath} ${script.absolutePath} --verbose",
+                        listOf("trace", "replay", divergentTrace.absolutePath, script.absolutePath, "--verbose"),
                     )
                 result.statusCode shouldBe ExitCodes.TRACE_REPLAY_MISMATCH
                 // With --verbose the output should contain diff details
@@ -122,7 +127,7 @@ class TraceReplayCommandTest :
             try {
                 val result =
                     KumlCli().test(
-                        "trace replay ${traceFile.absolutePath} ${actScript.absolutePath}",
+                        listOf("trace", "replay", traceFile.absolutePath, actScript.absolutePath),
                     )
                 result.statusCode shouldBe 0
             } finally {
@@ -145,7 +150,7 @@ class TraceReplayCommandTest :
                 fakeFile.writeText(KumlRuntimeJson.encodeToString(TraceFile.serializer(), fakeActTrace))
                 val result =
                     KumlCli().test(
-                        "trace replay ${fakeFile.absolutePath} ${actScript.absolutePath}",
+                        listOf("trace", "replay", fakeFile.absolutePath, actScript.absolutePath),
                     )
                 result.statusCode shouldBe ExitCodes.TRACE_REPLAY_MISMATCH
             } finally {
@@ -161,7 +166,7 @@ class TraceReplayCommandTest :
 
                 val result =
                     KumlCli().test(
-                        "trace replay ${emptyTrace.absolutePath} ${script.absolutePath}",
+                        listOf("trace", "replay", emptyTrace.absolutePath, script.absolutePath),
                     )
                 result.statusCode shouldBe ExitCodes.TRACE_UNSUPPORTED_FLAVOUR
             } finally {
@@ -185,7 +190,7 @@ class TraceReplayCommandTest :
 
                 val result =
                     KumlCli().test(
-                        "trace replay ${mixedTrace.absolutePath} ${script.absolutePath}",
+                        listOf("trace", "replay", mixedTrace.absolutePath, script.absolutePath),
                     )
                 result.statusCode shouldBe ExitCodes.TRACE_UNSUPPORTED_FLAVOUR
             } finally {

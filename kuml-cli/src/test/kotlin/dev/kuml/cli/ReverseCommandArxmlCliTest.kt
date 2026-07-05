@@ -59,7 +59,9 @@ class ReverseCommandArxmlCliTest :
 
                 val outFile = tmpDir.resolve("out.kuml.kts")
                 val result =
-                    KumlCli().test("reverse --format arxml ${tmpDir.absolutePath} -o ${outFile.absolutePath}")
+                    KumlCli().test(
+                        listOf("reverse", "--format", "arxml", tmpDir.absolutePath, "-o", outFile.absolutePath),
+                    )
                 result.statusCode shouldBe 0
                 outFile.exists() shouldBe true
 
@@ -77,7 +79,7 @@ class ReverseCommandArxmlCliTest :
 
             val tmpDir = Files.createTempDirectory("kuml-arxml-reverse-empty-").toFile()
             try {
-                val result = KumlCli().test("reverse --format arxml ${tmpDir.absolutePath}")
+                val result = KumlCli().test(listOf("reverse", "--format", "arxml", tmpDir.absolutePath))
                 result.statusCode shouldBe ExitCodes.REVERSE_NO_SOURCES
             } finally {
                 tmpDir.deleteRecursively()
@@ -94,7 +96,9 @@ class ReverseCommandArxmlCliTest :
 
                 val outFile = tmpDir.resolve("out.kuml.kts")
                 val result =
-                    KumlCli().test("reverse --format arxml ${tmpDir.absolutePath} -o ${outFile.absolutePath}")
+                    KumlCli().test(
+                        listOf("reverse", "--format", "arxml", tmpDir.absolutePath, "-o", outFile.absolutePath),
+                    )
                 result.statusCode shouldBe 0
                 outFile.exists() shouldBe true
                 val dsl = outFile.readText()
@@ -117,7 +121,7 @@ class ReverseCommandArxmlCliTest :
                     class Foo { fun bar(): String = "hello" }
                     """.trimIndent(),
                 )
-                val result = KumlCli().test("reverse --format source ${srcDir.absolutePath} --lang kotlin")
+                val result = KumlCli().test(listOf("reverse", "--format", "source", srcDir.absolutePath, "--lang", "kotlin"))
                 // Should be 0 (success) or a known reverse exit code — but NOT a 'format option not recognized' error
                 // The key assertion: it should NOT fail with usage error (2) or be rejected as unknown format
                 val validCodes =

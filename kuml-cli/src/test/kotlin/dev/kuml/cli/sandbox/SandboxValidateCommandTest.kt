@@ -15,20 +15,20 @@ class SandboxValidateCommandTest :
         val invalidScript = File("src/test/resources/sandbox/sandbox-invalid.kuml.kts")
 
         test("exit 0 for clean model with default policy") {
-            val result = KumlCli().test("sandbox validate ${cleanScript.absolutePath}")
+            val result = KumlCli().test(listOf("sandbox", "validate", cleanScript.absolutePath))
             result.statusCode shouldBe 0
             result.output shouldContain "passed"
         }
 
         test("exit 12 for violations with strict policy") {
             val result =
-                KumlCli().test("sandbox validate ${violationsScript.absolutePath} --strict")
+                KumlCli().test(listOf("sandbox", "validate", violationsScript.absolutePath, "--strict"))
             result.statusCode shouldBe ExitCodes.SANDBOX_VIOLATIONS
             result.output shouldContain "violation"
         }
 
         test("exit 3 for script with compilation errors") {
-            val result = KumlCli().test("sandbox validate ${invalidScript.absolutePath}")
+            val result = KumlCli().test(listOf("sandbox", "validate", invalidScript.absolutePath))
             result.statusCode shouldBe ExitCodes.SCRIPT_ERROR
         }
     })

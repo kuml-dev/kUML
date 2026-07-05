@@ -18,8 +18,14 @@ class SimulateCommandCliTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${script.absolutePath} ${events.absolutePath} " +
-                            "--out ${out.absolutePath} --epoch-clock",
+                        listOf(
+                            "simulate",
+                            script.absolutePath,
+                            events.absolutePath,
+                            "--out",
+                            out.absolutePath,
+                            "--epoch-clock",
+                        ),
                     )
                 result.statusCode shouldBe 0
                 val text = out.readText()
@@ -37,13 +43,25 @@ class SimulateCommandCliTest :
             val gold = Files.createTempFile("kuml-simulate-gold-", ".trace.json").toFile()
             try {
                 KumlCli().test(
-                    "simulate ${script.absolutePath} ${events.absolutePath} " +
-                        "--out ${gold.absolutePath} --epoch-clock",
+                    listOf(
+                        "simulate",
+                        script.absolutePath,
+                        events.absolutePath,
+                        "--out",
+                        gold.absolutePath,
+                        "--epoch-clock",
+                    ),
                 )
                 val result =
                     KumlCli().test(
-                        "simulate ${script.absolutePath} ${events.absolutePath} " +
-                            "--expected ${gold.absolutePath} --epoch-clock",
+                        listOf(
+                            "simulate",
+                            script.absolutePath,
+                            events.absolutePath,
+                            "--expected",
+                            gold.absolutePath,
+                            "--epoch-clock",
+                        ),
                     )
                 result.statusCode shouldBe 0
             } finally {
@@ -57,8 +75,14 @@ class SimulateCommandCliTest :
                 divergent.writeText("""{"schema":"kuml.trace.v1","entries":[]}""")
                 val result =
                     KumlCli().test(
-                        "simulate ${script.absolutePath} ${events.absolutePath} " +
-                            "--expected ${divergent.absolutePath} --epoch-clock",
+                        listOf(
+                            "simulate",
+                            script.absolutePath,
+                            events.absolutePath,
+                            "--expected",
+                            divergent.absolutePath,
+                            "--epoch-clock",
+                        ),
                     )
                 result.statusCode shouldBe ExitCodes.TRACE_DIFF
             } finally {

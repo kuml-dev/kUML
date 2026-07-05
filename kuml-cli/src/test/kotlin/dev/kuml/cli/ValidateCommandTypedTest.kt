@@ -22,7 +22,7 @@ class ValidateCommandTypedTest :
         test("validate thermostat-stm exits 0 without --strict") {
             val fixture =
                 File("src/test/resources/simulate/sysml2/pepela/thermostat-stm.kuml.kts")
-            val result = KumlCli().test("validate ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath))
             result.statusCode shouldBe 0
         }
 
@@ -31,7 +31,7 @@ class ValidateCommandTypedTest :
         test("validate --strict thermostat-stm exits 0 (all expressions parse cleanly)") {
             val fixture =
                 File("src/test/resources/simulate/sysml2/pepela/thermostat-stm.kuml.kts")
-            val result = KumlCli().test("validate --strict ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("validate", "--strict", fixture.absolutePath))
             result.statusCode shouldBe 0
         }
 
@@ -40,7 +40,7 @@ class ValidateCommandTypedTest :
         test("validate broken-guard without --strict exits 0 (warnings only, not strict)") {
             val fixture =
                 File("src/test/resources/validate-expressions/broken-guard.kuml.kts")
-            val result = KumlCli().test("validate ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath))
             result.statusCode shouldBe 0
         }
 
@@ -49,7 +49,7 @@ class ValidateCommandTypedTest :
         test("validate --strict broken-guard exits non-zero") {
             val fixture =
                 File("src/test/resources/validate-expressions/broken-guard.kuml.kts")
-            val result = KumlCli().test("validate --strict ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("validate", "--strict", fixture.absolutePath))
             result.statusCode shouldBe ExitCodes.VALIDATION_VIOLATIONS
         }
 
@@ -58,7 +58,7 @@ class ValidateCommandTypedTest :
         test("validate newton-second-law-par exits 0") {
             val fixture =
                 File("src/test/resources/validate/newton-second-law-par.kuml.kts")
-            val result = KumlCli().test("validate ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("validate", fixture.absolutePath))
             result.statusCode shouldBe 0
         }
 
@@ -67,7 +67,7 @@ class ValidateCommandTypedTest :
         test("validate --strict newton-second-law-par exits 0 (F = m * a type-checks)") {
             val fixture =
                 File("src/test/resources/validate/newton-second-law-par.kuml.kts")
-            val result = KumlCli().test("validate --strict ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("validate", "--strict", fixture.absolutePath))
             result.statusCode shouldBe 0
             // The output should mention the constraint was checked
             // (either "0 constraint errors" or no error output at all)
@@ -77,7 +77,7 @@ class ValidateCommandTypedTest :
 
         test("validate minimal UML script still exits 0 with --strict") {
             val fixture = File("src/test/resources/minimal.kuml.kts")
-            val result = KumlCli().test("validate --strict ${fixture.absolutePath}")
+            val result = KumlCli().test(listOf("validate", "--strict", fixture.absolutePath))
             result.statusCode shouldBe 0
         }
     })

@@ -172,7 +172,14 @@ class ChainCommandTest :
             try {
                 val result =
                     ChainCommand(testAdapterFactory()).test(
-                        "verify --rpc ${server.baseUrl()} --contract $TEST_CONTRACT ${modelFile.absolutePath}",
+                        listOf(
+                            "verify",
+                            "--rpc",
+                            server.baseUrl(),
+                            "--contract",
+                            TEST_CONTRACT,
+                            modelFile.absolutePath,
+                        ),
                     )
                 result.statusCode shouldBe 0
                 result.output shouldContain "MATCH"
@@ -194,7 +201,14 @@ class ChainCommandTest :
             try {
                 val result =
                     ChainCommand(testAdapterFactory()).test(
-                        "verify --rpc ${server.baseUrl()} --contract $TEST_CONTRACT ${modelFile.absolutePath}",
+                        listOf(
+                            "verify",
+                            "--rpc",
+                            server.baseUrl(),
+                            "--contract",
+                            TEST_CONTRACT,
+                            modelFile.absolutePath,
+                        ),
                     )
                 result.statusCode shouldBe 50
                 result.stderr shouldContain "MISMATCH"
@@ -228,7 +242,14 @@ class ChainCommandTest :
             try {
                 val result =
                     ChainCommand(testAdapterFactory()).test(
-                        "verify --rpc ${server.baseUrl()} --contract $TEST_CONTRACT ${modelFile.absolutePath}",
+                        listOf(
+                            "verify",
+                            "--rpc",
+                            server.baseUrl(),
+                            "--contract",
+                            TEST_CONTRACT,
+                            modelFile.absolutePath,
+                        ),
                     )
                 result.statusCode shouldBe 0
                 result.output shouldContain "Local hash:"

@@ -31,8 +31,14 @@ class SimulateCommandSysml2Test :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${script.absolutePath} ${events.absolutePath} " +
-                            "--out ${out.absolutePath} --epoch-clock",
+                        listOf(
+                            "simulate",
+                            script.absolutePath,
+                            events.absolutePath,
+                            "--out",
+                            out.absolutePath,
+                            "--epoch-clock",
+                        ),
                     )
                 result.statusCode shouldBe 0
 

@@ -41,8 +41,14 @@ class Car2xSmokeTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${stmScript.absolutePath} ${happyEvents.absolutePath} " +
-                            "--out ${out.absolutePath} --epoch-clock",
+                        listOf(
+                            "simulate",
+                            stmScript.absolutePath,
+                            happyEvents.absolutePath,
+                            "--out",
+                            out.absolutePath,
+                            "--epoch-clock",
+                        ),
                     )
                 result.statusCode shouldBe 0
                 out.exists() shouldBe true
@@ -70,8 +76,14 @@ class Car2xSmokeTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${stmScript.absolutePath} ${conflictEvents.absolutePath} " +
-                            "--out ${out.absolutePath} --epoch-clock",
+                        listOf(
+                            "simulate",
+                            stmScript.absolutePath,
+                            conflictEvents.absolutePath,
+                            "--out",
+                            out.absolutePath,
+                            "--epoch-clock",
+                        ),
                     )
                 result.statusCode shouldBe 0
 
@@ -99,8 +111,14 @@ class Car2xSmokeTest :
             try {
                 val result =
                     KumlCli().test(
-                        "simulate ${stmScript.absolutePath} ${lateEvents.absolutePath} " +
-                            "--out ${out.absolutePath} --epoch-clock",
+                        listOf(
+                            "simulate",
+                            stmScript.absolutePath,
+                            lateEvents.absolutePath,
+                            "--out",
+                            out.absolutePath,
+                            "--epoch-clock",
+                        ),
                     )
                 result.statusCode shouldBe 0
 
@@ -136,7 +154,7 @@ class Car2xSmokeTest :
             try {
                 val result =
                     KumlCli().test(
-                        "render ${stmScript.absolutePath} --format svg --output ${out.absolutePath}",
+                        listOf("render", stmScript.absolutePath, "--format", "svg", "--output", out.absolutePath),
                     )
                 result.statusCode shouldBe 0
                 out.exists() shouldBe true
@@ -156,7 +174,7 @@ class Car2xSmokeTest :
         test("Car2x script: kuml validate exits 0 (no compilation errors)") {
             val result =
                 KumlCli().test(
-                    "validate ${stmScript.absolutePath}",
+                    listOf("validate", stmScript.absolutePath),
                 )
             result.statusCode shouldBe 0
         }
