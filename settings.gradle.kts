@@ -9,6 +9,15 @@ dependencyResolutionManagement {
     repositories {
         mavenCentral()
         google()
+        // repo.eclipse.org has been flapping (intermittent HTTP 500 / connection
+        // resets) since 2026-07-04, repeatedly blocking CI. The org.eclipse.uml2.*
+        // artifacts are immutable 2014-era EPL jars with no Maven Central mirror,
+        // so they're vendored into third-party/m2 and resolved from there first.
+        maven {
+            name = "Vendored Eclipse UML2"
+            url = uri("third-party/m2")
+            content { includeGroup("org.eclipse.uml2") }
+        }
         maven {
             name = "Eclipse Releases"
             url = uri("https://repo.eclipse.org/content/repositories/releases/")
