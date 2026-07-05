@@ -266,10 +266,21 @@ jobs:
         # which signs every Mach-O in the bundled jlink runtime when
         # KUML_SIGN_IDENTITY is set and the host is macOS; it silently no-ops
         # otherwise (Linux/Windows legs, or macOS legs without the Apple secrets).
+        #
+        # `clean` is mandatory here (CLAUDE.md: always clean before any gradlew
+        # invocation) — its absence is the confirmed root cause of v0.24.0/
+        # v0.24.1/v0.24.2 shipping runtime/lib/libjli.dylib ad-hoc-signed: a
+        # local/CI debug workflow with `clean` signed correctly every time,
+        # this step without it did not. The likely mechanism is a stale
+        # restored Gradle build-cache/up-to-date entry for an upstream task
+        # (bundledImage/jlinkRuntime) from before signing existed or from a
+        # differently-configured prior run, served instead of a fresh build —
+        # `packageDmg`/`packageMsi` below already ran with `clean` and were
+        # never affected.
         env:
           KUML_SIGN_IDENTITY: ${{ runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true' && secrets.APPLE_SIGN_IDENTITY || '' }}
           KUML_SIGN_KEYCHAIN: ${{ runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true' && format('{0}/kuml-signing.keychain-db', runner.temp) || '' }}
-        run: ./gradlew :kuml-mcp:installDist :kuml-cli:runtimeZip
+        run: ./gradlew clean :kuml-mcp:installDist :kuml-cli:runtimeZip
 
       - name: Notarize runtime zip
         # No --staple: a bare zip cannot be stapled (only .app/.pkg/.dmg can).
