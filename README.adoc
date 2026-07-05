@@ -127,7 +127,7 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | `brew install kuml-dev/kuml/kuml`
 
 | *Homebrew Cask* (macOS, `kuml-desktop`)
-| `brew install --cask kuml-dev/kuml/kuml-desktop` — installs the Compose Multiplatform desktop app (`kuml-desktop.app`), unsigned (Phase 2 adds Apple notarisation).
+| `brew install --cask kuml-dev/kuml/kuml-desktop` — installs the Compose Multiplatform desktop app (`kuml-desktop.app`), Developer ID signed and notarized as of v0.24.0.
 
 | *Chocolatey* (Windows)
 | `choco install kuml` — self-contained, bundles a Java 21 runtime (no JDK required). Published automatically on each release; the first version of a new package enters Chocolatey community moderation (typically 1–3 days) before it installs without an explicit source.

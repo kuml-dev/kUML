@@ -6,12 +6,20 @@
 // Tasks (group = "distribution"):
 //   packageDeb     — Debian .deb  (Linux only, OS-gated)
 //   packageRpm     — RPM .rpm     (Linux only, OS-gated)
-//   packageDmg     — macOS DMG    (macOS only, OS-gated, unsigned — Phase 2 adds signing)
-//   packageMsi     — Windows MSI  (Windows only, OS-gated, unsigned — Phase 2 adds signing)
+//   packageDmg     — macOS DMG    (macOS only, OS-gated, unsigned)
+//   packageMsi     — Windows MSI  (Windows only, OS-gated, unsigned)
 //   dockerBuildCli — Docker image for ghcr.io/kuml-dev/kuml-cli
 //
 // All five tasks depend on :kuml-cli:shadowJar; none are included in `check`.
-// Signing is deferred to Phase 2.
+//
+// NOTE (V3.2.29, 2026-07-04): packageDmg/packageMsi here are NOT the DMG/MSI
+// actually shipped by kUML's release pipeline — release.yml never invokes
+// this task. The real kuml-desktop DMG/MSI are built via Compose
+// Multiplatform in kuml-desktop/build.gradle.kts, and ARE Developer-ID
+// signed + notarized as of v0.24.0 (V3.2.25/27 — see the
+// "V3.2-Apple-Signierung-Wellenplan" vault note). Signing this CLI-DMG task
+// too remains an optional, not-yet-done bonus (was out of scope for
+// V3.2.25) since nothing currently consumes its output.
 // ─────────────────────────────────────────────────────────────────────────────
 
 plugins {
@@ -165,7 +173,12 @@ val packageRpm =
     }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// jpackage — DMG (macOS, unsigned — Phase 2 adds signing)
+// jpackage — DMG (macOS, unsigned)
+//
+// NOTE (V3.2.29): this task's output is NOT the DMG kUML actually ships —
+// see the module-header comment above. Real kuml-desktop signing/
+// notarization is done via Compose Multiplatform in
+// kuml-desktop/build.gradle.kts, not here.
 //
 // --app-version uses macOsPackageVersion (e.g. "6.0.0" for kUML 0.6.0) because
 // macOS CFBundleShortVersionString requires the first component to be ≥ 1.
@@ -204,7 +217,9 @@ val packageDmg =
                         destP,
                         "--mac-package-name",
                         "kUML",
-                        // --mac-sign is intentionally omitted — Phase 2 adds Apple Developer signing
+                        // --mac-sign is intentionally omitted — this task isn't part of the
+                        // shipped release pipeline (see the notes above); the real kuml-desktop
+                        // DMG is signed via kuml-desktop/build.gradle.kts (V3.2.25/27).
                     )
                 }
             },
@@ -212,7 +227,7 @@ val packageDmg =
     }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// jpackage — MSI (Windows, unsigned — Phase 2 adds signing)
+// jpackage — MSI (Windows, unsigned)
 // ─────────────────────────────────────────────────────────────────────────────
 val packageMsi =
     tasks.register<Exec>("packageMsi") {
