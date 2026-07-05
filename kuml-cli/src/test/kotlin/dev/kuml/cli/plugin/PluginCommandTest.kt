@@ -7,16 +7,34 @@ import dev.kuml.plugin.loader.manifest.ExtensionEntry
 import dev.kuml.plugin.loader.manifest.PluginManifest
 import dev.kuml.plugin.loader.registry.PluginRegistry
 import dev.kuml.plugin.loader.registry.PluginRegistryClient
+import dev.kuml.plugin.loader.scan.PluginScanPath
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import java.net.InetSocketAddress
+import java.nio.file.Files
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 class PluginCommandTest :
     StringSpec({
+        // PluginInstallCommand/PluginRemoveCommand read/write PluginScanPath.userPluginDir
+        // for real (see PluginCommand.kt) — redirect it to a temp dir so these tests never
+        // touch the developer's actual ~/.kuml/plugins/. Same pattern as
+        // PluginUpgradeCommandTest and AiAuditCommandTest's KumlHome sandboxing.
+        lateinit var tempPluginsDir: java.nio.file.Path
+
+        beforeSpec {
+            tempPluginsDir = Files.createTempDirectory("kuml-plugin-command-test-")
+            tempPluginsDir.toFile().deleteOnExit()
+            PluginScanPath.overrideUserPluginDirForTest(tempPluginsDir)
+        }
+
+        afterSpec {
+            PluginScanPath.clearTestOverride()
+        }
+
         beforeEach { PluginRegistry.clearForTest() }
         afterEach { PluginRegistry.clearForTest() }
 

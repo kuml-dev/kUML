@@ -14,10 +14,12 @@ import dev.kuml.plugin.loader.registry.PluginRegistryException
 import dev.kuml.plugin.loader.registry.PluginRegistryIndex
 import dev.kuml.plugin.loader.registry.PluginSigningKey
 import dev.kuml.plugin.loader.registry.UpdateCheckService
+import dev.kuml.plugin.loader.scan.PluginScanPath
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
+import java.nio.file.Files
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.Signature
@@ -31,9 +33,30 @@ import java.util.zip.ZipOutputStream
  * The test strategy avoids real network and real file installation by injecting
  * fake UpdateCheckService and PluginDownloader instances. The downloader returns
  * a DownloadedPlugin pointing at a fixture JAR built in-memory.
+ *
+ * The upgrade path for a plugin whose fake JAR successfully parses still copies
+ * the JAR into [PluginScanPath.userPluginDir] for real (see PluginCommand.kt) —
+ * without redirecting that to a temp directory, these tests would write real
+ * fixture JARs into the developer's actual ~/.kuml/plugins/, which then
+ * contaminates unrelated test runs on a machine where the suite is rerun
+ * repeatedly (PluginLoader.load() picks up the leftovers and fails with
+ * ClassNotFoundException for a class that only ever existed as an in-memory
+ * fixture). Sandboxed the same way AiAuditCommandTest sandboxes KumlHome.
  */
 class PluginUpgradeCommandTest :
     StringSpec({
+        lateinit var tempPluginsDir: java.nio.file.Path
+
+        beforeSpec {
+            tempPluginsDir = Files.createTempDirectory("kuml-plugin-upgrade-test-")
+            tempPluginsDir.toFile().deleteOnExit()
+            PluginScanPath.overrideUserPluginDirForTest(tempPluginsDir)
+        }
+
+        afterSpec {
+            PluginScanPath.clearTestOverride()
+        }
+
         beforeEach { PluginRegistry.clearForTest() }
         afterEach { PluginRegistry.clearForTest() }
 

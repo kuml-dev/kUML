@@ -10,13 +10,31 @@ import dev.kuml.plugin.loader.registry.PluginRegistryEntry
 import dev.kuml.plugin.loader.registry.PluginRegistryException
 import dev.kuml.plugin.loader.registry.PluginRegistryIndex
 import dev.kuml.plugin.loader.registry.UpdateCheckService
+import dev.kuml.plugin.loader.scan.PluginScanPath
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
+import java.nio.file.Files
 
 class PluginCheckUpdatesCommandTest :
     StringSpec({
+        // PluginCheckUpdatesCommand calls ensureLoaded(), which scans
+        // PluginScanPath.userPluginDir (real ~/.kuml/plugins/ by default) whenever the
+        // in-memory registry is empty. Redirect it to a temp dir so a real, leftover
+        // fixture JAR from another test class can never leak into this file's runs.
+        lateinit var tempPluginsDir: java.nio.file.Path
+
+        beforeSpec {
+            tempPluginsDir = Files.createTempDirectory("kuml-plugin-checkupdates-test-")
+            tempPluginsDir.toFile().deleteOnExit()
+            PluginScanPath.overrideUserPluginDirForTest(tempPluginsDir)
+        }
+
+        afterSpec {
+            PluginScanPath.clearTestOverride()
+        }
+
         beforeEach { PluginRegistry.clearForTest() }
         afterEach { PluginRegistry.clearForTest() }
 
