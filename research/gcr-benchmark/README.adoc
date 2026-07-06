@@ -25,13 +25,16 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
 * `results/2026-07-06-claude-sonnet-5/` — the first full-corpus run (Claude Sonnet 5,
   1 sample/cell, via isolated Claude Code subagents): raw generations, per-row scores,
   and aggregates.
-* `results/gpt-4o/`, `results/gemini-2.5-flash/` — full-corpus runs (1 sample/cell) via
-  `run-gpt4o.py`/`run-gemini.py`. Each `raw-results.json` row includes `finalCode` (the
-  last generated attempt), so `build-manifest.py` can render/re-render images from them
-  without new LLM calls.
+* `results/gpt-4o/`, `results/gemini-2.5-flash/`, `results/gemini-2.5-pro/` — full-corpus
+  runs (1 sample/cell) via `run-gpt4o.py`/`run-gemini.py`. Each `raw-results.json` row
+  includes `finalCode` (the last generated attempt), so `build-manifest.py` can
+  render/re-render images from them without new LLM calls. The Gemini 2.5 Pro run was
+  added specifically to test whether Flash's weak kUML results were a model-capability-tier
+  artifact — they were not: Pro reproduces Flash's divergence rather than resolving it
+  (see the handbook page for the full comparison).
 
-All three models (Claude Sonnet 5, GPT-4o, Gemini 2.5 Flash) are visually comparable
-per-task at https://kuml.dev/benchmark-gallery[kuml.dev/benchmark-gallery] via a
+All four models (Claude Sonnet 5, GPT-4o, Gemini 2.5 Flash, Gemini 2.5 Pro) are visually
+comparable per-task at https://kuml.dev/benchmark-gallery[kuml.dev/benchmark-gallery] via a
 per-task model tab.
 
 == Reproduce with your own LLM
@@ -59,12 +62,14 @@ python3 build-manifest.py --model-key your-model --results your-results.json  # 
 
 == Limitations of the published runs
 
-One sample per cell for all three models — no variance measure, no significance testing.
+One sample per cell for all four models — no variance measure, no significance testing.
 Hallucination Rate is an algorithmic fuzzy-name-match against the gold standard, not a
 semantic judge. The Sequence/C4/SysML2 prompt primers for GPT-4o and Gemini are
 reconstructed from `corpus.json`'s gold-standard code (same style/token budget as the
 handbook-documented Class-diagram primer) rather than byte-identical to the original
-Claude Sonnet 5 subagent prompts, which were never saved as a standalone artifact.
+Claude Sonnet 5 subagent prompts, which were never saved as a standalone artifact (the
+Gemini 2.5 Flash and Pro runs did share byte-identical primers with each other, though).
 Gemini 2.5 Flash is Google's fast/cheap tier, not a like-for-like peer of Claude Sonnet 5
-or GPT-4o — treat cross-model comparisons involving it with that caveat in mind. See the
-handbook page for the full caveat list.
+or GPT-4o — a Gemini 2.5 Pro run tested whether that tier gap explained Flash's weak kUML
+results and found it does not (Pro reproduces the same divergence). See the handbook page
+for the full caveat list and the Flash-vs-Pro comparison.

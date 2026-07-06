@@ -68,10 +68,11 @@ def main():
     ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--limit", type=int, default=None, help="limit number of tasks (for smoke-testing)")
     ap.add_argument("--ids", default=None, help="comma-separated task IDs to run (for smoke-testing specific families)")
-    ap.add_argument("--out", default=os.path.join(SCRIPT_DIR, "results", "gpt-4o", "raw-results.json"))
+    ap.add_argument("--out", default=None, help="default: results/<model>/raw-results.json")
     args = ap.parse_args()
+    out = args.out or os.path.join(SCRIPT_DIR, "results", args.model, "raw-results.json")
 
-    run_benchmark(call_openai, QuotaExceeded, args.model, args.out, args.workers, args.limit, args.ids)
+    run_benchmark(call_openai, QuotaExceeded, args.model, out, args.workers, args.limit, args.ids)
 
 
 if __name__ == "__main__":

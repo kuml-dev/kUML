@@ -213,11 +213,11 @@ https://kuml.dev/blog/2026-07-06-gcr-benchmark-kuml-vs-plantuml-mermaid[blog pos
 Want to see the actual diagrams behind these numbers? The xref:ROOT:gallery/index.adoc[Benchmark Gallery]
 renders all 50 tasks — gold standard next to what each DSL generated, including the one task (C4-S-01)
 where kUML never got a diagram out at all after 3 repair attempts. A per-task model tab lets you
-compare all three models below against each other visually.
+compare all four models below against each other visually.
 
-== Published results — GPT-4o and Gemini 2.5 Flash (2026-07-06, n=1 sample/cell)
+== Published results — GPT-4o, Gemini 2.5 Flash, Gemini 2.5 Pro (2026-07-06, n=1 sample/cell)
 
-Two more full-corpus runs, via `run-gpt4o.py`/`run-gemini.py` (own Python orchestration scripts,
+Three more full-corpus runs, via `run-gpt4o.py`/`run-gemini.py` (own Python orchestration scripts,
 since Claude Code subagents can't call other providers' APIs) instead of Claude subagents.
 
 [cols="1,1,1,1,1,1"]
@@ -233,22 +233,34 @@ since Claude Code subagents can't call other providers' APIs) instead of Claude 
 | kUML + GCR | 52.0% | 74.0% | 26.9% | 20.7% | 1.30
 | PlantUML | 90.0% | 98.0% | 33.7% | 21.8% | 1.10
 | Mermaid | 100.0% | 100.0% | *35.2%* | 26.7% | 1.00
+
+6+| **Gemini 2.5 Pro**
+| kUML + GCR | 58.0% | 70.0% | 26.2% | *18.5%* | 1.23
+| PlantUML | 96.0% | 100.0% | *32.7%* | 22.9% | 1.04
+| Mermaid | 92.0% | 100.0% | 31.4% | 29.2% | 1.08
 |===
 
 GPT-4o reproduces the Claude pattern (kUML highest SF, lowest HR), even more pronounced. Gemini 2.5
 Flash does **not** — kUML trails both baselines on SF, and C4 is nearly unsolvable for kUML at this
-model (0% CR, 25% FCR). Most likely explanation: Flash is Google's fast/cheap tier, not a like-for-like
-peer of Claude Sonnet 5 or GPT-4o — a capability-tier confound, not necessarily a DSL-design finding.
+model (0% CR, 25% FCR). The obvious explanation was a capability-tier confound (Flash is Google's
+fast/cheap tier, not a like-for-like peer of Claude Sonnet 5 or GPT-4o) — so we ran **Gemini 2.5 Pro**
+under identical corpus/primers/orchestration to test it directly. **The tier hypothesis is not
+supported**: Pro is not meaningfully better than Flash at kUML, and on several metrics nominally
+worse (FCR 70.0% vs. 74.0%; SysML 2 FCR 25.0% vs. 50.0%; C4 repair effort RI 2.67 vs. 2.00; sequence
+hallucination rate 68.9% vs. 64.6%, the highest HR value in the whole four-model study). The more
+plausible reading is a model-family-specific effect rather than a capability-tier effect, though a
+single sample per cell across two Gemini variants can't fully exclude tier effects statistically.
 Full per-family/per-difficulty breakdowns and raw generations (including `finalCode` per cell, so
-images can be re-rendered without new LLM calls): `research/gcr-benchmark/results/gpt-4o/` and
-`results/gemini-2.5-flash/`.
+images can be re-rendered without new LLM calls): `research/gcr-benchmark/results/gpt-4o/`,
+`results/gemini-2.5-flash/`, and `results/gemini-2.5-pro/`.
 
 == Limitations
 
-* **All three models ran, but not on equal footing.** Claude Sonnet 5 and GPT-4o are comparable
-  frontier/flagship models; Gemini 2.5 Flash is a faster/cheaper tier, not a like-for-like peer —
-  see the results above. A Gemini 2.5 Pro run would be needed to separate model-tier effects from
-  genuine cross-model signal.
+* **Four models ran, testing a tier confound directly — inconclusively resolved.** Claude Sonnet 5
+  and GPT-4o are comparable frontier/flagship models; Gemini 2.5 Flash is a faster/cheaper tier. A
+  Gemini 2.5 Pro run was added specifically to separate model-tier effects from model-family effects
+  (see the results above): Pro reproduces Flash's divergence rather than resolving it, which shifts
+  the burden of proof away from "it's just the tier" without yet supplying a mechanistic alternative.
 * **Prompt primers aren't byte-identical across models** for Sequence/C4/SysML2 (Class-diagram is).
   The GPT-4o/Gemini primers are reconstructed from `corpus.json`'s gold-standard code in the same
   style/token budget, since the original Claude subagent prompts were never saved as a standalone
