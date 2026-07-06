@@ -1,7 +1,7 @@
 = GCR Benchmark — Reproducibility Package
 
 Full methodology, prompt primers, and result interpretation:
-https://docs.kuml.dev/reference/llm-benchmark.html[Handbook: LLM Benchmark (GCR)].
+https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark (GCR)].
 
 == Contents
 
