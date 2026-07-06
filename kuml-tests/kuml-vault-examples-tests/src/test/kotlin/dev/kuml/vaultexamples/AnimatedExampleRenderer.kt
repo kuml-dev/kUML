@@ -24,6 +24,9 @@ import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.render.smil.SmilEmitter
 import dev.kuml.render.smil.SmilTimeline
 import dev.kuml.render.smil.StaticSnapshotMode
+import dev.kuml.renderer.theme.core.KumlTheme
+import dev.kuml.renderer.theme.core.PlainTheme
+import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.runtime.KumlRuntimeJson
 import dev.kuml.runtime.TraceFile
 import dev.kuml.uml.UmlStateMachine
@@ -54,6 +57,13 @@ internal object AnimatedExampleRenderer {
      * beyond any realistic test input.
      */
     private const val MAX_TRACE_JSON_CHARS: Int = 1_048_576 // 1 MB
+
+    /**
+     * Resolves the "kuml" brand theme (the CLI's actual default — see `--theme` help
+     * in [dev.kuml.cli.RenderCommand]), falling back to [PlainTheme] only if the
+     * theme registry entry is somehow missing.
+     */
+    private fun resolveKumlTheme(): KumlTheme = ThemeRegistry.get("kuml") ?: PlainTheme()
 
     /**
      * Renders an animated BPMN vault example.
@@ -120,6 +130,7 @@ internal object AnimatedExampleRenderer {
         return BpmnSmilRenderer.render(
             diagram = kumlDiagram,
             layoutResult = layout,
+            theme = resolveKumlTheme(),
             options = SvgRenderOptions.DEFAULT,
             trace = traceFile,
             context = context,
@@ -182,6 +193,7 @@ internal object AnimatedExampleRenderer {
             diagram = extracted.diagram,
             stateMachine = stateMachine,
             layoutResult = layout,
+            theme = resolveKumlTheme(),
             options = paddingOpts,
             trace = traceFile,
             context = context,
@@ -238,6 +250,7 @@ internal object AnimatedExampleRenderer {
         return SequenceSmilRenderer.render(
             diagram = diagram,
             layoutResult = layout,
+            theme = resolveKumlTheme(),
             options = paddingOpts,
             trace = traceFile,
             context = context,

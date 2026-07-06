@@ -57,10 +57,11 @@ class VaultExamplesSmilTest :
         // ── Animated raster helpers ───────────────────────────────────────────
 
         /**
-         * Writes APNG + WebP sample output next to the animated SVG.
-         * WebP is skipped (with a printed warning) when ffmpeg is not on PATH —
+         * Writes APNG + WebP + MP4 sample output next to the animated SVG.
+         * WebP and MP4 are skipped (with a printed warning) when ffmpeg is not on PATH —
          * the test itself does not fail in that case because ffmpeg is an optional
-         * system dependency, not a build-time requirement.
+         * system dependency, not a build-time requirement. MP4 additionally requires
+         * transparent = false (H.264 has no standardised alpha channel).
          */
         fun writeAnimatedRaster(
             baseName: String,
@@ -77,6 +78,14 @@ class VaultExamplesSmilTest :
                 SampleOutput.writeBytes("$baseName.webp", webpBytes)
             } catch (e: AnimEncoderException) {
                 println("[sample-output] WebP skipped (ffmpeg not available): ${e.message}")
+            }
+
+            val mp4Options = AnimRenderOptions(format = AnimFormat.MP4, widthPx = 1024, transparent = false)
+            try {
+                val mp4Bytes = KumlAnimRenderer.toAnimated(svg, timeline, mp4Options)
+                SampleOutput.writeBytes("$baseName.mp4", mp4Bytes)
+            } catch (e: AnimEncoderException) {
+                println("[sample-output] MP4 skipped (ffmpeg not available): ${e.message}")
             }
         }
 
