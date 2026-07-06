@@ -1,0 +1,231 @@
+= LLM Benchmark (GCR)
+:description: How kUML's Generate-Compile-Repair benchmark works, the exact prompt primers used per DSL and diagram family, and how to reproduce the published results with your own LLM.
+
+kUML's core research thesis — argued in full in
+https://github.com/kuml-dev/kUML[the arXiv preprint, window=_blank] — is that a
+statically typed *internal* DSL turns the host compiler into a free, deterministic
+validation oracle for LLM-generated architecture models. Compile errors (unresolved
+references, type mismatches, scope violations) become structured repair signals a
+*Generate-Compile-Repair (GCR)* loop can act on directly, unlike the silent
+auto-declaration or lexical parse errors of untyped external DSLs like PlantUML or
+Mermaid.
+
+This page documents the benchmark that tests that thesis: a 50-task corpus across four
+diagram families, the exact GCR loop and prompt primers used, and how to reproduce the
+published run with any LLM. Announcement and result interpretation:
+https://kuml.dev/blog/2026-07-06-gcr-benchmark-kuml-vs-plantuml-mermaid[kuml.dev blog post, window=_blank].
+All artifacts referenced below live in
+https://github.com/kuml-dev/kUML/tree/master/research/gcr-benchmark[`research/gcr-benchmark/`, window=_blank].
+
+== The corpus
+
+50 natural-language architecture descriptions, each paired with a hand-authored
+kUML gold-standard model and a normalized node/edge set (for scoring — see below),
+stratified along two axes:
+
+[cols="1,1"]
+|===
+| Diagram family | Count
+
+| Class diagrams
+| 20
+
+| Sequence diagrams
+| 10
+
+| C4 container/context diagrams
+| 12
+
+| SysML 2.0 block definition diagrams
+| 8
+|===
+
+[cols="1,1"]
+|===
+| Difficulty | Count
+
+| Simple (≤ 6 elements, ≤ 6 relationships)
+| 15
+
+| Medium (7–15 elements, ≥ 1 inheritance hierarchy)
+| 20
+
+| Complex (16–30 elements, cross-cutting constraints)
+| 15
+|===
+
+Descriptions are target-language-neutral prose — no PlantUML/Mermaid/kUML keywords.
+The full corpus, including every gold-standard `.kuml.kts` script, is
+`research/gcr-benchmark/corpus.json`.
+
+== The GCR loop
+
+For each (task, DSL) pair:
+
+1. **Generate.** An LLM receives the natural-language task and a compact syntax primer
+   for the target DSL and diagram family (see below) — but never the gold standard.
+2. **Compile/validate.** The generated code is validated with the real toolchain:
+   `kuml render <file>.kuml.kts -f svg -o out.svg`, `plantuml -tsvg <file>.puml`, or
+   `mmdc -i <file>.mmd -o out.svg` (Mermaid CLI).
+3. **Repair.** On failure, the diagnostic is read back and the code is fixed, up to
+   3 total attempts. Two byte-identical consecutive attempts stop the loop early
+   (`status: "stuck"`) rather than wasting another attempt.
+4. **Extract.** From the final code, a normalized node list (`"EntityName (kind)"`) and
+   edge list (`"Source → Target (relationshipKind[, multiplicity])"`) are extracted —
+   the same convention `corpus.json`'s gold standards use, so scoring is a pure string
+   comparison regardless of source syntax.
+
+== PlantUML/Mermaid are permissive by design — verified directly
+
+Before running the benchmark we verified the core claim behind it with a minimal
+smoke test: feed a class diagram with a typo'd association target (`Boook` instead of
+`Book`) to all three tools.
+
+[cols="1,1,1"]
+|===
+| Tool | Exit code | Behavior
+
+| kUML (`kuml render`)
+| 3
+| `Script error: ... Unresolved reference 'boook'.`
+
+| PlantUML (`plantuml -tsvg`)
+| 0
+| Silently auto-declares a phantom class `Boook` and renders successfully.
+
+| Mermaid (`mmdc`)
+| 0
+| Same — phantom class rendered successfully.
+|===
+
+This is the mechanism behind the benchmark's headline result: PlantUML and Mermaid
+"compile" almost unconditionally, which is not the same as being correct. Structural
+Fidelity (below) is what actually distinguishes them.
+
+== Metrics
+
+* *CR* (Compile Rate) — fraction of first-shot generations that validate cleanly.
+* *FCR* (Final Compile Rate) — fraction that validate within 3 repair attempts.
+* *SF* (Structural Fidelity) — mean of node-set and edge-set Jaccard similarity between
+  the generated and gold-standard normalized sets (case/whitespace-normalized).
+* *HR* (Hallucination Rate) — fraction of generated nodes with no fuzzy match in the
+  gold-standard node names. **This is an algorithmic approximation**, not a semantic
+  judge — it is stricter than a human/LLM judge would be, since a correct but
+  differently-named modeling decision counts as a false-positive hallucination.
+* *RI* (Repair Iterations) — mean attempts-to-success among successful runs only.
+
+`score.py` in `research/gcr-benchmark/` implements all five metrics; see its docstring
+for the exact input shape it expects.
+
+== Prompt primers
+
+Each DSL/diagram-family combination gets a compact syntax reference (~150–300 tokens)
+plus a worked example using generic entity names — this stands in for the few-shot
+examples the arXiv preprint describes, kept minimal since kUML's syntax is
+underrepresented in LLM training data relative to PlantUML/Mermaid. PlantUML and
+Mermaid get the same style of primer for tooling/output-format instructions, but no
+extended few-shot beyond that — consistent with the preprint's asymmetric design
+(baselines are well-represented in training data already).
+
+For SysML 2 specifically: neither PlantUML nor Mermaid has native SysML 2 support.
+Both were instructed to transliterate blocks (`partDef`) into plain class notation
+with composition/generalization arrows — the realistic fallback a developer would
+reach for, and a fair stress test of the "no native support" gap the preprint predicts.
+
+The exact primer text for all three DSLs × four families is preserved in the workflow
+script history for the published run (see the raw generation prompts embedded in
+`results/2026-07-06-claude-sonnet-5/raw-generations.json` — each row's `finalCode`
+reflects what the primer successfully elicited). A condensed version of each primer's
+structure:
+
+[source,kotlin]
+----
+// kUML — Class Diagram primer skeleton
+classDiagram(name = "ModelName") {
+    val a = classOf(name = "A") {
+        isAbstract = true
+        attribute(name = "field", type = "String", isReadOnly = true)
+        operation(name = "doThing") { parameter(name = "x", type = "Int"); returns(typeName = "Boolean") }
+    }
+    val sub = classOf(name = "Sub") { extends(general = a) }
+    association(source = a, target = sub) {
+        aggregation = AggregationKind.COMPOSITE
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "0..*"); role = "items" }
+    }
+}
+----
+
+[source]
+----
+@startuml
+' PlantUML — Class Diagram primer skeleton
+abstract class A
+class Sub
+A "1" *-- "0..*" Sub : items
+Sub <|-- A
+@enduml
+----
+
+[source]
+----
+classDiagram
+  %% Mermaid — Class Diagram primer skeleton
+  class A
+  class Sub
+  A "1" *-- "0..*" Sub : items
+  A <|-- Sub
+----
+
+== Published results (2026-07-06, Claude Sonnet 5, n=1 sample/cell)
+
+[cols="1,1,1,1,1,1"]
+|===
+| DSL | CR | FCR | SF | HR | RI
+
+| kUML + GCR
+| 78.0%
+| 98.0%
+| *45.3%*
+| *15.4%*
+| 1.27
+
+| PlantUML
+| 98.0%
+| 100.0%
+| 37.9%
+| 16.5%
+| 1.02
+
+| Mermaid
+| 98.0%
+| 100.0%
+| 37.4%
+| 21.9%
+| 1.02
+|===
+
+Full per-family and per-difficulty breakdowns: `results/2026-07-06-claude-sonnet-5/aggregates.json`.
+Interpretation and notable findings (the C4 first-shot compile-rate cliff, the SysML 2 ×
+Mermaid transliteration loss): see the
+https://kuml.dev/blog/2026-07-06-gcr-benchmark-kuml-vs-plantuml-mermaid[blog post, window=_blank].
+
+== Limitations
+
+* **One model.** Only Claude Sonnet 5 ran; the preprint's design calls for three
+  frontier models (GPT-4o, Claude, Gemini) to rule out single-model training-data
+  artifacts.
+* **One sample per cell**, not three — no variance measure, no significance testing.
+* **HR is algorithmic**, not judged — see the metrics section above.
+* **No visual inspection** of rendered SVGs — only compile/parse success and
+  structural (node/edge) content were checked.
+* API rate limiting during the run required throttling concurrent generations down to
+  batches of 4 with per-pair retries; this has no bearing on the scored results, only
+  on how long the run took.
+
+== Reproduce with your own LLM
+
+See `research/gcr-benchmark/README.adoc` for the step-by-step loop and the exact
+`score.py` invocation. In short: generate from `corpus.json`'s `nl` field per task/DSL,
+validate with the real toolchain, repair up to 3×, extract normalized nodes/edges in
+the format above, then run `python3 score.py your-results.json --corpus corpus.json`.

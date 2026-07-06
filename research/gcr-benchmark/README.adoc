@@ -1,0 +1,38 @@
+= GCR Benchmark — Reproducibility Package
+
+Full methodology, prompt primers, and result interpretation:
+https://docs.kuml.dev/reference/llm-benchmark.html[Handbook: LLM Benchmark (GCR)].
+
+== Contents
+
+* `corpus.json` — the 50-task benchmark corpus (natural-language description, gold-standard
+  kUML code, and normalized node/edge sets for Structural Fidelity scoring), stratified by
+  diagram family (Class/Sequence/C4/SysML 2) and difficulty (Simple/Medium/Complex).
+* `score.py` — scores a results file against `corpus.json` (Compile Rate, Final Compile
+  Rate, Structural Fidelity, Hallucination Rate, Repair Iterations).
+* `results/2026-07-06-claude-sonnet-5/` — the first full-corpus run (Claude Sonnet 5,
+  1 sample/cell): raw generations, per-row scores, and aggregates.
+
+== Reproduce with your own LLM
+
+For each of the 50 tasks in `corpus.json` and each target DSL (kUML/PlantUML/Mermaid):
+
+1. Generate diagram code from the task's `nl` field using your LLM of choice (see the
+   handbook page for the exact prompt primers used per DSL/diagram family).
+2. Validate with the real toolchain (`kuml render`, `plantuml -tsvg`, `mermaid-cli`); on
+   failure, feed the diagnostic back to the model and retry, up to 3 attempts total.
+3. From the final code, extract a normalized node list (`"EntityName (kind)"`) and edge
+   list (`"Source -> Target (relationshipKind[, multiplicity])"`).
+4. Collect results as a JSON array matching the shape `score.py` expects (see its
+   docstring), then run:
++
+[source,bash]
+----
+python3 score.py your-results.json --corpus corpus.json
+----
+
+== Limitations of the published run
+
+One model, one sample per cell — not the three-model/three-sample design of the full
+benchmark paper. Hallucination Rate is an algorithmic fuzzy-name-match against the gold
+standard, not a semantic judge. See the handbook page for the full caveat list.
