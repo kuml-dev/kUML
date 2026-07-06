@@ -8,31 +8,63 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
 * `corpus.json` — the 50-task benchmark corpus (natural-language description, gold-standard
   kUML code, and normalized node/edge sets for Structural Fidelity scoring), stratified by
   diagram family (Class/Sequence/C4/SysML 2) and difficulty (Simple/Medium/Complex).
+* `gcr_common.py` — shared prompt primers, per-DSL validation/extraction, and the generic
+  Generate-Compile-Repair loop + resumable run driver used by every provider script.
+* `run-gemini.py` / `run-gpt4o.py` — provider-specific orchestration scripts built on
+  `gcr_common.py`. Each supplies its own API call function and a "stop the whole run,
+  quota exhausted" exception type; everything else (primers, validation, resume-on-rerun)
+  is shared. Usage: `export GEMINI_API_KEY=...` / `export OPENAI_API_KEY=...`, then
+  `python3 run-gemini.py` / `python3 run-gpt4o.py` (see `--help` for `--model`, `--workers`,
+  `--limit`, `--ids`).
+* `build-manifest.py` — renders SVGs from a `results/<model>/raw-results.json` (via
+  `kuml render`/`dump-json`, `plantuml -tsvg`, `mmdc`) and merges per-cell metrics into
+  the kuml.dev gallery manifest additively, under `modelVariants[<model-key>]` — never
+  touches the default model's existing data or image paths.
 * `score.py` — scores a results file against `corpus.json` (Compile Rate, Final Compile
   Rate, Structural Fidelity, Hallucination Rate, Repair Iterations).
 * `results/2026-07-06-claude-sonnet-5/` — the first full-corpus run (Claude Sonnet 5,
-  1 sample/cell): raw generations, per-row scores, and aggregates.
+  1 sample/cell, via isolated Claude Code subagents): raw generations, per-row scores,
+  and aggregates.
+* `results/gpt-4o/`, `results/gemini-2.5-flash/` — full-corpus runs (1 sample/cell) via
+  `run-gpt4o.py`/`run-gemini.py`. Each `raw-results.json` row includes `finalCode` (the
+  last generated attempt), so `build-manifest.py` can render/re-render images from them
+  without new LLM calls.
+
+All three models (Claude Sonnet 5, GPT-4o, Gemini 2.5 Flash) are visually comparable
+per-task at https://kuml.dev/benchmark-gallery[kuml.dev/benchmark-gallery] via a
+per-task model tab.
 
 == Reproduce with your own LLM
 
-For each of the 50 tasks in `corpus.json` and each target DSL (kUML/PlantUML/Mermaid):
+The easiest path: copy `gcr_common.py` and write a `run-<yourmodel>.py` following the
+shape of `run-gemini.py`/`run-gpt4o.py` — supply a `call_fn(model, prompt) -> str` and
+call `run_benchmark(call_fn, ..., model, out_path)`. Manually, for each of the 50 tasks
+in `corpus.json` and each target DSL (kUML/PlantUML/Mermaid):
 
 1. Generate diagram code from the task's `nl` field using your LLM of choice (see the
-   handbook page for the exact prompt primers used per DSL/diagram family).
+   handbook page, or `gcr_common.PRIMERS`, for the exact prompt primers used per
+   DSL/diagram family).
 2. Validate with the real toolchain (`kuml render`, `plantuml -tsvg`, `mermaid-cli`); on
    failure, feed the diagnostic back to the model and retry, up to 3 attempts total.
 3. From the final code, extract a normalized node list (`"EntityName (kind)"`) and edge
    list (`"Source -> Target (relationshipKind[, multiplicity])"`).
 4. Collect results as a JSON array matching the shape `score.py` expects (see its
-   docstring), then run:
+   docstring — include `finalCode` too if you want gallery images), then run:
 +
 [source,bash]
 ----
 python3 score.py your-results.json --corpus corpus.json
+python3 build-manifest.py --model-key your-model --results your-results.json  # optional, for the gallery
 ----
 
-== Limitations of the published run
+== Limitations of the published runs
 
-One model, one sample per cell — not the three-model/three-sample design of the full
-benchmark paper. Hallucination Rate is an algorithmic fuzzy-name-match against the gold
-standard, not a semantic judge. See the handbook page for the full caveat list.
+One sample per cell for all three models — no variance measure, no significance testing.
+Hallucination Rate is an algorithmic fuzzy-name-match against the gold standard, not a
+semantic judge. The Sequence/C4/SysML2 prompt primers for GPT-4o and Gemini are
+reconstructed from `corpus.json`'s gold-standard code (same style/token budget as the
+handbook-documented Class-diagram primer) rather than byte-identical to the original
+Claude Sonnet 5 subagent prompts, which were never saved as a standalone artifact.
+Gemini 2.5 Flash is Google's fast/cheap tier, not a like-for-like peer of Claude Sonnet 5
+or GPT-4o — treat cross-model comparisons involving it with that caveat in mind. See the
+handbook page for the full caveat list.

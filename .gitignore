@@ -134,3 +134,6 @@ gradle-app.setting
 # with a native OOM instead of exiting cleanly. Expected byproduct, not build
 # output worth tracking.
 hs_err_pid*.log
+
+# GCR benchmark: raw daily-resume log (noisy, not a result artifact)
+research/gcr-benchmark/results/*/daily-run.log

@@ -212,13 +212,47 @@ https://kuml.dev/blog/2026-07-06-gcr-benchmark-kuml-vs-plantuml-mermaid[blog pos
 
 Want to see the actual diagrams behind these numbers? The xref:ROOT:gallery/index.adoc[Benchmark Gallery]
 renders all 50 tasks — gold standard next to what each DSL generated, including the one task (C4-S-01)
-where kUML never got a diagram out at all after 3 repair attempts.
+where kUML never got a diagram out at all after 3 repair attempts. A per-task model tab lets you
+compare all three models below against each other visually.
+
+== Published results — GPT-4o and Gemini 2.5 Flash (2026-07-06, n=1 sample/cell)
+
+Two more full-corpus runs, via `run-gpt4o.py`/`run-gemini.py` (own Python orchestration scripts,
+since Claude Code subagents can't call other providers' APIs) instead of Claude subagents.
+
+[cols="1,1,1,1,1,1"]
+|===
+| DSL | CR | FCR | SF | HR | RI
+
+6+| **GPT-4o**
+| kUML + GCR | 86.0% | 96.0% | *46.4%* | *11.8%* | 1.15
+| PlantUML | 98.0% | 98.0% | 36.9% | 18.5% | 1.00
+| Mermaid | 100.0% | 100.0% | 33.5% | 19.9% | 1.00
+
+6+| **Gemini 2.5 Flash**
+| kUML + GCR | 52.0% | 74.0% | 26.9% | 20.7% | 1.30
+| PlantUML | 90.0% | 98.0% | 33.7% | 21.8% | 1.10
+| Mermaid | 100.0% | 100.0% | *35.2%* | 26.7% | 1.00
+|===
+
+GPT-4o reproduces the Claude pattern (kUML highest SF, lowest HR), even more pronounced. Gemini 2.5
+Flash does **not** — kUML trails both baselines on SF, and C4 is nearly unsolvable for kUML at this
+model (0% CR, 25% FCR). Most likely explanation: Flash is Google's fast/cheap tier, not a like-for-like
+peer of Claude Sonnet 5 or GPT-4o — a capability-tier confound, not necessarily a DSL-design finding.
+Full per-family/per-difficulty breakdowns and raw generations (including `finalCode` per cell, so
+images can be re-rendered without new LLM calls): `research/gcr-benchmark/results/gpt-4o/` and
+`results/gemini-2.5-flash/`.
 
 == Limitations
 
-* **One model.** Only Claude Sonnet 5 ran; the preprint's design calls for three
-  frontier models (GPT-4o, Claude, Gemini) to rule out single-model training-data
-  artifacts.
+* **All three models ran, but not on equal footing.** Claude Sonnet 5 and GPT-4o are comparable
+  frontier/flagship models; Gemini 2.5 Flash is a faster/cheaper tier, not a like-for-like peer —
+  see the results above. A Gemini 2.5 Pro run would be needed to separate model-tier effects from
+  genuine cross-model signal.
+* **Prompt primers aren't byte-identical across models** for Sequence/C4/SysML2 (Class-diagram is).
+  The GPT-4o/Gemini primers are reconstructed from `corpus.json`'s gold-standard code in the same
+  style/token budget, since the original Claude subagent prompts were never saved as a standalone
+  artifact.
 * **One sample per cell**, not three — no variance measure, no significance testing.
 * **HR is algorithmic**, not judged — see the metrics section above.
 * **No visual inspection** of rendered SVGs — only compile/parse success and
