@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 680.20 720"
+     width="680.20"
+     height="720">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="680.20" height="720" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="676.20" height="716" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        container: Plant Monitoring Dashboard - Container View
+      </text>
+    </g>
+    <g id="system-c4-2" transform="translate(50.40,243)">
+      <rect width="613.80" height="461" class="kuml-system" rx="8" ry="8"/>
+      <text class="kuml-stereotype" x="306.90" y="14" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="306.90" y="30" text-anchor="middle">
+        Plant Monitoring Dashboard
+      </text>
+    </g>
+    <g id="c4-3" transform="translate(383.20,279)">
+      <rect width="254" height="88" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="127" y="18" text-anchor="middle">
+        [Container: Embedded/Distributed]
+      </text>
+      <text class="kuml-title" x="127" y="36" text-anchor="middle">
+        Sensor Gateway
+      </text>
+      <text class="kuml-small" x="127" y="52" text-anchor="middle">
+        <tspan x="127" dy="0">
+          Delivers measurement values for
+        </tspan>
+        <tspan x="127" dy="13">
+          temperature, vibration and energy
+        </tspan>
+        <tspan x="127" dy="13">
+          consumption
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-4" transform="translate(376.20,457)">
+      <rect width="268" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="134" y="18" text-anchor="middle">
+        [Container: Kotlin/Ktor]
+      </text>
+      <text class="kuml-title" x="134" y="36" text-anchor="middle">
+        Ingest Service
+      </text>
+      <text class="kuml-small" x="134" y="52" text-anchor="middle">
+        <tspan x="134" dy="0">
+          Receives measurement data and writes it to
+        </tspan>
+        <tspan x="134" dy="13">
+          the time-series database
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-5" transform="translate(129.97,622)">
+      <rect width="220" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="110" y="18" text-anchor="middle">
+        [Container: Database]
+      </text>
+      <text class="kuml-title" x="110" y="36" text-anchor="middle">
+        Time-Series Database
+      </text>
+      <text class="kuml-small" x="110" y="52" text-anchor="middle">
+        <tspan x="110" dy="0">
+          Stores measurement data
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-6" transform="translate(70.40,461.33)">
+      <rect width="265.80" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="132.90" y="18" text-anchor="middle">
+        [Container: Web]
+      </text>
+      <text class="kuml-title" x="132.90" y="36" text-anchor="middle">
+        Web Application
+      </text>
+      <text class="kuml-small" x="132.90" y="52" text-anchor="middle">
+        <tspan x="132.90" dy="0">
+          Generates live views and trend charts
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-0" transform="translate(326,32)">
+      <circle cx="121.60" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 121.60 18 L 121.60 38 M 109.60 26 L 133.60 26 M 121.60 38 L 111.60 52 M 121.60 38 L 131.60 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="235.20" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="121.60" y="76" text-anchor="middle">
+        Plant Technician
+      </text>
+      <text class="kuml-stereotype" x="121.60" y="92" text-anchor="middle">
+        <tspan x="121.60" dy="0">
+          Uses the dashboard for fault diagnosis
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-1" transform="translate(32,32)">
+      <circle cx="127" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 127 18 L 127 38 M 115 26 L 139 26 M 127 38 L 117 52 M 127 38 L 137 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="246" height="57" class="kuml-class"/>
+      <text class="kuml-title" x="127" y="76" text-anchor="middle">
+        Plant Manager
+      </text>
+      <text class="kuml-stereotype" x="127" y="92" text-anchor="middle">
+        <tspan x="127" dy="0">
+          Uses the dashboard for utilization and
+        </tspan>
+        <tspan x="127" dy="13">
+          energy consumption overview
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="510.20" y1="367" x2="510.20" y2="457" class="kuml-edge"/>
+    <path d="M 505.20,445 L 510.20,457 L 515.20,445" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="520.20" y="416" text-anchor="start">
+      Delivers measurement values [Network]
+    </text>
+    <text class="kuml-edge-label" x="520.20" y="416" text-anchor="start">
+      Delivers measurement values [Network]
+    </text>
+    <path d="M 510.20 532 L 510.20 562 L 276.63 562 L 276.63 622" class="kuml-edge"/>
+    <path d="M 271.63,610 L 276.63,622 L 281.63,610" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="393.42" y="558" text-anchor="middle">
+      Writes measurement data [DB Protocol]
+    </text>
+    <text class="kuml-edge-label" x="393.42" y="558" text-anchor="middle">
+      Writes measurement data [DB Protocol]
+    </text>
+    <line x1="203.30" y1="523.33" x2="203.30" y2="622" class="kuml-edge"/>
+    <path d="M 198.30,610 L 203.30,622 L 208.30,610" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="213.30" y="576.67" text-anchor="start">
+      Reads measurement data for live views and trend charts [Query]
+    </text>
+    <text class="kuml-edge-label" x="213.30" y="576.67" text-anchor="start">
+      Reads measurement data for live views and trend charts [Query]
+    </text>
+    <path d="M 447.60 147 L 447.60 177 L 247.60 177 L 247.60 461.33" class="kuml-edge"/>
+    <path d="M 242.60,449.33 L 247.60,461.33 L 252.60,449.33" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="257.60" y="323.17" text-anchor="start">
+      Fault diagnosis [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="257.60" y="323.17" text-anchor="start">
+      Fault diagnosis [HTTPS]
+    </text>
+    <line x1="159" y1="147" x2="159" y2="461.33" class="kuml-edge"/>
+    <path d="M 154,449.33 L 159,461.33 L 164,449.33" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="169" y="308.17" text-anchor="start">
+      Overview of utilization and energy consumption [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="169" y="308.17" text-anchor="start">
+      Overview of utilization and energy consumption [HTTPS]
+    </text>
+  </g>
+</svg>

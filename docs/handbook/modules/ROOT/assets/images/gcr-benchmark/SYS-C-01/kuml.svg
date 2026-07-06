@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1360.40 750"
+     width="1360.40"
+     height="750">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1360.40" height="750" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1356.40" height="746" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        bdd: AUTOSAR ECU BDD
+      </text>
+    </g>
+    <g id="ECU" transform="translate(32,122)">
+      <rect width="269.600" height="98" class="kuml-class"/>
+      <text class="kuml-stereotype" x="134.800" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="134.800" y="30" text-anchor="middle">
+        ECU
+      </text>
+      <line x1="0" y1="42" x2="269.600" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        microcontroller : Microcontroller
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        autosarBsw : AUTOSAR BSW
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        applicationLayer : Application Layer
+      </text>
+    </g>
+    <g id="Microcontroller" transform="translate(677.200,122)">
+      <rect width="414.800" height="112" class="kuml-class"/>
+      <text class="kuml-stereotype" x="207.400" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="207.400" y="30" text-anchor="middle">
+        Microcontroller
+      </text>
+      <line x1="0" y1="42" x2="414.800" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        cpuCore : CPU Core
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        ram : RAM
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        flashMemory : Flash Memory
+      </text>
+      <text class="kuml-body" x="6" y="95">
+        communicationControllers : Communication Controller [1..*]
+      </text>
+    </g>
+    <g id="CPU Core" transform="translate(32,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        CPU Core
+      </text>
+    </g>
+    <g id="RAM" transform="translate(272,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        RAM
+      </text>
+    </g>
+    <g id="Flash Memory" transform="translate(512,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Flash Memory
+      </text>
+    </g>
+    <g id="Communication Controller" transform="translate(713.400,414)">
+      <rect width="233.600" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="116.800" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title kuml-title-abstract" x="116.800" y="30" text-anchor="middle" font-style="italic">
+        Communication Controller
+      </text>
+    </g>
+    <g id="CAN Controller" transform="translate(980.200,254)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        CAN Controller
+      </text>
+    </g>
+    <g id="LIN Controller" transform="translate(720.200,254)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        LIN Controller
+      </text>
+    </g>
+    <g id="Ethernet Controller" transform="translate(460.200,254)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Ethernet Controller
+      </text>
+    </g>
+    <g id="AUTOSAR BSW" transform="translate(32,254)">
+      <rect width="408.200" height="126" class="kuml-class"/>
+      <text class="kuml-stereotype" x="204.100" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="204.100" y="30" text-anchor="middle">
+        AUTOSAR BSW
+      </text>
+      <line x1="0" y1="42" x2="408.200" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        mcal : MCAL
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        canCommunicationStack : CAN Communication Stack
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        ethernetCommunicationStack : Ethernet Communication Stack
+      </text>
+      <text class="kuml-body" x="6" y="95">
+        os : OS
+      </text>
+      <text class="kuml-body" x="6" y="108">
+        watchdog : Watchdog
+      </text>
+    </g>
+    <g id="BSW Module" transform="translate(575.600,664)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title kuml-title-abstract" x="110" y="30" text-anchor="middle" font-style="italic">
+        BSW Module
+      </text>
+    </g>
+    <g id="MCAL" transform="translate(1124.400,504)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        MCAL
+      </text>
+    </g>
+    <g id="CAN Communication Stack" transform="translate(859.200,504)">
+      <rect width="225.200" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="112.600" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="112.600" y="30" text-anchor="middle">
+        CAN Communication Stack
+      </text>
+    </g>
+    <g id="Ethernet Communication Stack" transform="translate(552,504)">
+      <rect width="267.200" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="133.600" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="133.600" y="30" text-anchor="middle">
+        Ethernet Communication Stack
+      </text>
+    </g>
+    <g id="OS" transform="translate(292,504)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        OS
+      </text>
+    </g>
+    <g id="Watchdog" transform="translate(32,504)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Watchdog
+      </text>
+    </g>
+    <g id="Application Layer" transform="translate(321.600,122)">
+      <rect width="335.600" height="84" class="kuml-class"/>
+      <text class="kuml-stereotype" x="167.800" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="167.800" y="30" text-anchor="middle">
+        Application Layer
+      </text>
+      <line x1="0" y1="42" x2="335.600" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        virtualFunctionalBus : Virtual Functional Bus
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        softwareComponents : Software Component [1..*]
+      </text>
+    </g>
+    <g id="Virtual Functional Bus" transform="translate(752,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Virtual Functional Bus
+      </text>
+    </g>
+    <g id="Software Component" transform="translate(992,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Software Component
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <path d="M 1090.20 324 L 1090.20 354 L 888.60 354 L 888.60 414" class="kuml-edge"/>
+    <polygon points="888.60,414 883.60,402 893.60,402" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <line x1="830.20" y1="324" x2="830.20" y2="414" class="kuml-edge"/>
+    <polygon points="830.20,414 825.20,402 835.20,402" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 570.20 324 L 570.20 354 L 771.80 354 L 771.80 414" class="kuml-edge"/>
+    <polygon points="771.80,414 766.80,402 776.80,402" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 1234.40 574 L 1234.40 614 L 758.93 614 L 758.93 664" class="kuml-edge"/>
+    <polygon points="758.93,664 753.93,652 763.93,652" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 971.80 574 L 971.80 604 L 722.27 604 L 722.27 664" class="kuml-edge"/>
+    <polygon points="722.27,664 717.27,652 727.27,652" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <line x1="685.60" y1="574" x2="685.60" y2="664" class="kuml-edge"/>
+    <polygon points="685.60,664 680.60,652 690.60,652" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 402 574 L 402 604 L 648.93 604 L 648.93 664" class="kuml-edge"/>
+    <polygon points="648.93,664 643.93,652 653.93,652" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 142 574 L 142 614 L 612.27 614 L 612.27 664" class="kuml-edge"/>
+    <polygon points="612.27,664 607.27,652 617.27,652" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+  </g>
+</svg>

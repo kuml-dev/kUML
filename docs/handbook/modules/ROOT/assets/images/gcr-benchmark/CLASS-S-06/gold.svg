@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 459 643"
+     width="459"
+     height="643">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="459" height="643" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="455" height="639" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        class: CinemaBoxOffice
+      </text>
+    </g>
+    <g id="Film" transform="translate(32,32)">
+      <rect width="183" height="85" class="kuml-class"/>
+      <text class="kuml-title" x="91.50" y="18" text-anchor="middle">
+        Film
+      </text>
+      <line x1="0" y1="24" x2="183" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - title: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - durationMinutes: Int
+      </text>
+      <text class="kuml-body" x="5" y="64">
+        - ageRating: Int
+      </text>
+    </g>
+    <g id="Auditorium" transform="translate(255,37)">
+      <rect width="188" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="94" y="18" text-anchor="middle">
+        Auditorium
+      </text>
+      <line x1="0" y1="24" x2="188" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+    </g>
+    <g id="Seat" transform="translate(100.33,547)">
+      <rect width="188" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="94" y="18" text-anchor="middle">
+        Seat
+      </text>
+      <line x1="0" y1="24" x2="188" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - row: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - seatNumber: Int
+      </text>
+    </g>
+    <g id="Screening" transform="translate(44.50,207)">
+      <rect width="237" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="118.50" y="18" text-anchor="middle">
+        Screening
+      </text>
+      <line x1="0" y1="24" x2="237" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - startTime: LocalDateTime
+      </text>
+    </g>
+    <g id="Ticket" transform="translate(61.50,377)">
+      <rect width="203" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="101.50" y="18" text-anchor="middle">
+        Ticket
+      </text>
+      <line x1="0" y1="24" x2="203" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - price: BigDecimal
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - soldAt: LocalDateTime
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <path d="M 380.33 117 L 380.33 487 L 225.67 487 L 225.67 547" class="kuml-edge"/>
+    <path d="M 220.67,535 L 225.67,547 L 230.67,535" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <polygon points="380.33,117 385.33,125 380.33,133 375.33,125" style="stroke:#1D2B4F;stroke-width:1.5;fill:#1D2B4F;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="215.67" y="533" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small" x="215.67" y="533" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small-halo" x="235.67" y="517" text-anchor="middle">
+      seats
+    </text>
+    <text class="kuml-small" x="235.67" y="517" text-anchor="middle">
+      seats
+    </text>
+    <line x1="123.50" y1="117" x2="123.50" y2="207" class="kuml-edge"/>
+    <path d="M 118.50,195 L 123.50,207 L 128.50,195" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="113.50" y="193" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="113.50" y="193" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="133.50" y="177" text-anchor="middle">
+      screenings
+    </text>
+    <text class="kuml-small" x="133.50" y="177" text-anchor="middle">
+      screenings
+    </text>
+    <path d="M 317.67 117 L 317.67 147 L 202.50 147 L 202.50 207" class="kuml-edge"/>
+    <path d="M 197.50,195 L 202.50,207 L 207.50,195" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="192.50" y="193" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="192.50" y="193" text-anchor="middle">
+      0..*
+    </text>
+    <line x1="163" y1="287" x2="163" y2="377" class="kuml-edge"/>
+    <path d="M 158,365 L 163,377 L 168,365" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="153" y="363" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="153" y="363" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="173" y="347" text-anchor="middle">
+      tickets
+    </text>
+    <text class="kuml-small" x="173" y="347" text-anchor="middle">
+      tickets
+    </text>
+    <line x1="163" y1="457" x2="163" y2="547" class="kuml-edge"/>
+    <path d="M 158,535 L 163,547 L 168,535" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="153" y="471" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="153" y="471" text-anchor="middle">
+      0..*
+    </text>
+  </g>
+</svg>

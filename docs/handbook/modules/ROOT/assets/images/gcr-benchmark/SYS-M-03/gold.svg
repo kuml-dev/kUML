@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 786.80 694"
+     width="786.80"
+     height="694">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="786.80" height="694" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="782.80" height="690" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        bdd: Wind Turbine BDD
+      </text>
+    </g>
+    <g id="Wind Turbine" transform="translate(32,316)">
+      <rect width="249.800" height="98" class="kuml-class"/>
+      <text class="kuml-stereotype" x="124.900" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="124.900" y="30" text-anchor="middle">
+        Wind Turbine
+      </text>
+      <line x1="0" y1="42" x2="249.800" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        tower : Tower
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        nacelle : Nacelle Housing
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        cms : Condition-Monitoring-System
+      </text>
+    </g>
+    <g id="Tower" transform="translate(32,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Tower
+      </text>
+    </g>
+    <g id="Nacelle Housing" transform="translate(301.800,316)">
+      <rect width="263" height="112" class="kuml-class"/>
+      <text class="kuml-stereotype" x="131.500" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="131.500" y="30" text-anchor="middle">
+        Nacelle Housing
+      </text>
+      <line x1="0" y1="42" x2="263" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        rotor : Rotor
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        drivetrain : Drivetrain
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        pitchControl : Pitch Control System
+      </text>
+      <text class="kuml-body" x="6" y="95">
+        yawControl : Yaw Control System
+      </text>
+    </g>
+    <g id="Rotor" transform="translate(310.800,212)">
+      <rect width="220" height="84" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Rotor
+      </text>
+      <line x1="0" y1="42" x2="220" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        hub : Hub
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        rotorBlade : Rotor Blade [3]
+      </text>
+    </g>
+    <g id="Hub" transform="translate(272,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Hub
+      </text>
+    </g>
+    <g id="Rotor Blade" transform="translate(68.667,608)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title kuml-title-abstract" x="110" y="30" text-anchor="middle" font-style="italic">
+        Rotor Blade
+      </text>
+    </g>
+    <g id="GFRP Rotor Blade" transform="translate(292,448)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        GFRP Rotor Blade
+      </text>
+    </g>
+    <g id="CFRP Rotor Blade" transform="translate(32,448)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        CFRP Rotor Blade
+      </text>
+    </g>
+    <g id="Drivetrain" transform="translate(550.800,212)">
+      <rect width="220" height="84" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Drivetrain
+      </text>
+      <line x1="0" y1="42" x2="220" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        gearbox : Gearbox
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        generator : Generator
+      </text>
+    </g>
+    <g id="Gearbox" transform="translate(512,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Gearbox
+      </text>
+    </g>
+    <g id="Generator" transform="translate(32,122)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Generator
+      </text>
+    </g>
+    <g id="Pitch Control System" transform="translate(272,122)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Pitch Control System
+      </text>
+    </g>
+    <g id="Yaw Control System" transform="translate(512,122)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Yaw Control System
+      </text>
+    </g>
+    <g id="Condition-Monitoring-System" transform="translate(32,212)">
+      <rect width="258.800" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="129.400" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="129.400" y="30" text-anchor="middle">
+        Condition-Monitoring-System
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <path d="M 402 518 L 402 548 L 215.33 548 L 215.33 608" class="kuml-edge"/>
+    <polygon points="215.33,608 210.33,596 220.33,596" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <line x1="142" y1="518" x2="142" y2="608" class="kuml-edge"/>
+    <polygon points="142,608 137,596 147,596" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+  </g>
+</svg>

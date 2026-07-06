@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 652.40 513"
+     width="652.40"
+     height="513">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="652.40" height="513" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="648.40" height="509" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        container: Blog Platform - Container View
+      </text>
+    </g>
+    <g id="system-c4-2" transform="translate(32,237)">
+      <rect width="604.40" height="118" class="kuml-system" rx="8" ry="8"/>
+      <text class="kuml-stereotype" x="302.20" y="14" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="302.20" y="30" text-anchor="middle">
+        Blog Platform
+      </text>
+    </g>
+    <g id="c4-3" transform="translate(252,273)">
+      <rect width="164.40" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="82.20" y="18" text-anchor="middle">
+        [Container: Web]
+      </text>
+      <text class="kuml-title" x="82.20" y="36" text-anchor="middle">
+        Web Application
+      </text>
+      <text class="kuml-small" x="82.20" y="52" text-anchor="middle">
+        <tspan x="82.20" dy="0">
+          Display and editorial work
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-4" transform="translate(456.40,273)">
+      <rect width="160" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="80" y="18" text-anchor="middle">
+        [Container: API]
+      </text>
+      <text class="kuml-title" x="80" y="36" text-anchor="middle">
+        Content API
+      </text>
+      <text class="kuml-small" x="80" y="52" text-anchor="middle">
+        <tspan x="80" dy="0">
+          Business logic
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-5" transform="translate(52,273)">
+      <rect width="160" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="80" y="18" text-anchor="middle">
+        [Container: Database]
+      </text>
+      <text class="kuml-title" x="80" y="36" text-anchor="middle">
+        Article Database
+      </text>
+      <text class="kuml-small" x="80" y="52" text-anchor="middle">
+        <tspan x="80" dy="0">
+          Content storage
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-6" transform="translate(222.80,445)">
+      <rect width="222.80" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="111.40" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="111.40" y="36" text-anchor="middle">
+        Email Delivery Service
+      </text>
+    </g>
+    <g id="c4-0" transform="translate(397.77,32)">
+      <circle cx="97.30" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 97.30 18 L 97.30 38 M 85.30 26 L 109.30 26 M 97.30 38 L 87.30 52 M 97.30 38 L 107.30 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="186.60" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="97.30" y="76" text-anchor="middle">
+        Author
+      </text>
+      <text class="kuml-stereotype" x="97.30" y="92" text-anchor="middle">
+        <tspan x="97.30" dy="0">
+          Writes and publishes articles
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-1" transform="translate(109.17,32)">
+      <circle cx="124.30" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 124.30 18 L 124.30 38 M 112.30 26 L 136.30 26 M 124.30 38 L 114.30 52 M 124.30 38 L 134.30 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="240.60" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="124.30" y="76" text-anchor="middle">
+        Reader
+      </text>
+      <text class="kuml-stereotype" x="124.30" y="92" text-anchor="middle">
+        <tspan x="124.30" dy="0">
+          Consumes published posts in the browser
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <path d="M 495.07 147 L 495.07 177 L 434.93 177 L 434.93 237" class="kuml-edge"/>
+    <path d="M 429.93,225 L 434.93,237 L 439.93,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="465" y="173" text-anchor="middle">
+      Writes and publishes articles [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="465" y="173" text-anchor="middle">
+      Writes and publishes articles [HTTPS]
+    </text>
+    <line x1="233.47" y1="147" x2="233.47" y2="237" class="kuml-edge"/>
+    <path d="M 228.47,225 L 233.47,237 L 238.47,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="243.47" y="196" text-anchor="start">
+      Reads published posts [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="243.47" y="196" text-anchor="start">
+      Reads published posts [HTTPS]
+    </text>
+    <line x1="334.20" y1="355" x2="334.20" y2="445" class="kuml-edge"/>
+    <path d="M 329.20,433 L 334.20,445 L 339.20,433" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="344.20" y="404" text-anchor="start">
+      Notifies subscribers on publication [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="344.20" y="404" text-anchor="start">
+      Notifies subscribers on publication [REST/HTTPS]
+    </text>
+  </g>
+</svg>

@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1220 988"
+     width="1220"
+     height="988">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1220" height="988" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1216" height="984" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        class: ADAS-TestPlatform
+      </text>
+    </g>
+    <g id="TestResult" transform="translate(32,32)">
+      <rect width="160" height="103" class="kuml-enum"/>
+      <text class="kuml-stereotype" x="80" y="18" text-anchor="middle">
+        «enumeration»
+      </text>
+      <text class="kuml-title" x="80" y="32" text-anchor="middle">
+        TestResult
+      </text>
+      <line x1="0" y1="38" x2="160" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="8" y="52">
+        PASSED
+      </text>
+      <text class="kuml-body" x="8" y="65">
+        FAILED
+      </text>
+      <text class="kuml-body" x="8" y="78">
+        ABORTED
+      </text>
+    </g>
+    <g id="Calibratable" transform="translate(645.67,892)">
+      <rect width="183" height="80" class="kuml-interface"/>
+      <text class="kuml-stereotype" x="91.50" y="18" text-anchor="middle">
+        «interface»
+      </text>
+      <text class="kuml-title" x="91.50" y="32" text-anchor="middle">
+        Calibratable
+      </text>
+      <line x1="0" y1="38" x2="183" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="8" y="52">
+        + calibrate(): Boolean
+      </text>
+    </g>
+    <g id="Vehicle" transform="translate(579.17,202)">
+      <rect width="202" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="101" y="18" text-anchor="middle">
+        Vehicle
+      </text>
+      <line x1="0" y1="24" x2="202" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - vin: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - model: String
+      </text>
+    </g>
+    <g id="ControlUnit" transform="translate(538,372)">
+      <rect width="217" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="108.50" y="18" text-anchor="middle">
+        ControlUnit
+      </text>
+      <line x1="0" y1="24" x2="217" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - designation: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - firmwareVersion: String
+      </text>
+    </g>
+    <g id="DrivingFunction" transform="translate(220.67,542)">
+      <rect width="211" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="105.50" y="18" text-anchor="middle">
+        DrivingFunction
+      </text>
+      <line x1="0" y1="24" x2="211" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - automationLevel: Int
+      </text>
+    </g>
+    <g id="Sensor" transform="translate(648.17,712)">
+      <rect width="267" height="90" class="kuml-class"/>
+      <text class="kuml-stereotype" x="133.50" y="18" text-anchor="middle">
+        «abstract»
+      </text>
+      <text class="kuml-title" x="133.50" y="32" text-anchor="middle">
+        Sensor
+      </text>
+      <line x1="0" y1="38" x2="267" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="52">
+        - serialNumber: String
+      </text>
+      <text class="kuml-body" x="5" y="65">
+        - samplingRateHz: Int
+      </text>
+    </g>
+    <g id="Camera" transform="translate(471.67,542)">
+      <rect width="183" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="91.50" y="18" text-anchor="middle">
+        Camera
+      </text>
+      <line x1="0" y1="24" x2="183" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - resolutionMp: Double
+      </text>
+    </g>
+    <g id="Radar" transform="translate(694.67,542)">
+      <rect width="174" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="87" y="18" text-anchor="middle">
+        Radar
+      </text>
+      <line x1="0" y1="24" x2="174" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - rangeM: Int
+      </text>
+    </g>
+    <g id="Lidar" transform="translate(908.67,542)">
+      <rect width="189" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="94.50" y="18" text-anchor="middle">
+        Lidar
+      </text>
+      <line x1="0" y1="24" x2="189" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - pointsPerSecond: Long
+      </text>
+    </g>
+    <g id="Measurement" transform="translate(1014,892)">
+      <rect width="190" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="95" y="18" text-anchor="middle">
+        Measurement
+      </text>
+      <line x1="0" y1="24" x2="190" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - timestamp: Instant
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - rawDataPath: String
+      </text>
+    </g>
+    <g id="TestScenario" transform="translate(322,372)">
+      <rect width="176" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="88" y="18" text-anchor="middle">
+        TestScenario
+      </text>
+      <line x1="0" y1="24" x2="176" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - description: String
+      </text>
+    </g>
+    <g id="TestCase" transform="translate(212,202)">
+      <rect width="237" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="118.50" y="18" text-anchor="middle">
+        TestCase
+      </text>
+      <line x1="0" y1="24" x2="237" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - testCaseId: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - expectedBehavior: String
+      </text>
+    </g>
+    <g id="TestRun" transform="translate(280,32)">
+      <rect width="202" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="101" y="18" text-anchor="middle">
+        TestRun
+      </text>
+      <line x1="0" y1="24" x2="202" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - startTime: Instant
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - result: TestResult
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="737.17" y1="802" x2="737.17" y2="892" class="kuml-edge-dashed"/>
+    <polygon points="737.17,892 732.17,880 742.17,880" style="stroke:#6B7A99;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 563.17 622 L 563.17 652 L 737.17 652 L 737.17 712" class="kuml-edge"/>
+    <polygon points="737.17,712 732.17,700 742.17,700" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <line x1="781.67" y1="622" x2="781.67" y2="712" class="kuml-edge"/>
+    <polygon points="781.67,712 776.67,700 786.67,700" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 1003.17 622 L 1003.17 652 L 826.17 652 L 826.17 712" class="kuml-edge"/>
+    <polygon points="826.17,712 821.17,700 831.17,700" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <line x1="646.50" y1="282" x2="646.50" y2="372" class="kuml-edge"/>
+    <path d="M 641.50,360 L 646.50,372 L 651.50,360" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <polygon points="646.50,282 651.50,290 646.50,298 641.50,290" style="stroke:#1D2B4F;stroke-width:1.5;fill:#1D2B4F;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="636.50" y="358" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small" x="636.50" y="358" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small-halo" x="656.50" y="342" text-anchor="middle">
+      controlUnits
+    </text>
+    <text class="kuml-small" x="656.50" y="342" text-anchor="middle">
+      controlUnits
+    </text>
+    <path d="M 646.50 452 L 646.50 482 L 361.33 482 L 361.33 542" class="kuml-edge"/>
+    <path d="M 356.33,530 L 361.33,542 L 366.33,530" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <polygon points="646.50,452 651.50,460 646.50,468 641.50,460" style="stroke:#1D2B4F;stroke-width:1.5;fill:#1D2B4F;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="351.33" y="528" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="351.33" y="528" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="371.33" y="512" text-anchor="middle">
+      functions
+    </text>
+    <text class="kuml-small" x="371.33" y="512" text-anchor="middle">
+      functions
+    </text>
+    <path d="M 713.83 282 L 713.83 312 L 1127.67 312 L 1127.67 662 L 870.67 662 L 870.67 712" class="kuml-edge"/>
+    <path d="M 865.67,700 L 870.67,712 L 875.67,700" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <polygon points="713.83,282 718.83,290 713.83,298 708.83,290" style="stroke:#1D2B4F;stroke-width:1.5;fill:#1D2B4F;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="860.67" y="698" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small" x="860.67" y="698" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small-halo" x="880.67" y="682" text-anchor="middle">
+      sensors
+    </text>
+    <text class="kuml-small" x="880.67" y="682" text-anchor="middle">
+      sensors
+    </text>
+    <path d="M 326.17 622 L 326.17 662 L 692.67 662 L 692.67 712" class="kuml-edge"/>
+    <path d="M 687.67,700 L 692.67,712 L 697.67,700" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="316.17" y="636" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="316.17" y="636" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="682.67" y="698" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small" x="682.67" y="698" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small-halo" x="702.67" y="682" text-anchor="middle">
+      usesSensors
+    </text>
+    <text class="kuml-small" x="702.67" y="682" text-anchor="middle">
+      usesSensors
+    </text>
+    <path d="M 826.17 802 L 826.17 832 L 1077.33 832 L 1077.33 892" class="kuml-edge"/>
+    <path d="M 1072.33,880 L 1077.33,892 L 1082.33,880" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="1067.33" y="878" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="1067.33" y="878" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="1087.33" y="862" text-anchor="middle">
+      measurements
+    </text>
+    <text class="kuml-small" x="1087.33" y="862" text-anchor="middle">
+      measurements
+    </text>
+    <path d="M 370 282 L 370 312 L 410 312 L 410 372" class="kuml-edge"/>
+    <path d="M 405,360 L 410,372 L 415,360" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="360" y="296" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="360" y="296" text-anchor="middle">
+      0..*
+    </text>
+    <line x1="330.50" y1="112" x2="330.50" y2="202" class="kuml-edge"/>
+    <path d="M 325.50,190 L 330.50,202 L 335.50,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="320.50" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="320.50" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <path d="M 381 112 L 381 152 L 680.17 152 L 680.17 202" class="kuml-edge"/>
+    <path d="M 675.17,190 L 680.17,202 L 685.17,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="371" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="371" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <path d="M 431.50 112 L 431.50 142 L 1140.67 142 L 1140.67 892" class="kuml-edge"/>
+    <path d="M 1135.67,880 L 1140.67,892 L 1145.67,880" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="1130.67" y="878" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="1130.67" y="878" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="1150.67" y="862" text-anchor="middle">
+      recordedMeasurements
+    </text>
+    <text class="kuml-small" x="1150.67" y="862" text-anchor="middle">
+      recordedMeasurements
+    </text>
+    <line x1="291" y1="282" x2="291" y2="542" class="kuml-edge-dashed"/>
+    <path d="M 286,530 L 291,542 L 296,530" style="stroke:#6B7A99;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="291" y="408" text-anchor="middle">
+      verifies
+    </text>
+    <text class="kuml-edge-label" x="291" y="408" text-anchor="middle">
+      verifies
+    </text>
+  </g>
+</svg>

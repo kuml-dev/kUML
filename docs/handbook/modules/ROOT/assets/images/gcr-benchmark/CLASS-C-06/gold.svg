@@ -1,0 +1,418 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1279.33 1011"
+     width="1279.33"
+     height="1011">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1279.33" height="1011" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1275.33" height="1007" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        class: PdV-PartyMemberManagement
+      </text>
+    </g>
+    <g id="ApplicationStatus" transform="translate(212,32)">
+      <rect width="166" height="116" class="kuml-enum"/>
+      <text class="kuml-stereotype" x="83" y="18" text-anchor="middle">
+        «enumeration»
+      </text>
+      <text class="kuml-title" x="83" y="32" text-anchor="middle">
+        ApplicationStatus
+      </text>
+      <line x1="0" y1="38" x2="166" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="8" y="52">
+        PENDING
+      </text>
+      <text class="kuml-body" x="8" y="65">
+        REVIEWED
+      </text>
+      <text class="kuml-body" x="8" y="78">
+        ACCEPTED
+      </text>
+      <text class="kuml-body" x="8" y="91">
+        REJECTED
+      </text>
+    </g>
+    <g id="MemberStatus" transform="translate(32,32)">
+      <rect width="160" height="103" class="kuml-enum"/>
+      <text class="kuml-stereotype" x="80" y="18" text-anchor="middle">
+        «enumeration»
+      </text>
+      <text class="kuml-title" x="80" y="32" text-anchor="middle">
+        MemberStatus
+      </text>
+      <line x1="0" y1="38" x2="160" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="8" y="52">
+        ACTIVE
+      </text>
+      <text class="kuml-body" x="8" y="65">
+        PASSIVE
+      </text>
+      <text class="kuml-body" x="8" y="78">
+        RESIGNED
+      </text>
+    </g>
+    <g id="Notifiable" transform="translate(731.33,745)">
+      <rect width="262" height="80" class="kuml-interface"/>
+      <text class="kuml-stereotype" x="131" y="18" text-anchor="middle">
+        «interface»
+      </text>
+      <text class="kuml-title" x="131" y="32" text-anchor="middle">
+        Notifiable
+      </text>
+      <line x1="0" y1="38" x2="262" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="8" y="52">
+        + notify(message: String): Boolean
+      </text>
+    </g>
+    <g id="StateChapter" transform="translate(496.33,745)">
+      <rect width="174" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="87" y="18" text-anchor="middle">
+        StateChapter
+      </text>
+      <line x1="0" y1="24" x2="174" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - state: String
+      </text>
+    </g>
+    <g id="DistrictChapter" transform="translate(496.93,915)">
+      <rect width="216" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="108" y="18" text-anchor="middle">
+        DistrictChapter
+      </text>
+      <line x1="0" y1="24" x2="216" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - region: String
+      </text>
+    </g>
+    <g id="Member" transform="translate(637.08,557)">
+      <rect width="253" height="98" class="kuml-class"/>
+      <text class="kuml-title" x="126.50" y="18" text-anchor="middle">
+        Member
+      </text>
+      <line x1="0" y1="24" x2="253" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - memberNumber: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="64">
+        - joinDate: LocalDate
+      </text>
+      <text class="kuml-body" x="5" y="77">
+        - status: MemberStatus
+      </text>
+    </g>
+    <g id="MembershipApplication" transform="translate(1033.33,745)">
+      <rect width="230" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="115" y="18" text-anchor="middle">
+        MembershipApplication
+      </text>
+      <line x1="0" y1="24" x2="230" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - receiptDate: LocalDate
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - status: ApplicationStatus
+      </text>
+    </g>
+    <g id="Committee" transform="translate(904.58,212)">
+      <rect width="174" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="87" y="18" text-anchor="middle">
+        Committee
+      </text>
+      <line x1="0" y1="24" x2="174" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - level: String
+      </text>
+    </g>
+    <g id="CommitteeMandate" transform="translate(893.08,382)">
+      <rect width="197" height="85" class="kuml-class"/>
+      <text class="kuml-title" x="98.50" y="18" text-anchor="middle">
+        CommitteeMandate
+      </text>
+      <line x1="0" y1="24" x2="197" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - role: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - termStart: LocalDate
+      </text>
+      <text class="kuml-body" x="5" y="64">
+        - termEnd: LocalDate
+      </text>
+    </g>
+    <g id="Campaign" transform="translate(398,208.67)">
+      <rect width="202" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="101" y="18" text-anchor="middle">
+        Campaign
+      </text>
+      <line x1="0" y1="24" x2="202" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - budget: BigDecimal
+      </text>
+    </g>
+    <g id="CampaignDeployment" transform="translate(496.33,384.50)">
+      <rect width="203" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="101.50" y="18" text-anchor="middle">
+        CampaignDeployment
+      </text>
+      <line x1="0" y1="24" x2="203" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - date: LocalDate
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - hours: Double
+      </text>
+    </g>
+    <g id="Payment" transform="translate(662.58,202)">
+      <rect width="202" height="90" class="kuml-class"/>
+      <text class="kuml-stereotype" x="101" y="18" text-anchor="middle">
+        «abstract»
+      </text>
+      <text class="kuml-title" x="101" y="32" text-anchor="middle">
+        Payment
+      </text>
+      <line x1="0" y1="38" x2="202" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="52">
+        - amount: BigDecimal
+      </text>
+      <text class="kuml-body" x="5" y="65">
+        - date: LocalDate
+      </text>
+    </g>
+    <g id="MembershipFeePayment" transform="translate(694.25,32)">
+      <rect width="206" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="103" y="18" text-anchor="middle">
+        MembershipFeePayment
+      </text>
+      <line x1="0" y1="24" x2="206" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - contributionYear: Int
+      </text>
+    </g>
+    <g id="Donation" transform="translate(422.33,32)">
+      <rect width="230" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="115" y="18" text-anchor="middle">
+        Donation
+      </text>
+      <line x1="0" y1="24" x2="230" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - receiptRequested: Boolean
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <path d="M 763.58 655 L 763.58 695 L 862.33 695 L 862.33 745" class="kuml-edge-dashed"/>
+    <polygon points="862.33,745 857.33,733 867.33,733" style="stroke:#6B7A99;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <line x1="797.25" y1="112" x2="797.25" y2="202" class="kuml-edge"/>
+    <polygon points="797.25,202 792.25,190 802.25,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 575.67 112 L 575.67 142 L 729.92 142 L 729.92 202" class="kuml-edge"/>
+    <polygon points="729.92,202 724.92,190 734.92,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <line x1="583.33" y1="825" x2="583.33" y2="915" class="kuml-edge"/>
+    <path d="M 578.33,903 L 583.33,915 L 588.33,903" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <polygon points="583.33,825 588.33,833 583.33,841 578.33,833" style="stroke:#1D2B4F;stroke-width:1.5;fill:#1D2B4F;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="573.33" y="901" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small" x="573.33" y="901" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small-halo" x="593.33" y="885" text-anchor="middle">
+      districts
+    </text>
+    <text class="kuml-small" x="593.33" y="885" text-anchor="middle">
+      districts
+    </text>
+    <path d="M 626.53 915 L 626.53 855 L 700.33 855 L 700.33 655" class="kuml-edge"/>
+    <path d="M 705.33,667 L 700.33,655 L 695.33,667" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="710.33" y="669" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="710.33" y="669" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="690.33" y="685" text-anchor="middle">
+      members
+    </text>
+    <text class="kuml-small" x="690.33" y="685" text-anchor="middle">
+      members
+    </text>
+    <path d="M 1148.33 825 L 1148.33 865 L 669.73 865 L 669.73 915" class="kuml-edge"/>
+    <path d="M 664.73,903 L 669.73,915 L 674.73,903" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="1138.33" y="839" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="1138.33" y="839" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="679.73" y="885" text-anchor="middle">
+      submittedTo
+    </text>
+    <text class="kuml-small" x="679.73" y="885" text-anchor="middle">
+      submittedTo
+    </text>
+    <line x1="991.58" y1="292" x2="991.58" y2="382" class="kuml-edge"/>
+    <path d="M 986.58,370 L 991.58,382 L 996.58,370" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <polygon points="991.58,292 996.58,300 991.58,308 986.58,300" style="stroke:#1D2B4F;stroke-width:1.5;fill:#1D2B4F;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="981.58" y="368" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="981.58" y="368" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="1001.58" y="352" text-anchor="middle">
+      mandates
+    </text>
+    <text class="kuml-small" x="1001.58" y="352" text-anchor="middle">
+      mandates
+    </text>
+    <path d="M 991.58 467 L 991.58 497 L 826.83 497 L 826.83 557" class="kuml-edge"/>
+    <path d="M 821.83,545 L 826.83,557 L 831.83,545" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="981.58" y="481" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="981.58" y="481" text-anchor="middle">
+      0..*
+    </text>
+    <path d="M 465.33 288.67 L 465.33 855 L 540.13 855 L 540.13 915" class="kuml-edge"/>
+    <path d="M 535.13,903 L 540.13,915 L 545.13,903" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="455.33" y="302.67" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="455.33" y="302.67" text-anchor="middle">
+      0..*
+    </text>
+    <path d="M 532.67 288.67 L 532.67 322 L 597.83 322 L 597.83 384.50" class="kuml-edge"/>
+    <path d="M 592.83,372.50 L 597.83,384.50 L 602.83,372.50" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <polygon points="532.67,288.67 537.67,296.67 532.67,304.67 527.67,296.67" style="stroke:#1D2B4F;stroke-width:1.5;fill:#1D2B4F;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="587.83" y="370.50" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="587.83" y="370.50" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="607.83" y="354.50" text-anchor="middle">
+      deployments
+    </text>
+    <text class="kuml-small" x="607.83" y="354.50" text-anchor="middle">
+      deployments
+    </text>
+    <path d="M 597.83 464.50 L 597.83 497 L 700.33 497 L 700.33 557" class="kuml-edge"/>
+    <path d="M 695.33,545 L 700.33,557 L 705.33,545" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="587.83" y="478.50" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="587.83" y="478.50" text-anchor="middle">
+      0..*
+    </text>
+    <line x1="763.58" y1="292" x2="763.58" y2="557" class="kuml-edge"/>
+    <path d="M 758.58,545 L 763.58,557 L 768.58,545" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="753.58" y="306" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="753.58" y="306" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="773.58" y="527" text-anchor="middle">
+      payer
+    </text>
+    <text class="kuml-small" x="773.58" y="527" text-anchor="middle">
+      payer
+    </text>
+    <line x1="499" y1="112" x2="499" y2="208.67" class="kuml-edge"/>
+    <path d="M 494,196.67 L 499,208.67 L 504,196.67" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="489" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="489" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="489" y="194.67" text-anchor="middle">
+      0..1
+    </text>
+    <text class="kuml-small" x="489" y="194.67" text-anchor="middle">
+      0..1
+    </text>
+    <text class="kuml-small-halo" x="509" y="178.67" text-anchor="middle">
+      earmarkedFor
+    </text>
+    <text class="kuml-small" x="509" y="178.67" text-anchor="middle">
+      earmarkedFor
+    </text>
+    <path d="M 826.83 655 L 826.83 685 L 1148.33 685 L 1148.33 745" class="kuml-edge-dashed"/>
+    <path d="M 1143.33,733 L 1148.33,745 L 1153.33,733" style="stroke:#6B7A99;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="987.58" y="681" text-anchor="middle">
+      derivedFrom
+    </text>
+    <text class="kuml-edge-label" x="987.58" y="681" text-anchor="middle">
+      derivedFrom
+    </text>
+  </g>
+</svg>

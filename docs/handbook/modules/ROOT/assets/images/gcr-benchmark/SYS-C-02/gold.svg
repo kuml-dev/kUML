@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1081.60 784"
+     width="1081.60"
+     height="784">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1081.60" height="784" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1077.60" height="780" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        bdd: Satellite BDD
+      </text>
+    </g>
+    <g id="Earth Observation Satellite" transform="translate(32,538)">
+      <rect width="381.800" height="126" class="kuml-class"/>
+      <text class="kuml-stereotype" x="190.900" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="190.900" y="30" text-anchor="middle">
+        Earth Observation Satellite
+      </text>
+      <line x1="0" y1="42" x2="381.800" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        payloadSS : Payload Subsystem
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        structureSS : Structure and Thermal Control Subsystem
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        epsSS : Electrical Power Supply Subsystem (EPS)
+      </text>
+      <text class="kuml-body" x="6" y="95">
+        aocsSS : Attitude and Orbit Control System (AOCS)
+      </text>
+      <text class="kuml-body" x="6" y="108">
+        ttcSS : Telemetry and Command Subsystem (TT&amp;C)
+      </text>
+    </g>
+    <g id="Payload Subsystem" transform="translate(32,302)">
+      <rect width="282.800" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="141.400" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="141.400" y="30" text-anchor="middle">
+        Payload Subsystem
+      </text>
+      <line x1="0" y1="42" x2="282.800" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        instrument : Payload Instrument [1..*]
+      </text>
+    </g>
+    <g id="Payload Instrument" transform="translate(470.467,698)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title kuml-title-abstract" x="110" y="30" text-anchor="middle" font-style="italic">
+        Payload Instrument
+      </text>
+    </g>
+    <g id="Optical Camera" transform="translate(693.800,538)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Optical Camera
+      </text>
+    </g>
+    <g id="SAR Radar" transform="translate(433.800,538)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        SAR Radar
+      </text>
+    </g>
+    <g id="Structure and Thermal Control Subsystem" transform="translate(706,302)">
+      <rect width="359.600" height="98" class="kuml-class"/>
+      <text class="kuml-stereotype" x="179.800" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="179.800" y="30" text-anchor="middle">
+        Structure and Thermal Control Subsystem
+      </text>
+      <line x1="0" y1="42" x2="359.600" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        primaryStructure : Primary Structure
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        solarPanels : Solar Panels [1..*]
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        heatShield : Heat Shield
+      </text>
+    </g>
+    <g id="Primary Structure" transform="translate(32,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Primary Structure
+      </text>
+    </g>
+    <g id="Solar Panels" transform="translate(272,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Solar Panels
+      </text>
+    </g>
+    <g id="Heat Shield" transform="translate(512,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Heat Shield
+      </text>
+    </g>
+    <g id="Electrical Power Supply Subsystem (EPS)" transform="translate(32,420)">
+      <rect width="359.600" height="98" class="kuml-class"/>
+      <text class="kuml-stereotype" x="179.800" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="179.800" y="30" text-anchor="middle">
+        Electrical Power Supply Subsystem (EPS)
+      </text>
+      <line x1="0" y1="42" x2="359.600" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        batteryArray : Battery Array
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        solarRegulator : Solar Power Regulator
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        pdu : Power Distribution Unit (PDU)
+      </text>
+    </g>
+    <g id="Battery Array" transform="translate(752,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Battery Array
+      </text>
+    </g>
+    <g id="Solar Power Regulator" transform="translate(32,122)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Solar Power Regulator
+      </text>
+    </g>
+    <g id="Power Distribution Unit (PDU)" transform="translate(757.200,212)">
+      <rect width="275.600" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="137.800" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="137.800" y="30" text-anchor="middle">
+        Power Distribution Unit (PDU)
+      </text>
+    </g>
+    <g id="Attitude and Orbit Control System (AOCS)" transform="translate(411.600,420)">
+      <rect width="368" height="98" class="kuml-class"/>
+      <text class="kuml-stereotype" x="184" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="184" y="30" text-anchor="middle">
+        Attitude and Orbit Control System (AOCS)
+      </text>
+      <line x1="0" y1="42" x2="368" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        starSensor : Star Sensor [1..*]
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        reactionWheels : Reaction Wheels [1..*]
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        thrusters : Thrusters [1..*]
+      </text>
+    </g>
+    <g id="Star Sensor" transform="translate(272,122)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Star Sensor
+      </text>
+    </g>
+    <g id="Reaction Wheels" transform="translate(512,122)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Reaction Wheels
+      </text>
+    </g>
+    <g id="Thrusters" transform="translate(752,122)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Thrusters
+      </text>
+    </g>
+    <g id="Telemetry and Command Subsystem (TT&amp;amp;C)" transform="translate(334.800,302)">
+      <rect width="351.200" height="98" class="kuml-class"/>
+      <text class="kuml-stereotype" x="175.600" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="175.600" y="30" text-anchor="middle">
+        Telemetry and Command Subsystem (TT&amp;C)
+      </text>
+      <line x1="0" y1="42" x2="351.200" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        onBoardComputer : On-Board Computer (OBC)
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        rfTransmitter : RF Transmitter [1..*]
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        rfReceiver : RF Receiver [1..*]
+      </text>
+    </g>
+    <g id="On-Board Computer (OBC)" transform="translate(512,212)">
+      <rect width="225.200" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="112.600" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="112.600" y="30" text-anchor="middle">
+        On-Board Computer (OBC)
+      </text>
+    </g>
+    <g id="RF Transmitter" transform="translate(32,212)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        RF Transmitter
+      </text>
+    </g>
+    <g id="RF Receiver" transform="translate(272,212)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        RF Receiver
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <path d="M 803.80 608 L 803.80 638 L 617.13 638 L 617.13 698" class="kuml-edge"/>
+    <polygon points="617.13,698 612.13,686 622.13,686" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <line x1="543.80" y1="608" x2="543.80" y2="698" class="kuml-edge"/>
+    <polygon points="543.80,698 538.80,686 548.80,686" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+  </g>
+</svg>

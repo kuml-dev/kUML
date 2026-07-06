@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1550.80 539"
+     width="1550.80"
+     height="539">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1550.80" height="539" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1546.80" height="535" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        container: Logistics Platform - Container View
+      </text>
+    </g>
+    <g id="system-c4-4" transform="translate(32,237)">
+      <rect width="1502.80" height="144" class="kuml-system" rx="8" ry="8"/>
+      <text class="kuml-stereotype" x="751.40" y="14" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="751.40" y="30" text-anchor="middle">
+        Logistics Platform
+      </text>
+    </g>
+    <g id="c4-5" transform="translate(315.80,286)">
+      <rect width="196.80" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="98.40" y="18" text-anchor="middle">
+        [Container: React]
+      </text>
+      <text class="kuml-title" x="98.40" y="36" text-anchor="middle">
+        Web Portal
+      </text>
+      <text class="kuml-small" x="98.40" y="52" text-anchor="middle">
+        <tspan x="98.40" dy="0">
+          Allows customers to place orders
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-6" transform="translate(752.60,286)">
+      <rect width="202.20" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="101.10" y="18" text-anchor="middle">
+        [Container: Kotlin/Ktor]
+      </text>
+      <text class="kuml-title" x="101.10" y="36" text-anchor="middle">
+        Dispatch Planning
+      </text>
+      <text class="kuml-small" x="101.10" y="52" text-anchor="middle">
+        <tspan x="101.10" dy="0">
+          Allows dispatchers to plan routes
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-7" transform="translate(52,286)">
+      <rect width="223.80" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="111.90" y="18" text-anchor="middle">
+        [Container: Kotlin Multiplatform]
+      </text>
+      <text class="kuml-title" x="111.90" y="36" text-anchor="middle">
+        Mobile App
+      </text>
+      <text class="kuml-small" x="111.90" y="52" text-anchor="middle">
+        <tspan x="111.90" dy="0">
+          Allows drivers to receive assignments
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-8" transform="translate(994.80,273)">
+      <rect width="240" height="88" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: Kotlin/Ktor]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Telematics Ingest Service
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Continuously collects telematics data
+        </tspan>
+        <tspan x="120" dy="13">
+          from the mobile app and forwards it to
+        </tspan>
+        <tspan x="120" dy="13">
+          fleet tracking
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-9" transform="translate(1274.80,279.50)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: Kotlin/Ktor]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Fleet Tracking
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Receives and stores forwarded telematics
+        </tspan>
+        <tspan x="120" dy="13">
+          data
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-10" transform="translate(552.60,286)">
+      <rect width="160" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="80" y="18" text-anchor="middle">
+        [Container: Kotlin]
+      </text>
+      <text class="kuml-title" x="80" y="36" text-anchor="middle">
+        Routing Engine
+      </text>
+      <text class="kuml-small" x="80" y="52" text-anchor="middle">
+        <tspan x="80" dy="0">
+          Computes optimal routes
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-11" transform="translate(685.80,95)">
+      <rect width="292.80" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="146.40" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="146.40" y="36" text-anchor="middle">
+        Warehouse Management System
+      </text>
+    </g>
+    <g id="c4-15" transform="translate(317.30,471)">
+      <rect width="180.80" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="90.40" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="90.40" y="36" text-anchor="middle">
+        External Carriers
+      </text>
+    </g>
+    <g id="c4-16" transform="translate(676.20,471)">
+      <rect width="214.40" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="107.20" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="107.20" y="36" text-anchor="middle">
+        Map &amp; Traffic Service
+      </text>
+    </g>
+    <g id="c4-17" transform="translate(1030.90,471)">
+      <rect width="256.40" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="128.20" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="128.20" y="36" text-anchor="middle">
+        Customs Declaration System
+      </text>
+    </g>
+    <g id="c4-0" transform="translate(190.57,32)">
+      <circle cx="91.90" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 91.90 18 L 91.90 38 M 79.90 26 L 103.90 26 M 91.90 38 L 81.90 52 M 91.90 38 L 101.90 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="175.80" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="91.90" y="76" text-anchor="middle">
+        Customer
+      </text>
+      <text class="kuml-stereotype" x="91.90" y="92" text-anchor="middle">
+        <tspan x="91.90" dy="0">
+          Places orders for shipments
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-1" transform="translate(443.73,32)">
+      <circle cx="89.20" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 89.20 18 L 89.20 38 M 77.20 26 L 101.20 26 M 89.20 38 L 79.20 52 M 89.20 38 L 99.20 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="170.40" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="89.20" y="76" text-anchor="middle">
+        Dispatcher
+      </text>
+      <text class="kuml-stereotype" x="89.20" y="92" text-anchor="middle">
+        <tspan x="89.20" dy="0">
+          Plans routes for shipments
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-2" transform="translate(1157.33,32)">
+      <circle cx="127" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 127 18 L 127 38 M 115 26 L 139 26 M 127 38 L 117 52 M 127 38 L 137 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="246" height="57" class="kuml-class"/>
+      <text class="kuml-title" x="127" y="76" text-anchor="middle">
+        Driver
+      </text>
+      <text class="kuml-stereotype" x="127" y="92" text-anchor="middle">
+        <tspan x="127" dy="0">
+          Delivers shipments and receives
+        </tspan>
+        <tspan x="127" dy="13">
+          assignments
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="282.47" y1="147" x2="282.47" y2="237" class="kuml-edge"/>
+    <path d="M 277.47,225 L 282.47,237 L 287.47,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="292.47" y="196" text-anchor="start">
+      Places orders via web portal [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="292.47" y="196" text-anchor="start">
+      Places orders via web portal [HTTPS]
+    </text>
+    <line x1="532.93" y1="147" x2="532.93" y2="237" class="kuml-edge"/>
+    <path d="M 527.93,225 L 532.93,237 L 537.93,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="542.93" y="196" text-anchor="start">
+      Plans routes [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="542.93" y="196" text-anchor="start">
+      Plans routes [HTTPS]
+    </text>
+    <line x1="1284.33" y1="147" x2="1284.33" y2="237" class="kuml-edge"/>
+    <path d="M 1279.33,225 L 1284.33,237 L 1289.33,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1294.33" y="196" text-anchor="start">
+      Receives assignments via mobile app [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="1294.33" y="196" text-anchor="start">
+      Receives assignments via mobile app [HTTPS]
+    </text>
+    <path d="M 1033.87 237 L 1033.87 177 L 881 177 L 881 147" class="kuml-edge"/>
+    <path d="M 886,159 L 881,147 L 876,159" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="957.43" y="173" text-anchor="middle">
+      Exchanges order and shipping status [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="957.43" y="173" text-anchor="middle">
+      Exchanges order and shipping status [REST/HTTPS]
+    </text>
+    <line x1="783.40" y1="147" x2="783.40" y2="237" class="kuml-edge"/>
+    <path d="M 778.40,225 L 783.40,237 L 788.40,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="793.40" y="196" text-anchor="start">
+      Exchanges order and shipping status [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="793.40" y="196" text-anchor="start">
+      Exchanges order and shipping status [REST/HTTPS]
+    </text>
+    <line x1="407.70" y1="381" x2="407.70" y2="471" class="kuml-edge"/>
+    <path d="M 402.70,459 L 407.70,471 L 412.70,459" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="417.70" y="430" text-anchor="start">
+      Books capacity via carrier interfaces [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="417.70" y="430" text-anchor="start">
+      Books capacity via carrier interfaces [REST/HTTPS]
+    </text>
+    <line x1="783.40" y1="381" x2="783.40" y2="471" class="kuml-edge"/>
+    <path d="M 778.40,459 L 783.40,471 L 788.40,459" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="793.40" y="430" text-anchor="start">
+      Retrieves map and traffic data [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="793.40" y="430" text-anchor="start">
+      Retrieves map and traffic data [REST/HTTPS]
+    </text>
+    <line x1="1159.10" y1="381" x2="1159.10" y2="471" class="kuml-edge"/>
+    <path d="M 1154.10,459 L 1159.10,471 L 1164.10,459" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1169.10" y="430" text-anchor="start">
+      Reports cross-border shipments [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="1169.10" y="430" text-anchor="start">
+      Reports cross-border shipments [REST/HTTPS]
+    </text>
+  </g>
+</svg>

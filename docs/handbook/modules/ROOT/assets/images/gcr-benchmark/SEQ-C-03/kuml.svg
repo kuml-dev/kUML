@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1196 704"
+     width="1196"
+     height="704">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1196" height="704" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1192" height="700" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        sequence: CollisionAvoidance
+      </text>
+    </g>
+    <g id="CollisionAvoidance::frag::1">
+      <rect x="32" y="115" width="1148" height="101" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="32,115 82,115 82,127 76,133 32,133" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="57" y="128" text-anchor="middle">
+        PAR
+      </text>
+      <line x1="32" y1="172" x2="1180" y2="172" class="kuml-divider" stroke-dasharray="6 4"/>
+    </g>
+    <g id="CollisionAvoidance::frag::2">
+      <rect x="32" y="291" width="1148" height="197" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="32,291 82,291 82,303 76,309 32,309" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="57" y="304" text-anchor="middle">
+        ALT
+      </text>
+      <rect x="83" y="293" width="246.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="86" y="304">
+        [timeToCollision &lt; criticalThreshold]
+      </text>
+      <line x1="32" y1="496" x2="1180" y2="496" class="kuml-divider" stroke-dasharray="6 4"/>
+      <rect x="33" y="497" width="253" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="36" y="508">
+        [timeToCollision &gt;= criticalThreshold]
+      </text>
+    </g>
+    <g id="CollisionAvoidance::frag::3">
+      <rect x="42" y="379" width="1128" height="45" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="42,379 92,379 92,391 86,397 42,397" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="67" y="392" text-anchor="middle">
+        LOOP
+      </text>
+      <rect x="93" y="381" width="162" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="96" y="392">
+        [vehicle not stationary]
+      </text>
+    </g>
+    <g id="CollisionAvoidance::frag::5">
+      <rect x="42" y="499" width="1128" height="45" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="42,499 92,499 92,511 86,517 42,517" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="67" y="512" text-anchor="middle">
+        OPT
+      </text>
+      <rect x="93" y="501" width="188" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="96" y="512">
+        [distance warning warranted]
+      </text>
+    </g>
+    <g id="CollisionAvoidance::frag::4">
+      <rect x="42" y="555" width="1128" height="45" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="42,555 92,555 92,567 86,573 42,573" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="67" y="568" text-anchor="middle">
+        PAR
+      </text>
+      <line x1="42" y1="597" x2="1170" y2="597" class="kuml-divider" stroke-dasharray="6 4"/>
+    </g>
+    <g id="CollisionAvoidance::ll::Camera" transform="translate(56,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Camera
+      </text>
+      <line x1="70" y1="40" x2="70" y2="608" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="CollisionAvoidance::ll::Radar" transform="translate(216,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Radar
+      </text>
+      <line x1="70" y1="40" x2="70" y2="608" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="CollisionAvoidance::ll::FusionUnit" transform="translate(376,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        FusionUnit
+      </text>
+      <line x1="70" y1="40" x2="70" y2="608" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="CollisionAvoidance::ll::EmergencyBrakingAssistant" transform="translate(536,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        EmergencyBrakingAssistant
+      </text>
+      <line x1="70" y1="40" x2="70" y2="608" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="CollisionAvoidance::ll::Driver" transform="translate(696,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «actor»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Driver
+      </text>
+      <line x1="70" y1="40" x2="70" y2="608" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="CollisionAvoidance::ll::ControlUnit" transform="translate(856,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        ControlUnit
+      </text>
+      <line x1="70" y1="40" x2="70" y2="608" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="CollisionAvoidance::ll::DiagnosticLog" transform="translate(1016,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        DiagnosticLog
+      </text>
+      <line x1="70" y1="40" x2="70" y2="608" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+  </g>
+  <g id="edges">
+    <g id="CollisionAvoidance::msg::1">
+      <line x1="126" y1="152" x2="446" y2="152" class="kuml-edge"/>
+      <rect x="205" y="137" width="162" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="286" y="148" text-anchor="middle">
+        deliverMeasurementData()
+      </text>
+      <path d="M 438 148 L 446 152 L 438 156" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="CollisionAvoidance::msg::2">
+      <line x1="286" y1="208" x2="446" y2="208" class="kuml-edge"/>
+      <rect x="287" y="193" width="158" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="204" text-anchor="middle" textLength="152" lengthAdjust="spacingAndGlyphs">
+        deliverMeasurementData()
+      </text>
+      <path d="M 438 204 L 446 208 L 438 212" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="CollisionAvoidance::msg::3">
+      <path d="M 446 240 L 470 240 L 470 256 L 446 256" class="kuml-edge" fill="none"/>
+      <path d="M 454 252 L 446 256 L 454 260" class="kuml-edge" fill="none"/>
+      <rect x="474" y="227" width="240.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="474" y="238">
+        computeConsolidatedEnvironmentModel()
+      </text>
+    </g>
+    <g id="CollisionAvoidance::msg::4">
+      <line x1="446" y1="272" x2="606" y2="272" class="kuml-edge"/>
+      <rect x="447" y="257" width="158" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="268" text-anchor="middle" textLength="152" lengthAdjust="spacingAndGlyphs">
+        reportCollisionRisk(timeToCollision)
+      </text>
+      <polygon points="606,272 598,268 598,276" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="CollisionAvoidance::msg::5">
+      <line x1="606" y1="328" x2="766" y2="328" class="kuml-edge"/>
+      <rect x="624.500" y="313" width="123" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="686" y="324" text-anchor="middle">
+        warnAcoustically()
+      </text>
+      <polygon points="766,328 758,324 758,332" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="CollisionAvoidance::msg::6">
+      <path d="M 606 360 L 630 360 L 630 376 L 606 376" class="kuml-edge" fill="none"/>
+      <path d="M 614 372 L 606 376 L 614 380" class="kuml-edge" fill="none"/>
+      <rect x="634" y="347" width="227.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="634" y="358">
+        initiateAutonomousBrakingManeuver()
+      </text>
+    </g>
+    <g id="CollisionAvoidance::msg::7">
+      <line x1="606" y1="416" x2="926" y2="416" class="kuml-edge"/>
+      <rect x="694.750" y="401" width="142.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="766" y="412" text-anchor="middle">
+        adjustBrakePressure()
+      </text>
+      <polygon points="926,416 918,412 918,420" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="CollisionAvoidance::msg::8">
+      <path d="M 606 448 L 630 448 L 630 464 L 606 464" class="kuml-edge" fill="none"/>
+      <path d="M 614 460 L 606 464 L 614 468" class="kuml-edge" fill="none"/>
+      <rect x="634" y="435" width="84.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="634" y="446">
+        endManeuver()
+      </text>
+    </g>
+    <g id="CollisionAvoidance::msg::9">
+      <line x1="606" y1="480" x2="1086" y2="480" class="kuml-edge"/>
+      <rect x="800.750" y="465" width="90.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="846" y="476" text-anchor="middle">
+        recordEvent()
+      </text>
+      <polygon points="1086,480 1078,476 1078,484" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="CollisionAvoidance::msg::10">
+      <line x1="606" y1="536" x2="766" y2="536" class="kuml-edge"/>
+      <rect x="614.750" y="521" width="142.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="686" y="532" text-anchor="middle">
+        showDistanceWarning()
+      </text>
+      <polygon points="766,536 758,532 758,540" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="CollisionAvoidance::msg::11">
+      <line x1="606" y1="592" x2="1086" y2="592" class="kuml-edge"/>
+      <rect x="787.750" y="577" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="846" y="588" text-anchor="middle">
+        logObservedRisk()
+      </text>
+      <polygon points="1086,592 1078,588 1078,596" class="kuml-seq-arrow-filled"/>
+    </g>
+  </g>
+</svg>

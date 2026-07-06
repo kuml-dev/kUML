@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 674 478"
+     width="674"
+     height="478">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="674" height="478" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="670" height="474" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        class: VetClinic
+      </text>
+    </g>
+    <g id="AnimalSpecies" transform="translate(32,32)">
+      <rect width="160" height="116" class="kuml-enum"/>
+      <text class="kuml-stereotype" x="80" y="18" text-anchor="middle">
+        «enumeration»
+      </text>
+      <text class="kuml-title" x="80" y="32" text-anchor="middle">
+        AnimalSpecies
+      </text>
+      <line x1="0" y1="38" x2="160" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="8" y="52">
+        DOG
+      </text>
+      <text class="kuml-body" x="8" y="65">
+        CAT
+      </text>
+      <text class="kuml-body" x="8" y="78">
+        BIRD
+      </text>
+      <text class="kuml-body" x="8" y="91">
+        REPTILE
+      </text>
+    </g>
+    <g id="PetOwner" transform="translate(466,32)">
+      <rect width="174" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="87" y="18" text-anchor="middle">
+        PetOwner
+      </text>
+      <line x1="0" y1="24" x2="174" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - phone: String
+      </text>
+    </g>
+    <g id="Animal" transform="translate(448,202)">
+      <rect width="210" height="85" class="kuml-class"/>
+      <text class="kuml-title" x="105" y="18" text-anchor="middle">
+        Animal
+      </text>
+      <line x1="0" y1="24" x2="210" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - dateOfBirth: LocalDate
+      </text>
+      <text class="kuml-body" x="5" y="64">
+        - species: AnimalSpecies
+      </text>
+    </g>
+    <g id="Veterinarian" transform="translate(212,207)">
+      <rect width="196" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="98" y="18" text-anchor="middle">
+        Veterinarian
+      </text>
+      <line x1="0" y1="24" x2="196" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - specialization: String
+      </text>
+    </g>
+    <g id="Treatment" transform="translate(247.33,377)">
+      <rect width="188" height="85" class="kuml-class"/>
+      <text class="kuml-title" x="94" y="18" text-anchor="middle">
+        Treatment
+      </text>
+      <line x1="0" y1="24" x2="188" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - date: LocalDate
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - findings: String
+      </text>
+      <text class="kuml-body" x="5" y="64">
+        - cost: BigDecimal
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="553" y1="112" x2="553" y2="202" class="kuml-edge"/>
+    <path d="M 548,190 L 553,202 L 558,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="543" y="188" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small" x="543" y="188" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small-halo" x="563" y="172" text-anchor="middle">
+      animals
+    </text>
+    <text class="kuml-small" x="563" y="172" text-anchor="middle">
+      animals
+    </text>
+    <path d="M 553 287 L 553 317 L 372.67 317 L 372.67 377" class="kuml-edge"/>
+    <path d="M 367.67,365 L 372.67,377 L 377.67,365" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="362.67" y="363" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="362.67" y="363" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="382.67" y="347" text-anchor="middle">
+      treatments
+    </text>
+    <text class="kuml-small" x="382.67" y="347" text-anchor="middle">
+      treatments
+    </text>
+    <line x1="310" y1="287" x2="310" y2="377" class="kuml-edge"/>
+    <path d="M 305,365 L 310,377 L 315,365" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="300" y="363" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="300" y="363" text-anchor="middle">
+      0..*
+    </text>
+  </g>
+</svg>

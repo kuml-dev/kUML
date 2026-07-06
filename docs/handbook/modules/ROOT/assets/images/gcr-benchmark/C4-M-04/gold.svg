@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1810.13 526"
+     width="1810.13"
+     height="526">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1810.13" height="526" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1806.13" height="522" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        container: Streaming Platform — Container View
+      </text>
+    </g>
+    <g id="system-c4-2" transform="translate(32,237)">
+      <rect width="1647.60" height="131" class="kuml-system" rx="8" ry="8"/>
+      <text class="kuml-stereotype" x="823.80" y="14" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="823.80" y="30" text-anchor="middle">
+        Streaming Platform
+      </text>
+    </g>
+    <g id="c4-3" transform="translate(315.80,279.50)">
+      <rect width="234.60" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="117.30" y="18" text-anchor="middle">
+        [Container: TypeScript/React]
+      </text>
+      <text class="kuml-title" x="117.30" y="36" text-anchor="middle">
+        Web Player
+      </text>
+      <text class="kuml-small" x="117.30" y="52" text-anchor="middle">
+        <tspan x="117.30" dy="0">
+          Playback interface with recommendations
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-4" transform="translate(870.40,273)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: Kotlin/Ktor]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Streaming API
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Sessions, playback tokens and catalog
+        </tspan>
+        <tspan x="120" dy="13">
+          access
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-5" transform="translate(52,279.50)">
+      <rect width="223.80" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="111.90" y="18" text-anchor="middle">
+        [Container: Python/FastAPI]
+      </text>
+      <text class="kuml-title" x="111.90" y="36" text-anchor="middle">
+        Recommendation Service
+      </text>
+      <text class="kuml-small" x="111.90" y="52" text-anchor="middle">
+        <tspan x="111.90" dy="0">
+          Computes personalized recommendations
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-6" transform="translate(1150.40,273)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: PostgreSQL]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Catalog Database
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Stores titles, metadata and license
+        </tspan>
+        <tspan x="120" dy="13">
+          windows
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-7" transform="translate(1430.40,279.50)">
+      <rect width="229.20" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="114.60" y="18" text-anchor="middle">
+        [Container: FFmpeg/Kubernetes Jobs]
+      </text>
+      <text class="kuml-title" x="114.60" y="36" text-anchor="middle">
+        Transcoding Pipeline
+      </text>
+      <text class="kuml-small" x="114.60" y="52" text-anchor="middle">
+        <tspan x="114.60" dy="0">
+          Encodes uploads into streaming formats
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-8" transform="translate(590.40,273)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: Kotlin/Kafka Streams]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Usage Analytics Service
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Evaluates viewing behavior for
+        </tspan>
+        <tspan x="120" dy="13">
+          recommendations
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-9" transform="translate(1540.53,458)">
+      <rect width="253.60" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="126.80" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="126.80" y="36" text-anchor="middle">
+        Content Delivery Network
+      </text>
+    </g>
+    <g id="c4-10" transform="translate(457.20,458)">
+      <rect width="248.00" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="124.00" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="124.00" y="36" text-anchor="middle">
+        Licensing and DRM Service
+      </text>
+    </g>
+    <g id="c4-0" transform="translate(1584.27,32)">
+      <circle cx="94" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 94 18 L 94 38 M 82 26 L 106 26 M 94 38 L 84 52 M 94 38 L 104 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="180" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="94" y="76" text-anchor="middle">
+        Viewer
+      </text>
+      <text class="kuml-stereotype" x="94" y="92" text-anchor="middle">
+        <tspan x="94" dy="0">
+          Watches movies and series
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-1" transform="translate(483.90,32)">
+      <circle cx="97.30" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 97.30 18 L 97.30 38 M 85.30 26 L 109.30 26 M 97.30 38 L 87.30 52 M 97.30 38 L 107.30 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="186.60" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="97.30" y="76" text-anchor="middle">
+        Content Manager
+      </text>
+      <text class="kuml-stereotype" x="97.30" y="92" text-anchor="middle">
+        <tspan x="97.30" dy="0">
+          Maintains titles and metadata
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <path d="M 1646.93 147 L 1646.93 177 L 1130.40 177 L 1130.40 237" class="kuml-edge"/>
+    <path d="M 1125.40,225 L 1130.40,237 L 1135.40,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1388.67" y="173" text-anchor="middle">
+      Browses the catalog and starts playback [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="1388.67" y="173" text-anchor="middle">
+      Browses the catalog and starts playback [HTTPS]
+    </text>
+    <line x1="581.20" y1="147" x2="581.20" y2="237" class="kuml-edge"/>
+    <path d="M 576.20,225 L 581.20,237 L 586.20,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="591.20" y="196" text-anchor="start">
+      Maintains titles, metadata and license windows [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="591.20" y="196" text-anchor="start">
+      Maintains titles, metadata and license windows [HTTPS]
+    </text>
+    <line x1="1709.60" y1="147" x2="1709.60" y2="458" class="kuml-edge"/>
+    <path d="M 1704.60,446 L 1709.60,458 L 1714.60,446" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1719.60" y="306.50" text-anchor="start">
+      Receives the video streams [HTTPS/HLS]
+    </text>
+    <text class="kuml-edge-label" x="1719.60" y="306.50" text-anchor="start">
+      Receives the video streams [HTTPS/HLS]
+    </text>
+    <path d="M 1130.40 368 L 1130.40 398 L 1625.07 398 L 1625.07 458" class="kuml-edge"/>
+    <path d="M 1620.07,446 L 1625.07,458 L 1630.07,446" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1377.73" y="394" text-anchor="middle">
+      Distributes transcoded video segments [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="1377.73" y="394" text-anchor="middle">
+      Distributes transcoded video segments [HTTPS]
+    </text>
+    <line x1="581.20" y1="368" x2="581.20" y2="458" class="kuml-edge"/>
+    <path d="M 576.20,446 L 581.20,458 L 586.20,446" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="591.20" y="417" text-anchor="start">
+      Requests licensing and DRM keys [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="591.20" y="417" text-anchor="start">
+      Requests licensing and DRM keys [REST/HTTPS]
+    </text>
+  </g>
+</svg>

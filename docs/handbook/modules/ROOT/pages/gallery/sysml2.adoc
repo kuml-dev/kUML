@@ -1,0 +1,132 @@
+= SysML 2 Diagrams — Benchmark Gallery
+:description: 8 SysML 2 Diagrams tasks from the GCR benchmark — gold standard vs. kUML, PlantUML, and Mermaid.
+
+8 tasks. Back to xref:gallery/index.adoc[all diagram families].
+
+== SYS-S-01 — Bicycle System Structure (Simple)
+
+A bicycle system consists of a frame, a drivetrain, a steering assembly, and a braking system. The drivetrain is composed of a crank, a chain, and a rear wheel. The steering assembly includes handlebars and a front wheel. The bicycle system itself has exactly one frame, one drivetrain and one steering assembly, and one braking system as its parts. Model this as a SysML 2 BDD.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SYS-S-01/gold.svg[SYS-S-01 gold standard,align="center"]
+a| image::gcr-benchmark/SYS-S-01/kuml.svg[SYS-S-01 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SYS-S-01/plantuml.svg[SYS-S-01 PlantUML,align="center"]
+a| image::gcr-benchmark/SYS-S-01/mermaid.svg[SYS-S-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 60% · HR 0% | SF 36% · HR 40% | SF 23% · HR 40%
+|===
+
+== SYS-S-02 — Robot Arm Kinematics (Simple)
+
+A robot arm consists of a base, one or more joints, and an end effector. There are two types of joints: revolute joints (rotating around an axis) and prismatic joints (translating along an axis). Each arm has exactly one base, between one and six joints, and exactly one end effector. Model the inheritance hierarchy of joints and the composition structure of the arm as a SysML 2 BDD.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SYS-S-02/gold.svg[SYS-S-02 gold standard,align="center"]
+a| image::gcr-benchmark/SYS-S-02/kuml.svg[SYS-S-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SYS-S-02/plantuml.svg[SYS-S-02 PlantUML,align="center"]
+a| image::gcr-benchmark/SYS-S-02/mermaid.svg[SYS-S-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 10% · HR 17% | SF 10% · HR 33% | SF 10% · HR 33%
+|===
+
+== SYS-M-01 — Electric Vehicle Drivetrain System (Medium)
+
+The drivetrain system of an electric vehicle consists of a high-voltage battery pack, an inverter, one or more electric motors, and a gearbox. The battery pack contains multiple battery modules, and each module contains multiple cells. The inverter converts direct current to alternating current for the motors. The vehicle additionally has a Battery Management System (BMS) as a standalone block and a thermal management system that cools both the battery and the power electronics. Model this system structure with composition and specialization as a SysML 2 BDD.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SYS-M-01/gold.svg[SYS-M-01 gold standard,align="center"]
+a| image::gcr-benchmark/SYS-M-01/kuml.svg[SYS-M-01 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SYS-M-01/plantuml.svg[SYS-M-01 PlantUML,align="center"]
+a| image::gcr-benchmark/SYS-M-01/mermaid.svg[SYS-M-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 34% · HR 10% | SF 5% · HR 60% | SF 5% · HR 60%
+|===
+
+== SYS-M-02 — ADAS Sensor Suite (Medium)
+
+The ADAS subsystem of a vehicle consists of a sensor suite, a fusion and processing unit, and a driver assistance control unit. The sensor suite contains camera sensors, radar units, and at least one lidar scanner. There is an abstract base block `Sensor` from which Camera, Radar, and Lidar inherit. The fusion unit aggregates raw data from all sensors into an environment model. The driver assistance control unit receives the environment model and outputs control signals to the steering and braking systems; it is also part of the ADAS subsystem. Model inheritance and composition as a SysML 2 BDD.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SYS-M-02/gold.svg[SYS-M-02 gold standard,align="center"]
+a| image::gcr-benchmark/SYS-M-02/kuml.svg[SYS-M-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SYS-M-02/plantuml.svg[SYS-M-02 PlantUML,align="center"]
+a| image::gcr-benchmark/SYS-M-02/mermaid.svg[SYS-M-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 23% · HR 55% | SF 23% · HR 55% | SF 27% · HR 38%
+|===
+
+== SYS-M-03 — Wind Turbine System Structure (Medium)
+
+A wind turbine is composed of the rotor (consisting of a hub and multiple rotor blades), the drivetrain (gearbox and generator), and the nacelle housing. In addition, a turbine has a pitch control system for blade angle adjustment, a yaw control system for orienting the nacelle toward the wind, and a Condition Monitoring System (CMS). The tower supports the entire nacelle. The blade itself is available in two variants: GFRP blades (glass fiber reinforced) and CFRP blades (carbon fiber reinforced); both specialize the abstract block `Rotor Blade`. Model inheritance and composition as a SysML 2 BDD.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SYS-M-03/gold.svg[SYS-M-03 gold standard,align="center"]
+a| image::gcr-benchmark/SYS-M-03/kuml.svg[SYS-M-03 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SYS-M-03/plantuml.svg[SYS-M-03 PlantUML,align="center"]
+a| image::gcr-benchmark/SYS-M-03/mermaid.svg[SYS-M-03 Mermaid,align="center"]
+
+| _(reference)_ | SF 42% · HR 20% | SF 39% · HR 21% | SF 20% · HR 43%
+|===
+
+== SYS-C-01 — AUTOSAR ECU Architecture (Complex)
+
+Model an AUTOSAR-compliant Electronic Control Unit (ECU) as a SysML 2 BDD. The ECU consists of the hardware layer (microcontroller with CPU core, RAM, flash memory, and multiple communication controllers for CAN, LIN, and Ethernet), the AUTOSAR BSW layer (Basic Software: MCAL for drivers, communication stacks for CAN and Ethernet, system services such as OS and watchdog), and the application layer (multiple software components communicating via the VFB — Virtual Functional Bus). The communication controllers form an abstract base `Communication Controller` with the concrete specializations `CAN Controller`, `LIN Controller`, and `Ethernet Controller`. The BSW modules inherit from an abstract block `BSW Module`.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SYS-C-01/gold.svg[SYS-C-01 gold standard,align="center"]
+a| image::gcr-benchmark/SYS-C-01/kuml.svg[SYS-C-01 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SYS-C-01/plantuml.svg[SYS-C-01 PlantUML,align="center"]
+a| image::gcr-benchmark/SYS-C-01/mermaid.svg[SYS-C-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 48% · HR 16% | SF 48% · HR 20% | SF 50% · HR 11%
+|===
+
+== SYS-C-02 — Satellite System Structure (Complex)
+
+Model the system structure of an Earth observation satellite as a SysML 2 BDD. The satellite consists of five main subsystems: (1) Payload subsystem with an optical camera and SAR radar (both specializing an abstract block `Payload Instrument`), (2) Structure and thermal control (primary structure, solar panels, heat shield), (3) Electrical power supply (battery array, solar power regulator, PDU), (4) Attitude and Orbit Control System — AOCS — (star sensor, reaction wheels, thrusters), (5) Telemetry, Tracking & Command (TT&C) (on-board computer, RF transmitter, RF receiver). Each subsystem is an independent `partDef`.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SYS-C-02/gold.svg[SYS-C-02 gold standard,align="center"]
+a| image::gcr-benchmark/SYS-C-02/kuml.svg[SYS-C-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SYS-C-02/plantuml.svg[SYS-C-02 PlantUML,align="center"]
+a| image::gcr-benchmark/SYS-C-02/mermaid.svg[SYS-C-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 35% · HR 14% | SF 33% · HR 10% | SF 1% · HR 95%
+|===
+
+== SYS-C-03 — Autonomous Vehicle System Architecture (Complex)
+
+Model the system architecture of an autonomous vehicle (SAE Level 4) as a SysML 2 BDD. The vehicle system consists of six main subsystems: (1) Perception: camera cluster, radar array, lidar scanner, and GPS/INS; all sensors specialize an abstract block `Perception Sensor`. (2) Processing platform: central high-performance computer (AV Compute) with GPU, CPU, and DRAM, plus a safety monitoring computer. (3) Localization and mapping: HD map unit and real-time localization module. (4) Driving decision and planning: path planning module and behavior decision module. (5) Vehicle control: steer-by-wire unit, brake-by-wire unit, and drive control. (6) Communication: V2X module and telematics module. Model inheritance and composition.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SYS-C-03/gold.svg[SYS-C-03 gold standard,align="center"]
+a| image::gcr-benchmark/SYS-C-03/kuml.svg[SYS-C-03 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SYS-C-03/plantuml.svg[SYS-C-03 PlantUML,align="center"]
+a| image::gcr-benchmark/SYS-C-03/mermaid.svg[SYS-C-03 Mermaid,align="center"]
+
+| _(reference)_ | SF 28% · HR 8% | SF 28% · HR 8% | SF 2% · HR 81%
+|===

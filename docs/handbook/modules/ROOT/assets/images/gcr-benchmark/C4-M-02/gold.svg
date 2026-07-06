@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1677.40 526"
+     width="1677.40"
+     height="526">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1677.40" height="526" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1673.40" height="522" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        container: Healthcare Portal — Container View
+      </text>
+    </g>
+    <g id="system-c4-3" transform="translate(32,237)">
+      <rect width="1629.40" height="131" class="kuml-system" rx="8" ry="8"/>
+      <text class="kuml-stereotype" x="814.70" y="14" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="814.70" y="30" text-anchor="middle">
+        Healthcare Portal
+      </text>
+    </g>
+    <g id="c4-4" transform="translate(315.80,273)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: TypeScript/Angular]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Patient Web App
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Interface for patients, doctors and
+        </tspan>
+        <tspan x="120" dy="13">
+          practice staff
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-5" transform="translate(827.80,273)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: Kotlin/Spring Boot]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Scheduling Service
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Manages appointment bookings and
+        </tspan>
+        <tspan x="120" dy="13">
+          calendars
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-6" transform="translate(52,279.50)">
+      <rect width="223.80" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="111.90" y="18" text-anchor="middle">
+        [Container: Kotlin/Spring Boot]
+      </text>
+      <text class="kuml-title" x="111.90" y="36" text-anchor="middle">
+        Findings Service
+      </text>
+      <text class="kuml-small" x="111.90" y="52" text-anchor="middle">
+        <tspan x="111.90" dy="0">
+          Manages findings and document sharing
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-7" transform="translate(1107.80,273)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: PostgreSQL]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Patient Database
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Stores master data, appointments and
+        </tspan>
+        <tspan x="120" dy="13">
+          metadata
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-8" transform="translate(1387.80,279.50)">
+      <rect width="253.60" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="126.80" y="18" text-anchor="middle">
+        [Container: S3-compatible object storage]
+      </text>
+      <text class="kuml-title" x="126.80" y="36" text-anchor="middle">
+        Document Store
+      </text>
+      <text class="kuml-small" x="126.80" y="52" text-anchor="middle">
+        <tspan x="126.80" dy="0">
+          Encrypted storage of findings documents
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-9" transform="translate(595.80,279.50)">
+      <rect width="192" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="96" y="18" text-anchor="middle">
+        [Container: Kotlin/Ktor]
+      </text>
+      <text class="kuml-title" x="96" y="36" text-anchor="middle">
+        Notification Service
+      </text>
+      <text class="kuml-small" x="96" y="52" text-anchor="middle">
+        <tspan x="96" dy="0">
+          Sends appointment reminders
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-10" transform="translate(459.53,458)">
+      <rect width="231.20" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="115.60" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="115.60" y="36" text-anchor="middle">
+        Health Insurance System
+      </text>
+    </g>
+    <g id="c4-11" transform="translate(1006.87,458)">
+      <rect width="222.80" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="111.40" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="111.40" y="36" text-anchor="middle">
+        E-Prescription Service
+      </text>
+    </g>
+    <g id="c4-0" transform="translate(1135.15,32)">
+      <circle cx="118.90" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 118.90 18 L 118.90 38 M 106.90 26 L 130.90 26 M 118.90 38 L 108.90 52 M 118.90 38 L 128.90 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="229.80" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="118.90" y="76" text-anchor="middle">
+        Patient
+      </text>
+      <text class="kuml-stereotype" x="118.90" y="92" text-anchor="middle">
+        <tspan x="118.90" dy="0">
+          Books appointments and views findings
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-1" transform="translate(719.70,32)">
+      <circle cx="127" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 127 18 L 127 38 M 115 26 L 139 26 M 127 38 L 117 52 M 127 38 L 137 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="246" height="57" class="kuml-class"/>
+      <text class="kuml-title" x="127" y="76" text-anchor="middle">
+        Doctor
+      </text>
+      <text class="kuml-stereotype" x="127" y="92" text-anchor="middle">
+        <tspan x="127" dy="0">
+          Enters findings and prescribes
+        </tspan>
+        <tspan x="127" dy="13">
+          medications
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-2" transform="translate(333.95,32)">
+      <circle cx="105.40" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 105.40 18 L 105.40 38 M 93.40 26 L 117.40 26 M 105.40 38 L 95.40 52 M 105.40 38 L 115.40 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="202.80" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="105.40" y="76" text-anchor="middle">
+        Practice Staff
+      </text>
+      <text class="kuml-stereotype" x="105.40" y="92" text-anchor="middle">
+        <tspan x="105.40" dy="0">
+          Manages the appointment calendar
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="1254.05" y1="147" x2="1254.05" y2="237" class="kuml-edge"/>
+    <path d="M 1249.05,225 L 1254.05,237 L 1259.05,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1264.05" y="196" text-anchor="start">
+      Books appointments and views findings [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="1264.05" y="196" text-anchor="start">
+      Books appointments and views findings [HTTPS]
+    </text>
+    <line x1="846.70" y1="147" x2="846.70" y2="237" class="kuml-edge"/>
+    <path d="M 841.70,225 L 846.70,237 L 851.70,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="856.70" y="196" text-anchor="start">
+      Enters findings and prescribes medications [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="856.70" y="196" text-anchor="start">
+      Enters findings and prescribes medications [HTTPS]
+    </text>
+    <line x1="439.35" y1="147" x2="439.35" y2="237" class="kuml-edge"/>
+    <path d="M 434.35,225 L 439.35,237 L 444.35,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="449.35" y="196" text-anchor="start">
+      Manages appointment calendar and patient data [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="449.35" y="196" text-anchor="start">
+      Manages appointment calendar and patient data [HTTPS]
+    </text>
+    <line x1="575.13" y1="368" x2="575.13" y2="458" class="kuml-edge"/>
+    <path d="M 570.13,446 L 575.13,458 L 580.13,446" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="585.13" y="417" text-anchor="start">
+      Transmits billing data [FHIR/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="585.13" y="417" text-anchor="start">
+      Transmits billing data [FHIR/HTTPS]
+    </text>
+    <line x1="1118.27" y1="368" x2="1118.27" y2="458" class="kuml-edge"/>
+    <path d="M 1113.27,446 L 1118.27,458 L 1123.27,446" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1128.27" y="417" text-anchor="start">
+      Transmits electronic prescriptions [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="1128.27" y="417" text-anchor="start">
+      Transmits electronic prescriptions [REST/HTTPS]
+    </text>
+  </g>
+</svg>

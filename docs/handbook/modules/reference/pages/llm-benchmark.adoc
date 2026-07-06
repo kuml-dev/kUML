@@ -210,6 +210,10 @@ Interpretation and notable findings (the C4 first-shot compile-rate cliff, the S
 Mermaid transliteration loss): see the
 https://kuml.dev/blog/2026-07-06-gcr-benchmark-kuml-vs-plantuml-mermaid[blog post, window=_blank].
 
+Want to see the actual diagrams behind these numbers? The xref:ROOT:gallery/index.adoc[Benchmark Gallery]
+renders all 50 tasks — gold standard next to what each DSL generated, including the one task (C4-S-01)
+where kUML never got a diagram out at all after 3 repair attempts.
+
 == Limitations
 
 * **One model.** Only Claude Sonnet 5 ran; the preprint's design calls for three

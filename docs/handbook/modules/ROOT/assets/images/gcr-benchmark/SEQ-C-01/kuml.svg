@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1196 848"
+     width="1196"
+     height="848">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1196" height="848" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1192" height="844" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        sequence: OrderSagaOrchestration
+      </text>
+    </g>
+    <g id="OrderSagaOrchestration::frag::1">
+      <rect x="32" y="275" width="1148" height="405" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="32,275 82,275 82,287 76,293 32,293" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="57" y="288" text-anchor="middle">
+        ALT
+      </text>
+      <rect x="83" y="277" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="86" y="288">
+        [goods available]
+      </text>
+      <line x1="32" y1="636" x2="1180" y2="636" class="kuml-divider" stroke-dasharray="6 4"/>
+      <rect x="33" y="637" width="142.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="36" y="648">
+        [goods not available]
+      </text>
+    </g>
+    <g id="OrderSagaOrchestration::frag::2">
+      <rect x="42" y="395" width="1128" height="229" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="42,395 92,395 92,407 86,413 42,413" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="67" y="408" text-anchor="middle">
+        ALT
+      </text>
+      <rect x="93" y="397" width="129.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="96" y="408">
+        [payment succeeded]
+      </text>
+      <line x1="42" y1="516" x2="1170" y2="516" class="kuml-divider" stroke-dasharray="6 4"/>
+      <rect x="43" y="517" width="110" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="46" y="528">
+        [payment failed]
+      </text>
+    </g>
+    <g id="OrderSagaOrchestration::ll::Customer" transform="translate(56,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «actor»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Customer
+      </text>
+      <line x1="70" y1="40" x2="70" y2="752" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="OrderSagaOrchestration::ll::OrderService" transform="translate(216,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        OrderService
+      </text>
+      <line x1="70" y1="40" x2="70" y2="752" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="OrderSagaOrchestration::ll::SagaOrchestrator" transform="translate(376,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        SagaOrchestrator
+      </text>
+      <line x1="70" y1="40" x2="70" y2="752" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="OrderSagaOrchestration::ll::EventLog" transform="translate(536,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        EventLog
+      </text>
+      <line x1="70" y1="40" x2="70" y2="752" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="OrderSagaOrchestration::ll::WarehouseService" transform="translate(696,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        WarehouseService
+      </text>
+      <line x1="70" y1="40" x2="70" y2="752" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="OrderSagaOrchestration::ll::PaymentService" transform="translate(856,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        PaymentService
+      </text>
+      <line x1="70" y1="40" x2="70" y2="752" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="OrderSagaOrchestration::ll::ShipmentService" transform="translate(1016,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        ShipmentService
+      </text>
+      <line x1="70" y1="40" x2="70" y2="752" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+  </g>
+  <g id="edges">
+    <g id="OrderSagaOrchestration::msg::1">
+      <line x1="126" y1="128" x2="286" y2="128" class="kuml-edge"/>
+      <rect x="164" y="113" width="84" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="206" y="124" text-anchor="middle">
+        placeOrder()
+      </text>
+      <polygon points="286,128 278,124 278,132" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::2">
+      <line x1="286" y1="160" x2="446" y2="160" class="kuml-edge"/>
+      <rect x="337" y="145" width="58" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="156" text-anchor="middle">
+        «create»
+      </text>
+      <polygon points="446,160 438,156 438,164" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::3">
+      <line x1="446" y1="192" x2="766" y2="192" class="kuml-edge"/>
+      <rect x="557.500" y="177" width="97" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="188" text-anchor="middle">
+        reserveItems()
+      </text>
+      <polygon points="766,192 758,188 758,196" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::4">
+      <line x1="766" y1="224" x2="446" y2="224" class="kuml-edge-dashed"/>
+      <rect x="547.750" y="209" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="220" text-anchor="middle">
+        reservationResult
+      </text>
+      <path d="M 454 220 L 446 224 L 454 228" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::5">
+      <line x1="446" y1="256" x2="606" y2="256" class="kuml-edge"/>
+      <rect x="458" y="241" width="136" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="252" text-anchor="middle">
+        logReservationStep()
+      </text>
+      <path d="M 598 252 L 606 256 L 598 260" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::6">
+      <line x1="446" y1="312" x2="926" y2="312" class="kuml-edge"/>
+      <rect x="631" y="297" width="110" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="686" y="308" text-anchor="middle">
+        executePayment()
+      </text>
+      <polygon points="926,312 918,308 918,316" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::7">
+      <line x1="926" y1="344" x2="446" y2="344" class="kuml-edge-dashed"/>
+      <rect x="640.750" y="329" width="90.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="686" y="340" text-anchor="middle">
+        paymentResult
+      </text>
+      <path d="M 454 340 L 446 344 L 454 348" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::8">
+      <line x1="446" y1="376" x2="606" y2="376" class="kuml-edge"/>
+      <rect x="471" y="361" width="110" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="372" text-anchor="middle">
+        logPaymentStep()
+      </text>
+      <path d="M 598 372 L 606 376 L 598 380" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::9">
+      <line x1="446" y1="432" x2="1086" y2="432" class="kuml-edge"/>
+      <rect x="698" y="417" width="136" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="766" y="428" text-anchor="middle">
+        commissionShipment()
+      </text>
+      <polygon points="1086,432 1078,428 1078,436" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::10">
+      <line x1="1086" y1="464" x2="446" y2="464" class="kuml-edge-dashed"/>
+      <rect x="717.500" y="449" width="97" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="766" y="460" text-anchor="middle">
+        shipmentResult
+      </text>
+      <path d="M 454 460 L 446 464 L 454 468" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::11">
+      <line x1="446" y1="496" x2="606" y2="496" class="kuml-edge"/>
+      <rect x="467.750" y="481" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="492" text-anchor="middle">
+        logShipmentStep()
+      </text>
+      <path d="M 598 492 L 606 496 L 598 500" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::12">
+      <line x1="446" y1="552" x2="766" y2="552" class="kuml-edge"/>
+      <rect x="541.250" y="537" width="129.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="548" text-anchor="middle">
+        cancelReservation()
+      </text>
+      <polygon points="766,552 758,548 758,556" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::13">
+      <line x1="766" y1="584" x2="446" y2="584" class="kuml-edge-dashed"/>
+      <rect x="534.750" y="569" width="142.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="580" text-anchor="middle">
+        cancellationConfirmed
+      </text>
+      <path d="M 454 580 L 446 584 L 454 588" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::14">
+      <line x1="446" y1="616" x2="606" y2="616" class="kuml-edge"/>
+      <rect x="454.750" y="601" width="142.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="612" text-anchor="middle">
+        logCompensationStep()
+      </text>
+      <path d="M 598 612 L 606 616 L 598 620" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::15">
+      <line x1="446" y1="672" x2="606" y2="672" class="kuml-edge"/>
+      <rect x="477.500" y="657" width="97" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="668" text-anchor="middle">
+        logAbortStep()
+      </text>
+      <path d="M 598 668 L 606 672 L 598 676" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::16">
+      <line x1="286" y1="704" x2="446" y2="704" class="kuml-edge"/>
+      <rect x="333.750" y="689" width="64.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="700" text-anchor="middle">
+        «destroy»
+      </text>
+      <path d="M 438 700 L 446 704 L 438 708" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OrderSagaOrchestration::msg::17">
+      <line x1="286" y1="736" x2="126" y2="736" class="kuml-edge"/>
+      <rect x="167.250" y="721" width="77.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="206" y="732" text-anchor="middle">
+        orderStatus
+      </text>
+      <polygon points="126,736 134,732 134,740" class="kuml-seq-arrow-filled"/>
+    </g>
+  </g>
+</svg>

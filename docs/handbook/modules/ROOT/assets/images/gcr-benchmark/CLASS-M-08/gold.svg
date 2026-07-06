@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1069.83 492"
+     width="1069.83"
+     height="492">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1069.83" height="492" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1065.83" height="488" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        class: CarRental
+      </text>
+    </g>
+    <g id="Branch" transform="translate(32,51)">
+      <rect width="174" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="87" y="18" text-anchor="middle">
+        Branch
+      </text>
+      <line x1="0" y1="24" x2="174" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - address: String
+      </text>
+    </g>
+    <g id="VehicleClass" transform="translate(86.50,396)">
+      <rect width="203" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="101.50" y="18" text-anchor="middle">
+        VehicleClass
+      </text>
+      <line x1="0" y1="24" x2="203" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - designation: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - dailyRate: BigDecimal
+      </text>
+    </g>
+    <g id="Vehicle" transform="translate(48.67,221)">
+      <rect width="211" height="85" class="kuml-class"/>
+      <text class="kuml-title" x="105.50" y="18" text-anchor="middle">
+        Vehicle
+      </text>
+      <line x1="0" y1="24" x2="211" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - licensePlate: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - model: String
+      </text>
+      <text class="kuml-body" x="5" y="64">
+        - mileage: Int
+      </text>
+    </g>
+    <g id="Customer" transform="translate(824.83,51)">
+      <rect width="229" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="114.50" y="18" text-anchor="middle">
+        Customer
+      </text>
+      <line x1="0" y1="24" x2="229" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - driverLicenseNumber: String
+      </text>
+    </g>
+    <g id="Reservation" transform="translate(804.67,222.67)">
+      <rect width="202" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="101" y="18" text-anchor="middle">
+        Reservation
+      </text>
+      <line x1="0" y1="24" x2="202" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - from: LocalDate
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - to: LocalDate
+      </text>
+    </g>
+    <g id="InsuranceOption" transform="translate(299.67,221)">
+      <rect width="229" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="114.50" y="18" text-anchor="middle">
+        InsuranceOption
+      </text>
+      <line x1="0" y1="24" x2="229" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - surchargePerDay: BigDecimal
+      </text>
+    </g>
+    <g id="RentalContract" transform="translate(310.97,32)">
+      <rect width="258" height="99" class="kuml-class"/>
+      <text class="kuml-title" x="129" y="18" text-anchor="middle">
+        RentalContract
+      </text>
+      <line x1="0" y1="24" x2="258" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - contractNumber: String
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - pickupTime: LocalDateTime
+      </text>
+      <line x1="0" y1="64" x2="258" y2="64" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="78">
+        + complete(): Boolean
+      </text>
+    </g>
+    <g id="Invoice" transform="translate(568.67,221)">
+      <rect width="196" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="98" y="18" text-anchor="middle">
+        Invoice
+      </text>
+      <line x1="0" y1="24" x2="196" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - amount: BigDecimal
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - invoiceDate: LocalDate
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="119" y1="131" x2="119" y2="221" class="kuml-edge"/>
+    <path d="M 114,209 L 119,221 L 124,209" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="109" y="207" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="109" y="207" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="129" y="191" text-anchor="middle">
+      fleet
+    </text>
+    <text class="kuml-small" x="129" y="191" text-anchor="middle">
+      fleet
+    </text>
+    <line x1="154.17" y1="306" x2="154.17" y2="396" class="kuml-edge"/>
+    <path d="M 149.17,384 L 154.17,396 L 159.17,384" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="144.17" y="320" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="144.17" y="320" text-anchor="middle">
+      0..*
+    </text>
+    <line x1="939.33" y1="131" x2="939.33" y2="222.67" class="kuml-edge"/>
+    <path d="M 934.33,210.67 L 939.33,222.67 L 944.33,210.67" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="929.33" y="208.67" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="929.33" y="208.67" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="949.33" y="192.67" text-anchor="middle">
+      reservations
+    </text>
+    <text class="kuml-small" x="949.33" y="192.67" text-anchor="middle">
+      reservations
+    </text>
+    <path d="M 905.67 302.67 L 905.67 336 L 221.83 336 L 221.83 396" class="kuml-edge"/>
+    <path d="M 216.83,384 L 221.83,396 L 226.83,384" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="895.67" y="316.67" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="895.67" y="316.67" text-anchor="middle">
+      0..*
+    </text>
+    <path d="M 362.57 131 L 362.57 161 L 189.33 161 L 189.33 221" class="kuml-edge"/>
+    <path d="M 184.33,209 L 189.33,221 L 194.33,209" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="352.57" y="145" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="352.57" y="145" text-anchor="middle">
+      0..*
+    </text>
+    <line x1="414.17" y1="131" x2="414.17" y2="221" class="kuml-edge"/>
+    <path d="M 409.17,209 L 414.17,221 L 419.17,209" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="404.17" y="145" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="404.17" y="145" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="404.17" y="207" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="404.17" y="207" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="424.17" y="191" text-anchor="middle">
+      options
+    </text>
+    <text class="kuml-small" x="424.17" y="191" text-anchor="middle">
+      options
+    </text>
+    <path d="M 465.77 131 L 465.77 171 L 666.67 171 L 666.67 221" class="kuml-edge"/>
+    <path d="M 661.67,209 L 666.67,221 L 671.67,209" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <polygon points="465.77,131 470.77,139 465.77,147 460.77,139" style="stroke:#1D2B4F;stroke-width:1.5;fill:#1D2B4F;stroke-linejoin:round;"/>
+    <path d="M 517.37 131 L 517.37 161 L 872 161 L 872 222.67" class="kuml-edge-dashed"/>
+    <path d="M 867,210.67 L 872,222.67 L 877,210.67" style="stroke:#6B7A99;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="694.68" y="157" text-anchor="middle">
+      basedOn
+    </text>
+    <text class="kuml-edge-label" x="694.68" y="157" text-anchor="middle">
+      basedOn
+    </text>
+  </g>
+</svg>

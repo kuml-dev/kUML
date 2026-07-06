@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 923.83 483"
+     width="923.83"
+     height="483">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="923.83" height="483" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="919.83" height="479" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        class: BankAccounts
+      </text>
+    </g>
+    <g id="Customer" transform="translate(733.83,32)">
+      <rect width="174" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="87" y="18" text-anchor="middle">
+        Customer
+      </text>
+    </g>
+    <g id="Account" transform="translate(487.83,202)">
+      <rect width="216" height="90" class="kuml-class"/>
+      <text class="kuml-stereotype" x="108" y="18" text-anchor="middle">
+        «abstract»
+      </text>
+      <text class="kuml-title" x="108" y="32" text-anchor="middle">
+        Account
+      </text>
+      <line x1="0" y1="38" x2="216" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="52">
+        - iban: String
+      </text>
+      <text class="kuml-body" x="5" y="65">
+        - balance: Double
+      </text>
+    </g>
+    <g id="InterestContract" transform="translate(212,202)">
+      <rect width="229" height="80" class="kuml-interface"/>
+      <text class="kuml-stereotype" x="114.50" y="18" text-anchor="middle">
+        «interface»
+      </text>
+      <text class="kuml-title" x="114.50" y="32" text-anchor="middle">
+        InterestContract
+      </text>
+      <line x1="0" y1="38" x2="229" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="8" y="52">
+        + calculateInterest(): Double
+      </text>
+    </g>
+    <g id="CheckingAccount" transform="translate(497.83,32)">
+      <rect width="196" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="98" y="18" text-anchor="middle">
+        CheckingAccount
+      </text>
+      <line x1="0" y1="24" x2="196" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - overdraftLimit: Double
+      </text>
+    </g>
+    <g id="SavingsAccount" transform="translate(260.83,32)">
+      <rect width="197" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="98.50" y="18" text-anchor="middle">
+        SavingsAccount
+      </text>
+      <line x1="0" y1="24" x2="197" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - interestRate: Double
+      </text>
+    </g>
+    <g id="TransactionType" transform="translate(32,32)">
+      <rect width="160" height="103" class="kuml-enum"/>
+      <text class="kuml-stereotype" x="80" y="18" text-anchor="middle">
+        «enumeration»
+      </text>
+      <text class="kuml-title" x="80" y="32" text-anchor="middle">
+        TransactionType
+      </text>
+      <line x1="0" y1="38" x2="160" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="8" y="52">
+        DEPOSIT
+      </text>
+      <text class="kuml-body" x="8" y="65">
+        WITHDRAWAL
+      </text>
+      <text class="kuml-body" x="8" y="78">
+        TRANSFER
+      </text>
+    </g>
+    <g id="Transaction" transform="translate(501.33,382)">
+      <rect width="189" height="85" class="kuml-class"/>
+      <text class="kuml-title" x="94.50" y="18" text-anchor="middle">
+        Transaction
+      </text>
+      <line x1="0" y1="24" x2="189" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - amount: Double
+      </text>
+      <text class="kuml-body" x="5" y="51">
+        - timestamp: String
+      </text>
+      <text class="kuml-body" x="5" y="64">
+        - type: TransactionType
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="595.83" y1="112" x2="595.83" y2="202" class="kuml-edge"/>
+    <polygon points="595.83,202 590.83,190 600.83,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 392.17 112 L 392.17 142 L 541.83 142 L 541.83 202" class="kuml-edge"/>
+    <polygon points="541.83,202 536.83,190 546.83,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <line x1="326.50" y1="112" x2="326.50" y2="202" class="kuml-edge-dashed"/>
+    <polygon points="326.50,202 321.50,190 331.50,190" style="stroke:#6B7A99;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 820.83 112 L 820.83 142 L 649.83 142 L 649.83 202" class="kuml-edge"/>
+    <path d="M 644.83,190 L 649.83,202 L 654.83,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="639.83" y="188" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="639.83" y="188" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="659.83" y="172" text-anchor="middle">
+      accounts
+    </text>
+    <text class="kuml-small" x="659.83" y="172" text-anchor="middle">
+      accounts
+    </text>
+    <line x1="595.83" y1="292" x2="595.83" y2="382" class="kuml-edge"/>
+    <path d="M 590.83,370 L 595.83,382 L 600.83,370" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <polygon points="595.83,292 600.83,300 595.83,308 590.83,300" style="stroke:#1D2B4F;stroke-width:1.5;fill:#1D2B4F;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="585.83" y="368" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="585.83" y="368" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="605.83" y="352" text-anchor="middle">
+      transactions
+    </text>
+    <text class="kuml-small" x="605.83" y="352" text-anchor="middle">
+      transactions
+    </text>
+  </g>
+</svg>

@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 668 416"
+     width="668"
+     height="416">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="668" height="416" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="664" height="412" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        sequence: TransferRequest
+      </text>
+    </g>
+    <g id="TransferRequest::ll::Customer" transform="translate(32,32)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «actor»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Customer
+      </text>
+      <line x1="70" y1="40" x2="70" y2="368" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="TransferRequest::ll::BankingApp" transform="translate(192,32)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        BankingApp
+      </text>
+      <line x1="70" y1="40" x2="70" y2="368" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="TransferRequest::ll::TransferService" transform="translate(352,32)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        TransferService
+      </text>
+      <line x1="70" y1="40" x2="70" y2="368" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="TransferRequest::ll::AccountDatabase" transform="translate(512,32)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        AccountDatabase
+      </text>
+      <line x1="70" y1="40" x2="70" y2="368" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+  </g>
+  <g id="edges">
+    <g id="TransferRequest::msg::1">
+      <line x1="102" y1="104" x2="262" y2="104" class="kuml-edge"/>
+      <rect x="120.500" y="89" width="123" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="182" y="100" text-anchor="middle">
+        initiateTransfer()
+      </text>
+      <polygon points="262,104 254,100 254,108" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="TransferRequest::msg::2">
+      <line x1="262" y1="136" x2="422" y2="136" class="kuml-edge"/>
+      <rect x="264.250" y="121" width="155.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="342" y="132" text-anchor="middle">
+        submitTransferRequest()
+      </text>
+      <polygon points="422,136 414,132 414,140" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="TransferRequest::msg::3">
+      <line x1="422" y1="168" x2="582" y2="168" class="kuml-edge"/>
+      <rect x="453.500" y="153" width="97" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="502" y="164" text-anchor="middle">
+        queryBalance()
+      </text>
+      <polygon points="582,168 574,164 574,172" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="TransferRequest::msg::4">
+      <line x1="582" y1="200" x2="422" y2="200" class="kuml-edge-dashed"/>
+      <rect x="476.250" y="185" width="51.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="502" y="196" text-anchor="middle">
+        balance
+      </text>
+      <path d="M 430 196 L 422 200 L 430 204" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="TransferRequest::msg::5">
+      <line x1="422" y1="232" x2="582" y2="232" class="kuml-edge"/>
+      <rect x="453.500" y="217" width="97" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="502" y="228" text-anchor="middle">
+        postTransfer()
+      </text>
+      <polygon points="582,232 574,228 574,236" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="TransferRequest::msg::6">
+      <line x1="582" y1="264" x2="422" y2="264" class="kuml-edge-dashed"/>
+      <rect x="443.750" y="249" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="502" y="260" text-anchor="middle">
+        bookingSuccessful
+      </text>
+      <path d="M 430 260 L 422 264 L 430 268" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="TransferRequest::msg::7">
+      <line x1="422" y1="296" x2="262" y2="296" class="kuml-edge-dashed"/>
+      <rect x="274" y="281" width="136" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="342" y="292" text-anchor="middle">
+        transactionReference
+      </text>
+      <path d="M 270 292 L 262 296 L 270 300" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="TransferRequest::msg::8">
+      <line x1="262" y1="328" x2="102" y2="328" class="kuml-edge"/>
+      <rect x="110.750" y="313" width="142.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="182" y="324" text-anchor="middle">
+        displayConfirmation()
+      </text>
+      <polygon points="102,328 110,324 110,332" class="kuml-seq-arrow-filled"/>
+    </g>
+  </g>
+</svg>

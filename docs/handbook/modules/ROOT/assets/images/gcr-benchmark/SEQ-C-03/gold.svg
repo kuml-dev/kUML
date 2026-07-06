@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1356 800"
+     width="1356"
+     height="800">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1356" height="800" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1352" height="796" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        sequence: Sensor Fusion and Emergency Braking
+      </text>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::frag::1">
+      <rect x="32" y="115" width="1308" height="101" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="32,115 82,115 82,127 76,133 32,133" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="57" y="128" text-anchor="middle">
+        PAR
+      </text>
+      <line x1="32" y1="172" x2="1340" y2="172" class="kuml-divider" stroke-dasharray="6 4"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::frag::2">
+      <rect x="32" y="291" width="1308" height="405" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="32,291 82,291 82,303 76,309 32,309" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="57" y="304" text-anchor="middle">
+        ALT
+      </text>
+      <rect x="83" y="293" width="84" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="86" y="304">
+        [ttc &lt; 1.5s]
+      </text>
+      <line x1="32" y1="652" x2="1340" y2="652" class="kuml-divider" stroke-dasharray="6 4"/>
+      <rect x="33" y="653" width="90.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="36" y="664">
+        [ttc &gt;= 1.5s]
+      </text>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::frag::3">
+      <rect x="42" y="411" width="1288" height="77" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="42,411 92,411 92,423 86,429 42,429" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="67" y="424" text-anchor="middle">
+        LOOP
+      </text>
+      <rect x="93" y="413" width="168.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="96" y="424">
+        [obstacle still detected]
+      </text>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::frag::4">
+      <rect x="42" y="595" width="1288" height="45" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="42,595 92,595 92,607 86,613 42,613" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="67" y="608" text-anchor="middle">
+        OPT
+      </text>
+      <rect x="93" y="597" width="84" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="96" y="608">
+        [ttc &lt; 3.0s]
+      </text>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::ll::CameraSensor" transform="translate(56,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        CameraSensor
+      </text>
+      <line x1="70" y1="40" x2="70" y2="704" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::ll::RadarSensor" transform="translate(216,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        RadarSensor
+      </text>
+      <line x1="70" y1="40" x2="70" y2="704" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::ll::FusionUnit" transform="translate(376,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        FusionUnit
+      </text>
+      <line x1="70" y1="40" x2="70" y2="704" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::ll::EmergencyBrakingAssistant" transform="translate(536,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        EmergencyBrakingAssistant
+      </text>
+      <line x1="70" y1="40" x2="70" y2="704" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::ll::BrakingManeuver" transform="translate(696,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        BrakingManeuver
+      </text>
+      <line x1="70" y1="40" x2="70" y2="704" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::ll::BrakeControlUnit" transform="translate(856,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        BrakeControlUnit
+      </text>
+      <line x1="70" y1="40" x2="70" y2="704" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::ll::DriverHMI" transform="translate(1016,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        DriverHMI
+      </text>
+      <line x1="70" y1="40" x2="70" y2="704" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::ll::DiagnosticLog" transform="translate(1176,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        DiagnosticLog
+      </text>
+      <line x1="70" y1="40" x2="70" y2="704" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+  </g>
+  <g id="edges">
+    <g id="Sensor Fusion and Emergency Braking::msg::1">
+      <line x1="126" y1="152" x2="446" y2="152" class="kuml-edge"/>
+      <rect x="227.750" y="137" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="286" y="148" text-anchor="middle">
+        objectList(frame)
+      </text>
+      <path d="M 438 148 L 446 152 L 438 156" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::2">
+      <line x1="286" y1="208" x2="446" y2="208" class="kuml-edge"/>
+      <rect x="287" y="193" width="158" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="204" text-anchor="middle" textLength="152" lengthAdjust="spacingAndGlyphs">
+        distanceMeasurement(cycle)
+      </text>
+      <path d="M 438 204 L 446 208 L 438 212" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::3">
+      <path d="M 446 240 L 470 240 L 470 256 L 446 256" class="kuml-edge" fill="none"/>
+      <path d="M 454 252 L 446 256 L 454 260" class="kuml-edge" fill="none"/>
+      <rect x="474" y="227" width="117" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="474" y="238">
+        fuseMeasurements()
+      </text>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::4">
+      <line x1="446" y1="272" x2="606" y2="272" class="kuml-edge"/>
+      <rect x="447" y="257" width="158" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="268" text-anchor="middle" textLength="152" lengthAdjust="spacingAndGlyphs">
+        reportCollisionRisk(object, ttc)
+      </text>
+      <polygon points="606,272 598,268 598,276" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::5">
+      <line x1="606" y1="328" x2="1086" y2="328" class="kuml-edge"/>
+      <rect x="774.750" y="313" width="142.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="846" y="324" text-anchor="middle">
+        activateWarningTone()
+      </text>
+      <path d="M 1078 324 L 1086 328 L 1078 332" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::6">
+      <line x1="606" y1="360" x2="766" y2="360" class="kuml-edge"/>
+      <rect x="657" y="345" width="58" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="686" y="356" text-anchor="middle">
+        «create»
+      </text>
+      <polygon points="766,360 758,356 758,364" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::7">
+      <line x1="606" y1="392" x2="766" y2="392" class="kuml-edge"/>
+      <rect x="611.500" y="377" width="149" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="686" y="388" text-anchor="middle">
+        start(maxDeceleration)
+      </text>
+      <polygon points="766,392 758,388 758,396" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::8">
+      <line x1="766" y1="448" x2="926" y2="448" class="kuml-edge"/>
+      <rect x="771.500" y="433" width="149" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="846" y="444" text-anchor="middle">
+        setBrakePressure(100%)
+      </text>
+      <polygon points="926,448 918,444 918,452" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::9">
+      <line x1="926" y1="480" x2="766" y2="480" class="kuml-edge-dashed"/>
+      <rect x="784.500" y="465" width="123" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="846" y="476" text-anchor="middle">
+        actualDeceleration
+      </text>
+      <path d="M 774 476 L 766 480 L 774 484" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::10">
+      <line x1="766" y1="512" x2="606" y2="512" class="kuml-edge-dashed"/>
+      <rect x="621.250" y="497" width="129.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="686" y="508" text-anchor="middle">
+        vehicleAtStandstill
+      </text>
+      <path d="M 614 508 L 606 512 L 614 516" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::11">
+      <line x1="606" y1="544" x2="766" y2="544" class="kuml-edge"/>
+      <rect x="653.750" y="529" width="64.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="686" y="540" text-anchor="middle">
+        «destroy»
+      </text>
+      <path d="M 758 540 L 766 544 L 758 548" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::12">
+      <line x1="606" y1="576" x2="1246" y2="576" class="kuml-edge"/>
+      <rect x="815.750" y="561" width="220.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="926" y="572" text-anchor="middle">
+        log(&apos;Emergency braking executed&apos;)
+      </text>
+      <path d="M 1238 572 L 1246 576 L 1238 580" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::13">
+      <line x1="606" y1="632" x2="1086" y2="632" class="kuml-edge"/>
+      <rect x="774.750" y="617" width="142.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="846" y="628" text-anchor="middle">
+        showDistanceWarning()
+      </text>
+      <path d="M 1078 628 L 1086 632 L 1078 636" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Sensor Fusion and Emergency Braking::msg::14">
+      <line x1="606" y1="688" x2="1246" y2="688" class="kuml-edge"/>
+      <rect x="858" y="673" width="136" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="926" y="684" text-anchor="middle">
+        log(&apos;Risk observed&apos;)
+      </text>
+      <path d="M 1238 684 L 1246 688 L 1238 692" class="kuml-edge" fill="none"/>
+    </g>
+  </g>
+</svg>

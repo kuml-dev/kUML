@@ -1,0 +1,324 @@
+= Class Diagrams — Benchmark Gallery
+:description: 20 Class Diagrams tasks from the GCR benchmark — gold standard vs. kUML, PlantUML, and Mermaid.
+
+20 tasks. Back to xref:gallery/index.adoc[all diagram families].
+
+== CLASS-S-01 — Library (Simple)
+
+A library manages its book inventory: each book belongs to exactly one library and cannot exist without it. Members with a member number and name can borrow books, whereby each loan records a loan date and a return date and can be extended. A member can have any number of loans, and any number of loans can be created for each book over time.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-S-01/gold.svg[CLASS-S-01 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-S-01/kuml.svg[CLASS-S-01 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-S-01/plantuml.svg[CLASS-S-01 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-S-01/mermaid.svg[CLASS-S-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 100% · HR 0% | SF 100% · HR 0% | SF 100% · HR 0%
+|===
+
+== CLASS-S-02 — Parking Garage (Simple)
+
+A parking garage consists of several levels, and each level consists of several parking spaces — neither levels nor spaces can exist without the garage. Each parking space has a fixed type: regular, disabled, or electric charging space. Upon entry, a ticket with an entry time is issued, assigned to at most one parking space; a parking space is occupied by at most one ticket at any given time.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-S-02/gold.svg[CLASS-S-02 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-S-02/kuml.svg[CLASS-S-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-S-02/plantuml.svg[CLASS-S-02 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-S-02/mermaid.svg[CLASS-S-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 75% · HR 0% | SF 31% · HR 0% | SF 30% · HR 0%
+|===
+
+== CLASS-S-03 — Vet Clinic (Simple)
+
+A veterinary practice manages pet owners and their animals: each owner has at least one animal, recorded with name, date of birth, and species (dog, cat, bird, or reptile). Each treatment documents date, findings, and cost and refers to exactly one animal. Each treatment is performed by exactly one veterinarian, who in turn can perform any number of treatments.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-S-03/gold.svg[CLASS-S-03 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-S-03/kuml.svg[CLASS-S-03 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-S-03/plantuml.svg[CLASS-S-03 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-S-03/mermaid.svg[CLASS-S-03 Mermaid,align="center"]
+
+| _(reference)_ | SF 46% · HR 0% | SF 41% · HR 0% | SF 30% · HR 0%
+|===
+
+== CLASS-S-04 — Recipe Management (Simple)
+
+A digital cookbook collects recipes that cannot exist without their cookbook. Each recipe has a title, a preparation time, and a difficulty level (easy, medium, or demanding) and consists of at least one ingredient entry specifying quantity and unit. Each ingredient entry refers to exactly one ingredient from the ingredient catalog; the same ingredient can appear in any number of entries.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-S-04/gold.svg[CLASS-S-04 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-S-04/kuml.svg[CLASS-S-04 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-S-04/plantuml.svg[CLASS-S-04 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-S-04/mermaid.svg[CLASS-S-04 Mermaid,align="center"]
+
+| _(reference)_ | SF 100% · HR 0% | SF 100% · HR 0% | SF 90% · HR 0%
+|===
+
+== CLASS-S-05 — Hotel Room (Simple)
+
+A hotel owns rooms that are inseparably part of the hotel and each belongs to a category: single room, double room, or suite. Guests can book rooms; a booking records arrival and departure dates as well as the total price. Each booking belongs to exactly one guest and exactly one room, while guests and rooms can each accumulate any number of bookings.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-S-05/gold.svg[CLASS-S-05 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-S-05/kuml.svg[CLASS-S-05 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-S-05/plantuml.svg[CLASS-S-05 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-S-05/mermaid.svg[CLASS-S-05 Mermaid,align="center"]
+
+| _(reference)_ | SF 88% · HR 0% | SF 88% · HR 0% | SF 83% · HR 0%
+|===
+
+== CLASS-S-06 — Cinema Box Office (Simple)
+
+A cinema box office system schedules screenings: each screening shows exactly one film at a specific start time in exactly one auditorium. An auditorium consists of permanently installed seats with row and seat number. Tickets are sold at the box office; each ticket belongs to exactly one screening and reserves exactly one seat.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-S-06/gold.svg[CLASS-S-06 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-S-06/kuml.svg[CLASS-S-06 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-S-06/plantuml.svg[CLASS-S-06 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-S-06/mermaid.svg[CLASS-S-06 Mermaid,align="center"]
+
+| _(reference)_ | SF 62% · HR 0% | SF 62% · HR 0% | SF 62% · HR 0%
+|===
+
+== CLASS-M-01 — E-Commerce (Medium)
+
+An online shop manages customers who must register at least one delivery address; addresses only exist in the context of their customer. Each customer has at most one active shopping cart, which is made up of line items, each of which references exactly one product with a quantity. When the cart is checked out, an order is created that progresses through statuses: created, paid, shipped, or cancelled. A customer can place any number of orders.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-M-01/gold.svg[CLASS-M-01 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-M-01/kuml.svg[CLASS-M-01 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-M-01/plantuml.svg[CLASS-M-01 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-M-01/mermaid.svg[CLASS-M-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 25% · HR 14% | SF 38% · HR 14% | SF 38% · HR 14%
+|===
+
+== CLASS-M-02 — Hospital Patients (Medium)
+
+In the patient management system of a hospital, patients, doctors, and nursing staff share common personal data such as name and date of birth, which are consolidated in an abstract base form. Each patient has a blood type and is assigned to exactly one ward; each ward is staffed by at least one nurse. Appointments connect exactly one patient with exactly one doctor and can contain several documented treatment steps that cannot exist without the appointment.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-M-02/gold.svg[CLASS-M-02 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-M-02/kuml.svg[CLASS-M-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-M-02/plantuml.svg[CLASS-M-02 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-M-02/mermaid.svg[CLASS-M-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 72% · HR 0% | SF 45% · HR 0% | SF 45% · HR 0%
+|===
+
+== CLASS-M-03 — Bank Account (Medium)
+
+A bank maintains accounts for its customers; each account belongs to exactly one customer, and a customer can have multiple accounts. The general account is an abstract base form with IBAN and balance, from which checking account (with overdraft limit) and savings account (with interest rate) are derived. Savings accounts additionally implement an interest contract that prescribes how interest is calculated. Each account movement is recorded as a transaction with amount, timestamp, and type (deposit, withdrawal, or transfer) and only exists in the context of its account.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-M-03/gold.svg[CLASS-M-03 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-M-03/kuml.svg[CLASS-M-03 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-M-03/plantuml.svg[CLASS-M-03 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-M-03/mermaid.svg[CLASS-M-03 Mermaid,align="center"]
+
+| _(reference)_ | SF 62% · HR 14% | SF 52% · HR 14% | SF 50% · HR 14%
+|===
+
+== CLASS-M-04 — School (Medium)
+
+A school is organized into classes that cannot exist without the school. Each class has exactly one homeroom teacher, while a teacher can lead multiple classes; furthermore, any number of students belong to a class. The timetable consists of lessons, each of which brings together a subject, a teacher, and a class. At the end of the school year, each student receives report cards that are inseparably linked to them.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-M-04/gold.svg[CLASS-M-04 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-M-04/kuml.svg[CLASS-M-04 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-M-04/plantuml.svg[CLASS-M-04 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-M-04/mermaid.svg[CLASS-M-04 Mermaid,align="center"]
+
+| _(reference)_ | SF 51% · HR 0% | SF 88% · HR 0% | SF 51% · HR 0%
+|===
+
+== CLASS-M-05 — HR System (Medium)
+
+A personnel management system assigns each employee to exactly one department and exactly one position; a department has at least one employee. Managers are special employees with budget responsibility, and each department is led by exactly one manager. Employees submit leave requests with a time period and status (submitted, approved, or rejected); requests follow a general approval contract that prescribes approve and reject operations. Monthly payroll records only exist in the context of the respective employee.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-M-05/gold.svg[CLASS-M-05 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-M-05/kuml.svg[CLASS-M-05 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-M-05/plantuml.svg[CLASS-M-05 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-M-05/mermaid.svg[CLASS-M-05 Mermaid,align="center"]
+
+| _(reference)_ | SF 53% · HR 14% | SF 30% · HR 38% | SF 26% · HR 38%
+|===
+
+== CLASS-M-06 — Fleet Management (Medium)
+
+A fleet management system maintains vehicles with license plate, mileage, and status (available, on the road, or in maintenance) as an abstract base form, from which car (with seat count) and truck (with payload) are derived. Drivers undertake trips; each trip belongs to exactly one driver and exactly one vehicle and documents start, destination, and kilometers driven. Maintenance records with date and cost belong inseparably to the respective vehicle and are performed by exactly one workshop.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-M-06/gold.svg[CLASS-M-06 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-M-06/kuml.svg[CLASS-M-06 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-M-06/plantuml.svg[CLASS-M-06 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-M-06/mermaid.svg[CLASS-M-06 Mermaid,align="center"]
+
+| _(reference)_ | SF 64% · HR 0% | SF 64% · HR 0% | SF 58% · HR 0%
+|===
+
+== CLASS-M-07 — Online Course Platform (Medium)
+
+On a learning platform, each instructor creates any number of courses. A course consists of at least one lesson; each lesson can optionally contain a quiz, which in turn is made up of at least one question — lessons, quizzes, and questions only exist within their respective structure. Participants enroll in courses; each enrollment connects exactly one participant with exactly one course and tracks progress in percent. Upon successful completion, exactly one certificate is issued for the enrollment.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-M-07/gold.svg[CLASS-M-07 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-M-07/kuml.svg[CLASS-M-07 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-M-07/plantuml.svg[CLASS-M-07 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-M-07/mermaid.svg[CLASS-M-07 Mermaid,align="center"]
+
+| _(reference)_ | SF 100% · HR 0% | SF 100% · HR 0% | SF 88% · HR 0%
+|===
+
+== CLASS-M-08 — Car Rental (Medium)
+
+A car rental company operates branches, each of which is assigned several vehicles; each vehicle belongs to exactly one vehicle class such as compact or SUV with its own daily rate. Customers do not reserve a specific vehicle but a vehicle class for a given period. At pickup, a rental contract is created from the reservation, assigning a specific vehicle and optionally including any number of insurance options. Each rental contract has exactly one invoice that cannot exist without it.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-M-08/gold.svg[CLASS-M-08 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-M-08/kuml.svg[CLASS-M-08 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-M-08/plantuml.svg[CLASS-M-08 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-M-08/mermaid.svg[CLASS-M-08 Mermaid,align="center"]
+
+| _(reference)_ | SF 62% · HR 0% | SF 80% · HR 0% | SF 73% · HR 0%
+|===
+
+== CLASS-C-01 — Logistics Network (Complex)
+
+A logistics network operates warehouses that consist of storage locations. Shipments have a tracking number and a status (accepted, in warehouse, in transit, delivered), consist of at least one package, and can be tracked via a uniform tracking contract; individual packages can be temporarily assigned to a storage location. Routes are made up of segments, each of which runs from a source warehouse to a destination warehouse. Vehicles are either trucks with trailer coupling or vans with cargo volume; a tour connects exactly one vehicle, exactly one driver, and exactly one route and delivers any number of shipments.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-C-01/gold.svg[CLASS-C-01 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-C-01/kuml.svg[CLASS-C-01 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-C-01/plantuml.svg[CLASS-C-01 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-C-01/mermaid.svg[CLASS-C-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 62% · HR 8% | SF 60% · HR 8% | SF 59% · HR 8%
+|===
+
+== CLASS-C-02 — University Administration (Complex)
+
+A university is organized into faculties that each offer degree programs and employ professors. Students and professors share common personal data in an abstract base form. Degree programs bundle modules, where a module can be used in multiple programs; each module fulfills an examinable contract and is implemented through courses, each taught by exactly one professor in exactly one semester. Students enroll in degree programs via enrollments and complete examination performances that receive a grade level from excellent to failed; each examination performance belongs to exactly one exam, which in turn is assigned to exactly one module.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-C-02/gold.svg[CLASS-C-02 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-C-02/kuml.svg[CLASS-C-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-C-02/plantuml.svg[CLASS-C-02 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-C-02/mermaid.svg[CLASS-C-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 47% · HR 0% · repaired 2× | SF 53% · HR 0% | SF 42% · HR 0%
+|===
+
+== CLASS-C-03 — E-Commerce Full Range (Complex)
+
+A full-range online shop organizes products in a category tree, where each category has at most one parent category and any number of subcategories. Each product belongs to exactly one category and exists in at least one variant with its own article number, size, and color. Customers maintain addresses and at most one active shopping cart with line items that reference specific variants; upon purchase, an order is created with its own line items, a status, and a uniform payment contract. Payment is an abstract base form with amount and payment status, concretely as credit card payment or PayPal payment; after successful payment, the order receives a shipment with a tracking number, which goes to one of the customer's addresses.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-C-03/gold.svg[CLASS-C-03 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-C-03/kuml.svg[CLASS-C-03 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-C-03/plantuml.svg[CLASS-C-03 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-C-03/mermaid.svg[CLASS-C-03 Mermaid,align="center"]
+
+| _(reference)_ | SF 36% · HR 0% | SF 38% · HR 0% | SF 30% · HR 0%
+|===
+
+== CLASS-C-04 — Hospital Complete (Complex)
+
+A hospital information system manages patients, doctors, and nursing staff, who inherit common personal data from an abstract base form. Wards consist of beds and are staffed by at least one nurse; each inpatient stay belongs to exactly one patient, occupies at most one bed, has exactly one attending physician, and an admission type (emergency, planned, or transfer). During the stay, diagnoses are made that belong inseparably to the stay and are each the responsibility of exactly one doctor; prescriptions can be issued for a diagnosis, each specifying exactly one medication with dosage. Each patient is insured by exactly one insurance company; each stay generates exactly one invoice that follows a uniform billing contract and is submitted to the insurance company.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-C-04/gold.svg[CLASS-C-04 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-C-04/kuml.svg[CLASS-C-04 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-C-04/plantuml.svg[CLASS-C-04 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-C-04/mermaid.svg[CLASS-C-04 Mermaid,align="center"]
+
+| _(reference)_ | SF 35% · HR 7% | SF 29% · HR 14% | SF 29% · HR 14%
+|===
+
+== CLASS-C-05 — Automated Driving ADAS (Complex)
+
+A test platform for advanced driver assistance systems describes test vehicles that consist of multiple control units and multiple sensors; each control unit runs driving functions such as automatic emergency braking or lane-keeping assist. Sensors are an abstract base form with serial number and sampling rate, concretely as camera, radar, or lidar, and all fulfill a uniform calibration contract; each driving function uses at least one sensor, and each sensor continuously generates measurements with a timestamp. Test cases each instantiate exactly one test scenario and verify exactly one driving function. A test run executes a test case on a specific vehicle, collects the measurements generated in the process, and ends with a result: passed, failed, or aborted.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-C-05/gold.svg[CLASS-C-05 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-C-05/kuml.svg[CLASS-C-05 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-C-05/plantuml.svg[CLASS-C-05 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-C-05/mermaid.svg[CLASS-C-05 Mermaid,align="center"]
+
+| _(reference)_ | SF 51% · HR 13% | SF 44% · HR 20% | SF 47% · HR 13%
+|===
+
+== CLASS-C-06 — PdV Party Member Management (Complex)
+
+The membership management system of a party is organized into state chapters that consist of district chapters; each member belongs to exactly one district chapter and has a status: active, passive, or resigned. Joining is handled via a membership application with an application status (received, reviewed, accepted, or rejected), which is submitted to a district chapter and from which the member emerges; members are reachable via a uniform notification contract. Committees award mandates with a term of office to exactly one member each, and district chapters run campaigns in which members participate via deployments with a specified number of hours. Payments are an abstract base form with amount and date, concretely as a membership fee payment with a contribution year or as a donation, which can optionally be earmarked for a campaign; each payment originates from exactly one member.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/CLASS-C-06/gold.svg[CLASS-C-06 gold standard,align="center"]
+a| image::gcr-benchmark/CLASS-C-06/kuml.svg[CLASS-C-06 kUML + GCR,align="center"]
+a| image::gcr-benchmark/CLASS-C-06/plantuml.svg[CLASS-C-06 PlantUML,align="center"]
+a| image::gcr-benchmark/CLASS-C-06/mermaid.svg[CLASS-C-06 Mermaid,align="center"]
+
+| _(reference)_ | SF 51% · HR 0% | SF 41% · HR 7% | SF 41% · HR 7%
+|===

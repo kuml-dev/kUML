@@ -1,0 +1,14 @@
+= Benchmark Gallery
+:description: All 50 GCR benchmark tasks rendered — gold standard vs. kUML, PlantUML, and Mermaid, side by side.
+
+Every one of the 50 tasks from the xref:reference:llm-benchmark.adoc[LLM Benchmark (GCR)] rendered: the
+gold-standard model next to what kUML + GCR, PlantUML, and Mermaid each generated independently from the
+same natural-language description. The same gallery, with clickable full-size SVGs, is also published at
+https://kuml.dev/benchmark-gallery[kuml.dev/benchmark-gallery,window=_blank].
+
+== By diagram family
+
+* xref:gallery/class-diagrams.adoc[Class Diagrams] (20 tasks)
+* xref:gallery/sequence-diagrams.adoc[Sequence Diagrams] (10 tasks)
+* xref:gallery/c4.adoc[C4 Diagrams] (12 tasks)
+* xref:gallery/sysml2.adoc[SysML 2 Diagrams] (8 tasks)

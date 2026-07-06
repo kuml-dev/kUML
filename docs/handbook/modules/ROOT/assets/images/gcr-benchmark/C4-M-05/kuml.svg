@@ -1,0 +1,335 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 924.73 994"
+     width="924.73"
+     height="994">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="924.73" height="994" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="920.73" height="990" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        container: Smart Home Hub - Container View
+      </text>
+    </g>
+    <g id="system-c4-2" transform="translate(104.20,243)">
+      <rect width="738.53" height="587" class="kuml-system" rx="8" ry="8"/>
+      <text class="kuml-stereotype" x="369.27" y="14" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="369.27" y="30" text-anchor="middle">
+        Smart Home Hub
+      </text>
+    </g>
+    <g id="c4-3" transform="translate(124.20,444)">
+      <rect width="230.20" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="115.10" y="18" text-anchor="middle">
+        [Container: Mobile]
+      </text>
+      <text class="kuml-title" x="115.10" y="36" text-anchor="middle">
+        Mobile App
+      </text>
+      <text class="kuml-small" x="115.10" y="52" text-anchor="middle">
+        <tspan x="115.10" dy="0">
+          Lets residents operate the system
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-4" transform="translate(290.40,279)">
+      <rect width="282" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="141" y="18" text-anchor="middle">
+        [Container: Web]
+      </text>
+      <text class="kuml-title" x="141" y="36" text-anchor="middle">
+        Web Interface
+      </text>
+      <text class="kuml-small" x="141" y="52" text-anchor="middle">
+        <tspan x="141" dy="0">
+          Lets the installer configure devices and
+        </tspan>
+        <tspan x="141" dy="13">
+          automation rules
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-5" transform="translate(259.10,596)">
+      <rect width="250.60" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="125.30" y="18" text-anchor="middle">
+        [Container: Kotlin]
+      </text>
+      <text class="kuml-title" x="125.30" y="36" text-anchor="middle">
+        Device Registry
+      </text>
+      <text class="kuml-small" x="125.30" y="52" text-anchor="middle">
+        <tspan x="125.30" dy="0">
+          Manages all connected devices
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-6" transform="translate(444.53,444)">
+      <rect width="236.80" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="118.40" y="18" text-anchor="middle">
+        [Container: Kotlin]
+      </text>
+      <text class="kuml-title" x="118.40" y="36" text-anchor="middle">
+        Automation Engine
+      </text>
+      <text class="kuml-small" x="118.40" y="52" text-anchor="middle">
+        <tspan x="118.40" dy="0">
+          Executes automation rules
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-7" transform="translate(461.93,748)">
+      <rect width="202" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="101" y="18" text-anchor="middle">
+        [Container: Database]
+      </text>
+      <text class="kuml-title" x="101" y="36" text-anchor="middle">
+        Local Database
+      </text>
+      <text class="kuml-small" x="101" y="52" text-anchor="middle">
+        <tspan x="101" dy="0">
+          Holds the current state
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-8" transform="translate(593.93,596)">
+      <rect width="197.80" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="98.90" y="18" text-anchor="middle">
+        [Container: Kotlin]
+      </text>
+      <text class="kuml-title" x="98.90" y="36" text-anchor="middle">
+        Sync Service
+      </text>
+      <text class="kuml-small" x="98.90" y="52" text-anchor="middle">
+        <tspan x="98.90" dy="0">
+          Mirrors states to the cloud
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-9" transform="translate(598.40,95)">
+      <rect width="214.40" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="107.20" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="107.20" y="36" text-anchor="middle">
+        Voice Assistant Cloud
+      </text>
+    </g>
+    <g id="c4-10" transform="translate(218.63,926)">
+      <rect width="248.00" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="124.00" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="124.00" y="36" text-anchor="middle">
+        Manufacturer Device Cloud
+      </text>
+    </g>
+    <g id="c4-11" transform="translate(734.73,926)">
+      <rect width="174" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="87" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="87" y="36" text-anchor="middle">
+        Weather Service
+      </text>
+    </g>
+    <g id="c4-12" transform="translate(520.73,926)">
+      <rect width="174" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="87" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="87" y="36" text-anchor="middle">
+        Sync Cloud
+      </text>
+    </g>
+    <g id="c4-0" transform="translate(32,32)">
+      <circle cx="116.20" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 116.20 18 L 116.20 38 M 104.20 26 L 128.20 26 M 116.20 38 L 106.20 52 M 116.20 38 L 126.20 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="224.40" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="116.20" y="76" text-anchor="middle">
+        Resident
+      </text>
+      <text class="kuml-stereotype" x="116.20" y="92" text-anchor="middle">
+        <tspan x="116.20" dy="0">
+          Operates the system via a mobile app
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-1" transform="translate(304.40,32)">
+      <circle cx="127" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 127 18 L 127 38 M 115 26 L 139 26 M 127 38 L 117 52 M 127 38 L 137 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="246" height="57" class="kuml-class"/>
+      <text class="kuml-title" x="127" y="76" text-anchor="middle">
+        Installer
+      </text>
+      <text class="kuml-stereotype" x="127" y="92" text-anchor="middle">
+        <tspan x="127" dy="0">
+          Configures devices and automation rules
+        </tspan>
+        <tspan x="127" dy="13">
+          via a web interface
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <path d="M 148.20 147 L 148.20 177 L 239.30 177 L 239.30 444" class="kuml-edge"/>
+    <path d="M 234.30,432 L 239.30,444 L 244.30,432" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="249.30" y="314.50" text-anchor="start">
+      Operates the system [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="249.30" y="314.50" text-anchor="start">
+      Operates the system [HTTPS]
+    </text>
+    <line x1="431.40" y1="147" x2="431.40" y2="279" class="kuml-edge"/>
+    <path d="M 426.40,267 L 431.40,279 L 436.40,267" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="441.40" y="217" text-anchor="start">
+      Configures devices and automation rules [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="441.40" y="217" text-anchor="start">
+      Configures devices and automation rules [HTTPS]
+    </text>
+    <path d="M 239.30 506 L 239.30 536 L 321.75 536 L 321.75 596" class="kuml-edge"/>
+    <path d="M 316.75,584 L 321.75,596 L 326.75,584" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="280.53" y="532" text-anchor="middle">
+      Sends device control commands [HTTPS/REST]
+    </text>
+    <text class="kuml-edge-label" x="280.53" y="532" text-anchor="middle">
+      Sends device control commands [HTTPS/REST]
+    </text>
+    <line x1="384.40" y1="354" x2="384.40" y2="596" class="kuml-edge"/>
+    <path d="M 379.40,584 L 384.40,596 L 389.40,584" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="394.40" y="479" text-anchor="start">
+      Configures devices [HTTPS/REST]
+    </text>
+    <text class="kuml-edge-label" x="394.40" y="479" text-anchor="start">
+      Configures devices [HTTPS/REST]
+    </text>
+    <path d="M 478.40 354 L 478.40 384 L 523.47 384 L 523.47 444" class="kuml-edge"/>
+    <path d="M 518.47,432 L 523.47,444 L 528.47,432" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="533.47" y="418" text-anchor="start">
+      Configures automation rules [HTTPS/REST]
+    </text>
+    <text class="kuml-edge-label" x="533.47" y="418" text-anchor="start">
+      Configures automation rules [HTTPS/REST]
+    </text>
+    <path d="M 426.17 658 L 426.17 688 L 512.43 688 L 512.43 748" class="kuml-edge"/>
+    <path d="M 507.43,736 L 512.43,748 L 517.43,736" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="469.30" y="684" text-anchor="middle">
+      Reads/writes device state [SQL]
+    </text>
+    <text class="kuml-edge-label" x="469.30" y="684" text-anchor="middle">
+      Reads/writes device state [SQL]
+    </text>
+    <line x1="562.93" y1="506" x2="562.93" y2="748" class="kuml-edge"/>
+    <path d="M 557.93,736 L 562.93,748 L 567.93,736" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="572.93" y="631" text-anchor="start">
+      Reads/writes state for rule evaluation [SQL]
+    </text>
+    <text class="kuml-edge-label" x="572.93" y="631" text-anchor="start">
+      Reads/writes state for rule evaluation [SQL]
+    </text>
+    <path d="M 503.73 506 L 503.73 536 L 447.05 536 L 447.05 596" class="kuml-edge"/>
+    <path d="M 442.05,584 L 447.05,596 L 452.05,584" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="457.05" y="570" text-anchor="start">
+      Executes rules against devices [internal call]
+    </text>
+    <text class="kuml-edge-label" x="457.05" y="570" text-anchor="start">
+      Executes rules against devices [internal call]
+    </text>
+    <path d="M 659.87 658 L 659.87 688 L 613.43 688 L 613.43 748" class="kuml-edge"/>
+    <path d="M 608.43,736 L 613.43,748 L 618.43,736" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="623.43" y="722" text-anchor="start">
+      Reads state to mirror to the cloud [SQL]
+    </text>
+    <text class="kuml-edge-label" x="623.43" y="722" text-anchor="start">
+      Reads state to mirror to the cloud [SQL]
+    </text>
+    <path d="M 705.60 147 L 705.60 177 L 602.40 177 L 602.40 444" class="kuml-edge"/>
+    <path d="M 597.40,432 L 602.40,444 L 607.40,432" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="612.40" y="314.50" text-anchor="start">
+      Delivers voice commands [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="612.40" y="314.50" text-anchor="start">
+      Delivers voice commands [HTTPS]
+    </text>
+    <line x1="342.63" y1="658" x2="342.63" y2="926" class="kuml-edge"/>
+    <path d="M 337.63,914 L 342.63,926 L 347.63,914" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="352.63" y="796" text-anchor="start">
+      Controls manufacturer-specific devices [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="352.63" y="796" text-anchor="start">
+      Controls manufacturer-specific devices [REST/HTTPS]
+    </text>
+    <path d="M 622.13 506 L 622.13 536 L 821.73 536 L 821.73 926" class="kuml-edge"/>
+    <path d="M 816.73,914 L 821.73,926 L 826.73,914" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="831.73" y="735" text-anchor="start">
+      Queries weather data for weather-dependent rules [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="831.73" y="735" text-anchor="start">
+      Queries weather data for weather-dependent rules [REST/HTTPS]
+    </text>
+    <path d="M 725.80 658 L 725.80 866 L 607.73 866 L 607.73 926" class="kuml-edge"/>
+    <path d="M 602.73,914 L 607.73,926 L 612.73,914" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="735.80" y="766" text-anchor="start">
+      Mirrors state to the cloud [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="735.80" y="766" text-anchor="start">
+      Mirrors state to the cloud [HTTPS]
+    </text>
+  </g>
+</svg>

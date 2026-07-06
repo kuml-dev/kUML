@@ -1,0 +1,196 @@
+= C4 Diagrams — Benchmark Gallery
+:description: 12 C4 Diagrams tasks from the GCR benchmark — gold standard vs. kUML, PlantUML, and Mermaid.
+
+12 tasks. Back to xref:gallery/index.adoc[all diagram families].
+
+== C4-S-01 — Email Service Architecture (Simple)
+
+A company operates its own email service for its employees. End users access their mailboxes via a webmail frontend, while an administrator configures the service and manages user accounts. Internally the service consists of the webmail frontend, a mail API for sending and retrieval, and a database storing messages and mailboxes. Incoming messages are handed off to an external spam filter service for inspection before delivery.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-S-01/gold.svg[C4-S-01 gold standard,align="center"]
+a| _Compile failed after 3 repair attempts — no diagram rendered._
+a| image::gcr-benchmark/C4-S-01/plantuml.svg[C4-S-01 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-S-01/mermaid.svg[C4-S-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 68% · HR 0% | SF 31% · HR 0% | SF 31% · HR 0%
+|===
+
+== C4-S-02 — Blog Platform (Simple)
+
+A blog platform allows authors to write and publish articles, while readers consume the published posts in the browser. The platform consists of a web application for display and editorial work, a content API for business logic, and an article database for content storage. On every publication the platform notifies subscribers via an external email delivery service.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-S-02/gold.svg[C4-S-02 gold standard,align="center"]
+a| image::gcr-benchmark/C4-S-02/kuml.svg[C4-S-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/C4-S-02/plantuml.svg[C4-S-02 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-S-02/mermaid.svg[C4-S-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 100% · HR 0% | SF 43% · HR 0% | SF 43% · HR 0%
+|===
+
+== C4-S-03 — Parking Garage Management (Simple)
+
+A parking garage operator monitors and controls their facility via a central management system. The system controls the entry and exit barriers, maintains the current occupancy count via an occupancy API, persists occupancy data in a database, and drives the information displays at the entrances with available capacity figures. For billing, the system queries the payment status of individual tickets from an externally operated payment terminal network.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-S-03/gold.svg[C4-S-03 gold standard,align="center"]
+a| image::gcr-benchmark/C4-S-03/kuml.svg[C4-S-03 kUML + GCR,align="center"]
+a| image::gcr-benchmark/C4-S-03/plantuml.svg[C4-S-03 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-S-03/mermaid.svg[C4-S-03 Mermaid,align="center"]
+
+| _(reference)_ | SF 30% · HR 14% · repaired 2× | SF 14% · HR 29% | SF 14% · HR 29%
+|===
+
+== C4-S-04 — IoT Sensor Dashboard (Simple)
+
+In a production plant, distributed sensor gateways continuously deliver measurement values for temperature, vibration and energy consumption to a central dashboard. An ingest service receives the measurement data and writes it to a time-series database, from which a web application generates live views and trend charts. Plant technicians use the dashboard for fault diagnosis, while the plant manager uses it to get an overview of utilization and energy consumption.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-S-04/gold.svg[C4-S-04 gold standard,align="center"]
+a| image::gcr-benchmark/C4-S-04/kuml.svg[C4-S-04 kUML + GCR,align="center"]
+a| image::gcr-benchmark/C4-S-04/plantuml.svg[C4-S-04 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-S-04/mermaid.svg[C4-S-04 Mermaid,align="center"]
+
+| _(reference)_ | SF 20% · HR 29% · repaired 2× | SF 22% · HR 33% | SF 22% · HR 33%
+|===
+
+== C4-M-01 — Ride-Sharing App (Medium)
+
+A ride-sharing platform matches rides between passengers and drivers. Both user groups communicate via mobile apps with an API gateway, behind which a matching service assigns suitable drivers to open ride requests and a geolocation service tracks vehicle positions in real time. Completed rides are stored in a rides database and billed by a payment service, which delegates the actual payment processing to an external payment service provider. For map display and route calculation the platform accesses an external map service.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-M-01/gold.svg[C4-M-01 gold standard,align="center"]
+a| image::gcr-benchmark/C4-M-01/kuml.svg[C4-M-01 kUML + GCR,align="center"]
+a| image::gcr-benchmark/C4-M-01/plantuml.svg[C4-M-01 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-M-01/mermaid.svg[C4-M-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 35% · HR 0% · repaired 2× | SF 20% · HR 0% | SF 31% · HR 0%
+|===
+
+== C4-M-02 — Healthcare Portal with Insurance Integration (Medium)
+
+A healthcare portal connects patients, doctors and practice staff on a shared platform. Patients book appointments and view their findings via a web application, doctors enter findings, and practice staff manage the appointment calendar. Internally a scheduling service and a findings service operate against a patient database and an encrypted document store; a notification service sends reminders for upcoming appointments. Billing data is transmitted to the health insurance system, and electronic prescriptions go through the external e-prescription service.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-M-02/gold.svg[C4-M-02 gold standard,align="center"]
+a| image::gcr-benchmark/C4-M-02/kuml.svg[C4-M-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/C4-M-02/plantuml.svg[C4-M-02 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-M-02/mermaid.svg[C4-M-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 43% · HR 8% · repaired 2× | SF 32% · HR 9% | SF 32% · HR 9%
+|===
+
+== C4-M-03 — E-Commerce Microservices (Medium)
+
+An online shop is built as a microservice landscape. Customers browse the product catalog via a storefront, fill their shopping cart and place orders; a shop manager maintains the assortment and prices. Behind an API gateway, separate services handle the product catalog, shopping cart and order processing, each with their own databases for products and orders, exchanging events via a central event bus. Payments go through an external payment gateway, shipping is commissioned via the interface of a shipping service provider, and order confirmations are sent by a connected email marketing system.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-M-03/gold.svg[C4-M-03 gold standard,align="center"]
+a| image::gcr-benchmark/C4-M-03/kuml.svg[C4-M-03 kUML + GCR,align="center"]
+a| image::gcr-benchmark/C4-M-03/plantuml.svg[C4-M-03 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-M-03/mermaid.svg[C4-M-03 Mermaid,align="center"]
+
+| _(reference)_ | SF 28% · HR 21% · repaired 2× | SF 29% · HR 15% | SF 29% · HR 15%
+|===
+
+== C4-M-04 — Streaming Platform (Medium)
+
+A video streaming platform provides viewers with a web player featuring personalized recommendations, while content managers add new titles and curate metadata. Uploaded material passes through a transcoding pipeline, the catalog resides in a dedicated database, and an analytics service evaluates viewing behavior for the recommendation algorithm. The actual video streams are delivered via an external content delivery network to which viewers connect directly; rights verification is handled by an external licensing and DRM service.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-M-04/gold.svg[C4-M-04 gold standard,align="center"]
+a| image::gcr-benchmark/C4-M-04/kuml.svg[C4-M-04 kUML + GCR,align="center"]
+a| image::gcr-benchmark/C4-M-04/plantuml.svg[C4-M-04 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-M-04/mermaid.svg[C4-M-04 Mermaid,align="center"]
+
+| _(reference)_ | SF 31% · HR 10% · repaired 2× | SF 27% · HR 12% | SF 27% · HR 12%
+|===
+
+== C4-M-05 — Smart Home Hub (Medium)
+
+A smart home hub consolidates the control of all devices in a household. Residents operate the system via a mobile app; an installer configures devices and automation rules via a web interface. At the core, a device registry manages all connected devices, an automation engine executes rules, the current state is held in a local database, and a sync service mirrors states to the cloud. Voice commands arrive via a voice assistant cloud, manufacturer-specific devices are controlled through their cloud interfaces, and for weather-dependent rules the hub queries an external weather service.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-M-05/gold.svg[C4-M-05 gold standard,align="center"]
+a| image::gcr-benchmark/C4-M-05/kuml.svg[C4-M-05 kUML + GCR,align="center"]
+a| image::gcr-benchmark/C4-M-05/plantuml.svg[C4-M-05 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-M-05/mermaid.svg[C4-M-05 Mermaid,align="center"]
+
+| _(reference)_ | SF 26% · HR 23% · repaired 3× | SF 16% · HR 25% | SF 19% · HR 25%
+|===
+
+== C4-C-01 — Fintech Banking Platform (Complex)
+
+A digital banking platform serves retail and business customers via mobile and web applications running behind a shared API gateway. Account and transaction services execute the domain logic against separate databases; an event bus distributes events to a notification service and an analytics pipeline for fraud detection and reporting. Core account management remains in the connected core banking system; transfers are routed through an external payment gateway. During account opening a dedicated service orchestrates identity verification via an external KYC service, which reports its results asynchronously; push and SMS notifications are dispatched by an external delivery service. Compliance officers review suspicious transactions, and support staff handle customer inquiries directly on the platform.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-C-01/gold.svg[C4-C-01 gold standard,align="center"]
+a| image::gcr-benchmark/C4-C-01/kuml.svg[C4-C-01 kUML + GCR,align="center"]
+a| image::gcr-benchmark/C4-C-01/plantuml.svg[C4-C-01 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-C-01/mermaid.svg[C4-C-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 27% · HR 20% · repaired 3× | SF 25% · HR 26% | SF 23% · HR 33%
+|===
+
+== C4-C-02 — Logistics Platform (Complex)
+
+A logistics platform manages the entire journey of a shipment from order to delivery. Customers place orders via a web portal, dispatchers plan routes, and drivers receive their assignments via a mobile app whose telematics data an ingest service continuously collects and forwards to fleet tracking; a routing engine computes optimal routes. The separately operated warehouse management system tracks inventory, controls picking and is operated by warehouse staff through a dedicated interface; both systems exchange order and shipping status bidirectionally. For the last mile the platform books capacity via the interfaces of external carriers, retrieves map and traffic data from an external service, and reports cross-border shipments to a customs declaration system.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-C-02/gold.svg[C4-C-02 gold standard,align="center"]
+a| image::gcr-benchmark/C4-C-02/kuml.svg[C4-C-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/C4-C-02/plantuml.svg[C4-C-02 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-C-02/mermaid.svg[C4-C-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 9% · HR 50% | SF 12% · HR 47% | SF 12% · HR 47%
+|===
+
+== C4-C-03 — Autonomous Driving Test Platform (Complex)
+
+A test platform for autonomous driving functions connects real test vehicles, a cloud infrastructure and a simulation environment. Vehicles from an externally managed test fleet upload their measurement and sensor data via an ingest service to a data lake in the test cloud, where an orchestrator schedules test runs, a scenario catalog manages test cases and an evaluation service checks results against expected values. Test engineers define test campaigns via a web interface; fleet managers monitor vehicle status there as well. For virtual validation the cloud dispatches scenarios to a simulation environment where a scheduler distributes simulation jobs to a physics engine with sensor models and reports results back; the simulation retrieves high-resolution map material from an external HD map service. Data analysts examine the collected runs in an analysis workbench with a notebook interface and KPI computation, accessing the cloud data store directly; detected deviations are reported to an external requirements and ticketing system.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/C4-C-03/gold.svg[C4-C-03 gold standard,align="center"]
+a| image::gcr-benchmark/C4-C-03/kuml.svg[C4-C-03 kUML + GCR,align="center"]
+a| image::gcr-benchmark/C4-C-03/plantuml.svg[C4-C-03 PlantUML,align="center"]
+a| image::gcr-benchmark/C4-C-03/mermaid.svg[C4-C-03 Mermaid,align="center"]
+
+| _(reference)_ | SF 15% · HR 38% · repaired 3× | SF 17% · HR 27% | SF 15% · HR 33%
+|===

@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 829.80 604"
+     width="829.80"
+     height="604">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="829.80" height="604" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="825.80" height="600" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        bdd: ADAS Subsystem BDD
+      </text>
+    </g>
+    <g id="Sensor" transform="translate(292,518)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title kuml-title-abstract" x="110" y="30" text-anchor="middle" font-style="italic">
+        Sensor
+      </text>
+    </g>
+    <g id="Camera" transform="translate(552,358)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Camera
+      </text>
+    </g>
+    <g id="Radar" transform="translate(292,358)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Radar
+      </text>
+    </g>
+    <g id="Lidar" transform="translate(32,358)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        Lidar
+      </text>
+    </g>
+    <g id="SensorSuite" transform="translate(593.800,122)">
+      <rect width="220" height="98" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        SensorSuite
+      </text>
+      <line x1="0" y1="42" x2="220" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        cameras : Camera [1..*]
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        radars : Radar [1..*]
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        lidars : Lidar [1..*]
+      </text>
+    </g>
+    <g id="EnvironmentModel" transform="translate(32,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        EnvironmentModel
+      </text>
+    </g>
+    <g id="FusionAndProcessingUnit" transform="translate(310.800,122)">
+      <rect width="263" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="131.500" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="131.500" y="30" text-anchor="middle">
+        FusionAndProcessingUnit
+      </text>
+      <line x1="0" y1="42" x2="263" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        environmentModel : EnvironmentModel
+      </text>
+    </g>
+    <g id="SteeringSystem" transform="translate(272,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        SteeringSystem
+      </text>
+    </g>
+    <g id="BrakingSystem" transform="translate(512,32)">
+      <rect width="220" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="110" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="110" y="30" text-anchor="middle">
+        BrakingSystem
+      </text>
+    </g>
+    <g id="DriverAssistanceControlUnit" transform="translate(32,122)">
+      <rect width="258.800" height="70" class="kuml-class"/>
+      <text class="kuml-stereotype" x="129.400" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="129.400" y="30" text-anchor="middle">
+        DriverAssistanceControlUnit
+      </text>
+    </g>
+    <g id="ADASSubsystem" transform="translate(32,240)">
+      <rect width="302.600" height="98" class="kuml-class"/>
+      <text class="kuml-stereotype" x="151.300" y="16" text-anchor="middle">
+        «part def»
+      </text>
+      <text class="kuml-title" x="151.300" y="30" text-anchor="middle">
+        ADASSubsystem
+      </text>
+      <line x1="0" y1="42" x2="302.600" y2="42" class="kuml-divider"/>
+      <text class="kuml-body" x="6" y="56">
+        sensorSuite : SensorSuite
+      </text>
+      <text class="kuml-body" x="6" y="69">
+        fusionUnit : FusionAndProcessingUnit
+      </text>
+      <text class="kuml-body" x="6" y="82">
+        controlUnit : DriverAssistanceControlUnit
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <path d="M 662 428 L 662 458 L 457 458 L 457 518" class="kuml-edge"/>
+    <polygon points="457,518 452,506 462,506" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <line x1="402" y1="428" x2="402" y2="518" class="kuml-edge"/>
+    <polygon points="402,518 397,506 407,506" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 142 428 L 142 458 L 347 458 L 347 518" class="kuml-edge"/>
+    <polygon points="347,518 342,506 352,506" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+  </g>
+</svg>

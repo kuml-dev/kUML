@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1036 872"
+     width="1036"
+     height="872">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1036" height="872" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1032" height="868" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        sequence: OAuth Login Flow
+      </text>
+    </g>
+    <g id="OAuth Login Flow::frag::1">
+      <rect x="32" y="307" width="988" height="461" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="32,307 82,307 82,319 76,325 32,325" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="57" y="320" text-anchor="middle">
+        ALT
+      </text>
+      <rect x="83" y="309" width="129.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="86" y="320">
+        [credentials valid]
+      </text>
+      <line x1="32" y1="692" x2="1020" y2="692" class="kuml-divider" stroke-dasharray="6 4"/>
+      <rect x="33" y="693" width="129.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="36" y="704">
+        [credentials wrong]
+      </text>
+    </g>
+    <g id="OAuth Login Flow::frag::2">
+      <rect x="42" y="427" width="968" height="101" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="42,427 92,427 92,439 86,445 42,445" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="67" y="440" text-anchor="middle">
+        PAR
+      </text>
+      <line x1="42" y1="484" x2="1010" y2="484" class="kuml-divider" stroke-dasharray="6 4"/>
+    </g>
+    <g id="OAuth Login Flow::frag::3">
+      <rect x="42" y="539" width="968" height="141" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="42,539 92,539 92,551 86,557 42,557" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="67" y="552" text-anchor="middle">
+        OPT
+      </text>
+      <rect x="93" y="541" width="162" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="96" y="552">
+        [scope includes profile]
+      </text>
+    </g>
+    <g id="OAuth Login Flow::ll::User" transform="translate(56,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «actor»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        User
+      </text>
+      <line x1="70" y1="40" x2="70" y2="776" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="OAuth Login Flow::ll::Client Application" transform="translate(216,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Client Application
+      </text>
+      <line x1="70" y1="40" x2="70" y2="776" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="OAuth Login Flow::ll::Authorization Server" transform="translate(376,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Authorization Server
+      </text>
+      <line x1="70" y1="40" x2="70" y2="776" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="OAuth Login Flow::ll::Session Store" transform="translate(536,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Session Store
+      </text>
+      <line x1="70" y1="40" x2="70" y2="776" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="OAuth Login Flow::ll::Audit Log" transform="translate(696,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Audit Log
+      </text>
+      <line x1="70" y1="40" x2="70" y2="776" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="OAuth Login Flow::ll::Resource Server" transform="translate(856,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Resource Server
+      </text>
+      <line x1="70" y1="40" x2="70" y2="776" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+  </g>
+  <g id="edges">
+    <g id="OAuth Login Flow::msg::1">
+      <line x1="126" y1="128" x2="286" y2="128" class="kuml-edge"/>
+      <rect x="151" y="113" width="110" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="206" y="124" text-anchor="middle">
+        initiate login()
+      </text>
+      <polygon points="286,128 278,124 278,132" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OAuth Login Flow::msg::2">
+      <line x1="286" y1="160" x2="446" y2="160" class="kuml-edge"/>
+      <rect x="298" y="145" width="136" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="156" text-anchor="middle">
+        redirect via browser
+      </text>
+      <polygon points="446,160 438,156 438,164" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OAuth Login Flow::msg::3">
+      <line x1="446" y1="192" x2="606" y2="192" class="kuml-edge"/>
+      <rect x="448.250" y="177" width="155.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="188" text-anchor="middle">
+        create session(process)
+      </text>
+      <polygon points="606,192 598,188 598,196" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OAuth Login Flow::msg::4">
+      <line x1="606" y1="224" x2="446" y2="224" class="kuml-edge-dashed"/>
+      <rect x="474.250" y="209" width="103.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="220" text-anchor="middle">
+        session created
+      </text>
+      <path d="M 454 220 L 446 224 L 454 228" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OAuth Login Flow::msg::5">
+      <line x1="446" y1="256" x2="126" y2="256" class="kuml-edge"/>
+      <rect x="224.500" y="241" width="123" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="286" y="252" text-anchor="middle">
+        deliver login form
+      </text>
+      <polygon points="126,256 134,252 134,260" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OAuth Login Flow::msg::6">
+      <line x1="126" y1="288" x2="446" y2="288" class="kuml-edge"/>
+      <rect x="221.250" y="273" width="129.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="286" y="284" text-anchor="middle">
+        enter credentials()
+      </text>
+      <polygon points="446,288 438,284 438,292" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OAuth Login Flow::msg::7">
+      <line x1="446" y1="344" x2="126" y2="344" class="kuml-edge"/>
+      <rect x="205" y="329" width="162" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="286" y="340" text-anchor="middle">
+        issue authorization code
+      </text>
+      <polygon points="126,344 134,340 134,348" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OAuth Login Flow::msg::8">
+      <line x1="126" y1="376" x2="286" y2="376" class="kuml-edge"/>
+      <rect x="127" y="361" width="158" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="206" y="372" text-anchor="middle" textLength="152" lengthAdjust="spacingAndGlyphs">
+        authorization code (callback)
+      </text>
+      <polygon points="286,376 278,372 278,380" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OAuth Login Flow::msg::9">
+      <line x1="286" y1="408" x2="446" y2="408" class="kuml-edge"/>
+      <rect x="287" y="393" width="158" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="404" text-anchor="middle" textLength="152" lengthAdjust="spacingAndGlyphs">
+        exchange code for access token()
+      </text>
+      <polygon points="446,408 438,404 438,412" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OAuth Login Flow::msg::10">
+      <line x1="446" y1="464" x2="286" y2="464" class="kuml-edge-dashed"/>
+      <rect x="324" y="449" width="84" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="460" text-anchor="middle">
+        access token
+      </text>
+      <path d="M 294 460 L 286 464 L 294 468" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OAuth Login Flow::msg::11">
+      <line x1="446" y1="520" x2="766" y2="520" class="kuml-edge"/>
+      <rect x="554.250" y="505" width="103.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="516" text-anchor="middle">
+        note issuance()
+      </text>
+      <polygon points="766,520 758,516 758,524" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OAuth Login Flow::msg::12">
+      <line x1="286" y1="576" x2="926" y2="576" class="kuml-edge"/>
+      <rect x="554.250" y="561" width="103.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="572" text-anchor="middle">
+        get user data()
+      </text>
+      <polygon points="926,576 918,572 918,580" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OAuth Login Flow::msg::13">
+      <line x1="926" y1="608" x2="446" y2="608" class="kuml-edge"/>
+      <rect x="627.750" y="593" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="686" y="604" text-anchor="middle">
+        re-verify token()
+      </text>
+      <polygon points="446,608 454,604 454,612" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="OAuth Login Flow::msg::14">
+      <line x1="446" y1="640" x2="926" y2="640" class="kuml-edge-dashed"/>
+      <rect x="647.250" y="625" width="77.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="686" y="636" text-anchor="middle">
+        token valid
+      </text>
+      <path d="M 918 636 L 926 640 L 918 644" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OAuth Login Flow::msg::15">
+      <line x1="926" y1="672" x2="286" y2="672" class="kuml-edge-dashed"/>
+      <rect x="573.750" y="657" width="64.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="668" text-anchor="middle">
+        user data
+      </text>
+      <path d="M 294 668 L 286 672 L 294 676" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OAuth Login Flow::msg::16">
+      <line x1="446" y1="728" x2="606" y2="728" class="kuml-edge"/>
+      <rect x="493.750" y="713" width="64.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="724" text-anchor="middle">
+        «destroy»
+      </text>
+      <path d="M 598 724 L 606 728 L 598 732" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="OAuth Login Flow::msg::17">
+      <line x1="446" y1="760" x2="126" y2="760" class="kuml-edge"/>
+      <rect x="224.500" y="745" width="123" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="286" y="756" text-anchor="middle">
+        show error message
+      </text>
+      <polygon points="126,760 134,756 134,764" class="kuml-seq-arrow-filled"/>
+    </g>
+  </g>
+</svg>

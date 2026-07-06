@@ -1,0 +1,164 @@
+= Sequence Diagrams — Benchmark Gallery
+:description: 10 Sequence Diagrams tasks from the GCR benchmark — gold standard vs. kUML, PlantUML, and Mermaid.
+
+10 tasks. Back to xref:gallery/index.adoc[all diagram families].
+
+== SEQ-S-01 — User Login (Simple)
+
+A user enters their credentials into the login interface, which forwards them to the authentication service for verification. The authentication service loads the matching record from the user database and internally verifies the password hash. The interface then receives an access token in return and notifies the user of the successful login.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SEQ-S-01/gold.svg[SEQ-S-01 gold standard,align="center"]
+a| image::gcr-benchmark/SEQ-S-01/kuml.svg[SEQ-S-01 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SEQ-S-01/plantuml.svg[SEQ-S-01 PlantUML,align="center"]
+a| image::gcr-benchmark/SEQ-S-01/mermaid.svg[SEQ-S-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 7% · HR 50% | SF 7% · HR 50% | SF 100% · HR 0%
+|===
+
+== SEQ-S-02 — Request Bank Transfer (Simple)
+
+A bank customer initiates a transfer in their banking app, which is submitted as a request to the transfer service. The transfer service first queries the current account balance in the account database and then posts the transfer there. After a successful booking, the app receives a transaction reference number and displays a confirmation to the customer.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SEQ-S-02/gold.svg[SEQ-S-02 gold standard,align="center"]
+a| image::gcr-benchmark/SEQ-S-02/kuml.svg[SEQ-S-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SEQ-S-02/plantuml.svg[SEQ-S-02 PlantUML,align="center"]
+a| image::gcr-benchmark/SEQ-S-02/mermaid.svg[SEQ-S-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 47% · HR 25% | SF 40% · HR 0% | SF 40% · HR 0%
+|===
+
+== SEQ-S-03 — Search and Display Product (Simple)
+
+A buyer enters a search term in the web shop, which is passed to the search service. The search service finds matching products in the product catalog and returns the results list to the shop. Only if results are found does the shop additionally load the associated product images from the catalog before displaying the results page to the buyer.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SEQ-S-03/gold.svg[SEQ-S-03 gold standard,align="center"]
+a| image::gcr-benchmark/SEQ-S-03/kuml.svg[SEQ-S-03 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SEQ-S-03/plantuml.svg[SEQ-S-03 PlantUML,align="center"]
+a| image::gcr-benchmark/SEQ-S-03/mermaid.svg[SEQ-S-03 Mermaid,align="center"]
+
+| _(reference)_ | SF 73% · HR 0% | SF 17% · HR 0% | SF 100% · HR 0%
+|===
+
+== SEQ-M-01 — Online Checkout with Payment Validation (Medium)
+
+A customer initiates the checkout process in the shop, whereupon the checkout service has the stored payment details verified by the payment gateway. If the check is positive, the order is saved in the database and the payment is subsequently processed via the gateway. If the payment details are invalid, the process is instead rejected with an error message. In both cases the customer sees the result displayed in the shop at the end.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SEQ-M-01/gold.svg[SEQ-M-01 gold standard,align="center"]
+a| image::gcr-benchmark/SEQ-M-01/kuml.svg[SEQ-M-01 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SEQ-M-01/plantuml.svg[SEQ-M-01 PlantUML,align="center"]
+a| image::gcr-benchmark/SEQ-M-01/mermaid.svg[SEQ-M-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 50% · HR 20% | SF 53% · HR 20% | SF 63% · HR 20%
+|===
+
+== SEQ-M-02 — API Rate Limiting with Retry (Medium)
+
+A client requests data via the API gateway, which checks with the rate limiter before forwarding whether the client's quota has not yet been exhausted. If quota is still available, the request is forwarded to the backend service and the data is returned to the client; otherwise the client receives a rejection for too many requests. After a rejection the client waits a backoff period and retries the request, up to three times.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SEQ-M-02/gold.svg[SEQ-M-02 gold standard,align="center"]
+a| image::gcr-benchmark/SEQ-M-02/kuml.svg[SEQ-M-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SEQ-M-02/plantuml.svg[SEQ-M-02 PlantUML,align="center"]
+a| image::gcr-benchmark/SEQ-M-02/mermaid.svg[SEQ-M-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 11% · HR 75% | SF 11% · HR 75% | SF 11% · HR 75%
+|===
+
+== SEQ-M-03 — Password Reset Flow (Medium)
+
+A user requests a password reset via the web portal, and the authentication service looks up the provided email address in the user database. If the user exists, the service internally generates a reset token, stores it in the database and triggers sending of the reset email without waiting for its completion. If the address is unknown, the service responds with the same innocuous success message for security reasons. In both cases the user sees only a neutral notification.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SEQ-M-03/gold.svg[SEQ-M-03 gold standard,align="center"]
+a| image::gcr-benchmark/SEQ-M-03/kuml.svg[SEQ-M-03 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SEQ-M-03/plantuml.svg[SEQ-M-03 PlantUML,align="center"]
+a| image::gcr-benchmark/SEQ-M-03/mermaid.svg[SEQ-M-03 Mermaid,align="center"]
+
+| _(reference)_ | SF 6% · HR 60% | SF 6% · HR 50% | SF 6% · HR 20%
+|===
+
+== SEQ-M-04 — Microservice Authentication (Medium)
+
+A client calls the order endpoint via the API gateway carrying a JWT, which first checks the token cache to see whether the token has already been validated. If there is no cache entry, the gateway has the token verified by the authentication service and stores the result in the cache as a side effect. If the token is valid, the request is forwarded to the order service and the order list is returned; if the token is invalid, access is denied.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SEQ-M-04/gold.svg[SEQ-M-04 gold standard,align="center"]
+a| image::gcr-benchmark/SEQ-M-04/kuml.svg[SEQ-M-04 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SEQ-M-04/plantuml.svg[SEQ-M-04 PlantUML,align="center"]
+a| image::gcr-benchmark/SEQ-M-04/mermaid.svg[SEQ-M-04 Mermaid,align="center"]
+
+| _(reference)_ | SF 43% · HR 20% | SF 6% · HR 0% | SF 6% · HR 80%
+|===
+
+== SEQ-C-01 — Distributed Saga Transaction (Complex)
+
+A customer places an order, whereupon the order service instantiates a dedicated saga orchestrator that coordinates the distributed transaction and writes each step concurrently to an event log. The orchestrator first reserves the items in the warehouse service; only if the goods are available is the payment executed and the shipment subsequently commissioned. If the payment fails, the warehouse reservation is cancelled as a compensating step; if the goods are not available at all, the transaction is aborted immediately. After completion the orchestrator is torn down and the customer is informed of the order status.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SEQ-C-01/gold.svg[SEQ-C-01 gold standard,align="center"]
+a| image::gcr-benchmark/SEQ-C-01/kuml.svg[SEQ-C-01 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SEQ-C-01/plantuml.svg[SEQ-C-01 PlantUML,align="center"]
+a| image::gcr-benchmark/SEQ-C-01/mermaid.svg[SEQ-C-01 Mermaid,align="center"]
+
+| _(reference)_ | SF 52% · HR 14% | SF 18% · HR 14% | SF 32% · HR 14% · repaired 2×
+|===
+
+== SEQ-C-02 — OAuth2 Authorization Code Flow (Complex)
+
+A user initiates login in a client application and is redirected via browser to the authorization server, which creates a new session in the session store for the process and delivers a login form. After entering credentials, the server issues an authorization code upon successful verification, which the client application exchanges via its callback for an access token; the issuance is concurrently noted in the audit log. If the requested scope includes the profile, the application additionally retrieves the user data from the resource server, which has the token re-verified by the authorization server before releasing it. If the credentials are wrong, the created session is discarded and the user sees an error message.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SEQ-C-02/gold.svg[SEQ-C-02 gold standard,align="center"]
+a| image::gcr-benchmark/SEQ-C-02/kuml.svg[SEQ-C-02 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SEQ-C-02/plantuml.svg[SEQ-C-02 PlantUML,align="center"]
+a| image::gcr-benchmark/SEQ-C-02/mermaid.svg[SEQ-C-02 Mermaid,align="center"]
+
+| _(reference)_ | SF 4% · HR 83% | SF 41% · HR 0% | SF 4% · HR 83%
+|===
+
+== SEQ-C-03 — Autonomous Driving: Sensor Fusion and Emergency Braking (Complex)
+
+Camera and radar sensors simultaneously and without acknowledgement deliver their measurement data to the fusion unit, which internally computes a consolidated environment model from it and reports a collision risk with time-to-collision to the emergency braking assistant. If this time-to-collision falls below the critical threshold, the assistant warns the driver acoustically, initiates an autonomous braking maneuver and repeatedly adjusts the brake pressure at the control unit until the vehicle is stationary; the maneuver is then ended and the event is recorded in the diagnostic log. If the time-to-collision is above the threshold, the driver is at most shown a distance warning and the observed risk is concurrently logged.
+
+[cols="4", frame=none, grid=none]
+|===
+| Gold standard | kUML + GCR | PlantUML | Mermaid
+
+a| image::gcr-benchmark/SEQ-C-03/gold.svg[SEQ-C-03 gold standard,align="center"]
+a| image::gcr-benchmark/SEQ-C-03/kuml.svg[SEQ-C-03 kUML + GCR,align="center"]
+a| image::gcr-benchmark/SEQ-C-03/plantuml.svg[SEQ-C-03 PlantUML,align="center"]
+a| image::gcr-benchmark/SEQ-C-03/mermaid.svg[SEQ-C-03 Mermaid,align="center"]
+
+| _(reference)_ | SF 18% · HR 0% | SF 0% · HR 29% · repaired 2× | SF 0% · HR 57%
+|===

@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 876 608"
+     width="876"
+     height="608">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="876" height="608" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="872" height="604" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        sequence: Checkout
+      </text>
+    </g>
+    <g id="Checkout::frag::1">
+      <rect x="32" y="243" width="828" height="197" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="32,243 82,243 82,255 76,261 32,261" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="57" y="256" text-anchor="middle">
+        ALT
+      </text>
+      <rect x="83" y="245" width="155.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="86" y="256">
+        [verification positive]
+      </text>
+      <line x1="32" y1="396" x2="860" y2="396" class="kuml-divider" stroke-dasharray="6 4"/>
+      <rect x="33" y="397" width="168.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="36" y="408">
+        [payment details invalid]
+      </text>
+    </g>
+    <g id="Checkout::ll::Customer" transform="translate(56,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «actor»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Customer
+      </text>
+      <line x1="70" y1="40" x2="70" y2="512" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Checkout::ll::Shop" transform="translate(216,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Shop
+      </text>
+      <line x1="70" y1="40" x2="70" y2="512" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Checkout::ll::CheckoutService" transform="translate(376,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        CheckoutService
+      </text>
+      <line x1="70" y1="40" x2="70" y2="512" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Checkout::ll::PaymentGateway" transform="translate(536,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        PaymentGateway
+      </text>
+      <line x1="70" y1="40" x2="70" y2="512" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Checkout::ll::Database" transform="translate(696,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Database
+      </text>
+      <line x1="70" y1="40" x2="70" y2="512" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+  </g>
+  <g id="edges">
+    <g id="Checkout::msg::1">
+      <line x1="126" y1="128" x2="286" y2="128" class="kuml-edge"/>
+      <rect x="144.500" y="113" width="123" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="206" y="124" text-anchor="middle">
+        initiateCheckout()
+      </text>
+      <polygon points="286,128 278,124 278,132" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Checkout::msg::2">
+      <line x1="286" y1="160" x2="446" y2="160" class="kuml-edge"/>
+      <rect x="307.750" y="145" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="156" text-anchor="middle">
+        processCheckout()
+      </text>
+      <polygon points="446,160 438,156 438,164" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Checkout::msg::3">
+      <line x1="446" y1="192" x2="606" y2="192" class="kuml-edge"/>
+      <rect x="451.500" y="177" width="149" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="188" text-anchor="middle">
+        verifyPaymentDetails()
+      </text>
+      <polygon points="606,192 598,188 598,196" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Checkout::msg::4">
+      <line x1="606" y1="224" x2="446" y2="224" class="kuml-edge-dashed"/>
+      <rect x="464.500" y="209" width="123" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="220" text-anchor="middle">
+        verificationResult
+      </text>
+      <path d="M 454 220 L 446 224 L 454 228" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Checkout::msg::5">
+      <line x1="446" y1="280" x2="766" y2="280" class="kuml-edge"/>
+      <rect x="567.250" y="265" width="77.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="276" text-anchor="middle">
+        saveOrder()
+      </text>
+      <polygon points="766,280 758,276 758,284" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Checkout::msg::6">
+      <line x1="766" y1="312" x2="446" y2="312" class="kuml-edge-dashed"/>
+      <rect x="570.500" y="297" width="71" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="308" text-anchor="middle">
+        orderSaved
+      </text>
+      <path d="M 454 308 L 446 312 L 454 316" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Checkout::msg::7">
+      <line x1="446" y1="344" x2="606" y2="344" class="kuml-edge"/>
+      <rect x="471" y="329" width="110" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="340" text-anchor="middle">
+        processPayment()
+      </text>
+      <polygon points="606,344 598,340 598,348" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Checkout::msg::8">
+      <line x1="606" y1="376" x2="446" y2="376" class="kuml-edge-dashed"/>
+      <rect x="471" y="361" width="110" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="372" text-anchor="middle">
+        paymentProcessed
+      </text>
+      <path d="M 454 372 L 446 376 L 454 380" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Checkout::msg::9">
+      <line x1="446" y1="432" x2="286" y2="432" class="kuml-edge"/>
+      <rect x="307.750" y="417" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="428" text-anchor="middle">
+        rejectWithError()
+      </text>
+      <polygon points="286,432 294,428 294,436" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Checkout::msg::10">
+      <line x1="446" y1="464" x2="286" y2="464" class="kuml-edge"/>
+      <rect x="317.500" y="449" width="97" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="460" text-anchor="middle">
+        checkoutResult
+      </text>
+      <polygon points="286,464 294,460 294,468" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Checkout::msg::11">
+      <line x1="286" y1="496" x2="126" y2="496" class="kuml-edge"/>
+      <rect x="154.250" y="481" width="103.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="206" y="492" text-anchor="middle">
+        displayResult()
+      </text>
+      <polygon points="126,496 134,492 134,500" class="kuml-seq-arrow-filled"/>
+    </g>
+  </g>
+</svg>

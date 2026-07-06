@@ -1,0 +1,547 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1478.03 1278"
+     width="1478.03"
+     height="1278">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1478.03" height="1278" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1474.03" height="1274" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        container: Digital Banking Platform - Container View
+      </text>
+    </g>
+    <g id="system-c4-8" transform="translate(32,253)">
+      <rect width="1164.67" height="851" class="kuml-system" rx="8" ry="8"/>
+      <text class="kuml-stereotype" x="582.33" y="14" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="582.33" y="30" text-anchor="middle">
+        Digital Banking Platform
+      </text>
+    </g>
+    <g id="c4-9" transform="translate(532.32,349)">
+      <rect width="282" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="141" y="18" text-anchor="middle">
+        [Container: Mobile]
+      </text>
+      <text class="kuml-title" x="141" y="36" text-anchor="middle">
+        Mobile Application
+      </text>
+      <text class="kuml-small" x="141" y="52" text-anchor="middle">
+        <tspan x="141" dy="0">
+          Allows retail and business customers to bank
+        </tspan>
+        <tspan x="141" dy="13">
+          via mobile
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-10" transform="translate(196.32,349)">
+      <rect width="296" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="148" y="18" text-anchor="middle">
+        [Container: Web]
+      </text>
+      <text class="kuml-title" x="148" y="36" text-anchor="middle">
+        Web Application
+      </text>
+      <text class="kuml-small" x="148" y="52" text-anchor="middle">
+        <tspan x="148" dy="0">
+          Allows retail and business customers to bank via
+        </tspan>
+        <tspan x="148" dy="13">
+          browser
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-11" transform="translate(240.98,514)">
+      <rect width="310" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="155" y="18" text-anchor="middle">
+        [Container: Gateway]
+      </text>
+      <text class="kuml-title" x="155" y="36" text-anchor="middle">
+        API Gateway
+      </text>
+      <text class="kuml-small" x="155" y="52" text-anchor="middle">
+        <tspan x="155" dy="0">
+          Shared entry point routing requests to backend
+        </tspan>
+        <tspan x="155" dy="13">
+          services
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-12" transform="translate(200.18,688.75)">
+      <rect width="236.60" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="118.30" y="18" text-anchor="middle">
+        [Container: Service]
+      </text>
+      <text class="kuml-title" x="118.30" y="36" text-anchor="middle">
+        Account Service
+      </text>
+      <text class="kuml-small" x="118.30" y="52" text-anchor="middle">
+        <tspan x="118.30" dy="0">
+          Executes account domain logic
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-13" transform="translate(172.33,844)">
+      <rect width="174" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="87" y="18" text-anchor="middle">
+        [Container: Database]
+      </text>
+      <text class="kuml-title" x="87" y="36" text-anchor="middle">
+        Account Database
+      </text>
+      <text class="kuml-small" x="87" y="52" text-anchor="middle">
+        <tspan x="87" dy="0">
+          Stores account data
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-14" transform="translate(540.12,688.75)">
+      <rect width="258.20" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="129.10" y="18" text-anchor="middle">
+        [Container: Service]
+      </text>
+      <text class="kuml-title" x="129.10" y="36" text-anchor="middle">
+        Transaction Service
+      </text>
+      <text class="kuml-small" x="129.10" y="52" text-anchor="middle">
+        <tspan x="129.10" dy="0">
+          Executes transaction domain logic
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-15" transform="translate(799.67,844)">
+      <rect width="206" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="103" y="18" text-anchor="middle">
+        [Container: Database]
+      </text>
+      <text class="kuml-title" x="103" y="36" text-anchor="middle">
+        Transaction Database
+      </text>
+      <text class="kuml-small" x="103" y="52" text-anchor="middle">
+        <tspan x="103" dy="0">
+          Stores transaction data
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-16" transform="translate(407.33,844)">
+      <rect width="296" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="148" y="18" text-anchor="middle">
+        [Container: Event Bus]
+      </text>
+      <text class="kuml-title" x="148" y="36" text-anchor="middle">
+        Event Bus
+      </text>
+      <text class="kuml-small" x="148" y="52" text-anchor="middle">
+        <tspan x="148" dy="0">
+          Distributes events to downstream consumers
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-17" transform="translate(470.67,1009)">
+      <rect width="268" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="134" y="18" text-anchor="middle">
+        [Container: Service]
+      </text>
+      <text class="kuml-title" x="134" y="36" text-anchor="middle">
+        Notification Service
+      </text>
+      <text class="kuml-small" x="134" y="52" text-anchor="middle">
+        <tspan x="134" dy="0">
+          Consumes events and dispatches push and SMS
+        </tspan>
+        <tspan x="134" dy="13">
+          notifications
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-18" transform="translate(52,1009)">
+      <rect width="268" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="134" y="18" text-anchor="middle">
+        [Container: Pipeline]
+      </text>
+      <text class="kuml-title" x="134" y="36" text-anchor="middle">
+        Analytics Pipeline
+      </text>
+      <text class="kuml-small" x="134" y="52" text-anchor="middle">
+        <tspan x="134" dy="0">
+          Consumes events for fraud detection and
+        </tspan>
+        <tspan x="134" dy="13">
+          reporting
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-19" transform="translate(894.67,679)">
+      <rect width="282" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="141" y="18" text-anchor="middle">
+        [Container: Service]
+      </text>
+      <text class="kuml-title" x="141" y="36" text-anchor="middle">
+        Account Opening Service
+      </text>
+      <text class="kuml-small" x="141" y="52" text-anchor="middle">
+        <tspan x="141" dy="0">
+          Orchestrates identity verification during
+        </tspan>
+        <tspan x="141" dy="13">
+          account opening
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-4" transform="translate(248.17,1200)">
+      <rect width="197.60" height="62" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="98.80" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="98.80" y="36" text-anchor="middle">
+        Core Banking System
+      </text>
+      <text class="kuml-small" x="98.80" y="52" text-anchor="middle">
+        <tspan x="98.80" dy="0">
+          Holds core account management
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-5" transform="translate(763.57,1200)">
+      <rect width="183.80" height="62" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="91.90" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="91.90" y="36" text-anchor="middle">
+        Payment Gateway
+      </text>
+      <text class="kuml-small" x="91.90" y="52" text-anchor="middle">
+        <tspan x="91.90" dy="0">
+          Routes transfers externally
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-6" transform="translate(1194.03,72)">
+      <rect width="268" height="75" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="134" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="134" y="36" text-anchor="middle">
+        KYC Service
+      </text>
+      <text class="kuml-small" x="134" y="52" text-anchor="middle">
+        <tspan x="134" dy="0">
+          Performs identity verification and reports
+        </tspan>
+        <tspan x="134" dy="13">
+          results asynchronously
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-7" transform="translate(485.77,1200)">
+      <rect width="237.80" height="62" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="118.90" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="118.90" y="36" text-anchor="middle">
+        Delivery Service
+      </text>
+      <text class="kuml-small" x="118.90" y="52" text-anchor="middle">
+        <tspan x="118.90" dy="0">
+          Dispatches push and SMS notifications
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-0" transform="translate(886.03,32)">
+      <circle cx="134" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 134 18 L 134 38 M 122 26 L 146 26 M 134 38 L 124 52 M 134 38 L 144 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="260" height="57" class="kuml-class"/>
+      <text class="kuml-title" x="134" y="76" text-anchor="middle">
+        Retail Customer
+      </text>
+      <text class="kuml-stereotype" x="134" y="92" text-anchor="middle">
+        <tspan x="134" dy="0">
+          Uses mobile and web apps for personal
+        </tspan>
+        <tspan x="134" dy="13">
+          banking
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-1" transform="translate(578.03,32)">
+      <circle cx="134" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 134 18 L 134 38 M 122 26 L 146 26 M 134 38 L 124 52 M 134 38 L 144 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="260" height="57" class="kuml-class"/>
+      <text class="kuml-title" x="134" y="76" text-anchor="middle">
+        Business Customer
+      </text>
+      <text class="kuml-stereotype" x="134" y="92" text-anchor="middle">
+        <tspan x="134" dy="0">
+          Uses mobile and web apps for business
+        </tspan>
+        <tspan x="134" dy="13">
+          banking
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-2" transform="translate(38.63,32)">
+      <circle cx="102.70" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 102.70 18 L 102.70 38 M 90.70 26 L 114.70 26 M 102.70 38 L 92.70 52 M 102.70 38 L 112.70 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="197.40" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="102.70" y="76" text-anchor="middle">
+        Compliance Officer
+      </text>
+      <text class="kuml-stereotype" x="102.70" y="92" text-anchor="middle">
+        <tspan x="102.70" dy="0">
+          Reviews suspicious transactions
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-3" transform="translate(284.03,32)">
+      <circle cx="127" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 127 18 L 127 38 M 115 26 L 139 26 M 127 38 L 117 52 M 127 38 L 137 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="246" height="57" class="kuml-class"/>
+      <text class="kuml-title" x="127" y="76" text-anchor="middle">
+        Support Staff
+      </text>
+      <text class="kuml-stereotype" x="127" y="92" text-anchor="middle">
+        <tspan x="127" dy="0">
+          Handles customer inquiries directly on
+        </tspan>
+        <tspan x="127" dy="13">
+          the platform
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <path d="M 1064.70 147 L 1064.70 217 L 720.32 217 L 720.32 349" class="kuml-edge"/>
+    <path d="M 715.32,337 L 720.32,349 L 725.32,337" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="892.51" y="213" text-anchor="middle">
+      Uses [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="892.51" y="213" text-anchor="middle">
+      Uses [HTTPS]
+    </text>
+    <path d="M 975.37 147 L 975.37 207 L 636.32 207 L 636.32 319 L 418.32 319 L 418.32 349" class="kuml-edge"/>
+    <path d="M 413.32,337 L 418.32,349 L 423.32,337" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="805.84" y="203" text-anchor="middle">
+      Uses [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="805.84" y="203" text-anchor="middle">
+      Uses [HTTPS]
+    </text>
+    <path d="M 756.70 147 L 756.70 197 L 626.32 197 L 626.32 349" class="kuml-edge"/>
+    <path d="M 621.32,337 L 626.32,349 L 631.32,337" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="636.32" y="277" text-anchor="start">
+      Uses [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="636.32" y="277" text-anchor="start">
+      Uses [HTTPS]
+    </text>
+    <path d="M 667.37 147 L 667.37 187 L 344.32 187 L 344.32 349" class="kuml-edge"/>
+    <path d="M 339.32,337 L 344.32,349 L 349.32,337" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="505.84" y="183" text-anchor="middle">
+      Uses [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="505.84" y="183" text-anchor="middle">
+      Uses [HTTPS]
+    </text>
+    <path d="M 673.32 424 L 673.32 454 L 447.65 454 L 447.65 514" class="kuml-edge"/>
+    <path d="M 442.65,502 L 447.65,514 L 452.65,502" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="560.48" y="450" text-anchor="middle">
+      Makes API calls to [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="560.48" y="450" text-anchor="middle">
+      Makes API calls to [HTTPS]
+    </text>
+    <line x1="344.32" y1="424" x2="344.32" y2="514" class="kuml-edge"/>
+    <path d="M 339.32,502 L 344.32,514 L 349.32,502" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="354.32" y="473" text-anchor="start">
+      Makes API calls to [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="354.32" y="473" text-anchor="start">
+      Makes API calls to [HTTPS]
+    </text>
+    <line x1="318.48" y1="589" x2="318.48" y2="688.75" class="kuml-edge"/>
+    <path d="M 313.48,676.75 L 318.48,688.75 L 323.48,676.75" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="328.48" y="642.88" text-anchor="start">
+      Routes requests to [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="328.48" y="642.88" text-anchor="start">
+      Routes requests to [HTTPS]
+    </text>
+    <path d="M 395.98 589 L 395.98 629 L 669.22 629 L 669.22 688.75" class="kuml-edge"/>
+    <path d="M 664.22,676.75 L 669.22,688.75 L 674.22,676.75" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="532.60" y="625" text-anchor="middle">
+      Routes requests to [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="532.60" y="625" text-anchor="middle">
+      Routes requests to [HTTPS]
+    </text>
+    <path d="M 473.48 589 L 473.48 619 L 988.67 619 L 988.67 679" class="kuml-edge"/>
+    <path d="M 983.67,667 L 988.67,679 L 993.67,667" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="731.08" y="615" text-anchor="middle">
+      Routes account opening requests to [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="731.08" y="615" text-anchor="middle">
+      Routes account opening requests to [HTTPS]
+    </text>
+    <line x1="259.33" y1="750.75" x2="259.33" y2="844" class="kuml-edge"/>
+    <path d="M 254.33,832 L 259.33,844 L 264.33,832" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="269.33" y="801.38" text-anchor="start">
+      Reads from and writes to [SQL]
+    </text>
+    <text class="kuml-edge-label" x="269.33" y="801.38" text-anchor="start">
+      Reads from and writes to [SQL]
+    </text>
+    <path d="M 733.77 750.75 L 733.77 784 L 902.67 784 L 902.67 844" class="kuml-edge"/>
+    <path d="M 897.67,832 L 902.67,844 L 907.67,832" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="818.22" y="780" text-anchor="middle">
+      Reads from and writes to [SQL]
+    </text>
+    <text class="kuml-edge-label" x="818.22" y="780" text-anchor="middle">
+      Reads from and writes to [SQL]
+    </text>
+    <path d="M 318.48 750.75 L 318.48 794 L 376.33 794 L 376.33 1140 L 346.97 1140 L 346.97 1200" class="kuml-edge"/>
+    <path d="M 341.97,1188 L 346.97,1200 L 351.97,1188" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="386.33" y="953" text-anchor="start">
+      Manages core account data in [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="386.33" y="953" text-anchor="start">
+      Manages core account data in [REST/HTTPS]
+    </text>
+    <path d="M 669.22 750.75 L 669.22 794 L 768.67 794 L 768.67 1140 L 855.47 1140 L 855.47 1200" class="kuml-edge"/>
+    <path d="M 850.47,1188 L 855.47,1200 L 860.47,1188" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="778.67" y="971" text-anchor="start">
+      Routes transfers through [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="778.67" y="971" text-anchor="start">
+      Routes transfers through [REST/HTTPS]
+    </text>
+    <path d="M 377.63 750.75 L 377.63 784 L 506 784 L 506 844" class="kuml-edge"/>
+    <path d="M 501,832 L 506,844 L 511,832" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="441.82" y="780" text-anchor="middle">
+      Publishes account events to [Async]
+    </text>
+    <text class="kuml-edge-label" x="441.82" y="780" text-anchor="middle">
+      Publishes account events to [Async]
+    </text>
+    <line x1="604.67" y1="750.75" x2="604.67" y2="844" class="kuml-edge"/>
+    <path d="M 599.67,832 L 604.67,844 L 609.67,832" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="614.67" y="801.38" text-anchor="start">
+      Publishes transaction events to [Async]
+    </text>
+    <text class="kuml-edge-label" x="614.67" y="801.38" text-anchor="start">
+      Publishes transaction events to [Async]
+    </text>
+    <line x1="604.67" y1="919" x2="604.67" y2="1009" class="kuml-edge"/>
+    <path d="M 599.67,997 L 604.67,1009 L 609.67,997" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="614.67" y="968" text-anchor="start">
+      Distributes events to [Async]
+    </text>
+    <text class="kuml-edge-label" x="614.67" y="968" text-anchor="start">
+      Distributes events to [Async]
+    </text>
+    <path d="M 506 919 L 506 949 L 230.67 949 L 230.67 1009" class="kuml-edge"/>
+    <path d="M 225.67,997 L 230.67,1009 L 235.67,997" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="368.33" y="963" text-anchor="middle">
+      Distributes events to for fraud detection and reporting [Async]
+    </text>
+    <text class="kuml-edge-label" x="368.33" y="963" text-anchor="middle">
+      Distributes events to for fraud detection and reporting [Async]
+    </text>
+    <path d="M 1035.67 754 L 1035.67 1140 L 1372.70 1140 L 1372.70 147" class="kuml-edge"/>
+    <path d="M 1377.70,159 L 1372.70,147 L 1367.70,159" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1382.70" y="647.50" text-anchor="start">
+      Orchestrates identity verification via [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="1382.70" y="647.50" text-anchor="start">
+      Orchestrates identity verification via [REST/HTTPS]
+    </text>
+    <path d="M 1283.37 147 L 1283.37 177 L 1082.67 177 L 1082.67 679" class="kuml-edge"/>
+    <path d="M 1077.67,667 L 1082.67,679 L 1087.67,667" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1092.67" y="432" text-anchor="start">
+      Reports verification results asynchronously to [Async]
+    </text>
+    <text class="kuml-edge-label" x="1092.67" y="432" text-anchor="start">
+      Reports verification results asynchronously to [Async]
+    </text>
+    <line x1="604.67" y1="1084" x2="604.67" y2="1200" class="kuml-edge"/>
+    <path d="M 599.67,1188 L 604.67,1200 L 609.67,1188" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="614.67" y="1146" text-anchor="start">
+      Dispatches push and SMS notifications via [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="614.67" y="1146" text-anchor="start">
+      Dispatches push and SMS notifications via [REST/HTTPS]
+    </text>
+    <line x1="141.33" y1="147" x2="141.33" y2="1009" class="kuml-edge"/>
+    <path d="M 136.33,997 L 141.33,1009 L 146.33,997" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="151.33" y="582" text-anchor="start">
+      Reviews suspicious transactions in [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="151.33" y="582" text-anchor="start">
+      Reviews suspicious transactions in [HTTPS]
+    </text>
+    <path d="M 411.03 147 L 411.03 177 L 270.32 177 L 270.32 349" class="kuml-edge"/>
+    <path d="M 265.32,337 L 270.32,349 L 275.32,337" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="280.32" y="267" text-anchor="start">
+      Handles customer inquiries via [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="280.32" y="267" text-anchor="start">
+      Handles customer inquiries via [HTTPS]
+    </text>
+  </g>
+</svg>

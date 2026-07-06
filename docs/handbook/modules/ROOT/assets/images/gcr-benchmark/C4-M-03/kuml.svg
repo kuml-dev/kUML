@@ -1,0 +1,377 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1001.20 1017"
+     width="1001.20"
+     height="1017">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1001.20" height="1017" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="997.20" height="1013" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        container: Online Shop - Container View
+      </text>
+    </g>
+    <g id="system-c4-2" transform="translate(32,243)">
+      <rect width="953.20" height="600" class="kuml-system" rx="8" ry="8"/>
+      <text class="kuml-stereotype" x="476.60" y="14" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="476.60" y="30" text-anchor="middle">
+        Online Shop
+      </text>
+    </g>
+    <g id="c4-3" transform="translate(175.20,279)">
+      <rect width="282" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="141" y="18" text-anchor="middle">
+        [Container: Web Frontend]
+      </text>
+      <text class="kuml-title" x="141" y="36" text-anchor="middle">
+        Storefront
+      </text>
+      <text class="kuml-small" x="141" y="52" text-anchor="middle">
+        <tspan x="141" dy="0">
+          Allows customers to browse products, manage
+        </tspan>
+        <tspan x="141" dy="13">
+          their cart and place orders
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-4" transform="translate(168.20,444)">
+      <rect width="296" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="148" y="18" text-anchor="middle">
+        [Container: API Gateway]
+      </text>
+      <text class="kuml-title" x="148" y="36" text-anchor="middle">
+        API Gateway
+      </text>
+      <text class="kuml-small" x="148" y="52" text-anchor="middle">
+        <tspan x="148" dy="0">
+          Routes requests to the backend microservices
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-5" transform="translate(705.40,609)">
+      <rect width="259.20" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="129.60" y="18" text-anchor="middle">
+        [Container: Microservice]
+      </text>
+      <text class="kuml-title" x="129.60" y="36" text-anchor="middle">
+        Product Catalog Service
+      </text>
+      <text class="kuml-small" x="129.60" y="52" text-anchor="middle">
+        <tspan x="129.60" dy="0">
+          Manages the product catalog
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-6" transform="translate(437.00,609)">
+      <rect width="228.40" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="114.20" y="18" text-anchor="middle">
+        [Container: Microservice]
+      </text>
+      <text class="kuml-title" x="114.20" y="36" text-anchor="middle">
+        Shopping Cart Service
+      </text>
+      <text class="kuml-small" x="114.20" y="52" text-anchor="middle">
+        <tspan x="114.20" dy="0">
+          Manages customer shopping carts
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-7" transform="translate(87.40,609)">
+      <rect width="309.60" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="154.80" y="18" text-anchor="middle">
+        [Container: Microservice]
+      </text>
+      <text class="kuml-title" x="154.80" y="36" text-anchor="middle">
+        Order Processing Service
+      </text>
+      <text class="kuml-small" x="154.80" y="52" text-anchor="middle">
+        <tspan x="154.80" dy="0">
+          Handles order processing
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-8" transform="translate(791.20,761)">
+      <rect width="174" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="87" y="18" text-anchor="middle">
+        [Container: Database]
+      </text>
+      <text class="kuml-title" x="87" y="36" text-anchor="middle">
+        Product Database
+      </text>
+      <text class="kuml-small" x="87" y="52" text-anchor="middle">
+        <tspan x="87" dy="0">
+          Stores product data
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-9" transform="translate(52,761)">
+      <rect width="174" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="87" y="18" text-anchor="middle">
+        [Container: Database]
+      </text>
+      <text class="kuml-title" x="87" y="36" text-anchor="middle">
+        Order Database
+      </text>
+      <text class="kuml-small" x="87" y="52" text-anchor="middle">
+        <tspan x="87" dy="0">
+          Stores order data
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-10" transform="translate(429.10,761)">
+      <rect width="244.20" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="122.10" y="18" text-anchor="middle">
+        [Container: Event Bus]
+      </text>
+      <text class="kuml-title" x="122.10" y="36" text-anchor="middle">
+        Event Bus
+      </text>
+      <text class="kuml-small" x="122.10" y="52" text-anchor="middle">
+        <tspan x="122.10" dy="0">
+          Exchanges events between services
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-11" transform="translate(695.40,939)">
+      <rect width="183.80" height="62" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="91.90" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="91.90" y="36" text-anchor="middle">
+        Payment Gateway
+      </text>
+      <text class="kuml-small" x="91.90" y="52" text-anchor="middle">
+        <tspan x="91.90" dy="0">
+          External payment processing
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-12" transform="translate(407.40,939)">
+      <rect width="248.00" height="62" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="124.00" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="124.00" y="36" text-anchor="middle">
+        Shipping Service Provider
+      </text>
+      <text class="kuml-small" x="124.00" y="52" text-anchor="middle">
+        <tspan x="124.00" dy="0">
+          External shipping service interface
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-13" transform="translate(144.60,939)">
+      <rect width="222.80" height="62" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="111.40" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="111.40" y="36" text-anchor="middle">
+        Email Marketing System
+      </text>
+      <text class="kuml-small" x="111.40" y="52" text-anchor="middle">
+        <tspan x="111.40" dy="0">
+          Sends order confirmations
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-0" transform="translate(422.70,32)">
+      <circle cx="127" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 127 18 L 127 38 M 115 26 L 139 26 M 127 38 L 117 52 M 127 38 L 137 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="246" height="57" class="kuml-class"/>
+      <text class="kuml-title" x="127" y="76" text-anchor="middle">
+        Customer
+      </text>
+      <text class="kuml-stereotype" x="127" y="92" text-anchor="middle">
+        <tspan x="127" dy="0">
+          Browses the product catalog, fills the
+        </tspan>
+        <tspan x="127" dy="13">
+          shopping cart and places orders
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-1" transform="translate(155.70,32)">
+      <circle cx="113.50" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 113.50 18 L 113.50 38 M 101.50 26 L 125.50 26 M 113.50 38 L 103.50 52 M 113.50 38 L 123.50 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="219" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="113.50" y="76" text-anchor="middle">
+        Shop Manager
+      </text>
+      <text class="kuml-stereotype" x="113.50" y="92" text-anchor="middle">
+        <tspan x="113.50" dy="0">
+          Maintains the assortment and prices
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <path d="M 549.70 147 L 549.70 177 L 363.20 177 L 363.20 279" class="kuml-edge"/>
+    <path d="M 358.20,267 L 363.20,279 L 368.20,267" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="456.45" y="173" text-anchor="middle">
+      Browses catalog, manages cart, places orders [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="456.45" y="173" text-anchor="middle">
+      Browses catalog, manages cart, places orders [HTTPS]
+    </text>
+    <line x1="269.20" y1="147" x2="269.20" y2="279" class="kuml-edge"/>
+    <path d="M 264.20,267 L 269.20,279 L 274.20,267" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="279.20" y="217" text-anchor="start">
+      Maintains assortment and prices [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="279.20" y="217" text-anchor="start">
+      Maintains assortment and prices [HTTPS]
+    </text>
+    <line x1="316.20" y1="354" x2="316.20" y2="444" class="kuml-edge"/>
+    <path d="M 311.20,432 L 316.20,444 L 321.20,432" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="326.20" y="403" text-anchor="start">
+      Sends requests [HTTPS/REST]
+    </text>
+    <text class="kuml-edge-label" x="326.20" y="403" text-anchor="start">
+      Sends requests [HTTPS/REST]
+    </text>
+    <path d="M 390.20 519 L 390.20 549 L 835 549 L 835 609" class="kuml-edge"/>
+    <path d="M 830,597 L 835,609 L 840,597" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="612.60" y="545" text-anchor="middle">
+      Routes catalog requests [HTTPS/REST]
+    </text>
+    <text class="kuml-edge-label" x="612.60" y="545" text-anchor="middle">
+      Routes catalog requests [HTTPS/REST]
+    </text>
+    <path d="M 316.20 519 L 316.20 559 L 551.20 559 L 551.20 609" class="kuml-edge"/>
+    <path d="M 546.20,597 L 551.20,609 L 556.20,597" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="433.70" y="555" text-anchor="middle">
+      Routes cart requests [HTTPS/REST]
+    </text>
+    <text class="kuml-edge-label" x="433.70" y="555" text-anchor="middle">
+      Routes cart requests [HTTPS/REST]
+    </text>
+    <line x1="242.20" y1="519" x2="242.20" y2="609" class="kuml-edge"/>
+    <path d="M 237.20,597 L 242.20,609 L 247.20,597" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="252.20" y="568" text-anchor="start">
+      Routes order requests [HTTPS/REST]
+    </text>
+    <text class="kuml-edge-label" x="252.20" y="568" text-anchor="start">
+      Routes order requests [HTTPS/REST]
+    </text>
+    <line x1="878.20" y1="671" x2="878.20" y2="761" class="kuml-edge"/>
+    <path d="M 873.20,749 L 878.20,761 L 883.20,749" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="888.20" y="720" text-anchor="start">
+      Reads and writes product data [JDBC]
+    </text>
+    <text class="kuml-edge-label" x="888.20" y="720" text-anchor="start">
+      Reads and writes product data [JDBC]
+    </text>
+    <line x1="139" y1="671" x2="139" y2="761" class="kuml-edge"/>
+    <path d="M 134,749 L 139,761 L 144,749" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="149" y="720" text-anchor="start">
+      Reads and writes order data [JDBC]
+    </text>
+    <text class="kuml-edge-label" x="149" y="720" text-anchor="start">
+      Reads and writes order data [JDBC]
+    </text>
+    <path d="M 791.80 671 L 791.80 701 L 612.25 701 L 612.25 761" class="kuml-edge"/>
+    <path d="M 607.25,749 L 612.25,761 L 617.25,749" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="702.03" y="697" text-anchor="middle">
+      Publishes/consumes catalog events [Async]
+    </text>
+    <text class="kuml-edge-label" x="702.03" y="697" text-anchor="middle">
+      Publishes/consumes catalog events [Async]
+    </text>
+    <line x1="551.20" y1="671" x2="551.20" y2="761" class="kuml-edge"/>
+    <path d="M 546.20,749 L 551.20,761 L 556.20,749" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="561.20" y="720" text-anchor="start">
+      Publishes/consumes cart events [Async]
+    </text>
+    <text class="kuml-edge-label" x="561.20" y="720" text-anchor="start">
+      Publishes/consumes cart events [Async]
+    </text>
+    <path d="M 345.40 671 L 345.40 701 L 490.15 701 L 490.15 761" class="kuml-edge"/>
+    <path d="M 485.15,749 L 490.15,761 L 495.15,749" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="417.77" y="697" text-anchor="middle">
+      Publishes/consumes order events [Async]
+    </text>
+    <text class="kuml-edge-label" x="417.77" y="697" text-anchor="middle">
+      Publishes/consumes order events [Async]
+    </text>
+    <path d="M 293.80 671 L 293.80 879 L 787.30 879 L 787.30 939" class="kuml-edge"/>
+    <path d="M 782.30,927 L 787.30,939 L 792.30,927" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="540.55" y="875" text-anchor="middle">
+      Processes payments [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="540.55" y="875" text-anchor="middle">
+      Processes payments [REST/HTTPS]
+    </text>
+    <path d="M 242.20 671 L 242.20 701 L 269 701 L 269 889 L 531.40 889 L 531.40 939" class="kuml-edge"/>
+    <path d="M 526.40,927 L 531.40,939 L 536.40,927" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="400.20" y="885" text-anchor="middle">
+      Commissions shipping [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="400.20" y="885" text-anchor="middle">
+      Commissions shipping [REST/HTTPS]
+    </text>
+    <path d="M 190.60 671 L 190.60 711 L 256 711 L 256 939" class="kuml-edge"/>
+    <path d="M 251,927 L 256,939 L 261,927" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="266" y="829" text-anchor="start">
+      Sends order confirmations [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="266" y="829" text-anchor="start">
+      Sends order confirmations [REST/HTTPS]
+    </text>
+  </g>
+</svg>

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1112.80 513"
+     width="1112.80"
+     height="513">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1112.80" height="513" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1108.80" height="509" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        container: Parking Garage Management — Container View
+      </text>
+    </g>
+    <g id="system-c4-1" transform="translate(32,224)">
+      <rect width="1064.80" height="131" class="kuml-system" rx="8" ry="8"/>
+      <text class="kuml-stereotype" x="532.40" y="14" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="532.40" y="30" text-anchor="middle">
+        Parking Garage Management System
+      </text>
+    </g>
+    <g id="c4-2" transform="translate(299.60,266.50)">
+      <rect width="217.20" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="108.60" y="18" text-anchor="middle">
+        [Container: C++/Embedded Linux]
+      </text>
+      <text class="kuml-title" x="108.60" y="36" text-anchor="middle">
+        Barrier Control Service
+      </text>
+      <text class="kuml-small" x="108.60" y="52" text-anchor="middle">
+        <tspan x="108.60" dy="0">
+          Controls entry and exit barriers
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-3" transform="translate(556.80,260)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: Kotlin/Ktor]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Occupancy API
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Maintains the current parking space
+        </tspan>
+        <tspan x="120" dy="13">
+          count
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-4" transform="translate(52,266.50)">
+      <rect width="207.60" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="103.80" y="18" text-anchor="middle">
+        [Container: PostgreSQL]
+      </text>
+      <text class="kuml-title" x="103.80" y="36" text-anchor="middle">
+        Occupancy Database
+      </text>
+      <text class="kuml-small" x="103.80" y="52" text-anchor="middle">
+        <tspan x="103.80" dy="0">
+          Persists occupancy and ticket data
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-5" transform="translate(836.80,260)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: Go]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Display Board Service
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Drives display boards with available
+        </tspan>
+        <tspan x="120" dy="13">
+          capacity
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-6" transform="translate(444.60,445)">
+      <rect width="239.60" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="119.80" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="119.80" y="36" text-anchor="middle">
+        Payment Terminal Network
+      </text>
+    </g>
+    <g id="c4-0" transform="translate(448.80,32)">
+      <circle cx="115.60" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 115.60 18 L 115.60 38 M 103.60 26 L 127.60 26 M 115.60 38 L 105.60 52 M 115.60 38 L 125.60 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="223.20" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="115.60" y="76" text-anchor="middle">
+        Parking Garage Operator
+      </text>
+      <text class="kuml-stereotype" x="115.60" y="92" text-anchor="middle">
+        <tspan x="115.60" dy="0">
+          Monitors occupancy and operations
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="564.40" y1="134" x2="564.40" y2="224" class="kuml-edge"/>
+    <path d="M 559.40,212 L 564.40,224 L 569.40,212" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="574.40" y="183" text-anchor="start">
+      Monitors occupancy and configures tariffs [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="574.40" y="183" text-anchor="start">
+      Monitors occupancy and configures tariffs [HTTPS]
+    </text>
+    <line x1="564.40" y1="355" x2="564.40" y2="445" class="kuml-edge"/>
+    <path d="M 559.40,433 L 564.40,445 L 569.40,433" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="574.40" y="404" text-anchor="start">
+      Queries payment status of tickets [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="574.40" y="404" text-anchor="start">
+      Queries payment status of tickets [REST/HTTPS]
+    </text>
+  </g>
+</svg>

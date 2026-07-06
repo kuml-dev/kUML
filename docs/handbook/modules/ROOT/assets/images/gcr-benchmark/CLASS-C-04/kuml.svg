@@ -1,0 +1,412 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 1435.67 661"
+     width="1435.67"
+     height="661">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="1435.67" height="661" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="1431.67" height="657" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        class: HospitalInformationSystem
+      </text>
+    </g>
+    <g id="PersonForm" transform="translate(856.67,542)">
+      <rect width="204" height="103" class="kuml-class"/>
+      <text class="kuml-stereotype" x="102" y="18" text-anchor="middle">
+        «abstract»
+      </text>
+      <text class="kuml-title" x="102" y="32" text-anchor="middle">
+        PersonForm
+      </text>
+      <line x1="0" y1="38" x2="204" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="52">
+        - firstName: String
+      </text>
+      <text class="kuml-body" x="5" y="65">
+        - lastName: String
+      </text>
+      <text class="kuml-body" x="5" y="78">
+        - dateOfBirth: String
+      </text>
+    </g>
+    <g id="Patient" transform="translate(824,202)">
+      <rect width="202" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="101" y="18" text-anchor="middle">
+        Patient
+      </text>
+    </g>
+    <g id="Doctor" transform="translate(989.67,372)">
+      <rect width="202" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="101" y="18" text-anchor="middle">
+        Doctor
+      </text>
+    </g>
+    <g id="Nurse" transform="translate(212,372)">
+      <rect width="188" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="94" y="18" text-anchor="middle">
+        Nurse
+      </text>
+    </g>
+    <g id="Ward" transform="translate(291.33,32)">
+      <rect width="188" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="94" y="18" text-anchor="middle">
+        Ward
+      </text>
+      <line x1="0" y1="24" x2="188" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+    </g>
+    <g id="Bed" transform="translate(354,202)">
+      <rect width="188" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="94" y="18" text-anchor="middle">
+        Bed
+      </text>
+      <line x1="0" y1="24" x2="188" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - bedNumber: String
+      </text>
+    </g>
+    <g id="AdmissionType" transform="translate(32,32)">
+      <rect width="160" height="103" class="kuml-enum"/>
+      <text class="kuml-stereotype" x="80" y="18" text-anchor="middle">
+        «enumeration»
+      </text>
+      <text class="kuml-title" x="80" y="32" text-anchor="middle">
+        AdmissionType
+      </text>
+      <line x1="0" y1="38" x2="160" y2="38" class="kuml-divider"/>
+      <text class="kuml-body" x="8" y="52">
+        EMERGENCY
+      </text>
+      <text class="kuml-body" x="8" y="65">
+        PLANNED
+      </text>
+      <text class="kuml-body" x="8" y="78">
+        TRANSFER
+      </text>
+    </g>
+    <g id="InpatientStay" transform="translate(1048.33,32)">
+      <rect width="292" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="146" y="18" text-anchor="middle">
+        InpatientStay
+      </text>
+      <line x1="0" y1="24" x2="292" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - admissionType: AdmissionType
+      </text>
+    </g>
+    <g id="Diagnosis" transform="translate(1189.67,202)">
+      <rect width="204" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="102" y="18" text-anchor="middle">
+        Diagnosis
+      </text>
+      <line x1="0" y1="24" x2="204" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - description: String
+      </text>
+    </g>
+    <g id="Prescription" transform="translate(1231.67,372)">
+      <rect width="188" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="94" y="18" text-anchor="middle">
+        Prescription
+      </text>
+      <line x1="0" y1="24" x2="188" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - dosage: String
+      </text>
+    </g>
+    <g id="Medication" transform="translate(1238.67,542)">
+      <rect width="174" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="87" y="18" text-anchor="middle">
+        Medication
+      </text>
+      <line x1="0" y1="24" x2="174" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+    </g>
+    <g id="InsuranceCompany" transform="translate(654,372)">
+      <rect width="188" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="94" y="18" text-anchor="middle">
+        InsuranceCompany
+      </text>
+      <line x1="0" y1="24" x2="188" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - name: String
+      </text>
+    </g>
+    <g id="Invoice" transform="translate(582,202)">
+      <rect width="202" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="101" y="18" text-anchor="middle">
+        Invoice
+      </text>
+      <line x1="0" y1="24" x2="202" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - amount: String
+      </text>
+    </g>
+    <g id="BillingContract" transform="translate(440,372)">
+      <rect width="174" height="80" class="kuml-class"/>
+      <text class="kuml-title" x="87" y="18" text-anchor="middle">
+        BillingContract
+      </text>
+      <line x1="0" y1="24" x2="174" y2="24" class="kuml-divider"/>
+      <text class="kuml-body" x="5" y="38">
+        - terms: String
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="958.67" y1="282" x2="958.67" y2="542" class="kuml-edge"/>
+    <polygon points="958.67,542 953.67,530 963.67,530" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 1090.67 452 L 1090.67 482 L 1009.67 482 L 1009.67 542" class="kuml-edge"/>
+    <polygon points="1009.67,542 1004.67,530 1014.67,530" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <path d="M 306 452 L 306 482 L 907.67 482 L 907.67 542" class="kuml-edge"/>
+    <polygon points="907.67,542 902.67,530 912.67,530" style="stroke:#1D2B4F;stroke-width:1.5;fill:#FFFFFF;stroke-linejoin:round;"/>
+    <line x1="416.67" y1="112" x2="416.67" y2="202" class="kuml-edge"/>
+    <path d="M 411.67,190 L 416.67,202 L 421.67,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <polygon points="416.67,112 421.67,120 416.67,128 411.67,120" style="stroke:#1D2B4F;stroke-width:1.5;fill:#1D2B4F;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="406.67" y="188" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="406.67" y="188" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="426.67" y="172" text-anchor="middle">
+      beds
+    </text>
+    <text class="kuml-small" x="426.67" y="172" text-anchor="middle">
+      beds
+    </text>
+    <path d="M 354 112 L 354 142 L 306 142 L 306 372" class="kuml-edge"/>
+    <path d="M 301,360 L 306,372 L 311,360" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="296" y="358" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small" x="296" y="358" text-anchor="middle">
+      1..*
+    </text>
+    <text class="kuml-small-halo" x="316" y="342" text-anchor="middle">
+      nurses
+    </text>
+    <text class="kuml-small" x="316" y="342" text-anchor="middle">
+      nurses
+    </text>
+    <path d="M 1194.33 112 L 1194.33 162 L 925 162 L 925 202" class="kuml-edge"/>
+    <path d="M 920,190 L 925,202 L 930,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="1184.33" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="1184.33" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="1204.33" y="142" text-anchor="middle">
+      stays
+    </text>
+    <text class="kuml-small" x="1204.33" y="142" text-anchor="middle">
+      stays
+    </text>
+    <path d="M 1097 112 L 1097 142 L 479.33 142 L 479.33 202" class="kuml-edge"/>
+    <path d="M 474.33,190 L 479.33,202 L 484.33,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="1087" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="1087" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="1107" y="142" text-anchor="middle">
+      stays
+    </text>
+    <text class="kuml-small" x="1107" y="142" text-anchor="middle">
+      stays
+    </text>
+    <text class="kuml-small-halo" x="469.33" y="188" text-anchor="middle">
+      0..1
+    </text>
+    <text class="kuml-small" x="469.33" y="188" text-anchor="middle">
+      0..1
+    </text>
+    <path d="M 1243 112 L 1243 172 L 1057 172 L 1057 372" class="kuml-edge"/>
+    <path d="M 1052,360 L 1057,372 L 1062,360" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="1233" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="1233" y="126" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="1253" y="142" text-anchor="middle">
+      stays
+    </text>
+    <text class="kuml-small" x="1253" y="142" text-anchor="middle">
+      stays
+    </text>
+    <text class="kuml-small-halo" x="1067" y="342" text-anchor="middle">
+      attendingPhysician
+    </text>
+    <text class="kuml-small" x="1067" y="342" text-anchor="middle">
+      attendingPhysician
+    </text>
+    <line x1="1291.67" y1="112" x2="1291.67" y2="202" class="kuml-edge"/>
+    <path d="M 1286.67,190 L 1291.67,202 L 1296.67,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <polygon points="1291.67,112 1296.67,120 1291.67,128 1286.67,120" style="stroke:#1D2B4F;stroke-width:1.5;fill:#1D2B4F;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="1281.67" y="188" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="1281.67" y="188" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="1301.67" y="172" text-anchor="middle">
+      diagnoses
+    </text>
+    <text class="kuml-small" x="1301.67" y="172" text-anchor="middle">
+      diagnoses
+    </text>
+    <path d="M 1257.67 282 L 1257.67 312 L 1124.33 312 L 1124.33 372" class="kuml-edge"/>
+    <path d="M 1119.33,360 L 1124.33,372 L 1129.33,360" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="1247.67" y="296" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="1247.67" y="296" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="1267.67" y="312" text-anchor="middle">
+      diagnoses
+    </text>
+    <text class="kuml-small" x="1267.67" y="312" text-anchor="middle">
+      diagnoses
+    </text>
+    <text class="kuml-small-halo" x="1134.33" y="342" text-anchor="middle">
+      responsibleDoctor
+    </text>
+    <text class="kuml-small" x="1134.33" y="342" text-anchor="middle">
+      responsibleDoctor
+    </text>
+    <line x1="1325.67" y1="282" x2="1325.67" y2="372" class="kuml-edge"/>
+    <path d="M 1320.67,360 L 1325.67,372 L 1330.67,360" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="1315.67" y="358" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="1315.67" y="358" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="1335.67" y="342" text-anchor="middle">
+      prescriptions
+    </text>
+    <text class="kuml-small" x="1335.67" y="342" text-anchor="middle">
+      prescriptions
+    </text>
+    <line x1="1325.67" y1="452" x2="1325.67" y2="542" class="kuml-edge"/>
+    <path d="M 1320.67,530 L 1325.67,542 L 1330.67,530" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="1315.67" y="466" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="1315.67" y="466" text-anchor="middle">
+      0..*
+    </text>
+    <path d="M 891.33 282 L 891.33 312 L 779.33 312 L 779.33 372" class="kuml-edge"/>
+    <path d="M 774.33,360 L 779.33,372 L 784.33,360" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="881.33" y="296" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="881.33" y="296" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="901.33" y="312" text-anchor="middle">
+      patients
+    </text>
+    <text class="kuml-small" x="901.33" y="312" text-anchor="middle">
+      patients
+    </text>
+    <path d="M 1145.67 112 L 1145.67 152 L 683 152 L 683 202" class="kuml-edge"/>
+    <path d="M 678,190 L 683,202 L 688,190" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="693" y="172" text-anchor="middle">
+      invoice
+    </text>
+    <text class="kuml-small" x="693" y="172" text-anchor="middle">
+      invoice
+    </text>
+    <path d="M 649.33 282 L 649.33 312 L 527 312 L 527 372" class="kuml-edge"/>
+    <path d="M 522,360 L 527,372 L 532,360" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="639.33" y="296" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="639.33" y="296" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="659.33" y="312" text-anchor="middle">
+      invoices
+    </text>
+    <text class="kuml-small" x="659.33" y="312" text-anchor="middle">
+      invoices
+    </text>
+    <line x1="716.67" y1="282" x2="716.67" y2="372" class="kuml-edge"/>
+    <path d="M 711.67,360 L 716.67,372 L 721.67,360" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-small-halo" x="706.67" y="296" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small" x="706.67" y="296" text-anchor="middle">
+      0..*
+    </text>
+    <text class="kuml-small-halo" x="726.67" y="312" text-anchor="middle">
+      invoices
+    </text>
+    <text class="kuml-small" x="726.67" y="312" text-anchor="middle">
+      invoices
+    </text>
+  </g>
+</svg>

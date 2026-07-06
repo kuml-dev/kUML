@@ -1,0 +1,333 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 2274.60 526"
+     width="2274.60"
+     height="526">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="2274.60" height="526" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="2270.60" height="522" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        container: Test Platform — Container View
+      </text>
+    </g>
+    <g id="system-c4-4" transform="translate(32,237)">
+      <rect width="2226.60" height="131" class="kuml-system" rx="8" ry="8"/>
+      <text class="kuml-stereotype" x="1113.30" y="14" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="1113.30" y="30" text-anchor="middle">
+        Test Cloud Platform
+      </text>
+    </g>
+    <g id="c4-5" transform="translate(332,273)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: TypeScript/React]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Test Management Web UI
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Test campaign definition and fleet
+        </tspan>
+        <tspan x="120" dy="13">
+          overview
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-6" transform="translate(1185.60,273)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: Kotlin/Spring Boot]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Test Run Orchestrator
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Plans and monitors real and virtual test
+        </tspan>
+        <tspan x="120" dy="13">
+          runs
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-7" transform="translate(52,273)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: Kotlin/Spring Boot]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Scenario Catalog Service
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Manages test scenarios and coverage
+        </tspan>
+        <tspan x="120" dy="13">
+          matrix
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-8" transform="translate(1718.60,273)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: PostgreSQL]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Scenario Database
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Stores scenarios, parameters and
+        </tspan>
+        <tspan x="120" dy="13">
+          versions
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-9" transform="translate(1998.60,273)">
+      <rect width="240" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: Go/gRPC]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Measurement Data Ingest
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Receives vehicle uploads and catalogs
+        </tspan>
+        <tspan x="120" dy="13">
+          them
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-10" transform="translate(612,273)">
+      <rect width="253.60" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="126.80" y="18" text-anchor="middle">
+        [Container: S3-compatible object storage]
+      </text>
+      <text class="kuml-title" x="126.80" y="36" text-anchor="middle">
+        Data Lake
+      </text>
+      <text class="kuml-small" x="126.80" y="52" text-anchor="middle">
+        <tspan x="126.80" dy="0">
+          Storage for raw sensor data and simulation
+        </tspan>
+        <tspan x="126.80" dy="13">
+          results
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-11" transform="translate(905.60,279.50)">
+      <rect width="240" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="120" y="18" text-anchor="middle">
+        [Container: Kotlin/Spring Boot]
+      </text>
+      <text class="kuml-title" x="120" y="36" text-anchor="middle">
+        Evaluation Service
+      </text>
+      <text class="kuml-small" x="120" y="52" text-anchor="middle">
+        <tspan x="120" dy="0">
+          Checks test runs against expected values
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-12" transform="translate(1465.60,279.50)">
+      <rect width="213" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="106.50" y="18" text-anchor="middle">
+        [Container: PostgreSQL]
+      </text>
+      <text class="kuml-title" x="106.50" y="36" text-anchor="middle">
+        Results Database
+      </text>
+      <text class="kuml-small" x="106.50" y="52" text-anchor="middle">
+        <tspan x="106.50" dy="0">
+          Stores test results and assessments
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-20" transform="translate(1209.74,95)">
+      <rect width="189.20" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="94.60" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="94.60" y="36" text-anchor="middle">
+        Test Vehicle Fleet
+      </text>
+    </g>
+    <g id="c4-13" transform="translate(1534.16,95)">
+      <rect width="264.80" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="132.40" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="132.40" y="36" text-anchor="middle">
+        Simulation Environment
+      </text>
+    </g>
+    <g id="c4-17" transform="translate(248.49,95)">
+      <rect width="203.20" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="101.60" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="101.60" y="36" text-anchor="middle">
+        Analysis Workbench
+      </text>
+    </g>
+    <g id="c4-22" transform="translate(987.70,458)">
+      <rect width="315.20" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="157.60" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="157.60" y="36" text-anchor="middle">
+        Requirements and Ticketing System
+      </text>
+    </g>
+    <g id="c4-0" transform="translate(541.17,32)">
+      <circle cx="127" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 127 18 L 127 38 M 115 26 L 139 26 M 127 38 L 117 52 M 127 38 L 137 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="246" height="57" class="kuml-class"/>
+      <text class="kuml-title" x="127" y="76" text-anchor="middle">
+        Test Engineer
+      </text>
+      <text class="kuml-stereotype" x="127" y="92" text-anchor="middle">
+        <tspan x="127" dy="0">
+          Defines test campaigns and evaluates
+        </tspan>
+        <tspan x="127" dy="13">
+          results
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-3" transform="translate(859.26,32)">
+      <circle cx="127" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 127 18 L 127 38 M 115 26 L 139 26 M 127 38 L 117 52 M 127 38 L 137 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="246" height="57" class="kuml-class"/>
+      <text class="kuml-title" x="127" y="76" text-anchor="middle">
+        Fleet Manager
+      </text>
+      <text class="kuml-stereotype" x="127" y="92" text-anchor="middle">
+        <tspan x="127" dy="0">
+          Monitors status and deployment of test
+        </tspan>
+        <tspan x="127" dy="13">
+          vehicles
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="668.17" y1="147" x2="668.17" y2="237" class="kuml-edge"/>
+    <path d="M 663.17,225 L 668.17,237 L 673.17,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="678.17" y="196" text-anchor="start">
+      Defines test campaigns and evaluates results [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="678.17" y="196" text-anchor="start">
+      Defines test campaigns and evaluates results [HTTPS]
+    </text>
+    <line x1="986.26" y1="147" x2="986.26" y2="237" class="kuml-edge"/>
+    <path d="M 981.26,225 L 986.26,237 L 991.26,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="996.26" y="196" text-anchor="start">
+      Monitors vehicle status and deployment planning [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="996.26" y="196" text-anchor="start">
+      Monitors vehicle status and deployment planning [HTTPS]
+    </text>
+    <line x1="1304.34" y1="147" x2="1304.34" y2="237" class="kuml-edge"/>
+    <path d="M 1299.34,225 L 1304.34,237 L 1309.34,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1314.34" y="196" text-anchor="start">
+      Uploads measurement and sensor data [gRPC/TLS]
+    </text>
+    <text class="kuml-edge-label" x="1314.34" y="196" text-anchor="start">
+      Uploads measurement and sensor data [gRPC/TLS]
+    </text>
+    <line x1="1622.43" y1="237" x2="1622.43" y2="147" class="kuml-edge"/>
+    <path d="M 1627.43,159 L 1622.43,147 L 1617.43,159" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1632.43" y="196" text-anchor="start">
+      Dispatches scenarios for virtual validation [gRPC]
+    </text>
+    <text class="kuml-edge-label" x="1632.43" y="196" text-anchor="start">
+      Dispatches scenarios for virtual validation [gRPC]
+    </text>
+    <path d="M 1710.70 147 L 1710.70 177 L 1940.51 177 L 1940.51 237" class="kuml-edge"/>
+    <path d="M 1935.51,225 L 1940.51,237 L 1945.51,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1825.60" y="173" text-anchor="middle">
+      Reports simulation results back [gRPC]
+    </text>
+    <text class="kuml-edge-label" x="1825.60" y="173" text-anchor="middle">
+      Reports simulation results back [gRPC]
+    </text>
+    <line x1="350.09" y1="147" x2="350.09" y2="237" class="kuml-edge"/>
+    <path d="M 345.09,225 L 350.09,237 L 355.09,225" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="360.09" y="196" text-anchor="start">
+      Reads raw data and results from the data lake [S3/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="360.09" y="196" text-anchor="start">
+      Reads raw data and results from the data lake [S3/HTTPS]
+    </text>
+    <line x1="1145.30" y1="368" x2="1145.30" y2="458" class="kuml-edge"/>
+    <path d="M 1140.30,446 L 1145.30,458 L 1150.30,446" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="1155.30" y="417" text-anchor="start">
+      Reports detected deviations as tickets [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="1155.30" y="417" text-anchor="start">
+      Reports detected deviations as tickets [REST/HTTPS]
+    </text>
+  </g>
+</svg>

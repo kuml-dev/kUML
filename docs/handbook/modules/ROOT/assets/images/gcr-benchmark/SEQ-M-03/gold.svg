@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 876 608"
+     width="876"
+     height="608">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="876" height="608" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="872" height="604" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        sequence: Password Reset Flow
+      </text>
+    </g>
+    <g id="Password Reset Flow::frag::1">
+      <rect x="32" y="243" width="828" height="229" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="32,243 82,243 82,255 76,261 32,261" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="57" y="256" text-anchor="middle">
+        ALT
+      </text>
+      <rect x="83" y="245" width="90.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="86" y="256">
+        [user exists]
+      </text>
+      <line x1="32" y1="428" x2="860" y2="428" class="kuml-divider" stroke-dasharray="6 4"/>
+      <rect x="33" y="429" width="97" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="36" y="440">
+        [user unknown]
+      </text>
+    </g>
+    <g id="Password Reset Flow::ll::User" transform="translate(56,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «actor»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        User
+      </text>
+      <line x1="70" y1="40" x2="70" y2="512" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Password Reset Flow::ll::WebPortal" transform="translate(216,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        WebPortal
+      </text>
+      <line x1="70" y1="40" x2="70" y2="512" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Password Reset Flow::ll::AuthService" transform="translate(376,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        AuthService
+      </text>
+      <line x1="70" y1="40" x2="70" y2="512" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Password Reset Flow::ll::MailService" transform="translate(536,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        MailService
+      </text>
+      <line x1="70" y1="40" x2="70" y2="512" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="Password Reset Flow::ll::UserDB" transform="translate(696,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        UserDB
+      </text>
+      <line x1="70" y1="40" x2="70" y2="512" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+  </g>
+  <g id="edges">
+    <g id="Password Reset Flow::msg::1">
+      <line x1="126" y1="128" x2="286" y2="128" class="kuml-edge"/>
+      <rect x="134.750" y="113" width="142.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="206" y="124" text-anchor="middle">
+        forgotPassword(email)
+      </text>
+      <polygon points="286,128 278,124 278,132" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Password Reset Flow::msg::2">
+      <line x1="286" y1="160" x2="446" y2="160" class="kuml-edge"/>
+      <rect x="298" y="145" width="136" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="156" text-anchor="middle">
+        POST /password-reset
+      </text>
+      <polygon points="446,160 438,156 438,164" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Password Reset Flow::msg::3">
+      <line x1="446" y1="192" x2="766" y2="192" class="kuml-edge"/>
+      <rect x="554.250" y="177" width="103.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="188" text-anchor="middle">
+        findUser(email)
+      </text>
+      <polygon points="766,192 758,188 758,196" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Password Reset Flow::msg::4">
+      <line x1="766" y1="224" x2="446" y2="224" class="kuml-edge-dashed"/>
+      <rect x="570.500" y="209" width="71" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="220" text-anchor="middle">
+        userRecord
+      </text>
+      <path d="M 454 220 L 446 224 L 454 228" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Password Reset Flow::msg::5">
+      <path d="M 446 280 L 470 280 L 470 296 L 446 296" class="kuml-edge" fill="none"/>
+      <path d="M 454 292 L 446 296 L 454 300" class="kuml-edge" fill="none"/>
+      <rect x="474" y="267" width="130" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="474" y="278">
+        generateResetToken()
+      </text>
+    </g>
+    <g id="Password Reset Flow::msg::6">
+      <line x1="446" y1="312" x2="766" y2="312" class="kuml-edge"/>
+      <rect x="521.750" y="297" width="168.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="308" text-anchor="middle">
+        storeToken(token, expiry)
+      </text>
+      <polygon points="766,312 758,308 758,316" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="Password Reset Flow::msg::7">
+      <line x1="766" y1="344" x2="446" y2="344" class="kuml-edge-dashed"/>
+      <rect x="596.500" y="329" width="19" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="606" y="340" text-anchor="middle">
+        ok
+      </text>
+      <path d="M 454 340 L 446 344 L 454 348" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Password Reset Flow::msg::8">
+      <line x1="446" y1="376" x2="606" y2="376" class="kuml-edge"/>
+      <rect x="447" y="361" width="158" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="526" y="372" text-anchor="middle" textLength="152" lengthAdjust="spacingAndGlyphs">
+        sendResetMail(email, token)
+      </text>
+      <path d="M 598 372 L 606 376 L 598 380" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Password Reset Flow::msg::9">
+      <line x1="446" y1="408" x2="286" y2="408" class="kuml-edge-dashed"/>
+      <rect x="343.500" y="393" width="45" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="404" text-anchor="middle">
+        200 OK
+      </text>
+      <path d="M 294 404 L 286 408 L 294 412" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Password Reset Flow::msg::10">
+      <line x1="446" y1="464" x2="286" y2="464" class="kuml-edge-dashed"/>
+      <rect x="287" y="449" width="158" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="460" text-anchor="middle" textLength="152" lengthAdjust="spacingAndGlyphs">
+        200 OK (identical response)
+      </text>
+      <path d="M 294 460 L 286 464 L 294 468" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="Password Reset Flow::msg::11">
+      <line x1="286" y1="496" x2="126" y2="496" class="kuml-edge-dashed"/>
+      <rect x="141.250" y="481" width="129.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="206" y="492" text-anchor="middle">
+        notificationDisplay
+      </text>
+      <path d="M 134 492 L 126 496 L 134 500" class="kuml-edge" fill="none"/>
+    </g>
+  </g>
+</svg>

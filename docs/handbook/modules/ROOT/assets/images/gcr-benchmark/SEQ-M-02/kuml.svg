@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 716 568"
+     width="716"
+     height="568">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="716" height="568" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="712" height="564" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        sequence: ApiGatewayRateLimiting
+      </text>
+    </g>
+    <g id="ApiGatewayRateLimiting::frag::1">
+      <rect x="32" y="115" width="668" height="77" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="32,115 82,115 82,127 76,133 32,133" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="57" y="128" text-anchor="middle">
+        LOOP
+      </text>
+      <rect x="83" y="117" width="123" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="86" y="128">
+        [up to 3 attempts]
+      </text>
+    </g>
+    <g id="ApiGatewayRateLimiting::frag::2">
+      <rect x="42" y="203" width="648" height="261" class="kuml-class" fill="none" stroke-dasharray="6 4"/>
+      <polygon points="42,203 92,203 92,215 86,221 42,221" class="kuml-class" fill="white"/>
+      <text class="kuml-stereotype" x="67" y="216" text-anchor="middle">
+        ALT
+      </text>
+      <rect x="93" y="205" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="96" y="216">
+        [quota available]
+      </text>
+      <line x1="42" y1="356" x2="690" y2="356" class="kuml-divider" stroke-dasharray="6 4"/>
+      <rect x="43" y="357" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="46" y="368">
+        [quota exhausted]
+      </text>
+    </g>
+    <g id="ApiGatewayRateLimiting::ll::Client" transform="translate(56,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «actor»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Client
+      </text>
+      <line x1="70" y1="40" x2="70" y2="472" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="ApiGatewayRateLimiting::ll::API Gateway" transform="translate(216,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        API Gateway
+      </text>
+      <line x1="70" y1="40" x2="70" y2="472" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="ApiGatewayRateLimiting::ll::Rate Limiter" transform="translate(376,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Rate Limiter
+      </text>
+      <line x1="70" y1="40" x2="70" y2="472" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+    <g id="ApiGatewayRateLimiting::ll::Backend Service" transform="translate(536,56)">
+      <rect width="140" height="40" class="kuml-class"/>
+      <text class="kuml-stereotype" x="70" y="14" text-anchor="middle">
+        «lifeline»
+      </text>
+      <text class="kuml-title" x="70" y="30" text-anchor="middle">
+        Backend Service
+      </text>
+      <line x1="70" y1="40" x2="70" y2="472" class="kuml-divider" stroke-dasharray="4 4"/>
+    </g>
+  </g>
+  <g id="edges">
+    <g id="ApiGatewayRateLimiting::msg::1">
+      <line x1="126" y1="152" x2="286" y2="152" class="kuml-edge"/>
+      <rect x="157.500" y="137" width="97" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="206" y="148" text-anchor="middle">
+        request data()
+      </text>
+      <polygon points="286,152 278,148 278,156" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="ApiGatewayRateLimiting::msg::2">
+      <line x1="286" y1="184" x2="446" y2="184" class="kuml-edge"/>
+      <rect x="320.750" y="169" width="90.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="180" text-anchor="middle">
+        check quota()
+      </text>
+      <polygon points="446,184 438,180 438,188" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="ApiGatewayRateLimiting::msg::3">
+      <line x1="446" y1="240" x2="286" y2="240" class="kuml-edge-dashed"/>
+      <rect x="337" y="225" width="58" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="236" text-anchor="middle">
+        quota ok
+      </text>
+      <path d="M 294 236 L 286 240 L 294 244" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="ApiGatewayRateLimiting::msg::4">
+      <line x1="286" y1="272" x2="606" y2="272" class="kuml-edge"/>
+      <rect x="387.750" y="257" width="116.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="446" y="268" text-anchor="middle">
+        forward request()
+      </text>
+      <polygon points="606,272 598,268 598,276" class="kuml-seq-arrow-filled"/>
+    </g>
+    <g id="ApiGatewayRateLimiting::msg::5">
+      <line x1="606" y1="304" x2="286" y2="304" class="kuml-edge-dashed"/>
+      <rect x="430" y="289" width="32" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="446" y="300" text-anchor="middle">
+        data
+      </text>
+      <path d="M 294 300 L 286 304 L 294 308" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="ApiGatewayRateLimiting::msg::6">
+      <line x1="286" y1="336" x2="126" y2="336" class="kuml-edge-dashed"/>
+      <rect x="190" y="321" width="32" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="206" y="332" text-anchor="middle">
+        data
+      </text>
+      <path d="M 134 332 L 126 336 L 134 340" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="ApiGatewayRateLimiting::msg::7">
+      <line x1="446" y1="392" x2="286" y2="392" class="kuml-edge-dashed"/>
+      <rect x="317.500" y="377" width="97" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="366" y="388" text-anchor="middle">
+        quota exceeded
+      </text>
+      <path d="M 294 388 L 286 392 L 294 396" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="ApiGatewayRateLimiting::msg::8">
+      <line x1="286" y1="424" x2="126" y2="424" class="kuml-edge-dashed"/>
+      <rect x="134.750" y="409" width="142.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="206" y="420" text-anchor="middle">
+        429 too many requests
+      </text>
+      <path d="M 134 420 L 126 424 L 134 428" class="kuml-edge" fill="none"/>
+    </g>
+    <g id="ApiGatewayRateLimiting::msg::9">
+      <path d="M 126 456 L 150 456 L 150 472 L 126 472" class="kuml-edge" fill="none"/>
+      <path d="M 134 468 L 126 472 L 134 476" class="kuml-edge" fill="none"/>
+      <rect x="154" y="443" width="136.500" height="14" fill="white" stroke="none"/>
+      <text class="kuml-body" x="154" y="454">
+        wait backoff period()
+      </text>
+    </g>
+  </g>
+</svg>

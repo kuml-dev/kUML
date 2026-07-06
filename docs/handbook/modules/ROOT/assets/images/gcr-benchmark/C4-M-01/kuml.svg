@@ -1,0 +1,320 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- kUML SVG · theme: kUML · engine: elk.layered -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 967.53 1020"
+     width="967.53"
+     height="1020">
+  <defs>
+  <style>
+    .kuml-class { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-interface { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-enum { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-state { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-usecase { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-system { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 2.5; }
+.kuml-container { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-c4component { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-instance { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-comment-fold { fill: none; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-title { font-family: Geist, Inter, system-ui, sans-serif; font-size: 14.0px; font-weight: 700; fill: #0D1525; }
+.kuml-title-abstract { font-style: italic; }
+.kuml-subtitle { font-family: Geist, Inter, system-ui, sans-serif; font-size: 12.0px; font-weight: 600; fill: #0D1525; }
+.kuml-body { font-family: Geist, Inter, system-ui, sans-serif; font-size: 11.0px; fill: #0D1525; }
+.kuml-small { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-small-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-edge-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #6B7A99; }
+.kuml-edge-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #FFFFFF; stroke: #FFFFFF; stroke-width: 3px; stroke-linejoin: round; }
+.kuml-stereotype { font-family: Geist, Inter, system-ui, sans-serif; font-size: 10.0px; font-style: italic; fill: #6B7A99; }
+.kuml-tagged-value { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; font-style: italic; fill: #6B7A99; }
+.kuml-edge { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+.kuml-seq-arrow-filled { stroke: #1D2B4F; stroke-width: 1.5; fill: #1D2B4F; }
+.kuml-edge-dashed { stroke: #6B7A99; stroke-width: 1.5; fill: none; stroke-dasharray: 8 4; }
+.kuml-divider { stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-actor { stroke: #0D1525; stroke-width: 1.5; fill: none; }
+.kuml-frame { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-collaboration { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-port { fill: #0D1525; stroke: #1D2B4F; stroke-width: 1.0; }
+.kuml-port-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-port-label-halo { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: none; stroke: #FFFFFF; stroke-width: 3.5px; stroke-linejoin: round; }
+.kuml-connector { fill: none; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-connector-label { font-family: Geist, Inter, system-ui, sans-serif; font-size: 9.0px; fill: #0D1525; }
+.kuml-action { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-decision { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-fork-bar { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-pseudostate { fill: #0D1525; stroke: #0D1525; stroke-width: 1.5; }
+.kuml-final-outer { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-top { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-node-side { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-artifact-ear { fill: #6B7A99; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-stereotype-box { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-frame { fill: #F8F5F0; stroke: #1D2B4F; stroke-width: 1.5; }
+.kuml-timing-line { stroke: #1D2B4F; stroke-width: 1.5; fill: none; }
+
+  </style>
+  </defs>
+  <rect x="0" y="0" width="967.53" height="1020" fill="#FFFFFF"/>
+  <g id="nodes">
+    <g id="kuml-diagram-frame">
+      <rect x="2" y="2" width="963.53" height="1016" rx="6" ry="6" class="kuml-frame"/>
+      <text class="kuml-small" x="8" y="13">
+        container: Ride-Sharing Platform - Container View
+      </text>
+    </g>
+    <g id="system-c4-2" transform="translate(32,243)">
+      <rect width="877.87" height="613" class="kuml-system" rx="8" ry="8"/>
+      <text class="kuml-stereotype" x="438.93" y="14" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="438.93" y="30" text-anchor="middle">
+        Ride-Sharing Platform
+      </text>
+    </g>
+    <g id="c4-3" transform="translate(559.67,287.67)">
+      <rect width="255" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="127.50" y="18" text-anchor="middle">
+        [Container: Mobile App]
+      </text>
+      <text class="kuml-title" x="127.50" y="36" text-anchor="middle">
+        Passenger Mobile App
+      </text>
+      <text class="kuml-small" x="127.50" y="52" text-anchor="middle">
+        <tspan x="127.50" dy="0">
+          Allows passengers to request rides.
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-4" transform="translate(52,279)">
+      <rect width="282" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="141" y="18" text-anchor="middle">
+        [Container: Mobile App]
+      </text>
+      <text class="kuml-title" x="141" y="36" text-anchor="middle">
+        Driver Mobile App
+      </text>
+      <text class="kuml-small" x="141" y="52" text-anchor="middle">
+        <tspan x="141" dy="0">
+          Allows drivers to accept and fulfill rides.
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-5" transform="translate(447.33,444)">
+      <rect width="296" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="148" y="18" text-anchor="middle">
+        [Container: API Gateway]
+      </text>
+      <text class="kuml-title" x="148" y="36" text-anchor="middle">
+        API Gateway
+      </text>
+      <text class="kuml-small" x="148" y="52" text-anchor="middle">
+        <tspan x="148" dy="0">
+          Routes requests from mobile apps to backend
+        </tspan>
+        <tspan x="148" dy="13">
+          services.
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-6" transform="translate(405,609)">
+      <rect width="282" height="75" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="141" y="18" text-anchor="middle">
+        [Container: Kotlin/Ktor]
+      </text>
+      <text class="kuml-title" x="141" y="36" text-anchor="middle">
+        Matching Service
+      </text>
+      <text class="kuml-small" x="141" y="52" text-anchor="middle">
+        <tspan x="141" dy="0">
+          Assigns suitable drivers to open ride requests.
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-7" transform="translate(601.67,774)">
+      <rect width="257.20" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="128.60" y="18" text-anchor="middle">
+        [Container: Kotlin/Ktor]
+      </text>
+      <text class="kuml-title" x="128.60" y="36" text-anchor="middle">
+        Geolocation Service
+      </text>
+      <text class="kuml-small" x="128.60" y="52" text-anchor="middle">
+        <tspan x="128.60" dy="0">
+          Tracks vehicle positions in real time.
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-8" transform="translate(373.67,774)">
+      <rect width="188" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="94" y="18" text-anchor="middle">
+        [Container: Database]
+      </text>
+      <text class="kuml-title" x="94" y="36" text-anchor="middle">
+        Rides Database
+      </text>
+      <text class="kuml-small" x="94" y="52" text-anchor="middle">
+        <tspan x="94" dy="0">
+          Stores completed rides.
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-9" transform="translate(177,622)">
+      <rect width="188" height="62" rx="8" ry="8" class="kuml-container"/>
+      <text class="kuml-stereotype" x="94" y="18" text-anchor="middle">
+        [Container: Kotlin/Ktor]
+      </text>
+      <text class="kuml-title" x="94" y="36" text-anchor="middle">
+        Payment Service
+      </text>
+      <text class="kuml-small" x="94" y="52" text-anchor="middle">
+        <tspan x="94" dy="0">
+          Bills completed rides.
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-10" transform="translate(119.87,952)">
+      <rect width="239.60" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="119.80" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="119.80" y="36" text-anchor="middle">
+        Payment Service Provider
+      </text>
+    </g>
+    <g id="c4-11" transform="translate(763.53,952)">
+      <rect width="188" height="52" rx="8" ry="8" class="kuml-system"/>
+      <text class="kuml-stereotype" x="94" y="18" text-anchor="middle">
+        [Software System]
+      </text>
+      <text class="kuml-title" x="94" y="36" text-anchor="middle">
+        Map Service
+      </text>
+    </g>
+    <g id="c4-0" transform="translate(597.97,32)">
+      <circle cx="89.20" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 89.20 18 L 89.20 38 M 77.20 26 L 101.20 26 M 89.20 38 L 79.20 52 M 89.20 38 L 99.20 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="170.40" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="89.20" y="76" text-anchor="middle">
+        Passenger
+      </text>
+      <text class="kuml-stereotype" x="89.20" y="92" text-anchor="middle">
+        <tspan x="89.20" dy="0">
+          A user who requests rides.
+        </tspan>
+      </text>
+    </g>
+    <g id="c4-1" transform="translate(103.80,32)">
+      <circle cx="89.20" cy="10" r="8" class="kuml-actor"/>
+      <path d="M 89.20 18 L 89.20 38 M 77.20 26 L 101.20 26 M 89.20 38 L 79.20 52 M 89.20 38 L 99.20 52" class="kuml-actor"/>
+      <rect x="4" y="58" width="170.40" height="44" class="kuml-class"/>
+      <text class="kuml-title" x="89.20" y="76" text-anchor="middle">
+        Driver
+      </text>
+      <text class="kuml-stereotype" x="89.20" y="92" text-anchor="middle">
+        <tspan x="89.20" dy="0">
+          A user who provides rides.
+        </tspan>
+      </text>
+    </g>
+  </g>
+  <g id="edges">
+    <line x1="687.17" y1="147" x2="687.17" y2="287.67" class="kuml-edge"/>
+    <path d="M 682.17,275.67 L 687.17,287.67 L 692.17,275.67" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="697.17" y="221.33" text-anchor="start">
+      Requests rides using [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="697.17" y="221.33" text-anchor="start">
+      Requests rides using [HTTPS]
+    </text>
+    <line x1="193" y1="147" x2="193" y2="279" class="kuml-edge"/>
+    <path d="M 188,267 L 193,279 L 198,267" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="203" y="217" text-anchor="start">
+      Accepts rides using [HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="203" y="217" text-anchor="start">
+      Accepts rides using [HTTPS]
+    </text>
+    <line x1="644.67" y1="349.67" x2="644.67" y2="444" class="kuml-edge"/>
+    <path d="M 639.67,432 L 644.67,444 L 649.67,432" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="654.67" y="400.83" text-anchor="start">
+      Sends requests to [HTTPS/JSON]
+    </text>
+    <text class="kuml-edge-label" x="654.67" y="400.83" text-anchor="start">
+      Sends requests to [HTTPS/JSON]
+    </text>
+    <path d="M 240 354 L 240 384 L 546 384 L 546 444" class="kuml-edge"/>
+    <path d="M 541,432 L 546,444 L 551,432" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="393" y="380" text-anchor="middle">
+      Sends requests to [HTTPS/JSON]
+    </text>
+    <text class="kuml-edge-label" x="393" y="380" text-anchor="middle">
+      Sends requests to [HTTPS/JSON]
+    </text>
+    <line x1="546" y1="519" x2="546" y2="609" class="kuml-edge"/>
+    <path d="M 541,597 L 546,609 L 551,597" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="556" y="568" text-anchor="start">
+      Routes ride requests to [HTTPS/JSON]
+    </text>
+    <text class="kuml-edge-label" x="556" y="568" text-anchor="start">
+      Routes ride requests to [HTTPS/JSON]
+    </text>
+    <path d="M 644.67 519 L 644.67 549 L 773.13 549 L 773.13 774" class="kuml-edge"/>
+    <path d="M 768.13,762 L 773.13,774 L 778.13,762" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="783.13" y="665.50" text-anchor="start">
+      Routes location updates to [HTTPS/JSON]
+    </text>
+    <text class="kuml-edge-label" x="783.13" y="665.50" text-anchor="start">
+      Routes location updates to [HTTPS/JSON]
+    </text>
+    <path d="M 593 684 L 593 714 L 687.40 714 L 687.40 774" class="kuml-edge"/>
+    <path d="M 682.40,762 L 687.40,774 L 692.40,762" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="640.20" y="710" text-anchor="middle">
+      Queries vehicle positions from [HTTPS/JSON]
+    </text>
+    <text class="kuml-edge-label" x="640.20" y="710" text-anchor="middle">
+      Queries vehicle positions from [HTTPS/JSON]
+    </text>
+    <line x1="499" y1="684" x2="499" y2="774" class="kuml-edge"/>
+    <path d="M 494,762 L 499,774 L 504,762" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="509" y="733" text-anchor="start">
+      Stores completed rides in [SQL/TCP]
+    </text>
+    <text class="kuml-edge-label" x="509" y="733" text-anchor="start">
+      Stores completed rides in [SQL/TCP]
+    </text>
+    <path d="M 302.33 684 L 302.33 714 L 436.33 714 L 436.33 774" class="kuml-edge"/>
+    <path d="M 431.33,762 L 436.33,774 L 441.33,762" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="369.33" y="710" text-anchor="middle">
+      Reads completed rides from [SQL/TCP]
+    </text>
+    <text class="kuml-edge-label" x="369.33" y="710" text-anchor="middle">
+      Reads completed rides from [SQL/TCP]
+    </text>
+    <line x1="239.67" y1="684" x2="239.67" y2="952" class="kuml-edge"/>
+    <path d="M 234.67,940 L 239.67,952 L 244.67,940" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="249.67" y="822" text-anchor="start">
+      Delegates payment processing to [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="249.67" y="822" text-anchor="start">
+      Delegates payment processing to [REST/HTTPS]
+    </text>
+    <path d="M 729.67 349.67 L 729.67 384 L 888.87 384 L 888.87 952" class="kuml-edge"/>
+    <path d="M 883.87,940 L 888.87,952 L 893.87,940" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="898.87" y="672" text-anchor="start">
+      Displays maps and calculates routes using [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="898.87" y="672" text-anchor="start">
+      Displays maps and calculates routes using [REST/HTTPS]
+    </text>
+    <path d="M 146 354 L 146 892 L 826.20 892 L 826.20 952" class="kuml-edge"/>
+    <path d="M 821.20,940 L 826.20,952 L 831.20,940" style="stroke:#1D2B4F;stroke-width:1.5;fill:none;stroke-linejoin:round;"/>
+    <text class="kuml-edge-label-halo" x="486.10" y="888" text-anchor="middle">
+      Displays maps and calculates routes using [REST/HTTPS]
+    </text>
+    <text class="kuml-edge-label" x="486.10" y="888" text-anchor="middle">
+      Displays maps and calculates routes using [REST/HTTPS]
+    </text>
+  </g>
+</svg>
