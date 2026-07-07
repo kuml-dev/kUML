@@ -6,6 +6,43 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.25.0] — 2026-07-07
+
+### Added
+
+**`kuml-mcp`: `kuml.examples` tool + granular per-type example resources (V3.3.1)**
+
+LLMs working with kUML through an MCP client had no reliable way to request targeted syntax
+examples for a specific diagram type — `kuml://dsl/examples` delivered all 42 bundled Vault
+examples as a single blob, and many MCP clients never proactively fetch resources at all.
+V3.3.1 addresses both problems with a two-part addition:
+
+- **`kuml.examples` Tool** — a new MCP tool (Tools are proactively invoked by LLMs, unlike
+  Resources) that accepts `language` (`uml` | `c4` | `sysml2` | `bpmn` | `blueprint`) and an
+  optional `diagramType`, and returns the matching curated example script(s) (raw ` ```kuml `
+  blocks) with a one-sentence description and the source note reference. Called with only
+  `language`, it instead returns a discovery list of available diagram types for that language —
+  supporting a natural "what can I draw → give me an example" flow. Invalid parameters produce
+  structured `KUML-MCP-E-EXAMPLES-*` error codes with the list of valid values.
+
+- **Granular per-type Resources** — 34 new Resources at `kuml://dsl/examples/<language>/<diagramType>`,
+  all fed from the same `ExampleCatalog`. The existing aggregate Resource `kuml://dsl/examples` is
+  unchanged (backward-compatible).
+
+- **`ExampleCatalog`** — a hand-curated mapping of the 42 bundled Vault examples: 38 curated
+  (classified by DSL entry point, not by German note title), 4 explicitly excluded (`00 Übersicht`
+  + three SMIL animation variants). A completeness test enforces a catalog decision for every
+  newly synced example, preventing silent gaps. `journey` is a `diagramType` under `blueprint`
+  (both build `BlueprintModel`), not a separate language.
+
+- **`BundledExamples`** — shared classpath-access layer (file- and jar-protocol) extracted from
+  the previously private `ResourceRegistry` listing, with a defense-in-depth guard against
+  path-like filenames.
+
+Motivation from the GCR benchmark: Gemini scored 0 % first-shot on C4 and showed 64–69 %
+hallucination rates on sequences — classic symptoms of missing syntax anchoring that a single
+targeted few-shot example corrects. 76 tests, 0 failures, ktlint clean.
+
 ## [0.24.6] — 2026-07-05
 
 ### Fixed
