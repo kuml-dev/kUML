@@ -74,6 +74,7 @@ include(
     "kuml-codegen:kuml-gen-java",     // V1.1.4 — Java POJO/Records/Lombok generator
     "kuml-codegen:kuml-gen-sql",      // V1.1.4 — SQL DDL generator (Postgres/MySQL/H2/SQLite)
     "kuml-codegen:kuml-transform-bpmn-to-uml",  // V3.1.43 — M2M Bridge BPMN Process ⇌ UML Activity
+    "kuml-codegen:kuml-codegen-m2m-exposed",  // ADR-0016 — M2M UML → Kotlin Exposed Table objects
 )
 
 // ── Plugin API ──────────────────────────────────────────────── V3.0.27 ──

@@ -44,6 +44,7 @@ dependencies {
     implementation(project(path = ":kuml-codegen:kuml-codegen-api"))
     implementation(project(path = ":kuml-codegen:kuml-codegen-m2m")) // V2.0.21 — M2M transformer track
     implementation(project(path = ":kuml-codegen:kuml-transform-bpmn-to-uml")) // V3.1.43 — BPMN⇌UML Activity bridge
+    implementation(project(path = ":kuml-codegen:kuml-codegen-m2m-exposed")) // ADR-0016 — UML → Exposed Table objects
     implementation(project(path = ":kuml-codegen:kuml-gen-kotlin"))
     implementation(project(path = ":kuml-codegen:kuml-gen-java"))
     implementation(project(path = ":kuml-codegen:kuml-gen-sql"))
