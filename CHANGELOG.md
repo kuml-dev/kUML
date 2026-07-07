@@ -6,6 +6,40 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.26.0] — 2026-07-07
+
+### Added
+
+**MDA persistence pipeline: UML → Kotlin Exposed ORM + Flyway baseline (ADR-0016)**
+
+Adds a full model-driven-architecture path from a UML class diagram to a runnable Kotlin
+Exposed persistence layer, driven by the Pepela Portal / Lapis Cloud stack (Kotlin + Exposed
+ORM + PostgreSQL + Flyway). Delivered as three additive waves:
+
+- **`uml-to-exposed` (Variante B — direct transformer)** — new module
+  `kuml-codegen/kuml-codegen-m2m-exposed` with `UmlToExposedTransformer`, an M2M transformer
+  (analogous to the existing `uml-to-jpa`) that emits one Kotlin Exposed `Table` object per
+  `UmlClass` (`object Users : Table("users") { val id = long("id").autoIncrement(); ...;
+  override val primaryKey = PrimaryKey(id) }`). Many-to-one associations become `reference()`
+  foreign-key columns; many-to-many/collection sides and self-referential associations are
+  intentionally skipped with an explanatory comment rather than emitting non-compiling code.
+
+- **`uml-to-exposed-psm` (Variante A — renderable PSM)** — new profile module
+  `kuml-profile-exposed` (extends `javaEeProfile`) defining `«Table»`, `«Column»`, and `«FK»`
+  stereotypes, plus `UmlToExposedPsmTransformer` in the same module, which turns a raw PIM into
+  a real, diagram-renderable UML model. Classes are dual-annotated (`«Table»` for PSM semantics
+  and rendering, `«Entity»` for compatibility, since `kuml-gen-sql`'s stereotype detection
+  matches literal names) so the PSM produces correct DDL through the existing SQL generator
+  without any changes to it.
+
+- **Flyway baseline generator** — `FlywayBaselineGenerator` (id `sql-flyway-baseline`) in
+  `kuml-gen-sql`, a thin wrapper composing the existing `SqlDdlGenerator` and writing its output
+  as `V<version>__<description>.sql` (Flyway's migration-file convention, default
+  `V1__init.sql`) instead of the generic `schema.sql`. Works unchanged against either the raw
+  PIM or the new Exposed PSM.
+
+Deferred to a later wave: custom-type hooks for PostGIS geometry and TimescaleDB hypertables.
+
 ## [0.25.0] — 2026-07-07
 
 ### Added
