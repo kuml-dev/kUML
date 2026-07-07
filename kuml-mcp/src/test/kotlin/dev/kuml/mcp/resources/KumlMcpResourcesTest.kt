@@ -75,6 +75,17 @@ class KumlMcpResourcesTest :
             parsed["tools"]!!.jsonArray.size shouldBe dev.kuml.mcp.tools.ToolRegistry.descriptors.size
         }
 
+        test("kuml://dsl/schema lists kuml.examples' structured error codes (V3.3 backlog follow-up)") {
+            val contents = ResourceRegistry.read("kuml://dsl/schema")
+            val parsed = json.parseToJsonElement(contents.text).jsonObject
+            val examplesTool =
+                parsed["tools"]!!.jsonArray.first { it.jsonObject["name"]!!.jsonPrimitive.content == "kuml.examples" }
+            val errorCodes = examplesTool.jsonObject["errorCodes"]!!.jsonArray.map { it.jsonPrimitive.content }
+            errorCodes shouldContain "KUML-MCP-E-EXAMPLES-MISSING-LANGUAGE"
+            errorCodes shouldContain "KUML-MCP-E-EXAMPLES-UNKNOWN-LANGUAGE"
+            errorCodes shouldContain "KUML-MCP-E-EXAMPLES-UNKNOWN-DIAGRAM-TYPE"
+        }
+
         test("granular example resource returns the raw kuml.kts script for its type") {
             val contents = ResourceRegistry.read("kuml://dsl/examples/uml/class")
             contents.mimeType shouldBe "text/x-kotlin"

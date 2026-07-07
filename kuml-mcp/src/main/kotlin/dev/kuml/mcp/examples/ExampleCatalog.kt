@@ -290,7 +290,11 @@ internal object ExampleCatalog {
     internal fun languages(): List<String> = entries.map { it.language }.distinct()
 
     /** Distinct diagramTypes for [language], in catalog order; empty if [language] is unknown. */
-    internal fun diagramTypes(language: String): List<String> = entries.filter { it.language == language }.map { it.diagramType }.distinct()
+    internal fun diagramTypes(language: String): List<String> =
+        entries
+            .filter { it.language == language }
+            .map { it.diagramType }
+            .distinct()
 
     /** All curated examples for a (language, diagramType) pair; may contain more than one entry. */
     internal fun find(

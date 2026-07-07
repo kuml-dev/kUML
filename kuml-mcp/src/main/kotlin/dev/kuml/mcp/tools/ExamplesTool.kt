@@ -32,6 +32,19 @@ import kotlinx.serialization.json.putJsonObject
 internal object ExamplesTool : McpTool {
     private val json = Json { prettyPrint = false }
 
+    /**
+     * Structured error codes this tool can throw, named rather than inlined so `kuml://dsl/schema`
+     * can list them (see [dev.kuml.mcp.resources.ResourceRegistry]) without the two places drifting
+     * apart. No central cross-tool error-code catalog exists yet — deferred until a second MCP tool
+     * needs structured codes (decision recorded 2026-07-07, V3.3 backlog).
+     */
+    internal object ErrorCodes {
+        const val MISSING_LANGUAGE = "KUML-MCP-E-EXAMPLES-MISSING-LANGUAGE"
+        const val UNKNOWN_LANGUAGE = "KUML-MCP-E-EXAMPLES-UNKNOWN-LANGUAGE"
+        const val UNKNOWN_DIAGRAM_TYPE = "KUML-MCP-E-EXAMPLES-UNKNOWN-DIAGRAM-TYPE"
+        val all = listOf(MISSING_LANGUAGE, UNKNOWN_LANGUAGE, UNKNOWN_DIAGRAM_TYPE)
+    }
+
     override val descriptor: McpToolDescriptor =
         McpToolDescriptor(
             name = "kuml.examples",
@@ -142,7 +155,7 @@ internal object ExamplesTool : McpTool {
         json.encodeToString(
             buildJsonObject {
                 putJsonObject("error") {
-                    put("code", "KUML-MCP-E-EXAMPLES-MISSING-LANGUAGE")
+                    put("code", ErrorCodes.MISSING_LANGUAGE)
                     put("message", "Missing required argument: language")
                     putJsonArray("validLanguages") {
                         ExampleCatalog.languages().forEach { add(JsonPrimitive(it)) }
@@ -155,7 +168,7 @@ internal object ExamplesTool : McpTool {
         json.encodeToString(
             buildJsonObject {
                 putJsonObject("error") {
-                    put("code", "KUML-MCP-E-EXAMPLES-UNKNOWN-LANGUAGE")
+                    put("code", ErrorCodes.UNKNOWN_LANGUAGE)
                     put("message", "Unknown language '$language'.")
                     putJsonArray("validLanguages") {
                         ExampleCatalog.languages().forEach { add(JsonPrimitive(it)) }
@@ -171,7 +184,7 @@ internal object ExamplesTool : McpTool {
         json.encodeToString(
             buildJsonObject {
                 putJsonObject("error") {
-                    put("code", "KUML-MCP-E-EXAMPLES-UNKNOWN-DIAGRAM-TYPE")
+                    put("code", ErrorCodes.UNKNOWN_DIAGRAM_TYPE)
                     put("message", "Unknown diagramType '$diagramType' for language '$language'.")
                     put("language", language)
                     putJsonArray("validDiagramTypes") {

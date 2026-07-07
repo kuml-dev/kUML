@@ -43,6 +43,14 @@ Motivation from the GCR benchmark: Gemini scored 0 % first-shot on C4 and showed
 hallucination rates on sequences — classic symptoms of missing syntax anchoring that a single
 targeted few-shot example corrects. 76 tests, 0 failures, ktlint clean.
 
+**`kuml-mcp`: granular per-language DSL reference resources (V3.3.2)**
+
+Adds `kuml://dsl/reference/<language>` (`uml` | `sysml2` | `c4` | `bpmn`) as single-page
+companions to the existing aggregate `kuml://dsl/reference` resource, mirroring the granular
+per-`(language, diagramType)` example resources from V3.3.1. Lets an MCP client fetch just the
+DSL reference for one diagram family instead of the full concatenated handbook text. `blueprint`
+has no dedicated handbook reference page yet — out of scope for this wave.
+
 ## [0.24.6] — 2026-07-05
 
 ### Fixed

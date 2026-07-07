@@ -4,12 +4,15 @@ import dev.kuml.mcp.McpResourceContents
 import dev.kuml.mcp.McpResourceDescriptor
 import dev.kuml.mcp.examples.BundledExamples
 import dev.kuml.mcp.examples.ExampleCatalog
+import dev.kuml.mcp.tools.ExamplesTool
 import dev.kuml.mcp.tools.ToolRegistry
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 
 /**
  * Registry of read-only MCP resources exposing kUML DSL knowledge — the
@@ -188,6 +191,15 @@ internal object ResourceRegistry {
     }
 
     /**
+     * Maps tool name to the structured error codes it can throw, so `kuml://dsl/schema` lets an
+     * MCP client discover error codes up front instead of learning them from a failed call. Not
+     * every tool has codes yet — only tools with an entry here throw structured `code` fields at
+     * all (see [ExamplesTool.ErrorCodes] KDoc: no central cross-tool catalog exists yet).
+     */
+    private val toolErrorCodes: Map<String, List<String>> =
+        mapOf(ExamplesTool.descriptor.name to ExamplesTool.ErrorCodes.all)
+
+    /**
      * MVP schema: derived from [ToolRegistry]'s existing `inputSchema` definitions
      * (already hand-maintained per tool) rather than a separate builder-signature
      * catalogue. Out of scope for this wave: a full reflective DSL-builder schema
@@ -212,6 +224,11 @@ internal object ResourceRegistry {
                                     put("name", descriptor.name)
                                     put("description", descriptor.description)
                                     put("inputSchema", descriptor.inputSchema)
+                                    toolErrorCodes[descriptor.name]?.let { codes ->
+                                        putJsonArray("errorCodes") {
+                                            codes.forEach { add(JsonPrimitive(it)) }
+                                        }
+                                    }
                                 },
                             )
                         }
