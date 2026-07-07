@@ -82,9 +82,9 @@ class RuntimeToolsIntegrationTest :
             names shouldContain "kuml.run.stop"
         }
 
-        test("ToolRegistry.descriptors size includes original 5 plus 5 new runtime tools") {
-            // 5 original + 5 runtime = 10 total
-            ToolRegistry.tools.size shouldBe 10
+        test("ToolRegistry.descriptors size includes original 6 plus 5 new runtime tools") {
+            // 5 original + kuml.examples + 5 runtime = 11 total
+            ToolRegistry.tools.size shouldBe 11
         }
 
         // ── STM full round-trip ────────────────────────────────────────────────

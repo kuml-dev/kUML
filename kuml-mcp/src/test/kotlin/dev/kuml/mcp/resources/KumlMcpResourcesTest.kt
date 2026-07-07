@@ -1,8 +1,10 @@
 package dev.kuml.mcp.resources
 
 import dev.kuml.mcp.McpServer
+import dev.kuml.mcp.examples.ExampleCatalog
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
@@ -15,6 +17,7 @@ import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * V3.2.17 — tests for the MCP resources capability: `kuml://dsl/{reference,examples,schema}`.
+ * V3.3.1 extends this with the granular per-`(language, diagramType)` example resources.
  *
  * Exercises both the [ResourceRegistry] directly (unit level, mirrors [dev.kuml.mcp.tools.ToolRegistry]
  * test style) and the JSON-RPC surface via [McpServer.handleLine] (protocol level, mirrors how a
@@ -24,10 +27,18 @@ class KumlMcpResourcesTest :
     FunSpec({
         val json = Json { ignoreUnknownKeys = true }
 
-        test("descriptors exposes exactly the three kuml://dsl resource URIs") {
-            ResourceRegistry.descriptors shouldHaveSize 3
-            ResourceRegistry.descriptors.map { it.uri } shouldBe
-                listOf("kuml://dsl/reference", "kuml://dsl/examples", "kuml://dsl/schema")
+        // Distinct (language, diagramType) combinations in the catalog — one granular
+        // resource descriptor per combination, plus the three aggregate resources.
+        val granularCount =
+            ExampleCatalog.languages().sumOf { language -> ExampleCatalog.diagramTypes(language).size }
+
+        test("descriptors exposes the three aggregate kuml://dsl resource URIs plus one per catalog entry") {
+            ResourceRegistry.descriptors shouldHaveSize (3 + granularCount)
+            val uris = ResourceRegistry.descriptors.map { it.uri }
+            uris.take(3) shouldBe listOf("kuml://dsl/reference", "kuml://dsl/examples", "kuml://dsl/schema")
+            uris shouldContain "kuml://dsl/examples/uml/class"
+            uris shouldContain "kuml://dsl/examples/c4/container"
+            uris shouldContain "kuml://dsl/examples/blueprint/journey"
         }
 
         test("read(kuml://dsl/reference) returns non-empty asciidoc content covering all DSL families") {
@@ -55,18 +66,36 @@ class KumlMcpResourcesTest :
             parsed["tools"]!!.jsonArray.size shouldBe dev.kuml.mcp.tools.ToolRegistry.descriptors.size
         }
 
+        test("granular example resource returns the raw kuml.kts script for its type") {
+            val contents = ResourceRegistry.read("kuml://dsl/examples/uml/class")
+            contents.mimeType shouldBe "text/x-kotlin"
+            contents.text shouldContain "classDiagram("
+        }
+
+        test("granular example resource concatenates multiple examples for a type") {
+            val contents = ResourceRegistry.read("kuml://dsl/examples/uml/component")
+            contents.text shouldContain "12 UML Component – Order Architecture"
+            contents.text shouldContain "35 AUTOSAR Classic – SW-Komponenten"
+        }
+
+        test("unknown granular example URI throws McpResourceException") {
+            shouldThrow<McpResourceException> {
+                ResourceRegistry.read("kuml://dsl/examples/uml/does-not-exist")
+            }
+        }
+
         test("read(unknown URI) throws McpResourceException") {
             shouldThrow<McpResourceException> {
                 ResourceRegistry.read("kuml://dsl/does-not-exist")
             }
         }
 
-        test("JSON-RPC resources/list returns 3 descriptors with uri, name, description, mimeType") {
+        test("JSON-RPC resources/list returns the three aggregate plus one granular descriptor per catalog entry") {
             val response =
                 McpServer.handleLine("""{"jsonrpc":"2.0","id":1,"method":"resources/list"}""")
                     ?: error("Expected a response for resources/list")
             val resources = response.result!!.jsonObject["resources"]!!.jsonArray
-            resources shouldHaveSize 3
+            resources shouldHaveSize (3 + granularCount)
             resources.forEach { resource ->
                 val obj = resource.jsonObject
                 obj["uri"]!!.jsonPrimitive.content.shouldNotBeBlank()
@@ -74,6 +103,16 @@ class KumlMcpResourcesTest :
                 obj["description"]!!.jsonPrimitive.content.shouldNotBeBlank()
                 obj["mimeType"]!!.jsonPrimitive.content.shouldNotBeBlank()
             }
+        }
+
+        test("JSON-RPC resources/list includes granular example URIs") {
+            val response =
+                McpServer.handleLine("""{"jsonrpc":"2.0","id":5,"method":"resources/list"}""")
+                    ?: error("Expected a response for resources/list")
+            val resources = response.result!!.jsonObject["resources"]!!.jsonArray
+            val uris = resources.map { it.jsonObject["uri"]!!.jsonPrimitive.content }
+            uris shouldContain "kuml://dsl/examples/sysml2/bdd"
+            uris shouldContain "kuml://dsl/examples/bpmn/choreography"
         }
 
         test("JSON-RPC resources/read for each known URI returns non-empty contents") {

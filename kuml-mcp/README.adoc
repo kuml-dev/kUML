@@ -22,7 +22,26 @@ The server shares its model-evaluation pipeline with `kuml-cli` via the public
 | `kuml.list_elements`  | List every classifier / package / relationship in the model with a stable ID.
 | `kuml.describe`       | Return the structured representation of a single element by ID.
 | `kuml.generate`       | Run a `KumlCodeGenerator` plugin (e.g. `kotlin`) and return the generated files.
+| `kuml.examples`       | Fetch curated `.kuml.kts` example scripts for a `(language, diagramType)` pair; call with `language` only to discover available diagram types.
 |===
+
+== Resources
+
+`kuml-mcp` also exposes the read-only `resources` capability — auto-loadable DSL knowledge
+that doesn't require a tool call round-trip:
+
+[cols="1,3,1"]
+|===
+| URI | Content | MIME type
+
+| `kuml://dsl/reference`    | Full DSL reference for UML, SysML v2, C4, and BPMN, concatenated. | `text/asciidoc`
+| `kuml://dsl/examples`     | Every curated vault example, concatenated. | `text/markdown`
+| `kuml://dsl/schema`       | JSON schema of every MCP tool's `inputSchema`. | `application/json`
+| `kuml://dsl/examples/<language>/<diagramType>` | Raw `.kuml.kts` script(s) for one diagram type (e.g. `kuml://dsl/examples/uml/class`) — the granular, backward-compatible companion to the aggregate `kuml://dsl/examples` resource. | `text/x-kotlin`
+|===
+
+See xref:reference:authoring-mcp.adoc[Authoring MCP Interface] for the full protocol
+reference (request/response shapes, error codes).
 
 == Build
 

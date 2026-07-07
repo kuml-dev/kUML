@@ -232,5 +232,5 @@ reach a specific state without constructing a full event sequence:
 == See also
 
 * xref:simulate.adoc[State-Machine Simulation] — batch simulation via `kuml simulate`, trace format
-* xref:authoring-mcp.adoc[Authoring MCP] — `kuml.render`/`validate`/`list_elements`/`describe`/`generate` tools
+* xref:authoring-mcp.adoc[Authoring MCP] — `kuml.render`/`validate`/`list_elements`/`describe`/`generate`/`examples` tools
 * xref:tooling:cli.adoc[CLI Reference]

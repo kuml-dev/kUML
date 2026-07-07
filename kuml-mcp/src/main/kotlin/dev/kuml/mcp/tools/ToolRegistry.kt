@@ -21,6 +21,8 @@ internal object ToolRegistry {
             ListElementsTool,
             DescribeTool,
             GenerateTool,
+            // V3.3.1 — curated per-type DSL examples
+            ExamplesTool,
             // V2.0.27 — Behaviour-Runtime tools
             RunStartTool(sessionManager),
             RunEventTool(sessionManager),

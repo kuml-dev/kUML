@@ -1,5 +1,5 @@
 = Authoring MCP Interface
-:description: kUML's MCP server exposes 5 authoring tools — render, validate, list_elements, describe, generate — plus 3 read-only resources for auto-loading DSL knowledge.
+:description: kUML's MCP server exposes 6 authoring tools — render, validate, list_elements, describe, generate, examples — plus read-only resources (including granular per-diagram-type example resources) for auto-loading DSL knowledge.
 
 kUML exposes its authoring/rendering pipeline via the Model Context Protocol (MCP). This
 allows any MCP-compatible client — Claude Desktop, Cursor, Continue, or your own agent —
@@ -24,7 +24,7 @@ kuml-mcp/build/install/kuml-mcp/bin/kuml-mcp
 
 Claude Desktop (and other MCP clients) connect to this process over stdio.
 
-== The five authoring tools
+== The six authoring tools
 
 [cols="1,3,2"]
 |===
@@ -59,14 +59,27 @@ Claude Desktop (and other MCP clients) connect to this process over stdio.
   `java`, `sql`) +
   `package` (optional, string — target Kotlin/Java package name)
 | One `text` content block per generated file, prefixed with a `// <filename>` comment.
+
+| `kuml.examples`
+| `language` (required, string enum — `uml`\|`c4`\|`sysml2`\|`bpmn`\|`blueprint`) +
+  `diagramType` (optional, string — per-language kebab-case token, e.g. `class`,
+  `sequence`, `composite-structure`, `bdd`, `container`, `service-blueprint`, `journey`;
+  omit to discover the diagram types available for `language`)
+| `language` only: one `text` content block, JSON `{"language", "diagramTypes": [{"diagramType",
+  "examples": [{"sourceNote", "description"}]}]}` — no scripts, for cheap discovery. +
+  `language` + `diagramType`: one `text` content block, JSON `{"language", "diagramType",
+  "examples": [{"sourceNote", "description", "script"}]}` — the curated `.kuml.kts` example
+  script(s) for that combination. Unknown `language`/`diagramType` throws a structured JSON
+  error (`{"error": {"code", "message", ...}}`, surfaced as `isError: true`).
 |===
 
-All five tools take the kUML DSL script *inline* as the `script` argument (not a file
+The first five tools take the kUML DSL script *inline* as the `script` argument (not a file
 path) — the server writes it to a temporary `*.kuml.kts` file, evaluates it through the
 same `KumlScriptHost` / `DiagramExtractor` pipeline used by `kuml-cli`, and cleans up the
 temporary file afterwards. `KumlScriptGuard.validate()` runs first to reject scripts that
 attempt disallowed operations (this is the standard sandboxing already applied to
-`kuml render`/`kuml validate` on the CLI).
+`kuml render`/`kuml validate` on the CLI). `kuml.examples` does not evaluate any script —
+it only serves bundled, pre-curated example text — and needs no sandboxing.
 
 == Minimal example: `kuml.render`
 
@@ -111,7 +124,7 @@ base64-encoded PNG bytes:
 
 == MCP resources: auto-loading DSL knowledge
 
-In addition to the five tools above, `kuml-mcp` exposes the `resources` capability
+In addition to the six tools above, `kuml-mcp` exposes the `resources` capability
 (`capabilities.resources` in the `initialize` response, protocol version `2024-11-05`).
 Resources are a *read-only* teaching channel — where the tools let an agent render and
 validate scripts, resources let an MCP client auto-load reference material about the DSL
@@ -139,6 +152,40 @@ itself, without any tool call round-trip.
 | `application/json`
 |===
 
+=== Granular per-diagram-type example resources (V3.3.1)
+
+In addition to the aggregate `kuml://dsl/examples` resource above (kept unchanged for
+backward compatibility), `kuml-mcp` exposes one resource per distinct `(language,
+diagramType)` combination in the curated example catalog — the same catalog backing the
+`kuml.examples` tool:
+
+[source]
+----
+kuml://dsl/examples/<language>/<diagramType>
+----
+
+For example `kuml://dsl/examples/uml/class`, `kuml://dsl/examples/sysml2/bdd`,
+`kuml://dsl/examples/c4/container`, `kuml://dsl/examples/bpmn/choreography`, or
+`kuml://dsl/examples/blueprint/journey`. All are listed in `resources/list` with
+`mimeType: text/x-kotlin`. The content is the raw `.kuml.kts` script(s) for that diagram
+type — concatenated with a `// ── <source note> ──` header per script when more than one
+curated example matches (e.g. `uml/component`, `uml/profile`, `bpmn/process`). Requesting
+an unknown `(language, diagramType)` combination returns a standard JSON-RPC error (code
+`-32602`), same as the aggregate resource.
+
+[source,json]
+----
+{
+  "method": "resources/read",
+  "params": { "uri": "kuml://dsl/examples/uml/class" }
+}
+----
+
+This is the resources-capability equivalent of calling the `kuml.examples` tool with both
+`language` and `diagramType` set — use whichever surface your MCP client supports better;
+clients without tool-call support can still fetch a single diagram type via
+`resources/read`.
+
 Client protocol, mirroring `tools/list` / `tools/call`:
 
 [source,json]
@@ -158,7 +205,8 @@ The response shape for `resources/read` is `{ "contents": [{ "uri", "mimeType", 
 — one entry per requested URI. Requesting an unknown `uri` returns a standard JSON-RPC
 error (code `-32602`), not a crash.
 
-All three resources are static: bundled at build time from the handbook pages and the
+All resources — the three aggregate ones and the granular per-diagram-type example
+resources — are static: bundled at build time from the handbook pages and the
 vault-examples classpath resources (`:kuml-mcp:processResources`), so they behave
 identically in the packaged binary and in tests — no live filesystem or vault access at
 runtime. Not yet supported: `resources/subscribe` / live updates, and `prompts` capability

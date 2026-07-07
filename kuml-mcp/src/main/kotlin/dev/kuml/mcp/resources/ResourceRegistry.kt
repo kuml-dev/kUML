@@ -2,6 +2,8 @@ package dev.kuml.mcp.resources
 
 import dev.kuml.mcp.McpResourceContents
 import dev.kuml.mcp.McpResourceDescriptor
+import dev.kuml.mcp.examples.BundledExamples
+import dev.kuml.mcp.examples.ExampleCatalog
 import dev.kuml.mcp.tools.ToolRegistry
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -14,20 +16,45 @@ import kotlinx.serialization.json.put
  * "Lehrkanal" (teaching channel) complementing the `kuml.render` feedback loop.
  *
  * Pattern mirrors [ToolRegistry]: a fixed list of descriptors plus a
- * `read(uri)` dispatch function. All three resources are static (built once,
- * lazily, from classpath resources) — no live filesystem/vault access, so
- * they work identically in the packaged binary and in tests.
+ * `read(uri)` dispatch function. All resources — the three aggregate ones plus the
+ * granular per-`(language, diagramType)` example resources (V3.3.1) — are static
+ * (built once, lazily, from classpath resources) — no live filesystem/vault access,
+ * so they work identically in the packaged binary and in tests.
  */
 internal object ResourceRegistry {
     private const val URI_REFERENCE = "kuml://dsl/reference"
     private const val URI_EXAMPLES = "kuml://dsl/examples"
     private const val URI_SCHEMA = "kuml://dsl/schema"
 
+    /** Prefix for the granular per-(language, diagramType) example resources — V3.3.1. */
+    private const val URI_EXAMPLES_PREFIX = "kuml://dsl/examples/"
+
     /** Handbook pages bundled under `dsl/reference/` by `:kuml-mcp:processResources` (see build.gradle.kts). */
     private val referencePages =
         listOf("uml-dsl.adoc", "sysml2.adoc", "c4-dsl.adoc", "bpmn-dsl.adoc")
 
     private val json = Json { prettyPrint = true }
+
+    /**
+     * One descriptor per distinct `(language, diagramType)` combination in [ExampleCatalog] —
+     * V3.3.1. Backward-compatible companion to the aggregate [URI_EXAMPLES] resource: an MCP
+     * client that only supports `resources/list` (no tool calls) can still fetch a single
+     * diagram type's script(s) without paying for the full concatenated corpus.
+     */
+    private val granularExampleDescriptors: List<McpResourceDescriptor> =
+        ExampleCatalog.languages().flatMap { language ->
+            ExampleCatalog.diagramTypes(language).map { diagramType ->
+                McpResourceDescriptor(
+                    uri = "$URI_EXAMPLES_PREFIX$language/$diagramType",
+                    name = "kUML example: $language $diagramType",
+                    description =
+                        ExampleCatalog
+                            .find(language = language, diagramType = diagramType)
+                            .joinToString(separator = " | ") { it.description },
+                    mimeType = "text/x-kotlin",
+                )
+            }
+        }
 
     internal val descriptors: List<McpResourceDescriptor> =
         listOf(
@@ -54,19 +81,44 @@ internal object ResourceRegistry {
                     "JSON schema of all MCP tool input shapes, for structured autocompletion in MCP clients.",
                 mimeType = "application/json",
             ),
-        )
+        ) + granularExampleDescriptors
 
     /**
      * Reads the resource identified by [uri].
      * @throws McpResourceException if [uri] is unknown
      */
     internal fun read(uri: String): McpResourceContents =
-        when (uri) {
-            URI_REFERENCE -> McpResourceContents(uri = uri, mimeType = "text/asciidoc", text = buildReferenceText())
-            URI_EXAMPLES -> McpResourceContents(uri = uri, mimeType = "text/markdown", text = buildExamplesText())
-            URI_SCHEMA -> McpResourceContents(uri = uri, mimeType = "application/json", text = buildSchemaText())
+        when {
+            uri == URI_REFERENCE ->
+                McpResourceContents(uri = uri, mimeType = "text/asciidoc", text = buildReferenceText())
+            uri == URI_EXAMPLES ->
+                McpResourceContents(uri = uri, mimeType = "text/markdown", text = buildExamplesText())
+            uri == URI_SCHEMA ->
+                McpResourceContents(uri = uri, mimeType = "application/json", text = buildSchemaText())
+            uri.startsWith(URI_EXAMPLES_PREFIX) ->
+                McpResourceContents(uri = uri, mimeType = "text/x-kotlin", text = buildGranularExampleText(uri))
             else -> throw McpResourceException("Unknown resource: '$uri'")
         }
+
+    /**
+     * Parses `kuml://dsl/examples/<language>/<diagramType>` and returns the concatenated
+     * `.kuml.kts` script(s) for that combination, each prefixed with a source-note header.
+     * @throws McpResourceException if the combination is unknown
+     */
+    private fun buildGranularExampleText(uri: String): String {
+        val path = uri.removePrefix(URI_EXAMPLES_PREFIX)
+        val language = path.substringBefore('/')
+        val diagramType = path.substringAfter('/', missingDelimiterValue = "")
+        val matches = ExampleCatalog.find(language = language, diagramType = diagramType)
+        if (matches.isEmpty()) {
+            throw McpResourceException(
+                "Unknown resource: '$uri'. No example for language '$language' and diagramType '$diagramType'.",
+            )
+        }
+        return matches.joinToString(separator = "\n\n") { example ->
+            "// ── ${example.sourceNote} ──\n${ExampleCatalog.loadScript(example)}"
+        }
+    }
 
     private fun buildReferenceText(): String =
         referencePages.joinToString(separator = "\n\n") { page ->
@@ -77,45 +129,12 @@ internal object ResourceRegistry {
         }
 
     private fun buildExamplesText(): String {
-        val exampleNames = listExampleResourceNames()
+        val exampleNames = BundledExamples.listNames()
         if (exampleNames.isEmpty()) {
             throw McpResourceException("No bundled vault examples found under dsl/examples/")
         }
         return exampleNames.sorted().joinToString(separator = "\n\n---\n\n") { name ->
-            val stream =
-                javaClass.getResourceAsStream("/dsl/examples/$name")
-                    ?: throw McpResourceException("Missing bundled example: $name")
-            stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-        }
-    }
-
-    /**
-     * Lists the `*.md` example files bundled under `dsl/examples/` on the classpath.
-     * Uses the resource directory listing rather than a hardcoded name list, so newly
-     * added vault examples (V3.2.18) are picked up automatically by the next build.
-     */
-    private fun listExampleResourceNames(): List<String> {
-        val dirUrl = javaClass.getResource("/dsl/examples/") ?: return emptyList()
-        return when (dirUrl.protocol) {
-            "file" -> {
-                val dir = java.io.File(dirUrl.toURI())
-                dir
-                    .listFiles { file -> file.isFile && file.name.endsWith(".md") }
-                    ?.map { it.name }
-                    ?: emptyList()
-            }
-            "jar" -> {
-                val jarPath = dirUrl.path.substringBefore("!").removePrefix("file:")
-                java.util.jar.JarFile(jarPath).use { jar ->
-                    jar
-                        .entries()
-                        .asSequence()
-                        .filter { it.name.startsWith("dsl/examples/") && it.name.endsWith(".md") }
-                        .map { it.name.removePrefix("dsl/examples/") }
-                        .toList()
-                }
-            }
-            else -> emptyList()
+            BundledExamples.readRaw(name) ?: throw McpResourceException("Missing bundled example: $name")
         }
     }
 

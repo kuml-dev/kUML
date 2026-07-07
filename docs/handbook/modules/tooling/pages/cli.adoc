@@ -290,7 +290,7 @@ kuml ai vault                         # API key vault (AES-256-GCM)
 `kuml ai` is *not* the MCP server entry point — there is no `mcp-stdio` subcommand. The
 MCP server is the standalone `kuml-mcp` binary (module `kuml-mcp`, `mainClass =
 dev.kuml.mcp.MainKt`), started directly as `/path/to/kuml-mcp/bin/kuml-mcp`. It exposes
-5 authoring tools (`kuml.render`/`validate`/`list_elements`/`describe`/`generate`) and
+6 authoring tools (`kuml.render`/`validate`/`list_elements`/`describe`/`generate`/`examples`) and
 5 Behaviour-Runtime tools (`kuml.run.start`/`event`/`snapshot`/`patch`/`stop`) — agents
 can query and drive a kUML model the same way they query a database. See
 xref:reference:authoring-mcp.adoc[Authoring MCP] and
