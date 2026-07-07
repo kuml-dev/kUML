@@ -17,9 +17,10 @@ import kotlinx.serialization.json.put
  *
  * Pattern mirrors [ToolRegistry]: a fixed list of descriptors plus a
  * `read(uri)` dispatch function. All resources — the three aggregate ones plus the
- * granular per-`(language, diagramType)` example resources (V3.3.1) — are static
- * (built once, lazily, from classpath resources) — no live filesystem/vault access,
- * so they work identically in the packaged binary and in tests.
+ * granular per-`(language, diagramType)` example resources (V3.3.1) and the granular
+ * per-`language` reference resources (V3.3.2) — are static (built once, lazily, from
+ * classpath resources) — no live filesystem/vault access, so they work identically in
+ * the packaged binary and in tests.
  */
 internal object ResourceRegistry {
     private const val URI_REFERENCE = "kuml://dsl/reference"
@@ -29,9 +30,22 @@ internal object ResourceRegistry {
     /** Prefix for the granular per-(language, diagramType) example resources — V3.3.1. */
     private const val URI_EXAMPLES_PREFIX = "kuml://dsl/examples/"
 
-    /** Handbook pages bundled under `dsl/reference/` by `:kuml-mcp:processResources` (see build.gradle.kts). */
-    private val referencePages =
-        listOf("uml-dsl.adoc", "sysml2.adoc", "c4-dsl.adoc", "bpmn-dsl.adoc")
+    /** Prefix for the granular per-language reference resources — V3.3.2. */
+    private const val URI_REFERENCE_PREFIX = "kuml://dsl/reference/"
+
+    /**
+     * Handbook pages bundled under `dsl/reference/` by `:kuml-mcp:processResources` (see
+     * build.gradle.kts), keyed by the [ExampleCatalog] language token they document. `blueprint`
+     * has no dedicated handbook reference page yet — out of scope for this wave.
+     */
+    private val referencePagesByLanguage =
+        mapOf(
+            "uml" to "uml-dsl.adoc",
+            "sysml2" to "sysml2.adoc",
+            "c4" to "c4-dsl.adoc",
+            "bpmn" to "bpmn-dsl.adoc",
+        )
+    private val referencePages = referencePagesByLanguage.values.toList()
 
     private val json = Json { prettyPrint = true }
 
@@ -54,6 +68,22 @@ internal object ResourceRegistry {
                     mimeType = "text/x-kotlin",
                 )
             }
+        }
+
+    /**
+     * One descriptor per handbook reference page in [referencePagesByLanguage] — V3.3.2.
+     * Backward-compatible companion to the aggregate [URI_REFERENCE] resource: an MCP client
+     * that wants just the BPMN or SysML v2 DSL reference doesn't need to pay for the full
+     * concatenated handbook text.
+     */
+    private val granularReferenceDescriptors: List<McpResourceDescriptor> =
+        referencePagesByLanguage.keys.map { language ->
+            McpResourceDescriptor(
+                uri = "$URI_REFERENCE_PREFIX$language",
+                name = "kUML DSL reference: $language",
+                description = "DSL reference for the '$language' builder functions — a single handbook reference page.",
+                mimeType = "text/asciidoc",
+            )
         }
 
     internal val descriptors: List<McpResourceDescriptor> =
@@ -81,7 +111,7 @@ internal object ResourceRegistry {
                     "JSON schema of all MCP tool input shapes, for structured autocompletion in MCP clients.",
                 mimeType = "application/json",
             ),
-        ) + granularExampleDescriptors
+        ) + granularExampleDescriptors + granularReferenceDescriptors
 
     /**
      * Reads the resource identified by [uri].
@@ -97,8 +127,23 @@ internal object ResourceRegistry {
                 McpResourceContents(uri = uri, mimeType = "application/json", text = buildSchemaText())
             uri.startsWith(URI_EXAMPLES_PREFIX) ->
                 McpResourceContents(uri = uri, mimeType = "text/x-kotlin", text = buildGranularExampleText(uri))
+            uri.startsWith(URI_REFERENCE_PREFIX) ->
+                McpResourceContents(uri = uri, mimeType = "text/asciidoc", text = buildGranularReferenceText(uri))
             else -> throw McpResourceException("Unknown resource: '$uri'")
         }
+
+    /**
+     * Parses `kuml://dsl/reference/<language>` and returns that language's single handbook
+     * reference page.
+     * @throws McpResourceException if [language] has no bundled reference page
+     */
+    private fun buildGranularReferenceText(uri: String): String {
+        val language = uri.removePrefix(URI_REFERENCE_PREFIX)
+        val page =
+            referencePagesByLanguage[language]
+                ?: throw McpResourceException("Unknown resource: '$uri'. No reference page for language '$language'.")
+        return readReferencePage(page)
+    }
 
     /**
      * Parses `kuml://dsl/examples/<language>/<diagramType>` and returns the concatenated
@@ -122,11 +167,15 @@ internal object ResourceRegistry {
 
     private fun buildReferenceText(): String =
         referencePages.joinToString(separator = "\n\n") { page ->
-            val stream =
-                javaClass.getResourceAsStream("/dsl/reference/$page")
-                    ?: throw McpResourceException("Missing bundled reference page: $page")
-            stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+            readReferencePage(page)
         }
+
+    private fun readReferencePage(page: String): String {
+        val stream =
+            javaClass.getResourceAsStream("/dsl/reference/$page")
+                ?: throw McpResourceException("Missing bundled reference page: $page")
+        return stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+    }
 
     private fun buildExamplesText(): String {
         val exampleNames = BundledExamples.listNames()

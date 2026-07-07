@@ -6,6 +6,7 @@ import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.ints.shouldBeLessThan
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
@@ -18,6 +19,7 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * V3.2.17 — tests for the MCP resources capability: `kuml://dsl/{reference,examples,schema}`.
  * V3.3.1 extends this with the granular per-`(language, diagramType)` example resources.
+ * V3.3.2 extends this with the granular per-`language` reference resources.
  *
  * Exercises both the [ResourceRegistry] directly (unit level, mirrors [dev.kuml.mcp.tools.ToolRegistry]
  * test style) and the JSON-RPC surface via [McpServer.handleLine] (protocol level, mirrors how a
@@ -32,13 +34,20 @@ class KumlMcpResourcesTest :
         val granularCount =
             ExampleCatalog.languages().sumOf { language -> ExampleCatalog.diagramTypes(language).size }
 
+        // One granular reference resource per bundled handbook page — uml, sysml2, c4, bpmn.
+        val referenceLanguageCount = 4
+
         test("descriptors exposes the three aggregate kuml://dsl resource URIs plus one per catalog entry") {
-            ResourceRegistry.descriptors shouldHaveSize (3 + granularCount)
+            ResourceRegistry.descriptors shouldHaveSize (3 + granularCount + referenceLanguageCount)
             val uris = ResourceRegistry.descriptors.map { it.uri }
             uris.take(3) shouldBe listOf("kuml://dsl/reference", "kuml://dsl/examples", "kuml://dsl/schema")
             uris shouldContain "kuml://dsl/examples/uml/class"
             uris shouldContain "kuml://dsl/examples/c4/container"
             uris shouldContain "kuml://dsl/examples/blueprint/journey"
+            uris shouldContain "kuml://dsl/reference/uml"
+            uris shouldContain "kuml://dsl/reference/sysml2"
+            uris shouldContain "kuml://dsl/reference/c4"
+            uris shouldContain "kuml://dsl/reference/bpmn"
         }
 
         test("read(kuml://dsl/reference) returns non-empty asciidoc content covering all DSL families") {
@@ -84,6 +93,20 @@ class KumlMcpResourcesTest :
             }
         }
 
+        test("granular reference resource returns the single handbook page for its language") {
+            val contents = ResourceRegistry.read("kuml://dsl/reference/bpmn")
+            contents.mimeType shouldBe "text/asciidoc"
+            contents.text.shouldNotBeBlank()
+            contents.text shouldContain "BPMN"
+            contents.text.length shouldBeLessThan ResourceRegistry.read("kuml://dsl/reference").text.length
+        }
+
+        test("unknown granular reference URI throws McpResourceException") {
+            shouldThrow<McpResourceException> {
+                ResourceRegistry.read("kuml://dsl/reference/does-not-exist")
+            }
+        }
+
         test("read(unknown URI) throws McpResourceException") {
             shouldThrow<McpResourceException> {
                 ResourceRegistry.read("kuml://dsl/does-not-exist")
@@ -95,7 +118,7 @@ class KumlMcpResourcesTest :
                 McpServer.handleLine("""{"jsonrpc":"2.0","id":1,"method":"resources/list"}""")
                     ?: error("Expected a response for resources/list")
             val resources = response.result!!.jsonObject["resources"]!!.jsonArray
-            resources shouldHaveSize (3 + granularCount)
+            resources shouldHaveSize (3 + granularCount + referenceLanguageCount)
             resources.forEach { resource ->
                 val obj = resource.jsonObject
                 obj["uri"]!!.jsonPrimitive.content.shouldNotBeBlank()
@@ -113,6 +136,7 @@ class KumlMcpResourcesTest :
             val uris = resources.map { it.jsonObject["uri"]!!.jsonPrimitive.content }
             uris shouldContain "kuml://dsl/examples/sysml2/bdd"
             uris shouldContain "kuml://dsl/examples/bpmn/choreography"
+            uris shouldContain "kuml://dsl/reference/c4"
         }
 
         test("JSON-RPC resources/read for each known URI returns non-empty contents") {
