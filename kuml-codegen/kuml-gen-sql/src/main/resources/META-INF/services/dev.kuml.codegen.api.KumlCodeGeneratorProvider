@@ -1,1 +1,2 @@
 dev.kuml.codegen.sql.SqlDdlGeneratorProvider
+dev.kuml.codegen.sql.FlywayBaselineGeneratorProvider
