@@ -292,6 +292,15 @@ internal object SvgDocument {
                 append(".kuml-erm-optional-marker { fill: $nodeFill; stroke: ${c.edge.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-erm-mandatory-marker { stroke: ${c.edge.toHex()}; stroke-width: ${bo.regularPx}; }\n")
+                // V3.4.3 — ERM/Bachman renderer. Entity boxes and the hollow
+                // `.kuml-erm-optional-marker` circle above are reused as-is;
+                // only the arrowhead and the filled mandatory circle are
+                // Bachman-specific (the crow's-foot/bar equivalents differ
+                // visually enough to need dedicated classes).
+                append(".kuml-erm-bachman-arrow { fill: ${c.edge.toHex()}; stroke: ${c.edge.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-erm-bachman-mandatory { fill: ${c.edge.toHex()}; stroke: ${c.edge.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
             }
 
         b.tag("style") {

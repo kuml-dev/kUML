@@ -5,7 +5,6 @@ import dev.kuml.erm.model.ErmAttribute
 import dev.kuml.erm.model.ErmDataType
 import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmEntity
-import dev.kuml.erm.model.ErmForeignKey
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmNotation
 import dev.kuml.erm.model.ErmRelationship
@@ -22,45 +21,25 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.renderer.theme.core.PlainTheme
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 
 /**
- * Structural + smoke tests for the ERM/Martin (crow's-foot) SVG renderer
- * (V3.4.2). Uses a hand-built [LayoutResult] — this is fine here because
- * these tests exercise the *renderer's* drawing logic, not content-aware
- * sizing (that lives in `ErmContentSizeProviderTest`, which goes through the
- * real `ErmLayoutBridge` → ELK pipeline, per the CLAUDE.md "no hardcoded
- * LayoutResult" pitfall for sizing tests specifically).
+ * Structural + smoke tests for the ERM/Bachman SVG renderer (V3.4.3). Mirrors
+ * `ErmMartinSvgTest`'s structure — see that file's KDoc for why a hand-built
+ * [LayoutResult] is fine here (renderer drawing logic, not content-aware
+ * sizing).
  *
  * Each test also writes its SVG (+ auto-generated PNG) to
- * `kuml-io-svg/build/sample-output/erm/<test-name>.svg` for visual review.
+ * `kuml-io-svg/build/sample-output/erm/bachman-<test-name>.svg` for visual
+ * review.
  */
-class ErmMartinSvgTest :
+class ErmBachmanSvgTest :
     StringSpec({
 
-        "entity names render as visible text, no empty canvas" {
-            val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
-            val order = ErmEntity(id = "order", name = "Order", attributes = listOf(pk("id")))
-            val model = ErmModel(name = "Shop", entities = listOf(customer, order))
-            val diagram = ErmDiagram(name = "Overview")
-            val layout =
-                layoutOf(
-                    "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
-                    "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
-                )
-
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
-
-            svg shouldContain "Customer"
-            svg shouldContain "Order"
-            SampleOutput.write("erm/two-entities.svg", svg)
-        }
-
-        "many-cardinality end renders a crow's-foot path" {
+        "many-cardinality end renders a Bachman arrowhead" {
             val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val order = ErmEntity(id = "order", name = "Order", attributes = listOf(pk("id")))
             val rel =
@@ -73,7 +52,7 @@ class ErmMartinSvgTest :
                     targetCardinality = Cardinality.ZERO_MANY,
                 )
             val model = ErmModel(name = "Shop", entities = listOf(customer, order), relationships = listOf(rel))
-            val diagram = ErmDiagram(name = "Overview")
+            val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
             val layout =
                 layoutOf(
                     nodes = listOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)), "order" to Rect(Point(260f, 20f), Size(180f, 90f))),
@@ -82,12 +61,38 @@ class ErmMartinSvgTest :
 
             val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
 
-            svg shouldContain "kuml-erm-crowfoot"
-            svg shouldContain "kuml-erm-mandatory-marker"
-            SampleOutput.write("erm/crowfoot-one-to-many.svg", svg)
+            svg shouldContain "kuml-erm-bachman-arrow"
+            svg shouldContain "kuml-erm-bachman-mandatory"
+            SampleOutput.write("erm/bachman-one-to-many.svg", svg)
         }
 
-        "optional zero-cardinality end renders a circle marker" {
+        "mandatory (min>=1) end renders a filled circle" {
+            val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
+            val order = ErmEntity(id = "order", name = "Order", attributes = listOf(pk("id")))
+            val rel =
+                ErmRelationship(
+                    id = "rel1",
+                    name = "places",
+                    sourceEntityId = "customer",
+                    targetEntityId = "order",
+                    sourceCardinality = Cardinality.ONE,
+                    targetCardinality = Cardinality.ONE_MANY,
+                )
+            val model = ErmModel(name = "Shop", entities = listOf(customer, order), relationships = listOf(rel))
+            val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
+            val layout =
+                layoutOf(
+                    nodes = listOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)), "order" to Rect(Point(260f, 20f), Size(180f, 90f))),
+                    edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
+                )
+
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
+
+            svg shouldContain "kuml-erm-bachman-mandatory"
+            SampleOutput.write("erm/bachman-mandatory-one-to-many.svg", svg)
+        }
+
+        "optional (min=0) end renders a hollow circle" {
             val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val order = ErmEntity(id = "order", name = "Order", attributes = listOf(pk("id")))
             val rel =
@@ -100,7 +105,7 @@ class ErmMartinSvgTest :
                     targetCardinality = Cardinality.ZERO_MANY,
                 )
             val model = ErmModel(name = "Shop", entities = listOf(customer, order), relationships = listOf(rel))
-            val diagram = ErmDiagram(name = "Overview")
+            val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
             val layout =
                 layoutOf(
                     nodes = listOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)), "order" to Rect(Point(260f, 20f), Size(180f, 90f))),
@@ -110,36 +115,29 @@ class ErmMartinSvgTest :
             val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
 
             svg shouldContain "kuml-erm-optional-marker"
-            SampleOutput.write("erm/optional-zero-one.svg", svg)
+            SampleOutput.write("erm/bachman-optional-zero-one.svg", svg)
         }
 
-        "weak entity draws a second, inner rect (double border)" {
+        "entity boxes render identically to Martin (shared renderer)" {
+            val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val order = ErmEntity(id = "order", name = "Order", attributes = listOf(pk("id")))
-            val item =
-                ErmEntity(
-                    id = "item",
-                    name = "OrderItem",
-                    weak = true,
-                    attributes =
-                        listOf(
-                            ErmAttribute(id = "order_id", name = "order_id", type = ErmDataType.Uuid, foreignKey = ErmForeignKey(targetEntityId = "order")),
-                        ),
-                )
-            val model = ErmModel(name = "Shop", entities = listOf(order, item))
-            val diagram = ErmDiagram(name = "Overview")
+            val model = ErmModel(name = "Shop", entities = listOf(customer, order))
+            val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
             val layout =
                 layoutOf(
-                    "order" to Rect(Point(20f, 20f), Size(180f, 90f)),
-                    "item" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                    "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
+                    "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
                 )
 
             val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
 
-            svg shouldContain "kuml-erm-entity-inner"
-            SampleOutput.write("erm/weak-entity.svg", svg)
+            svg shouldContain "kuml-erm-entity"
+            svg shouldContain "Customer"
+            svg shouldContain "Order"
+            SampleOutput.write("erm/bachman-two-entities.svg", svg)
         }
 
-        "NON_IDENTIFYING relationship renders dashed, IDENTIFYING renders solid" {
+        "NON_IDENTIFYING dashed / IDENTIFYING solid" {
             val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val order = ErmEntity(id = "order", name = "Order", attributes = listOf(pk("id")))
             val item = ErmEntity(id = "item", name = "OrderItem", weak = true, attributes = listOf(pk("id")))
@@ -164,7 +162,7 @@ class ErmMartinSvgTest :
                     kind = RelationshipKind.IDENTIFYING,
                 )
             val model = ErmModel(name = "Shop", entities = listOf(customer, order, item), relationships = listOf(nonIdentifying, identifying))
-            val diagram = ErmDiagram(name = "Overview")
+            val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
             val layout =
                 layoutOf(
                     nodes =
@@ -184,79 +182,42 @@ class ErmMartinSvgTest :
 
             svg shouldContain "kuml-edge-dashed"
             svg shouldContain "kuml-edge\""
-            SampleOutput.write("erm/identifying-vs-non-identifying.svg", svg)
-        }
-
-        "primary key is underlined, foreign key shows FK marker" {
-            val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
-            val order =
-                ErmEntity(
-                    id = "order",
-                    name = "Order",
-                    attributes =
-                        listOf(
-                            pk("id"),
-                            ErmAttribute(
-                                id = "customer_id",
-                                name = "customer_id",
-                                type = ErmDataType.Uuid,
-                                foreignKey = ErmForeignKey(targetEntityId = "customer"),
-                            ),
-                        ),
-                )
-            val model = ErmModel(name = "Shop", entities = listOf(customer, order))
-            val diagram = ErmDiagram(name = "Overview")
-            val layout =
-                layoutOf(
-                    "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
-                    "order" to Rect(Point(260f, 20f), Size(180f, 120f)),
-                )
-
-            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
-
-            svg shouldContain "kuml-erm-pk-underline"
-            svg shouldContain "FK"
-            svg shouldContain "customer_id : UUID"
-            SampleOutput.write("erm/pk-fk-markers.svg", svg)
+            SampleOutput.write("erm/bachman-identifying-vs-non-identifying.svg", svg)
         }
 
         "no raw XML entities leak into rendered text" {
             val customer = ErmEntity(id = "customer", name = "Customer's Table", attributes = listOf(pk("id")))
             val model = ErmModel(name = "Shop", entities = listOf(customer))
-            val diagram = ErmDiagram(name = "Overview")
+            val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
             val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(200f, 90f)))
 
             val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
 
             svg shouldNotContain "&amp;apos;"
             svg shouldNotContain "&amp;lt;"
-            SampleOutput.write("erm/xml-escape-guard.svg", svg)
-        }
-
-        "notation override CHEN/IDEF1X throws a structured not-yet-supported error" {
-            val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
-            val model = ErmModel(name = "Shop", entities = listOf(customer))
-            val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.MARTIN)
-            val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)))
-
-            listOf(ErmNotation.CHEN, ErmNotation.IDEF1X).forEach { notation ->
-                val ex =
-                    shouldThrow<IllegalArgumentException> {
-                        KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), notation = notation)
-                    }
-                ex.message shouldContain "not yet supported"
-            }
+            SampleOutput.write("erm/bachman-xml-escape-guard.svg", svg)
         }
 
         "deterministic output — same input renders byte-identically" {
             val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val model = ErmModel(name = "Shop", entities = listOf(customer))
-            val diagram = ErmDiagram(name = "Overview")
+            val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
             val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)))
 
             val one = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
             val two = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
             one shouldBe two
+        }
+
+        "BACHMAN no longer throws (regression guard)" {
+            val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
+            val model = ErmModel(name = "Shop", entities = listOf(customer))
+            val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.MARTIN)
+            val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)))
+
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), notation = ErmNotation.BACHMAN)
+
+            svg shouldContain "kuml-erm-entity"
         }
     })
 

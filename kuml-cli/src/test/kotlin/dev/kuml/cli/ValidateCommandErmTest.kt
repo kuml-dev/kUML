@@ -8,10 +8,10 @@ import io.kotest.matchers.string.shouldContain
 import java.io.File
 
 /**
- * V3.4.1/V3.4.2 — CLI smoke tests proving `kuml validate` compiles, extracts,
- * and structurally validates ERM (`ermModel { … }`) scripts via
+ * V3.4.1/V3.4.2/V3.4.3 — CLI smoke tests proving `kuml validate` compiles,
+ * extracts, and structurally validates ERM (`ermModel { … }`) scripts via
  * [dev.kuml.erm.constraint.ErmConstraintChecker], and that `kuml render` now
- * renders ERM/Martin diagrams (V3.4.2) instead of the V3.4.1 stub.
+ * renders both ERM/Martin (V3.4.2) and ERM/Bachman (V3.4.3) diagrams.
  */
 class ValidateCommandErmTest :
     FunSpec({
@@ -57,7 +57,7 @@ class ValidateCommandErmTest :
             }
         }
 
-        test("render --notation bachman throws a structured not-yet-supported error (exit 3)") {
+        test("render --notation bachman produces an ERM/Bachman SVG for a valid ERM script (V3.4.3)") {
             val outputFile = File.createTempFile("kuml-erm-render-bachman-", ".svg")
             try {
                 val result =
@@ -71,6 +71,32 @@ class ValidateCommandErmTest :
                             outputFile.absolutePath,
                             "--notation",
                             "bachman",
+                        ),
+                    )
+                result.statusCode shouldBe 0
+                val svg = outputFile.readText()
+                svg shouldContain "<svg"
+                svg shouldContain "Customer"
+                svg shouldContain "Order"
+            } finally {
+                outputFile.delete()
+            }
+        }
+
+        test("render --notation chen throws a structured not-yet-supported error (exit 3)") {
+            val outputFile = File.createTempFile("kuml-erm-render-chen-", ".svg")
+            try {
+                val result =
+                    KumlCli().test(
+                        listOf(
+                            "render",
+                            validFixture.absolutePath,
+                            "--format",
+                            "svg",
+                            "--output",
+                            outputFile.absolutePath,
+                            "--notation",
+                            "chen",
                         ),
                     )
                 // The structured "not yet supported" message goes to System.err.println

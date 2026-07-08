@@ -32,6 +32,7 @@ import dev.kuml.core.model.PackageDiagramConfig
 import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmNotation
+import dev.kuml.erm.model.ErmRelationship
 import dev.kuml.io.svg.blueprint.renderBlueprintJourney
 import dev.kuml.io.svg.bpmn.renderChoreoSequenceFlow
 import dev.kuml.io.svg.bpmn.renderChoreographyEvent
@@ -43,6 +44,7 @@ import dev.kuml.io.svg.bpmn.renderConversationParticipant
 import dev.kuml.io.svg.c4.c4RelationshipLabel
 import dev.kuml.io.svg.c4.renderC4Interaction
 import dev.kuml.io.svg.c4.renderC4Relationship
+import dev.kuml.io.svg.erm.renderErmBachmanRelationship
 import dev.kuml.io.svg.erm.renderErmEntity
 import dev.kuml.io.svg.erm.renderErmMartinRelationship
 import dev.kuml.io.svg.erm.renderErmView
@@ -1873,10 +1875,10 @@ public object KumlSvgRenderer {
      * the Blueprint overload above.
      *
      * [notation] defaults to `diagram.notation` but callers (the CLI's
-     * `--notation` flag) may override it. Only [ErmNotation.MARTIN]
-     * (crow's-foot) is implemented in V3.4.2 — the other three notations
-     * throw a structured "not yet supported" error naming the wave they are
-     * planned for.
+     * `--notation` flag) may override it. [ErmNotation.MARTIN] (crow's-foot)
+     * and [ErmNotation.BACHMAN] (arrow + circle) are implemented as of
+     * V3.4.3 — the remaining two notations throw a structured "not yet
+     * supported" error naming the wave they are planned for.
      */
     public fun toSvg(
         model: ErmModel,
@@ -1888,20 +1890,16 @@ public object KumlSvgRenderer {
     ): String =
         when (notation) {
             ErmNotation.MARTIN -> renderErmMartin(model, diagram, layoutResult, theme, options)
-            ErmNotation.BACHMAN ->
-                throw IllegalArgumentException(
-                    "ERM notation BACHMAN is not yet supported — MARTIN (crow's foot) is the only " +
-                        "notation implemented in kUML V3.4.2. Bachman is planned for V3.4.3.",
-                )
+            ErmNotation.BACHMAN -> renderErmBachman(model, diagram, layoutResult, theme, options)
             ErmNotation.CHEN ->
                 throw IllegalArgumentException(
-                    "ERM notation CHEN is not yet supported — MARTIN (crow's foot) is the only " +
-                        "notation implemented in kUML V3.4.2. Chen is planned for V3.4.4.",
+                    "ERM notation CHEN is not yet supported — MARTIN (crow's foot) and BACHMAN are the " +
+                        "only notations implemented in kUML V3.4.3. Chen is planned for V3.4.4.",
                 )
             ErmNotation.IDEF1X ->
                 throw IllegalArgumentException(
-                    "ERM notation IDEF1X is not yet supported — MARTIN (crow's foot) is the only " +
-                        "notation implemented in kUML V3.4.2. IDEF1X is planned for V3.4.5.",
+                    "ERM notation IDEF1X is not yet supported — MARTIN (crow's foot) and BACHMAN are the " +
+                        "only notations implemented in kUML V3.4.3. IDEF1X is planned for V3.4.5.",
                 )
         }
 
@@ -1911,6 +1909,31 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme,
         options: SvgRenderOptions,
+    ): String = renderErm(model, diagram, layoutResult, theme, options, ::renderErmMartinRelationship)
+
+    /** [toSvg] path for [ErmNotation.BACHMAN] (V3.4.3) — shares layout, entity/view rendering, and label stacking with [renderErmMartin]; only the edge-glyph renderer differs. */
+    private fun renderErmBachman(
+        model: ErmModel,
+        diagram: ErmDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+    ): String = renderErm(model, diagram, layoutResult, theme, options, ::renderErmBachmanRelationship)
+
+    /**
+     * Shared ERM render body for [renderErmMartin] and [renderErmBachman] —
+     * entity/view boxes, layout shifting, and relationship-label stacking are
+     * notation-neutral (see [KumlSvgRenderer.toSvg]'s KDoc); only the
+     * cardinality-glyph edge renderer, passed as [renderRelationship], varies
+     * per notation.
+     */
+    private fun renderErm(
+        model: ErmModel,
+        diagram: ErmDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+        renderRelationship: (ErmRelationship, EdgeRoute, KumlTheme, SvgBuilder, Int) -> Unit,
     ): String {
         val entitiesById = model.entities.associateBy { it.id }
         val viewsById = model.views.associateBy { it.id }
@@ -1960,12 +1983,12 @@ public object KumlSvgRenderer {
             for ((edgeId, route) in layoutResult.edges) {
                 val rel = relationshipsById[edgeId.value] ?: continue
                 val shiftedRoute = shiftRoute(route, padding)
-                renderErmMartinRelationship(
+                renderRelationship(
                     rel,
                     shiftedRoute,
                     theme,
                     edgesBuilder,
-                    labelStackIndex = stackIndices[edgeId] ?: 0,
+                    stackIndices[edgeId] ?: 0,
                 )
             }
         }

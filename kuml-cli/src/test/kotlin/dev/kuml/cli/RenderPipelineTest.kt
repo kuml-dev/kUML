@@ -320,9 +320,35 @@ class RenderPipelineTest :
             outputDir.toFile().delete()
         }
 
-        test("RenderPipeline --notation override picks bachman and throws not-yet-supported") {
+        test("RenderPipeline --notation override picks bachman and renders SVG") {
             val fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts")
             val outputDir = Files.createTempDirectory("kuml-erm-notation-test")
+            val outputFile = outputDir.resolve("valid-ecommerce.svg")
+
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "svg",
+                width = 1024,
+                themeName = "plain",
+                notation = "bachman",
+            )
+
+            val content = outputFile.toFile().readText()
+            content shouldStartWith "<?xml"
+            content shouldContain "kuml-erm-entity"
+            // The fixture's `places` relationship uses the default
+            // (ONE, ZERO_MANY) cardinality pair, so the target end is
+            // "many" — the Bachman arrowhead must be present.
+            content shouldContain "kuml-erm-bachman-arrow"
+
+            outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
+        test("RenderPipeline --notation override picks chen and still throws not-yet-supported") {
+            val fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-erm-notation-chen-test")
             val outputFile = outputDir.resolve("valid-ecommerce.svg")
 
             val ex =
@@ -333,7 +359,7 @@ class RenderPipelineTest :
                         format = "svg",
                         width = 1024,
                         themeName = "plain",
-                        notation = "bachman",
+                        notation = "chen",
                     )
                 }.exceptionOrNull()
 
