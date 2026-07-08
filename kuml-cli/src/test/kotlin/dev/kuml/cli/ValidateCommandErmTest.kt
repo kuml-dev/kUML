@@ -8,11 +8,11 @@ import io.kotest.matchers.string.shouldContain
 import java.io.File
 
 /**
- * V3.4.1–V3.4.4 — CLI smoke tests proving `kuml validate` compiles,
+ * V3.4.1–V3.4.5 — CLI smoke tests proving `kuml validate` compiles,
  * extracts, and structurally validates ERM (`ermModel { … }`) scripts via
  * [dev.kuml.erm.constraint.ErmConstraintChecker], and that `kuml render` now
- * renders ERM/Martin (V3.4.2), ERM/Bachman (V3.4.3), and ERM/Chen (V3.4.4)
- * diagrams — only IDEF1X still throws a structured not-yet-supported error.
+ * renders all four ERM notations: Martin (V3.4.2), Bachman (V3.4.3), Chen
+ * (V3.4.4), and IDEF1X (V3.4.5).
  */
 class ValidateCommandErmTest :
     FunSpec({
@@ -111,7 +111,7 @@ class ValidateCommandErmTest :
             }
         }
 
-        test("render --notation idef1x throws a structured not-yet-supported error (exit 3)") {
+        test("render --notation idef1x produces an ERM/IDEF1X SVG for a valid ERM script (V3.4.5)") {
             val outputFile = File.createTempFile("kuml-erm-render-idef1x-", ".svg")
             try {
                 val result =
@@ -127,11 +127,12 @@ class ValidateCommandErmTest :
                             "idef1x",
                         ),
                     )
-                // The structured "not yet supported" message goes to System.err.println
-                // (matching RenderCommand's existing convention), not `echo(err = true)`,
-                // so Clikt's test() recorder does not capture it — only the exit code is
-                // asserted here (see CliktCommandTestResult's KDoc).
-                result.statusCode shouldBe ExitCodes.SCRIPT_ERROR
+                result.statusCode shouldBe 0
+                val svg = outputFile.readText()
+                svg shouldContain "<svg"
+                svg shouldContain "Customer"
+                svg shouldContain "Order"
+                svg shouldContain "kuml-erm-idef1x-dot"
             } finally {
                 outputFile.delete()
             }

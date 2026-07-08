@@ -55,6 +55,7 @@ import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmChenSizeProvider
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
+import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
@@ -987,7 +988,7 @@ internal object RenderPipeline {
     }
 
     /**
-     * ERM render branch (V3.4.2).
+     * ERM render branch (V3.4.2; IDEF1X notation added in V3.4.5).
      *
      * ERM entities/relationships are laid out via ELK — structurally
      * identical to a UML class diagram (see [ErmLayoutBridge]'s KDoc).
@@ -1023,13 +1024,16 @@ internal object RenderPipeline {
         val hints = LayoutHints.DEFAULT
         // Chen expands attributes/relationships into their own layout nodes
         // (see ErmChenLayoutBridge's KDoc) — a structurally different graph
-        // from the Martin/Bachman one entity-box-per-entity graph, so it
-        // gets its own bridge + size provider before the shared ELK run.
+        // from the Martin/Bachman one entity-box-per-entity graph. IDEF1X
+        // keeps real entity/view/relationship ids but injects a synthetic
+        // category-circle node (see ErmIdef1xLayoutBridge's KDoc). Both get
+        // their own bridge + size provider before the shared ELK run.
         val graph =
-            if (notation == ErmNotation.CHEN) {
-                ErmChenLayoutBridge.toChenLayoutGraph(model, diagram, ErmChenSizeProvider(model, diagram))
-            } else {
-                ErmLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
+            when (notation) {
+                ErmNotation.CHEN -> ErmChenLayoutBridge.toChenLayoutGraph(model, diagram, ErmChenSizeProvider(model, diagram))
+                ErmNotation.IDEF1X ->
+                    ErmIdef1xLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
+                else -> ErmLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
             }
         val engine =
             LayoutEngineRegistry.get("elk.layered")
@@ -1053,9 +1057,13 @@ internal object RenderPipeline {
     }
 
     /**
-     * Renders an ERM diagram to SVG, translating the [IllegalArgumentException]
-     * that [KumlSvgRenderer.toSvg] throws for not-yet-implemented notations
-     * (only IDEF1X, as of V3.4.4) into a [ScriptEvaluationException].
+     * Renders an ERM diagram to SVG, translating any [IllegalArgumentException]
+     * that [KumlSvgRenderer.toSvg] throws into a [ScriptEvaluationException].
+     *
+     * As of V3.4.5 all four [ErmNotation] values (MARTIN, BACHMAN, CHEN,
+     * IDEF1X) are implemented and no longer throw for being unsupported —
+     * this wrapper remains as a defensive translation layer for any future
+     * `IllegalArgumentException` the renderer might raise.
      *
      * Narrowly scoped to this single renderer call so that unrelated
      * `require(...)`-style precondition failures elsewhere in the render

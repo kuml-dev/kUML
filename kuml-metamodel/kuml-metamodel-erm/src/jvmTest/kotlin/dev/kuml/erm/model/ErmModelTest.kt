@@ -55,12 +55,20 @@ class ErmModelTest :
                     query = "SELECT * FROM customer WHERE active",
                     referencedEntityIds = listOf("entity_0"),
                 )
+            val category =
+                ErmCategory(
+                    id = "category_0",
+                    name = "PartyType",
+                    supertypeEntityId = "entity_0",
+                    subtypeEntityIds = listOf("entity_1"),
+                )
             return ErmModel(
                 name = "Shop",
                 entities = listOf(customer, order),
                 relationships = listOf(rel),
                 views = listOf(view),
                 diagrams = listOf(ErmDiagram(name = "Overview")),
+                categories = listOf(category),
             )
         }
 
@@ -78,7 +86,7 @@ class ErmModelTest :
             m.attributeById("nope").shouldBeNull()
         }
 
-        "elementById resolves entities, attributes, indexes, checks, relationships and views" {
+        "elementById resolves entities, attributes, indexes, checks, relationships, views and categories" {
             val m = sampleModel()
             m.elementById("entity_0")!!.id shouldBe "entity_0"
             m.elementById("attr_0_0")!!.id shouldBe "attr_0_0"
@@ -86,7 +94,21 @@ class ErmModelTest :
             m.elementById("check_0_0")!!.id shouldBe "check_0_0"
             m.elementById("rel_0")!!.id shouldBe "rel_0"
             m.elementById("view_0")!!.id shouldBe "view_0"
+            m.elementById("category_0")!!.id shouldBe "category_0"
             m.elementById("nope").shouldBeNull()
+        }
+
+        "categoryById resolves declared categories" {
+            val m = sampleModel()
+            m.categoryById("category_0")!!.name shouldBe "PartyType"
+            m.categoryById("nope").shouldBeNull()
+        }
+
+        "categoriesOf finds categories where the entity is either supertype or subtype" {
+            val m = sampleModel()
+            m.categoriesOf("entity_0").map { it.id } shouldBe listOf("category_0")
+            m.categoriesOf("entity_1").map { it.id } shouldBe listOf("category_0")
+            m.categoriesOf("nope") shouldBe emptyList()
         }
 
         "relationshipsOf returns edges touching an entity on either end" {

@@ -375,32 +375,31 @@ class RenderPipelineTest :
             outputDir.toFile().delete()
         }
 
-        test("RenderPipeline --notation override picks idef1x and still throws not-yet-supported") {
+        test("RenderPipeline --notation override picks idef1x and renders SVG (V3.4.5)") {
             val fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts")
             val outputDir = Files.createTempDirectory("kuml-erm-notation-idef1x-test")
             val outputFile = outputDir.resolve("valid-ecommerce.svg")
 
-            val ex =
-                runCatching {
-                    RenderPipeline.run(
-                        input = fixture,
-                        output = outputFile,
-                        format = "svg",
-                        width = 1024,
-                        themeName = "plain",
-                        notation = "idef1x",
-                    )
-                }.exceptionOrNull()
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "svg",
+                width = 1024,
+                themeName = "plain",
+                notation = "idef1x",
+            )
 
-            ex shouldNotBe null
-            // Translated from the renderer's IllegalArgumentException into a
-            // ScriptEvaluationException by RenderPipeline.ermToSvg — keeps
-            // unrelated internal `require(...)` failures elsewhere in the
-            // pipeline from being misreported as script errors (see CLI-level
-            // catch clauses in RenderCommand.kt).
-            (ex is ScriptEvaluationException) shouldBe true
-            ex!!.message shouldContain "not yet supported"
+            val content = outputFile.toFile().readText()
+            content shouldStartWith "<?xml"
+            content shouldContain "Customer"
+            content shouldContain "Order"
+            // The fixture's `contains` relationship (Order -> OrderItem) is
+            // IDENTIFYING, and OrderItem is `weak = true` — its entity box
+            // must render with rounded corners.
+            content shouldContain "kuml-erm-idef1x-dot"
+            content shouldContain "rx="
 
+            outputFile.toFile().delete()
             outputDir.toFile().delete()
         }
 

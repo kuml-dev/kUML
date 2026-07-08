@@ -27,6 +27,11 @@ import dev.kuml.renderer.theme.core.KumlTheme
  *   italicised ` = default` suffix when a default expression is set.
  * - Index / check-constraint compartment: only rendered when
  *   `diagram.showIndexes` is `true` and the entity has any.
+ *
+ * [cornerRadius] (V3.4.5) rounds the outer (and, for `weak` entities, inner)
+ * rect's corners — used by the IDEF1X renderer to mark dependent entities.
+ * Defaults to `0f` (sharp corners), which keeps Martin/Bachman rendering
+ * byte-identical to before this parameter was added.
  */
 internal fun renderErmEntity(
     entity: ErmEntity,
@@ -34,6 +39,7 @@ internal fun renderErmEntity(
     diagram: ErmDiagram,
     theme: KumlTheme,
     b: SvgBuilder,
+    cornerRadius: Float = 0f,
 ) {
     val x = layout.bounds.origin.x
     val y = layout.bounds.origin.y
@@ -44,19 +50,29 @@ internal fun renderErmEntity(
         "g",
         mapOf("id" to xmlEscapeAttr(entity.id), "transform" to "translate(${fmt(x)},${fmt(y)})"),
     ) {
-        tag("rect", mapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-erm-entity"))
+        val outerRectAttrs =
+            mutableMapOf("width" to fmt(w), "height" to fmt(h), "class" to "kuml-erm-entity")
+        if (cornerRadius > 0f) {
+            outerRectAttrs["rx"] = fmt(cornerRadius)
+            outerRectAttrs["ry"] = fmt(cornerRadius)
+        }
+        tag("rect", outerRectAttrs)
         if (entity.weak) {
             val inset = ErmSizing.WEAK_BORDER_INSET
-            tag(
-                "rect",
-                mapOf(
+            val innerRectAttrs =
+                mutableMapOf(
                     "x" to fmt(inset),
                     "y" to fmt(inset),
                     "width" to fmt(w - 2 * inset),
                     "height" to fmt(h - 2 * inset),
                     "class" to "kuml-erm-entity-inner",
-                ),
-            )
+                )
+            if (cornerRadius > 0f) {
+                val innerRadius = (cornerRadius - inset).coerceAtLeast(0f)
+                innerRectAttrs["rx"] = fmt(innerRadius)
+                innerRectAttrs["ry"] = fmt(innerRadius)
+            }
+            tag("rect", innerRectAttrs)
         }
 
         var cy = ErmSizing.TITLE_ROW_H - 8f

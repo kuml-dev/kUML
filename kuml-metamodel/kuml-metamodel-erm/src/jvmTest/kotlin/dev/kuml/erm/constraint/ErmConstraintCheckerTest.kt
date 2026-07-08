@@ -331,4 +331,107 @@ class ErmConstraintCheckerTest :
                 }
             warnings(m).none { it.message.contains("is autoIncrement but has non-integer type") }.shouldBeTrue()
         }
+
+        // ── 16. category supertype resolves ──
+        "category with unknown supertype → error" {
+            val m =
+                ermModel("x") {
+                    val person = entity("Person") { id() }
+                    category(supertype = "nope", subtypes = listOf(person))
+                }
+            errors(m).any { it.message.contains("supertypeEntityId") && it.message.contains("not found") }.shouldBeTrue()
+        }
+        "category with resolvable supertype → no rule-16 error" {
+            val m =
+                ermModel("x") {
+                    val party = entity("Party") { id() }
+                    val person = entity("Person") { }
+                    category(supertype = party, subtypes = listOf(person))
+                }
+            errors(m).none { it.message.contains("supertypeEntityId") }.shouldBeTrue()
+        }
+
+        // ── 17. category subtypes resolve and non-empty ──
+        "category with empty subtypes → error" {
+            val m =
+                ermModel("x") {
+                    val party = entity("Party") { id() }
+                    category(supertype = party, subtypes = emptyList())
+                }
+            errors(m).any { it.message.contains("has no subtype entities") }.shouldBeTrue()
+        }
+        "category with unknown subtype entity → error" {
+            val m =
+                ermModel("x") {
+                    val party = entity("Party") { id() }
+                    category(supertype = party, subtypes = listOf("nope"))
+                }
+            errors(m).any { it.message.contains("subtype entity 'nope' not found") }.shouldBeTrue()
+        }
+        "category with resolvable, non-empty subtypes → no rule-17 error" {
+            val m =
+                ermModel("x") {
+                    val party = entity("Party") { id() }
+                    val person = entity("Person") { }
+                    category(supertype = party, subtypes = listOf(person))
+                }
+            errors(m).none { it.message.contains("has no subtype entities") || it.message.contains("subtype entity") }.shouldBeTrue()
+        }
+
+        // ── 18. supertype not among its own subtypes ──
+        "category listing its own supertype as a subtype → error" {
+            val m =
+                ermModel("x") {
+                    val party = entity("Party") { id() }
+                    category(supertype = party, subtypes = listOf(party))
+                }
+            errors(m).any { it.message.contains("listed as one of its own subtypes") }.shouldBeTrue()
+        }
+        "category without a self-referencing subtype → no rule-18 error" {
+            val m =
+                ermModel("x") {
+                    val party = entity("Party") { id() }
+                    val person = entity("Person") { }
+                    category(supertype = party, subtypes = listOf(person))
+                }
+            errors(m).none { it.message.contains("listed as one of its own subtypes") }.shouldBeTrue()
+        }
+
+        // ── 19. discriminator attribute belongs to the supertype ──
+        "category discriminator not an attribute of the supertype → error" {
+            val m =
+                ermModel("x") {
+                    val party = entity("Party") { id() }
+                    val person = entity("Person") { }
+                    category(supertype = party, subtypes = listOf(person), discriminator = "not-an-attr")
+                }
+            errors(m).any {
+                it.message.contains("discriminatorAttributeId") && it.message.contains("is not an attribute of supertype")
+            }.shouldBeTrue()
+        }
+        "category discriminator resolving on the supertype → no rule-19 error" {
+            val m =
+                ermModel("x") {
+                    val party =
+                        entity("Party") {
+                            id()
+                            attribute(name = "party_type", type = ErmDataType.Varchar(20))
+                        }
+                    val person = entity("Person") { }
+                    val discriminatorId = entityById(party)!!.attributeByName("party_type")!!.id
+                    category(supertype = party, subtypes = listOf(person), discriminator = discriminatorId)
+                }
+            errors(m).none { it.message.contains("discriminatorAttributeId") }.shouldBeTrue()
+        }
+
+        // ── category subtypes are exempt from rule 3's primary-key requirement ──
+        "category subtype without its own primary key → no rule-3 error" {
+            val m =
+                ermModel("x") {
+                    val party = entity("Party") { id() }
+                    val person = entity("Person") { attribute(name = "first_name", type = ErmDataType.Text) }
+                    category(supertype = party, subtypes = listOf(person))
+                }
+            errors(m).none { it.message.contains("has no primary key") }.shouldBeTrue()
+        }
     })

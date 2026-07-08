@@ -19,10 +19,23 @@ data class ErmModel(
     val relationships: List<ErmRelationship> = emptyList(),
     val views: List<ErmView> = emptyList(),
     val diagrams: List<ErmDiagram> = emptyList(),
+    /**
+     * IDEF1X category (subtype) clusters (V3.4.5). Default `emptyList()` keeps
+     * older serialized [ErmModel] payloads (without this field) decodable
+     * through `ExtractedDiagramCodec`'s IPC boundary.
+     */
+    val categories: List<ErmCategory> = emptyList(),
     val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) {
     /** Looks up an entity by id. */
     fun entityById(id: String): ErmEntity? = entities.firstOrNull { it.id == id }
+
+    /** Looks up a category by id. */
+    fun categoryById(id: String): ErmCategory? = categories.firstOrNull { it.id == id }
+
+    /** All categories where [entityId] is either the supertype or one of the subtypes. */
+    fun categoriesOf(entityId: String): List<ErmCategory> =
+        categories.filter { it.supertypeEntityId == entityId || entityId in it.subtypeEntityIds }
 
     /** Looks up an attribute by id across all entities. */
     fun attributeById(id: String): ErmAttribute? =
@@ -44,8 +57,8 @@ data class ErmModel(
 
     /**
      * Looks up any ERM element by id — entities, their nested attributes,
-     * indexes, and check constraints, plus model-level relationships and
-     * views.
+     * indexes, and check constraints, plus model-level relationships,
+     * views, and IDEF1X categories.
      */
     fun elementById(id: String): ErmElement? =
         entities.firstOrNull { it.id == id }
@@ -54,6 +67,7 @@ data class ErmModel(
             ?: checkById(id)
             ?: relationships.firstOrNull { it.id == id }
             ?: views.firstOrNull { it.id == id }
+            ?: categoryById(id)
 
     /** All relationships with an end (source or target) on the given entity. */
     fun relationshipsOf(entityId: String): List<ErmRelationship> =

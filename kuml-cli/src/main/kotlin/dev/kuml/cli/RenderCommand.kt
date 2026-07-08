@@ -88,8 +88,7 @@ internal class RenderCommand : CliktCommand(name = "render") {
         help =
             "ERM notation override (ERM diagrams only): martin (default), bachman, chen, idef1x. " +
                 "Overrides the `notation = …` set in the diagram's DSL script. Ignored for non-ERM " +
-                "diagrams. martin, bachman, and chen are implemented — idef1x throws a structured " +
-                "error naming the kUML wave it is planned for (V3.4.5).",
+                "diagrams. martin, bachman, chen, and idef1x are all implemented as of V3.4.5.",
     ).choice("martin", "bachman", "chen", "idef1x")
 
     override fun help(context: Context): String = "Render a kUML script (UML or C4) to SVG, PNG, or LaTeX/TikZ source."

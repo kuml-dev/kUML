@@ -22,7 +22,6 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.renderer.theme.core.PlainTheme
-import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -233,17 +232,15 @@ class ErmMartinSvgTest :
             SampleOutput.write("erm/xml-escape-guard.svg", svg)
         }
 
-        "notation override IDEF1X throws a structured not-yet-supported error" {
+        "notation override IDEF1X no longer throws (regression guard, V3.4.5)" {
             val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val model = ErmModel(name = "Shop", entities = listOf(customer))
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.MARTIN)
             val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)))
 
-            val ex =
-                shouldThrow<IllegalArgumentException> {
-                    KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), notation = ErmNotation.IDEF1X)
-                }
-            ex.message shouldContain "not yet supported"
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), notation = ErmNotation.IDEF1X)
+
+            svg shouldContain "kuml-erm-entity"
         }
 
         "deterministic output — same input renders byte-identically" {

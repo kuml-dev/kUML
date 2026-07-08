@@ -156,4 +156,32 @@ class ErmDslTest :
             model.views.single().name shouldBe "active_a"
             model.views.single().referencedEntityIds shouldBe listOf("entity_0")
         }
+
+        "category() declares an IDEF1X subtype cluster with a deterministic id" {
+            val model =
+                ermModel("Categorized") {
+                    val party = entity("Party") { id() }
+                    val person = entity("Person") { }
+                    val org = entity("Organization") { }
+                    category(supertype = party, subtypes = listOf(person, org), name = "PartyType", complete = true)
+                }
+            val category = model.categories.single()
+            category.id shouldBe "category_0"
+            category.name shouldBe "PartyType"
+            category.supertypeEntityId shouldBe "entity_0"
+            category.subtypeEntityIds shouldBe listOf("entity_1", "entity_2")
+            category.complete shouldBe true
+        }
+
+        "category() defaults to incomplete with no discriminator" {
+            val model =
+                ermModel("Categorized") {
+                    val party = entity("Party") { id() }
+                    val person = entity("Person") { }
+                    category(supertype = party, subtypes = listOf(person))
+                }
+            val category = model.categories.single()
+            category.complete shouldBe false
+            category.discriminatorAttributeId shouldBe null
+        }
     })

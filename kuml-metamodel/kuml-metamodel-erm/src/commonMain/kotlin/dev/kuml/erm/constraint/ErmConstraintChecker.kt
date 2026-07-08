@@ -53,10 +53,22 @@ public enum class ViolationSeverity {
  *     missing junction-table resolution; relevant once V3.4.6 does M2M→ERM).
  * 14. `autoIncrement` only makes sense on [ErmDataType.Integer] columns — WARNING otherwise.
  * 15. `ErmCheckConstraint.expression` is non-blank — ERROR.
+ * 16. `ErmCategory.supertypeEntityId` resolves — ERROR.
+ * 17. Every `ErmCategory.subtypeEntityIds` entry resolves — ERROR; the list is
+ *     non-empty — ERROR.
+ * 18. A category's supertype is not also one of its own subtypes — ERROR
+ *     (no self-categorisation cycle).
+ * 19. `ErmCategory.discriminatorAttributeId`, if set, belongs to the
+ *     category's supertype entity — ERROR.
+ *
+ * Category subtypes are exempt from rule 3's primary-key requirement — by
+ * IDEF1X convention they inherit the supertype's key and legitimately have no
+ * primary-key attribute of their own, without needing to be `weak` or the
+ * target of an identifying relationship.
  *
  * An empty result means the model passes all checks.
  *
- * V3.4.1
+ * V3.4.1, category rules (16-19) V3.4.5
  */
 public class ErmConstraintChecker {
     public fun check(model: ErmModel): List<ConstraintViolation> =
@@ -83,6 +95,9 @@ public class ErmConstraintChecker {
             // Identifying relationships, keyed by target (child) entity — used by rules 3 and 9.
             val identifyingTargets = model.relationships.filter { it.kind == RelationshipKind.IDENTIFYING }.map { it.targetEntityId }.toSet()
 
+            // Category subtypes — exempt from rule 3's primary-key requirement (they inherit the supertype's key).
+            val categorySubtypeIds = model.categories.flatMap { it.subtypeEntityIds }.toSet()
+
             model.entities.forEach { entity ->
                 // 2. at least one attribute
                 if (entity.attributes.isEmpty()) {
@@ -96,7 +111,8 @@ public class ErmConstraintChecker {
                 }
 
                 // 3. primary key presence (non-weak) / identifying relationship (weak)
-                if (entity.primaryKey.isEmpty()) {
+                // Category subtypes are exempt — they inherit the supertype's primary key.
+                if (entity.primaryKey.isEmpty() && entity.id !in categorySubtypeIds) {
                     if (!entity.weak) {
                         add(
                             ConstraintViolation(
@@ -315,6 +331,72 @@ public class ErmConstraintChecker {
                             ConstraintViolation(
                                 null,
                                 "Diagram '${diagram.name}' references unknown element '$elementId'",
+                                ViolationSeverity.ERROR,
+                            ),
+                        )
+                    }
+                }
+            }
+
+            // 16-19. IDEF1X categories
+            model.categories.forEach { category ->
+                // 16. supertype resolves
+                val supertype = model.entityById(category.supertypeEntityId)
+                if (supertype == null) {
+                    add(
+                        ConstraintViolation(
+                            category.id,
+                            "Category '${category.name ?: category.id}' supertypeEntityId " +
+                                "'${category.supertypeEntityId}' not found",
+                            ViolationSeverity.ERROR,
+                        ),
+                    )
+                }
+
+                // 17. subtypes resolve and non-empty
+                if (category.subtypeEntityIds.isEmpty()) {
+                    add(
+                        ConstraintViolation(
+                            category.id,
+                            "Category '${category.name ?: category.id}' has no subtype entities",
+                            ViolationSeverity.ERROR,
+                        ),
+                    )
+                }
+                category.subtypeEntityIds.forEach { subtypeId ->
+                    if (subtypeId !in entityIds) {
+                        add(
+                            ConstraintViolation(
+                                category.id,
+                                "Category '${category.name ?: category.id}' subtype entity '$subtypeId' not found",
+                                ViolationSeverity.ERROR,
+                            ),
+                        )
+                    }
+                }
+
+                // 18. no self-categorisation cycle
+                if (category.supertypeEntityId in category.subtypeEntityIds) {
+                    add(
+                        ConstraintViolation(
+                            category.id,
+                            "Category '${category.name ?: category.id}' has supertype " +
+                                "'${category.supertypeEntityId}' listed as one of its own subtypes",
+                            ViolationSeverity.ERROR,
+                        ),
+                    )
+                }
+
+                // 19. discriminator attribute belongs to the supertype
+                val discriminatorId = category.discriminatorAttributeId
+                if (discriminatorId != null && supertype != null) {
+                    if (supertype.attributes.none { it.id == discriminatorId }) {
+                        add(
+                            ConstraintViolation(
+                                category.id,
+                                "Category '${category.name ?: category.id}' discriminatorAttributeId " +
+                                    "'$discriminatorId' is not an attribute of supertype " +
+                                    "'${supertype.name ?: supertype.id}'",
                                 ViolationSeverity.ERROR,
                             ),
                         )

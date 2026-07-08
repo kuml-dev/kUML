@@ -2,6 +2,7 @@ package dev.kuml.erm.serialization
 
 import dev.kuml.erm.model.Cardinality
 import dev.kuml.erm.model.ErmAttribute
+import dev.kuml.erm.model.ErmCategory
 import dev.kuml.erm.model.ErmCheckConstraint
 import dev.kuml.erm.model.ErmDataType
 import dev.kuml.erm.model.ErmDiagram
@@ -96,12 +97,22 @@ class ErmSerializationTest :
                     query = "SELECT * FROM customer WHERE active",
                     referencedEntityIds = listOf("entity_0"),
                 )
+            val category =
+                ErmCategory(
+                    id = "category_0",
+                    name = "CustomerType",
+                    supertypeEntityId = "entity_0",
+                    subtypeEntityIds = listOf("entity_1"),
+                    complete = true,
+                    discriminatorAttributeId = "attr_0_1",
+                )
             return ErmModel(
                 name = "Shop",
                 entities = listOf(customer, order),
                 relationships = listOf(rel),
                 views = listOf(view),
                 diagrams = listOf(ErmDiagram(name = "Overview", notation = ErmNotation.IDEF1X, showIndexes = true)),
+                categories = listOf(category),
             )
         }
 
@@ -149,6 +160,7 @@ class ErmSerializationTest :
                     ErmView("v", "n", "SELECT 1", listOf("e")),
                     ErmRelationship("r", "n", "e1", "e2", Cardinality.ONE, Cardinality.ZERO_MANY),
                     ErmEntity("e", "n", listOf(ErmAttribute("a2", "n2", ErmDataType.Text))),
+                    ErmCategory("cat", "n", "e1", listOf("e2")),
                 )
             elements.forEach { element ->
                 val encoded = json.encodeToString(dev.kuml.erm.model.ErmElement.serializer(), element)

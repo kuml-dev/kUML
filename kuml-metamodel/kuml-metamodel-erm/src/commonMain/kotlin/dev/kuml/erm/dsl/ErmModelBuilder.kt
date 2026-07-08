@@ -1,6 +1,7 @@
 package dev.kuml.erm.dsl
 
 import dev.kuml.erm.model.Cardinality
+import dev.kuml.erm.model.ErmCategory
 import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmEntity
 import dev.kuml.erm.model.ErmModel
@@ -32,6 +33,7 @@ class ErmModelBuilder(
     private val relationships = mutableListOf<ErmRelationship>()
     private val views = mutableListOf<ErmView>()
     private val diagrams = mutableListOf<ErmDiagram>()
+    private val categories = mutableListOf<ErmCategory>()
 
     /** Declares an entity (table). [weak] marks it as a weak entity (see [ErmEntity.weak]). */
     fun entity(
@@ -85,6 +87,33 @@ class ErmModelBuilder(
         return id
     }
 
+    /**
+     * Declares an IDEF1X category (subtype) cluster: [supertype] specialises
+     * into [subtypes], each a mutually-exclusive category entity. [complete]
+     * marks the cluster with a double completeness bar (every supertype row
+     * belongs to exactly one subtype); [discriminator] optionally names the
+     * supertype attribute (by id) that selects the subtype.
+     */
+    fun category(
+        supertype: String,
+        subtypes: List<String>,
+        name: String? = null,
+        complete: Boolean = false,
+        discriminator: String? = null,
+    ): String {
+        val id = autoId("category", categories.size)
+        categories +=
+            ErmCategory(
+                id = id,
+                name = name,
+                supertypeEntityId = supertype,
+                subtypeEntityIds = subtypes,
+                complete = complete,
+                discriminatorAttributeId = discriminator,
+            )
+        return id
+    }
+
     /** Declares a diagram projection over this model. */
     fun diagram(
         name: String,
@@ -132,6 +161,7 @@ class ErmModelBuilder(
             relationships = relationships.toList(),
             views = views.toList(),
             diagrams = finalDiagrams,
+            categories = categories.toList(),
         )
     }
 }

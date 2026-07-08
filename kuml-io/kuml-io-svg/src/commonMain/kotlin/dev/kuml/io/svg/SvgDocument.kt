@@ -314,6 +314,20 @@ internal object SvgDocument {
                 append(" stroke-width: ${bo.thinPx}; }\n")
                 append(".kuml-erm-chen-cardinality { font-family: ${ty.small.family};")
                 append(" font-size: ${ty.small.sizePt}px; fill: ${c.foreground.toHex()}; }\n")
+                // V3.4.5 — ERM/IDEF1X renderer. Entities reuse `.kuml-erm-entity`
+                // (now optionally rounded via `rx`/`ry`) and the plain
+                // `.kuml-edge` / `.kuml-edge-dashed` lines from above; the
+                // child-end dot, parent-end diamond, cardinality annotation,
+                // and category discriminator circle/completeness bars are new.
+                append(".kuml-erm-idef1x-dot { fill: ${c.edge.toHex()}; stroke: ${c.edge.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-erm-idef1x-diamond { fill: $nodeFill; stroke: ${c.edge.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-erm-idef1x-card { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" fill: ${c.foreground.toHex()}; }\n")
+                append(".kuml-erm-idef1x-category { fill: $nodeFill; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-erm-idef1x-completeness { stroke: ${c.border.toHex()}; stroke-width: ${bo.regularPx}; }\n")
             }
 
         b.tag("style") {

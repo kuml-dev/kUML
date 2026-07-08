@@ -33,6 +33,7 @@ import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmNotation
 import dev.kuml.erm.model.ErmRelationship
+import dev.kuml.erm.model.RelationshipKind
 import dev.kuml.io.svg.blueprint.renderBlueprintJourney
 import dev.kuml.io.svg.bpmn.renderChoreoSequenceFlow
 import dev.kuml.io.svg.bpmn.renderChoreographyEvent
@@ -44,14 +45,17 @@ import dev.kuml.io.svg.bpmn.renderConversationParticipant
 import dev.kuml.io.svg.c4.c4RelationshipLabel
 import dev.kuml.io.svg.c4.renderC4Interaction
 import dev.kuml.io.svg.c4.renderC4Relationship
+import dev.kuml.io.svg.erm.idef1xDiscriminatorName
 import dev.kuml.io.svg.erm.renderChenAttribute
 import dev.kuml.io.svg.erm.renderChenConnector
 import dev.kuml.io.svg.erm.renderChenEntity
 import dev.kuml.io.svg.erm.renderChenRelationshipNode
 import dev.kuml.io.svg.erm.renderErmBachmanRelationship
 import dev.kuml.io.svg.erm.renderErmEntity
+import dev.kuml.io.svg.erm.renderErmIdef1xRelationship
 import dev.kuml.io.svg.erm.renderErmMartinRelationship
 import dev.kuml.io.svg.erm.renderErmView
+import dev.kuml.io.svg.erm.renderIdef1xCategoryCircle
 import dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
 import dev.kuml.io.svg.sysml2.sysml2SeqFragmentLeftPad
 import dev.kuml.layout.EdgeId
@@ -64,6 +68,7 @@ import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
+import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActDiagram
@@ -1881,16 +1886,20 @@ public object KumlSvgRenderer {
      *
      * [notation] defaults to `diagram.notation` but callers (the CLI's
      * `--notation` flag) may override it. [ErmNotation.MARTIN] (crow's-foot),
-     * [ErmNotation.BACHMAN] (arrow + circle), and [ErmNotation.CHEN]
-     * (entity/attribute/relationship as separate box/oval/diamond shapes)
-     * are implemented as of V3.4.4 — only [ErmNotation.IDEF1X] still throws a
-     * structured "not yet supported" error naming the wave it is planned for.
+     * [ErmNotation.BACHMAN] (arrow + circle), [ErmNotation.CHEN]
+     * (entity/attribute/relationship as separate box/oval/diamond shapes),
+     * and [ErmNotation.IDEF1X] (rounded dependent-entity corners, identifying/
+     * non-identifying line styles, and category discriminator circles) are
+     * all implemented as of V3.4.5.
      *
-     * Note that [ErmNotation.CHEN] does **not** go through the shared
-     * [renderErm] body used by Martin/Bachman — its [LayoutResult] comes from
-     * a structurally different graph (`ErmChenLayoutBridge`'s expanded
-     * attribute/relationship nodes), so it has its own render body,
-     * [renderErmChen].
+     * Note that [ErmNotation.CHEN] and [ErmNotation.IDEF1X] do **not** go
+     * through the shared [renderErm] body used by Martin/Bachman — Chen's
+     * [LayoutResult] comes from a structurally different graph
+     * (`ErmChenLayoutBridge`'s expanded attribute/relationship nodes) and
+     * IDEF1X's comes from `ErmIdef1xLayoutBridge` (real entity/view/
+     * relationship ids plus synthetic category-circle nodes) — so each has
+     * its own render body, [renderErmChen] and [renderErmIdef1x]
+     * respectively.
      */
     public fun toSvg(
         model: ErmModel,
@@ -1904,11 +1913,7 @@ public object KumlSvgRenderer {
             ErmNotation.MARTIN -> renderErmMartin(model, diagram, layoutResult, theme, options)
             ErmNotation.BACHMAN -> renderErmBachman(model, diagram, layoutResult, theme, options)
             ErmNotation.CHEN -> renderErmChen(model, diagram, layoutResult, theme, options)
-            ErmNotation.IDEF1X ->
-                throw IllegalArgumentException(
-                    "ERM notation IDEF1X is not yet supported — MARTIN (crow's foot), BACHMAN, and CHEN " +
-                        "are the only notations implemented in kUML V3.4.4. IDEF1X is planned for V3.4.5.",
-                )
+            ErmNotation.IDEF1X -> renderErmIdef1x(model, diagram, layoutResult, theme, options)
         }
 
     private fun renderErmMartin(
@@ -2082,6 +2087,111 @@ public object KumlSvgRenderer {
                     id.startsWith(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX) -> {
                         val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX)] ?: continue
                         renderChenConnector(shiftedRoute, rel.targetCardinality, edgesBuilder)
+                    }
+                }
+            }
+        }
+    }
+
+    /** Corner radius applied to dependent-entity boxes in [renderErmIdef1x] (V3.4.5). */
+    private const val IDEF1X_CORNER_RADIUS: Float = 8f
+
+    /**
+     * [toSvg] path for [ErmNotation.IDEF1X] (V3.4.5).
+     *
+     * Unlike [renderErmChen], entities/views/relationships here keep their
+     * **real** model ids (see [ErmIdef1xLayoutBridge]'s KDoc) — only the
+     * category discriminator circle is a synthetic [ErmIdef1xLayoutBridge]
+     * node, dispatched on its `CATEGORY_*` id prefixes. This function cannot
+     * reuse the shared [renderErm] body used by Martin/Bachman because it
+     * additionally needs (a) the per-entity rounded-corner radius for
+     * dependent entities and (b) the category-circle node/edge kinds that
+     * body knows nothing about.
+     *
+     * A dependent entity — rendered with rounded corners — is one that is
+     * `weak`, the target of an [RelationshipKind.IDENTIFYING] relationship,
+     * or a subtype in any [dev.kuml.erm.model.ErmCategory].
+     */
+    private fun renderErmIdef1x(
+        model: ErmModel,
+        diagram: ErmDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+    ): String {
+        val entitiesById = model.entities.associateBy { it.id }
+        val viewsById = model.views.associateBy { it.id }
+        val relationshipsById = model.relationships.associateBy { it.id }
+        val categoriesById = model.categories.associateBy { it.id }
+        val padding = options.paddingPx
+
+        val dependentEntityIds: Set<String> =
+            model.entities.filter { it.weak }.map { it.id }.toSet() +
+                model.relationships.filter { it.kind == RelationshipKind.IDENTIFYING }.map { it.targetEntityId }.toSet() +
+                model.categories.flatMap { it.subtypeEntityIds }.toSet()
+
+        // Label stacking only considers real relationship edges — category
+        // connector edges carry no name label and would otherwise skew the
+        // stack indices of relationships sharing an entity pair (mirrors the
+        // Chen-bridge id-prefix-filtering guard documented on this class).
+        val relationshipRoutes =
+            layoutResult.edges.entries.filter { (edgeId, _) -> relationshipsById.containsKey(edgeId.value) }
+        val stackIndices =
+            Sysml2EdgeRenderer.computeLabelStackIndices(
+                relationshipRoutes.map { (edgeId, route) -> Triple(edgeId, route, relationshipsById[edgeId.value]?.name) },
+            )
+
+        return SvgDocument.render(
+            layoutResult,
+            theme,
+            options,
+            frameName = diagram.name,
+            frameTypeLabel = "erm",
+        ) { nodesBuilder, edgesBuilder ->
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                val id = nodeId.value
+                if (id.startsWith(ErmIdef1xLayoutBridge.CATEGORY_NODE_PREFIX)) {
+                    val category = categoriesById[id.removePrefix(ErmIdef1xLayoutBridge.CATEGORY_NODE_PREFIX)] ?: continue
+                    val supertype = entitiesById[category.supertypeEntityId]
+                    val discriminatorName = idef1xDiscriminatorName(category, supertype)
+                    renderIdef1xCategoryCircle(category, shifted, theme, nodesBuilder, discriminatorName)
+                    continue
+                }
+                val entity = entitiesById[id]
+                if (entity != null) {
+                    val cornerRadius = if (id in dependentEntityIds) IDEF1X_CORNER_RADIUS else 0f
+                    renderErmEntity(entity, shifted, diagram, theme, nodesBuilder, cornerRadius)
+                    continue
+                }
+                val view = viewsById[id]
+                if (view != null) {
+                    renderErmView(view, shifted, theme, nodesBuilder)
+                }
+            }
+
+            for ((edgeId, route) in layoutResult.edges) {
+                val shiftedRoute = shiftRoute(route, padding)
+                val id = edgeId.value
+                when {
+                    id.startsWith(ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUP_PREFIX) ||
+                        id.startsWith(ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUB_PREFIX) -> {
+                        val (tagName, attrs) = EdgePathBuilder.build(shiftedRoute)
+                        edgesBuilder.tag(tagName, attrs + mapOf("class" to "kuml-edge"))
+                    }
+                    else -> {
+                        val rel = relationshipsById[id] ?: continue
+                        renderErmIdef1xRelationship(rel, shiftedRoute, theme, edgesBuilder, stackIndices[edgeId] ?: 0)
                     }
                 }
             }
