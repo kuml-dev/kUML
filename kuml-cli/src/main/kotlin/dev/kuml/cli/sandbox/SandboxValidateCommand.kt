@@ -167,6 +167,14 @@ internal class SandboxValidateCommand : CliktCommand(name = "validate") {
                 )
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
+            is ExtractedDiagram.Erm -> {
+                echo(
+                    "ERM diagrams have no executable behaviour and cannot be sandbox-validated. " +
+                        "Use a UML or SysML 2 STM script instead.",
+                    err = true,
+                )
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
         }
     }
 }

@@ -380,6 +380,13 @@ internal class SimulateCommand : CliktCommand(name = "simulate") {
                 )
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
+            is ExtractedDiagram.Erm -> {
+                System.err.println(
+                    "ERM diagrams have no executable behaviour and cannot be simulated. " +
+                        "Use a UML or SysML 2 STM/ACT script instead.",
+                )
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
         }
 
     private fun runInteractive(

@@ -149,6 +149,14 @@ internal class ExportCommand : CliktCommand(name = "export") {
                     )
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                 }
+                is ExtractedDiagram.Erm -> {
+                    System.err.println(
+                        "kuml export --format structurizr requires a C4 model — " +
+                            "the script '${scriptFile.name}' produces an ERM model. " +
+                            "Use `kuml validate` for ERM scripts (rendering/export land in kUML V3.4.2+).",
+                    )
+                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                }
             }
 
         writeOutput(outputFile, text)
@@ -198,6 +206,14 @@ internal class ExportCommand : CliktCommand(name = "export") {
                         "kuml export --format xmi supports UML models only — " +
                             "the script '${scriptFile.name}' produces a Blueprint/Journey-Map. " +
                             "Use `kuml render --format svg|png` for Blueprint diagrams.",
+                    )
+                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                }
+                is ExtractedDiagram.Erm -> {
+                    System.err.println(
+                        "kuml export --format xmi supports UML models only — " +
+                            "the script '${scriptFile.name}' produces an ERM model. " +
+                            "Use `kuml validate` for ERM scripts (rendering/export land in kUML V3.4.2+).",
                     )
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                 }
@@ -331,6 +347,14 @@ internal class ExportCommand : CliktCommand(name = "export") {
                         "kuml export --format arxml supports UML/AUTOSAR models only — " +
                             "the script '${scriptFile.name}' produces a Blueprint/Journey-Map. " +
                             "Use `kuml render --format svg|png` for Blueprint diagrams.",
+                    )
+                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                }
+                is ExtractedDiagram.Erm -> {
+                    System.err.println(
+                        "kuml export --format arxml supports UML/AUTOSAR models only — " +
+                            "the script '${scriptFile.name}' produces an ERM model. " +
+                            "Use `kuml validate` for ERM scripts (rendering/export land in kUML V3.4.2+).",
                     )
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                 }

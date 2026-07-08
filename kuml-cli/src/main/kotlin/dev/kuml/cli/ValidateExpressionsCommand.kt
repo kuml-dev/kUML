@@ -157,6 +157,11 @@ internal class ValidateExpressionsCommand : CliktCommand(name = "validate-expres
             is ExtractedDiagram.Blueprint -> {
                 // Blueprint/Journey-Map diagrams have no guard expressions.
             }
+            is ExtractedDiagram.Erm -> {
+                // ERM diagrams have no guard/OCL expressions — check/default expressions
+                // are raw SQL boolean strings, validated structurally by ErmConstraintChecker,
+                // not by this OCL-guard collector.
+            }
         }
         return result
     }

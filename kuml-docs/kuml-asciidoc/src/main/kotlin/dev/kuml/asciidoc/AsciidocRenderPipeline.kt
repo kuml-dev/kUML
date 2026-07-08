@@ -109,6 +109,7 @@ internal object AsciidocRenderPipeline {
             }
             is ExtractedDiagram.Sysml2 -> renderSysml2Svg(extracted, theme)
             is ExtractedDiagram.Bpmn -> renderBpmnSvg(extracted, theme)
+            is ExtractedDiagram.Erm -> throw ermRenderingNotYetSupported()
         }
 
     internal fun renderPng(
@@ -140,6 +141,7 @@ internal object AsciidocRenderPipeline {
                 val svg = renderBpmnSvg(extracted, theme)
                 KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx))
             }
+            is ExtractedDiagram.Erm -> throw ermRenderingNotYetSupported()
         }
 
     /** Display name used for `image::…[alt]` alt text and similar. */
@@ -150,7 +152,19 @@ internal object AsciidocRenderPipeline {
             is ExtractedDiagram.C4 -> extracted.diagram.name
             is ExtractedDiagram.Sysml2 -> extracted.diagram.name
             is ExtractedDiagram.Bpmn -> extracted.diagram.name
+            is ExtractedDiagram.Erm -> extracted.diagram.name
         }
+
+    /**
+     * ERM rendering is out of scope for V3.4.1 — the metamodel, DSL and
+     * `kuml validate` wiring land here, the renderer (Martin/crow's-foot
+     * notation first) comes in V3.4.2.
+     */
+    private fun ermRenderingNotYetSupported(): ScriptEvaluationException =
+        ScriptEvaluationException(
+            "ERM rendering is not yet supported — planned for kUML V3.4.2. " +
+                "V3.4.1 only supports `kuml validate` for ERM scripts.",
+        )
 
     /**
      * SysML 2 dispatches per concrete diagram type — there is no generic

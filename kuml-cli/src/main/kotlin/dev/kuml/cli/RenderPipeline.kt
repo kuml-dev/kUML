@@ -236,6 +236,11 @@ internal object RenderPipeline {
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme, animated, traceFile, speed)
                 is ExtractedDiagram.Bpmn -> renderBpmn(extracted, output, format, width, theme, animated, traceFile, speed)
                 is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, output, format, width, theme, latexStandalone)
+                is ExtractedDiagram.Erm ->
+                    throw ScriptEvaluationException(
+                        "ERM rendering is not yet supported — planned for kUML V3.4.2 (Martin/crow's-foot " +
+                            "notation first). V3.4.1 only supports `kuml validate` for ERM scripts.",
+                    )
             }
         } catch (e: IOException) {
             throw e

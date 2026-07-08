@@ -4,6 +4,7 @@ import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.c4.model.C4Model
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.erm.model.ErmModel
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.uml.UmlSerializersModule
 import kotlinx.serialization.json.Json
@@ -15,16 +16,16 @@ import kotlinx.serialization.json.Json
  * ## Why a hand-written codec instead of `@Serializable ExtractedDiagram`
  *
  * [ExtractedDiagram] is a sealed class defined in `kuml-core-script`, but its
- * payload types live in five independent metamodel modules
- * ([KumlDiagram], [C4Model], [Sysml2Model], [BpmnModel], [BlueprintModel]).
+ * payload types live in six independent metamodel modules
+ * ([KumlDiagram], [C4Model], [Sysml2Model], [BpmnModel], [BlueprintModel], [ErmModel]).
  * Two of these serialization worlds are incompatible in one `Json` instance:
  *
  *  - **UML** ([KumlDiagram]) needs [UmlSerializersModule] because its
  *    `KumlElement` base is an *open* polymorphic type (see [DumpJsonCommand]
  *    in `kuml-cli` for the same split).
- *  - **C4 / SysML 2 / BPMN / Blueprint** models are *sealed* `@Serializable`
- *    hierarchies that need **no** module — and registering the UML module for
- *    them is harmless but unnecessary.
+ *  - **C4 / SysML 2 / BPMN / Blueprint / ERM** models are *sealed*
+ *    `@Serializable` hierarchies that need **no** module — and registering
+ *    the UML module for them is harmless but unnecessary.
  *
  * Both worlds also require `classDiscriminator = "@type"` because the default
  * `"type"` key collides with `KumlDiagram.type`.
@@ -58,7 +59,7 @@ internal object ExtractedDiagramCodec {
         }
 
     /** Which metamodel the payload belongs to. */
-    internal enum class Variant { UML, C4, SYSML2, BPMN, BLUEPRINT }
+    internal enum class Variant { UML, C4, SYSML2, BPMN, BLUEPRINT, ERM }
 
     /** Serializable envelope carrying one [ExtractedDiagram] across the IPC boundary. */
     @kotlinx.serialization.Serializable
@@ -109,6 +110,12 @@ internal object ExtractedDiagramCodec {
                         diagramIndex = extracted.model.diagrams.indexOf(extracted.diagram),
                         payload = modelJson.encodeToString(BlueprintModel.serializer(), extracted.model),
                     )
+                is ExtractedDiagram.Erm ->
+                    Envelope(
+                        variant = Variant.ERM,
+                        diagramIndex = extracted.model.diagrams.indexOf(extracted.diagram),
+                        payload = modelJson.encodeToString(ErmModel.serializer(), extracted.model),
+                    )
             }
         return envelopeJson.encodeToString(Envelope.serializer(), envelope)
     }
@@ -142,6 +149,10 @@ internal object ExtractedDiagramCodec {
             Variant.BLUEPRINT -> {
                 val model = modelJson.decodeFromString(BlueprintModel.serializer(), envelope.payload)
                 ExtractedDiagram.Blueprint(model, model.diagrams.selected(envelope.diagramIndex))
+            }
+            Variant.ERM -> {
+                val model = modelJson.decodeFromString(ErmModel.serializer(), envelope.payload)
+                ExtractedDiagram.Erm(model, model.diagrams.selected(envelope.diagramIndex))
             }
         }
     }

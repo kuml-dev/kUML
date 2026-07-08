@@ -7,6 +7,8 @@ import dev.kuml.bpmn.model.BpmnModel
 import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.erm.model.ErmDiagram
+import dev.kuml.erm.model.ErmModel
 import dev.kuml.sysml2.ActDiagram
 import dev.kuml.sysml2.BdDiagram
 import dev.kuml.sysml2.IbdDiagram
@@ -75,6 +77,20 @@ public sealed class ExtractedDiagram {
     public data class Blueprint(
         val model: BlueprintModel,
         val diagram: BlueprintDiagram,
+    ) : ExtractedDiagram()
+
+    /**
+     * An ERM (Entity-Relationship-Model) diagram with its parent [ErmModel].
+     *
+     * The ERM renderer (V3.4.2) will need both the model (holds entities,
+     * relationships, views) and the concrete diagram view ([ErmDiagram]) to
+     * know which elements/notation to render. V3.4.1 wires only extraction
+     * and `kuml validate`; rendering is a structured "not yet supported" stub
+     * (see `RenderPipeline`/`DumpJsonCommand` in `kuml-cli`).
+     */
+    public data class Erm(
+        val model: ErmModel,
+        val diagram: ErmDiagram,
     ) : ExtractedDiagram()
 }
 
@@ -251,6 +267,11 @@ object DiagramExtractor {
                     return ExtractedDiagram.Blueprint(value, it)
                 }
             }
+            if (value is ErmModel) {
+                value.firstDiagramOrNull()?.let {
+                    return ExtractedDiagram.Erm(value, it)
+                }
+            }
         }
 
         // Case 2: scan script instance for properties
@@ -334,6 +355,21 @@ object DiagramExtractor {
                     val model = prop.get(instance) as BlueprintModel
                     return ExtractedDiagram.Blueprint(model, model.firstDiagramOrNull()!!)
                 }
+
+            // ErmModel property with at least one diagram (V3.4.1).
+            properties
+                .firstOrNull { prop ->
+                    try {
+                        val v = prop.get(instance)
+                        v is ErmModel && v.firstDiagramOrNull() != null
+                    } catch (_: Exception) {
+                        false
+                    }
+                }?.let { prop ->
+                    @Suppress("UNCHECKED_CAST")
+                    val model = prop.get(instance) as ErmModel
+                    return ExtractedDiagram.Erm(model, model.firstDiagramOrNull()!!)
+                }
         }
 
         throw ScriptEvaluationException(
@@ -345,7 +381,8 @@ object DiagramExtractor {
                 "`sysml2Model(\"…\") { stmDiagram(\"…\") { … } }` (SysML 2 STM) / " +
                 "`sysml2Model(\"…\") { actDiagram(\"…\") { … } }` (SysML 2 ACT), " +
                 "a `bpmnModel(\"…\") { process(…) { … }; diagram(\"…\", processId = \"…\") }` (BPMN), " +
-                "or a `blueprint(\"…\") { … ; journeyDiagram(\"…\") }` (Blueprint / Journey Map) expression.",
+                "a `blueprint(\"…\") { … ; journeyDiagram(\"…\") }` (Blueprint / Journey Map), " +
+                "or an `ermModel(\"…\") { entity(\"…\") { … }; diagram(\"…\") }` (ERM) expression.",
         )
     }
 
@@ -364,4 +401,9 @@ object DiagramExtractor {
 
     /** V3.1.24: picks the first diagram in declaration order from a [BlueprintModel]. */
     private fun BlueprintModel.firstDiagramOrNull(): BlueprintDiagram? = diagrams.firstOrNull()
+
+    // V3.4.1: [ErmModel.firstDiagramOrNull] is a member of ErmModel itself (unlike the
+    // other metamodels above), since in practice it is never null for models built via
+    // `ermModel { … }` — ErmModelBuilder.build() synthesizes a default diagram when none
+    // was declared explicitly. No local extension function needed here.
 }

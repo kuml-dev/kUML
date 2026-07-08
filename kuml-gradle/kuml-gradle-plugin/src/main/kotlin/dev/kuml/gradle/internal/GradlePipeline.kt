@@ -254,6 +254,12 @@ internal object GradlePipeline {
             }
             // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
             is ExtractedDiagram.Blueprint -> KumlSvgRenderer.toSvg(extracted.model, extracted.diagram)
+            // V3.4.1: ERM rendering is out of scope — planned for V3.4.2.
+            is ExtractedDiagram.Erm ->
+                throw ScriptEvaluationException(
+                    "ERM-Rendering wird noch nicht unterstützt — geplant für kUML V3.4.2. " +
+                        "V3.4.1 unterstützt für ERM-Skripte nur `kuml validate`.",
+                )
         }
 
     /** Render an extracted diagram to PNG bytes. */
@@ -316,6 +322,12 @@ internal object GradlePipeline {
                 val svg = KumlSvgRenderer.toSvg(extracted.model, extracted.diagram)
                 KumlPngRenderer.toPng(svg, options)
             }
+            // V3.4.1: ERM rendering is out of scope — planned for V3.4.2.
+            is ExtractedDiagram.Erm ->
+                throw ScriptEvaluationException(
+                    "ERM-Rendering wird noch nicht unterstützt — geplant für kUML V3.4.2. " +
+                        "V3.4.1 unterstützt für ERM-Skripte nur `kuml validate`.",
+                )
         }
     }
 
@@ -327,6 +339,7 @@ internal object GradlePipeline {
             is ExtractedDiagram.Sysml2 -> extracted.diagram.name
             is ExtractedDiagram.Bpmn -> extracted.diagram.name
             is ExtractedDiagram.Blueprint -> extracted.diagram.name
+            is ExtractedDiagram.Erm -> extracted.diagram.name
         }
 
     /** Default (fallback) theme — used when the user's pick fails to resolve. */

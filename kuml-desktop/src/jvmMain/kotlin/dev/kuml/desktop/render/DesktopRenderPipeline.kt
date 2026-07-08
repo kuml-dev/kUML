@@ -185,6 +185,12 @@ internal object DesktopRenderPipeline {
                 // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
                 is ExtractedDiagram.Blueprint ->
                     KumlSvgRenderer.toSvg(extracted.model, extracted.diagram)
+                // V3.4.1: ERM rendering is out of scope — planned for V3.4.2.
+                is ExtractedDiagram.Erm ->
+                    return DesktopRenderResult.Error(
+                        "ERM-Rendering wird noch nicht unterstützt — geplant für kUML V3.4.2. " +
+                            "V3.4.1 unterstützt für ERM-Skripte nur `kuml validate`.",
+                    )
             }
             DesktopRenderResult.Svg(svg)
 

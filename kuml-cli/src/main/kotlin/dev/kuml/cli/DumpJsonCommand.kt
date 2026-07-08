@@ -275,6 +275,15 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
                 // object so downstream tooling can rely on the file existing.
                 writeLayout("{}")
             }
+            is ExtractedDiagram.Erm -> {
+                // V3.4.1: ERM has no LayoutResult yet — the renderer (and thus the layout
+                // bridge this command needs) is planned for V3.4.2. `kuml validate` is the
+                // only supported entry point for ERM scripts in this wave.
+                throw ScriptEvaluationException(
+                    "`kuml dump-json` does not yet support ERM models — planned for kUML V3.4.2 " +
+                        "alongside the ERM renderer. Use `kuml validate` for ERM scripts.",
+                )
+            }
         }
     }
 

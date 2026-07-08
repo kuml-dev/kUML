@@ -55,6 +55,7 @@ include(
     "kuml-metamodel:kuml-metamodel-sysml2", // V2.0.3 — SysML 2 auf KerML (BDD-MVP)
     "kuml-metamodel:kuml-metamodel-bpmn",   // V3.1.1 — BPMN 2.0 Process Core-Metamodell
     "kuml-metamodel:kuml-metamodel-blueprint", // V3.1.21 — User Journey / Service Blueprint Core-Metamodell
+    "kuml-metamodel:kuml-metamodel-erm",     // V3.4.1 — ERM (Entity-Relationship) Core-Metamodell (Martin/Bachman/Chen/IDEF1X)
 )
 
 // ── Renderer ─────────────────────────────────────────── Phase 1 ──

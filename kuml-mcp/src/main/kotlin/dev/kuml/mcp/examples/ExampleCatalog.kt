@@ -284,6 +284,14 @@ internal object ExampleCatalog {
                 diagramType = "choreography",
                 description = "BPMN choreography diagram of an ordering process.",
             ),
+            CuratedExample(
+                fileName = "38 UML Profil – Exposed.md",
+                language = "uml",
+                diagramType = "profile",
+                description =
+                    "UML profile diagram defining the Kotlin Exposed ORM stereotype profile " +
+                        "(Table/Column/FK) used by the MDA persistence pipeline (ADR-0016).",
+            ),
         )
 
     /** Distinct languages in catalog order: uml, c4, sysml2, bpmn, blueprint. */

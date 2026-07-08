@@ -69,5 +69,9 @@ object KumlScriptCompilationConfiguration : ScriptCompilationConfiguration({
         "dev.kuml.sysml2.dsl.*",
         // SysML 2 metamodel types
         "dev.kuml.sysml2.*",
+        // ERM DSL builders (ermModel, entity, relationship, view, diagram) — V3.4.1
+        "dev.kuml.erm.dsl.*",
+        // ERM metamodel types (ErmDataType, ErmNotation, Cardinality, ReferentialAction, …)
+        "dev.kuml.erm.model.*",
     )
 })

@@ -1,8 +1,11 @@
 package dev.kuml.mcp.tools
 
 import dev.kuml.core.ocl.KumlValidationResult
+import dev.kuml.core.ocl.KumlViolation
 import dev.kuml.core.ocl.OclValidator
 import dev.kuml.core.script.ExtractedDiagram
+import dev.kuml.erm.constraint.ErmConstraintChecker
+import dev.kuml.erm.constraint.ViolationSeverity
 import dev.kuml.mcp.McpContent
 import dev.kuml.mcp.McpScriptEvaluator
 import dev.kuml.mcp.McpToolDescriptor
@@ -46,15 +49,37 @@ internal object ValidateTool : McpTool {
 
         // V0.23.3 — evaluation + extraction run through the sandboxed evaluator.
         // Dispatch mirrors ValidateCommand: UML validates via OclValidator.validate,
-        // BPMN / SysML 2 route to their dedicated validators. Any other diagram
-        // kind (C4, Blueprint) has no OCL constraint concept and validates
-        // trivially.
+        // BPMN / SysML 2 route to their dedicated validators. ERM (V3.4.1) has no
+        // OCL constraints — it routes to ErmConstraintChecker instead (structural
+        // rules, not OCL invariants), mapped into the same KumlViolation shape so
+        // this tool's response contract doesn't need a second result type. Any
+        // other diagram kind (C4, Blueprint) has no constraint concept at all and
+        // validates trivially.
         val extracted = McpScriptEvaluator.extract(script, "validate.kuml.kts")
         val result: KumlValidationResult =
             when (extracted) {
                 is ExtractedDiagram.Uml -> OclValidator.validate(extracted.diagram)
                 is ExtractedDiagram.Bpmn -> OclValidator.validateBpmn(extracted.model)
                 is ExtractedDiagram.Sysml2 -> OclValidator.validateSysml2(extracted.model)
+                is ExtractedDiagram.Erm -> {
+                    val model = extracted.model
+                    val checks = ErmConstraintChecker().check(model)
+                    val violations =
+                        checks.map { v ->
+                            val elementName =
+                                v.elementId?.let { id -> model.elementById(id)?.name } ?: model.name
+                            KumlViolation(
+                                constraintId = v.elementId ?: model.name,
+                                constraintName = if (v.severity == ViolationSeverity.WARNING) "erm-warning" else "erm-error",
+                                classifierId = v.elementId ?: model.name,
+                                classifierName = elementName ?: (v.elementId ?: model.name),
+                                oclExpression = "",
+                                message = v.message,
+                            )
+                        }
+                    val hasErrors = checks.any { it.severity == ViolationSeverity.ERROR }
+                    KumlValidationResult(valid = !hasErrors, violations = violations)
+                }
                 else -> KumlValidationResult(valid = true, violations = emptyList())
             }
         val resultJson = json.encodeToString(KumlValidationResult.serializer(), result)

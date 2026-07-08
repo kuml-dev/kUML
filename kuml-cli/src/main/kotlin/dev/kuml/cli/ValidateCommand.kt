@@ -18,6 +18,8 @@ import dev.kuml.core.ocl.StereotypeValidator
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.erm.constraint.ErmConstraintChecker
+import dev.kuml.erm.constraint.ViolationSeverity
 import dev.kuml.expr.ExpressionTypeChecker
 import dev.kuml.expr.OclLikeExpressionParser
 import dev.kuml.profile.ProfileRegistry
@@ -191,12 +193,44 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
             }
         }
 
+        // 7b. ERM validation (V3.4.1) — ErmConstraintChecker's structural rules, not OCL.
+        //     ERM has no OCL constraint concept, so this runs independently of step 3's
+        //     modelResult (which stays `valid = true, violations = emptyList()` for ERM).
+        //     Reuses the StructuralViolation shape (category = "erm") so the JSON output
+        //     doesn't need a new top-level field, and folds into the same `structural`
+        //     JSON section as UML's structural checks.
+        val ermViolations: List<StructuralViolation> =
+            (extracted as? ExtractedDiagram.Erm)?.let { erm ->
+                ErmConstraintChecker().check(erm.model).map { v ->
+                    StructuralViolation(
+                        id = v.elementId ?: erm.model.name,
+                        severity = if (v.severity == ViolationSeverity.ERROR) "error" else "warning",
+                        message = v.message,
+                        location = v.elementId,
+                        category = "erm",
+                    )
+                }
+            } ?: emptyList()
+        val ermErrors = ermViolations.filter { it.severity == "error" }
+        val ermWarnings = ermViolations.filter { it.severity == "warning" }
+
+        if (ermViolations.isNotEmpty()) {
+            echo("\nERM validation:")
+            for (ev in ermErrors) {
+                echo("  ERROR [${ev.id}] ${ev.message}")
+            }
+            for (ev in ermWarnings) {
+                echo("  WARN  [${ev.id}] ${ev.message}")
+            }
+        }
+
         // 8. Output
         val allViolations =
             modelResult.violations + (stereotypeResult?.violations ?: emptyList())
+        val allStructuralLikeViolations = structuralViolations + ermViolations
         val combined =
             KumlValidationResult(
-                valid = allViolations.isEmpty() && structuralErrors.isEmpty(),
+                valid = allViolations.isEmpty() && structuralErrors.isEmpty() && ermErrors.isEmpty(),
                 violations = allViolations,
             )
 
@@ -211,11 +245,11 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                                 ValidateViolationSplit(
                                     model = modelResult.violations,
                                     stereotype = stereotypeResult?.violations ?: emptyList(),
-                                    structural = structuralViolations.map { it.toJsonViolation() },
+                                    structural = allStructuralLikeViolations.map { it.toJsonViolation() },
                                 ),
                         )
                     echo(kumlPrettyJson.encodeToString(splitOutput))
-                } else if (structuralViolations.isNotEmpty()) {
+                } else if (allStructuralLikeViolations.isNotEmpty()) {
                     // Emit combined JSON with structural section
                     val splitOutput =
                         ValidateJsonOutput(
@@ -224,7 +258,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                                 ValidateViolationSplit(
                                     model = modelResult.violations,
                                     stereotype = emptyList(),
-                                    structural = structuralViolations.map { it.toJsonViolation() },
+                                    structural = allStructuralLikeViolations.map { it.toJsonViolation() },
                                 ),
                         )
                     echo(kumlPrettyJson.encodeToString(splitOutput))
@@ -232,7 +266,7 @@ internal class ValidateCommand : CliktCommand(name = "validate") {
                     echo(kumlPrettyJson.encodeToString(KumlValidationResult.serializer(), modelResult))
                 }
             }
-            else -> printText(combined, modelResult.violations, stereotypeResult?.violations, structuralViolations)
+            else -> printText(combined, modelResult.violations, stereotypeResult?.violations, allStructuralLikeViolations)
         }
 
         if (!combined.valid) throw ProgramResult(ExitCodes.VALIDATION_VIOLATIONS)

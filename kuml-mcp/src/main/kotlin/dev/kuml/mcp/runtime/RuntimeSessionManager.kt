@@ -342,6 +342,7 @@ internal class RuntimeSessionManager(
                 is ExtractedDiagram.C4 -> error("C4 diagrams cannot be simulated as STM")
                 is ExtractedDiagram.Bpmn -> error("BPMN diagrams cannot be simulated as STM")
                 is ExtractedDiagram.Blueprint -> error("Blueprint/Journey-Map diagrams cannot be simulated as STM")
+                is ExtractedDiagram.Erm -> error("ERM diagrams cannot be simulated as STM")
             }
 
         val runtime = StateMachineRuntime(guards = OclGuardEvaluator())

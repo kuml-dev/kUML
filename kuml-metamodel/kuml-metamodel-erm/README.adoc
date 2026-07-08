@@ -1,0 +1,116 @@
+= kuml-metamodel-erm
+:description: ERM (Entity-Relationship-Modell) Core-Metamodell für kUML — eigenständiges pure-Kotlin-Metamodell
+
+Pure-Kotlin ERM (Entity-Relationship-Model) metamodel for kUML. Standalone — depends only on
+`kuml-core-model`, no `kuml-metamodel-uml` reuse (unlike BPMN, which reuses `UmlConstraint`).
+Covers Martin (crow's foot), Bachman, Chen and IDEF1X notations as a single model-level
+`notation` property — rendering the different notations is out of scope for V3.4.1 and lands
+with the renderer in V3.4.2.
+
+== Supported Elements
+
+[cols="1,3"]
+|===
+| Type | Description
+
+| `ErmEntity`
+| A database table. `weak = true` marks a weak entity whose primary key depends on an owning
+strong entity via an identifying `ErmRelationship`. Carries `indexes` and `checks` as
+first-class, entity-embedded lists.
+
+| `ErmAttribute`
+| A column: `type` (`ErmDataType`), `primaryKey`, `nullable`, `unique`, a raw dialect-neutral
+`default` expression, an optional `foreignKey`, and `autoIncrement`.
+
+| `ErmDataType`
+| Sealed, dialect-neutral logical column type: `Integer(bits)`, `Decimal(precision, scale)`,
+`Real(double)`, `Varchar(length)`, `Text`, `Boolean`, `Date`, `Time`, `Timestamp(withTimeZone)`,
+`Uuid`, `Blob`, `Json`, `Custom(raw)` as an escape hatch. `render()` produces a human-readable
+SQL-ish label (e.g. `"VARCHAR(255)"`).
+
+| `ErmForeignKey`
+| FK target (`targetEntityId`, optional `targetAttributeId` — defaults to the target's primary
+key) plus `onDelete` / `onUpdate` `ReferentialAction` (NO_ACTION, RESTRICT, CASCADE, SET_NULL,
+SET_DEFAULT).
+
+| `ErmRelationship`
+| Association between two entities with independent min/max `Cardinality` per end (covers
+crow's-foot, Chen, and IDEF1X uniformly), a `RelationshipKind` (IDENTIFYING /
+NON_IDENTIFYING), and optional role names.
+
+| `ErmIndex`
+| First-class index, entity-embedded. `attributeIds` order is significant for composite
+indexes.
+
+| `ErmCheckConstraint`
+| First-class `CHECK` constraint, entity-embedded. Raw, dialect-neutral SQL boolean expression
+(e.g. `"price > 0"`) — deliberately a plain string, not an OCL AST.
+
+| `ErmView`
+| First-class database view on model level. Raw `SELECT` body plus an optional, explicitly
+tracked list of referenced entities (used by the constraint checker, not parsed from the SQL).
+|===
+
+== DSL
+
+[source,kotlin]
+----
+import dev.kuml.erm.dsl.*
+import dev.kuml.erm.model.*
+
+val model = ermModel("Shop") {
+    val customer = entity(name = "Customer") {
+        id()
+        attribute(name = "email", type = ErmDataType.Varchar(255), unique = true)
+        index("email", unique = true, name = "idx_customer_email")
+    }
+    val order = entity(name = "Order") {
+        id()
+        foreignKey(name = "customer_id", references = customer)
+        attribute(name = "total", type = ErmDataType.Decimal(precision = 10, scale = 2))
+        check(expression = "total >= 0", name = "non_negative_total")
+    }
+    val item = entity(name = "OrderItem", weak = true) {
+        foreignKey(name = "order_id", references = order)
+        attribute(name = "quantity", type = ErmDataType.Integer())
+    }
+
+    customer oneToMany order
+    relationship(from = order, to = item, name = "contains", kind = RelationshipKind.IDENTIFYING)
+
+    view(name = "big_orders", query = "SELECT * FROM \"Order\" WHERE total > 100", references = listOf(order))
+
+    diagram(name = "Overview", notation = ErmNotation.MARTIN)
+}
+----
+
+A model with no explicit `diagram(…)` call gets a default one synthesized (`name` = model
+name, `notation` = MARTIN) so every `ermModel { … }` script stays renderable/extractable
+without mandatory boilerplate.
+
+== Constraint Checker
+
+`ErmConstraintChecker` enforces 15 rules — see the KDoc on
+`dev.kuml.erm.constraint.ErmConstraintChecker` for the full list. Highlights:
+
+* At least one entity — ERROR.
+* Every non-weak entity has a primary key; every weak entity is the target of an identifying
+relationship — ERROR otherwise.
+* Foreign keys resolve to an existing entity/attribute and have a type-compatible target — ERROR
+(WARNING if either side is `Custom`, which can't be verified).
+* Indexes, views and check constraints resolve their attribute/entity references and are non-blank
+— ERROR / WARNING.
+* Many-to-many relationships marked `IDENTIFYING` — WARNING (likely a missing junction-table
+resolution, relevant once V3.4.6 does UML-to-ERM M2M transformation).
+
+== Scope (V3.4.1)
+
+In scope: the metamodel, the DSL, and the constraint checker, plus the CLI/MCP wiring needed
+for `kuml validate` to compile, extract and validate an ERM script. Out of scope (later waves,
+kept compile-safe with structured stubs here): the renderer (V3.4.2), the CLI `--notation`
+override flag (V3.4.2), UML-to-ERM M2M transformation (V3.4.6), and SQL-dialect code generation
+(V3.4.7).
+
+== License
+
+Apache 2.0

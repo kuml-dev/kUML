@@ -290,6 +290,10 @@ object VaultExampleRenderer {
                     val svg = KumlSvgRenderer.toSvg(extracted.model, extracted.diagram)
                     RenderResult(svg, null, null)
                 }
+
+                // V3.4.1: ERM rendering is out of scope — planned for V3.4.2.
+                is ExtractedDiagram.Erm ->
+                    RenderResult(null, null, "ERM-Rendering wird noch nicht unterstützt — geplant für kUML V3.4.2.")
             }
         } catch (e: Exception) {
             RenderResult(null, null, "Render-Exception: ${e.javaClass.simpleName}: ${e.message}")

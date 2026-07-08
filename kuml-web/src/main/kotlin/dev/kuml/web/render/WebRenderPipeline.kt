@@ -129,6 +129,11 @@ internal object WebRenderPipeline {
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, format, theme, widthPx, durationMs, standaloneTex)
                 is ExtractedDiagram.Bpmn -> renderBpmn(extracted, format, theme, widthPx, durationMs)
                 is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, format, widthPx, durationMs)
+                is ExtractedDiagram.Erm ->
+                    WebRenderResult.Error(
+                        "ERM rendering is not yet supported — planned for kUML V3.4.2. " +
+                            "V3.4.1 only supports `kuml validate` for ERM scripts.",
+                    )
             }
         } catch (e: ScriptEvaluationException) {
             WebRenderResult.Error(e.message ?: "Script error")

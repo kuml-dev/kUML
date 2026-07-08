@@ -54,7 +54,7 @@ class ExampleCatalogTest :
         }
 
         test("find returns multiple examples for uml profile") {
-            ExampleCatalog.find(language = "uml", diagramType = "profile") shouldHaveSize 2
+            ExampleCatalog.find(language = "uml", diagramType = "profile") shouldHaveSize 3
         }
 
         test("find returns multiple examples for bpmn process") {
