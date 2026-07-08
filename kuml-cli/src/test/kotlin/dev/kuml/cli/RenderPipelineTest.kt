@@ -346,9 +346,38 @@ class RenderPipelineTest :
             outputDir.toFile().delete()
         }
 
-        test("RenderPipeline --notation override picks chen and still throws not-yet-supported") {
+        test("RenderPipeline --notation override picks chen and renders SVG (V3.4.4)") {
             val fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts")
             val outputDir = Files.createTempDirectory("kuml-erm-notation-chen-test")
+            val outputFile = outputDir.resolve("valid-ecommerce.svg")
+
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "svg",
+                width = 1024,
+                themeName = "plain",
+                notation = "chen",
+            )
+
+            val content = outputFile.toFile().readText()
+            content shouldStartWith "<?xml"
+            content shouldContain "Customer"
+            content shouldContain "Order"
+            // Chen entities are title-only boxes; attributes are separate ovals.
+            content shouldContain "<ellipse"
+            content shouldContain "kuml-erm-chen-attribute"
+            // The fixture's `places` relationship becomes its own diamond node.
+            content shouldContain "<polygon"
+            content shouldContain "kuml-erm-chen-relationship"
+
+            outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
+        test("RenderPipeline --notation override picks idef1x and still throws not-yet-supported") {
+            val fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-erm-notation-idef1x-test")
             val outputFile = outputDir.resolve("valid-ecommerce.svg")
 
             val ex =
@@ -359,7 +388,7 @@ class RenderPipelineTest :
                         format = "svg",
                         width = 1024,
                         themeName = "plain",
-                        notation = "chen",
+                        notation = "idef1x",
                     )
                 }.exceptionOrNull()
 

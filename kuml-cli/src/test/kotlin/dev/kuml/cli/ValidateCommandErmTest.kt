@@ -8,10 +8,11 @@ import io.kotest.matchers.string.shouldContain
 import java.io.File
 
 /**
- * V3.4.1/V3.4.2/V3.4.3 — CLI smoke tests proving `kuml validate` compiles,
+ * V3.4.1–V3.4.4 — CLI smoke tests proving `kuml validate` compiles,
  * extracts, and structurally validates ERM (`ermModel { … }`) scripts via
  * [dev.kuml.erm.constraint.ErmConstraintChecker], and that `kuml render` now
- * renders both ERM/Martin (V3.4.2) and ERM/Bachman (V3.4.3) diagrams.
+ * renders ERM/Martin (V3.4.2), ERM/Bachman (V3.4.3), and ERM/Chen (V3.4.4)
+ * diagrams — only IDEF1X still throws a structured not-yet-supported error.
  */
 class ValidateCommandErmTest :
     FunSpec({
@@ -83,7 +84,7 @@ class ValidateCommandErmTest :
             }
         }
 
-        test("render --notation chen throws a structured not-yet-supported error (exit 3)") {
+        test("render --notation chen produces an ERM/Chen SVG for a valid ERM script (V3.4.4)") {
             val outputFile = File.createTempFile("kuml-erm-render-chen-", ".svg")
             try {
                 val result =
@@ -97,6 +98,33 @@ class ValidateCommandErmTest :
                             outputFile.absolutePath,
                             "--notation",
                             "chen",
+                        ),
+                    )
+                result.statusCode shouldBe 0
+                val svg = outputFile.readText()
+                svg shouldContain "<svg"
+                svg shouldContain "Customer"
+                svg shouldContain "Order"
+                svg shouldContain "kuml-erm-chen-attribute"
+            } finally {
+                outputFile.delete()
+            }
+        }
+
+        test("render --notation idef1x throws a structured not-yet-supported error (exit 3)") {
+            val outputFile = File.createTempFile("kuml-erm-render-idef1x-", ".svg")
+            try {
+                val result =
+                    KumlCli().test(
+                        listOf(
+                            "render",
+                            validFixture.absolutePath,
+                            "--format",
+                            "svg",
+                            "--output",
+                            outputFile.absolutePath,
+                            "--notation",
+                            "idef1x",
                         ),
                     )
                 // The structured "not yet supported" message goes to System.err.println

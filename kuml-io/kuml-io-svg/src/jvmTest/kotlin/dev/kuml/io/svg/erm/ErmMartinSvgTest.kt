@@ -233,19 +233,17 @@ class ErmMartinSvgTest :
             SampleOutput.write("erm/xml-escape-guard.svg", svg)
         }
 
-        "notation override CHEN/IDEF1X throws a structured not-yet-supported error" {
+        "notation override IDEF1X throws a structured not-yet-supported error" {
             val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val model = ErmModel(name = "Shop", entities = listOf(customer))
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.MARTIN)
             val layout = layoutOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)))
 
-            listOf(ErmNotation.CHEN, ErmNotation.IDEF1X).forEach { notation ->
-                val ex =
-                    shouldThrow<IllegalArgumentException> {
-                        KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), notation = notation)
-                    }
-                ex.message shouldContain "not yet supported"
-            }
+            val ex =
+                shouldThrow<IllegalArgumentException> {
+                    KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), notation = ErmNotation.IDEF1X)
+                }
+            ex.message shouldContain "not yet supported"
         }
 
         "deterministic output — same input renders byte-identically" {

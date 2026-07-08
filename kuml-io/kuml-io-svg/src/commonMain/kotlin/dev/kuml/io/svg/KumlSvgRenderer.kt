@@ -44,6 +44,10 @@ import dev.kuml.io.svg.bpmn.renderConversationParticipant
 import dev.kuml.io.svg.c4.c4RelationshipLabel
 import dev.kuml.io.svg.c4.renderC4Interaction
 import dev.kuml.io.svg.c4.renderC4Relationship
+import dev.kuml.io.svg.erm.renderChenAttribute
+import dev.kuml.io.svg.erm.renderChenConnector
+import dev.kuml.io.svg.erm.renderChenEntity
+import dev.kuml.io.svg.erm.renderChenRelationshipNode
 import dev.kuml.io.svg.erm.renderErmBachmanRelationship
 import dev.kuml.io.svg.erm.renderErmEntity
 import dev.kuml.io.svg.erm.renderErmMartinRelationship
@@ -59,6 +63,7 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
+import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.sysml2.ActDiagram
@@ -1875,10 +1880,17 @@ public object KumlSvgRenderer {
      * the Blueprint overload above.
      *
      * [notation] defaults to `diagram.notation` but callers (the CLI's
-     * `--notation` flag) may override it. [ErmNotation.MARTIN] (crow's-foot)
-     * and [ErmNotation.BACHMAN] (arrow + circle) are implemented as of
-     * V3.4.3 — the remaining two notations throw a structured "not yet
-     * supported" error naming the wave they are planned for.
+     * `--notation` flag) may override it. [ErmNotation.MARTIN] (crow's-foot),
+     * [ErmNotation.BACHMAN] (arrow + circle), and [ErmNotation.CHEN]
+     * (entity/attribute/relationship as separate box/oval/diamond shapes)
+     * are implemented as of V3.4.4 — only [ErmNotation.IDEF1X] still throws a
+     * structured "not yet supported" error naming the wave it is planned for.
+     *
+     * Note that [ErmNotation.CHEN] does **not** go through the shared
+     * [renderErm] body used by Martin/Bachman — its [LayoutResult] comes from
+     * a structurally different graph (`ErmChenLayoutBridge`'s expanded
+     * attribute/relationship nodes), so it has its own render body,
+     * [renderErmChen].
      */
     public fun toSvg(
         model: ErmModel,
@@ -1891,15 +1903,11 @@ public object KumlSvgRenderer {
         when (notation) {
             ErmNotation.MARTIN -> renderErmMartin(model, diagram, layoutResult, theme, options)
             ErmNotation.BACHMAN -> renderErmBachman(model, diagram, layoutResult, theme, options)
-            ErmNotation.CHEN ->
-                throw IllegalArgumentException(
-                    "ERM notation CHEN is not yet supported — MARTIN (crow's foot) and BACHMAN are the " +
-                        "only notations implemented in kUML V3.4.3. Chen is planned for V3.4.4.",
-                )
+            ErmNotation.CHEN -> renderErmChen(model, diagram, layoutResult, theme, options)
             ErmNotation.IDEF1X ->
                 throw IllegalArgumentException(
-                    "ERM notation IDEF1X is not yet supported — MARTIN (crow's foot) and BACHMAN are the " +
-                        "only notations implemented in kUML V3.4.3. IDEF1X is planned for V3.4.5.",
+                    "ERM notation IDEF1X is not yet supported — MARTIN (crow's foot), BACHMAN, and CHEN " +
+                        "are the only notations implemented in kUML V3.4.4. IDEF1X is planned for V3.4.5.",
                 )
         }
 
@@ -1990,6 +1998,92 @@ public object KumlSvgRenderer {
                     edgesBuilder,
                     stackIndices[edgeId] ?: 0,
                 )
+            }
+        }
+    }
+
+    /**
+     * [toSvg] path for [ErmNotation.CHEN] (V3.4.4).
+     *
+     * Chen expands attributes and relationships into their own nodes (see
+     * [ErmChenLayoutBridge]'s KDoc) — so, unlike [renderErmMartin] /
+     * [renderErmBachman], this body cannot reuse [renderErm]: every
+     * [LayoutResult] node/edge here carries one of [ErmChenLayoutBridge]'s
+     * synthetic id prefixes. This function dispatches strictly on those
+     * prefixes — never by looking the stripped id up across
+     * entity/attribute/relationship/view maps and trusting whichever lookup
+     * happens to succeed first, since those are independent id spaces that
+     * could otherwise collide (see this wave's plan, "bekannte
+     * Stolperfallen" #1).
+     */
+    private fun renderErmChen(
+        model: ErmModel,
+        diagram: ErmDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+    ): String {
+        val entitiesById = model.entities.associateBy { it.id }
+        val attrsById = model.entities.flatMap { it.attributes }.associateBy { it.id }
+        val relsById = model.relationships.associateBy { it.id }
+        val viewsById = model.views.associateBy { it.id }
+        val padding = options.paddingPx
+
+        return SvgDocument.render(
+            layoutResult,
+            theme,
+            options,
+            frameName = diagram.name,
+            frameTypeLabel = "erm",
+        ) { nodesBuilder, edgesBuilder ->
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                val id = nodeId.value
+                when {
+                    id.startsWith(ErmChenLayoutBridge.ENTITY_PREFIX) -> {
+                        val entity = entitiesById[id.removePrefix(ErmChenLayoutBridge.ENTITY_PREFIX)] ?: continue
+                        renderChenEntity(entity, shifted, theme, nodesBuilder)
+                    }
+                    id.startsWith(ErmChenLayoutBridge.ATTR_PREFIX) -> {
+                        val attr = attrsById[id.removePrefix(ErmChenLayoutBridge.ATTR_PREFIX)] ?: continue
+                        renderChenAttribute(attr, shifted, nodesBuilder)
+                    }
+                    id.startsWith(ErmChenLayoutBridge.REL_PREFIX) -> {
+                        val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_PREFIX)] ?: continue
+                        renderChenRelationshipNode(rel, shifted, nodesBuilder)
+                    }
+                    id.startsWith(ErmChenLayoutBridge.VIEW_PREFIX) -> {
+                        val view = viewsById[id.removePrefix(ErmChenLayoutBridge.VIEW_PREFIX)] ?: continue
+                        renderErmView(view, shifted, theme, nodesBuilder)
+                    }
+                }
+            }
+
+            for ((edgeId, route) in layoutResult.edges) {
+                val shiftedRoute = shiftRoute(route, padding)
+                val id = edgeId.value
+                when {
+                    id.startsWith(ErmChenLayoutBridge.ATTR_EDGE_PREFIX) ->
+                        renderChenConnector(shiftedRoute, cardinality = null, edgesBuilder)
+                    id.startsWith(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX) -> {
+                        val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX)] ?: continue
+                        renderChenConnector(shiftedRoute, rel.sourceCardinality, edgesBuilder)
+                    }
+                    id.startsWith(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX) -> {
+                        val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX)] ?: continue
+                        renderChenConnector(shiftedRoute, rel.targetCardinality, edgesBuilder)
+                    }
+                }
             }
         }
     }

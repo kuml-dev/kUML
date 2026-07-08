@@ -52,6 +52,8 @@ import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
+import dev.kuml.layout.bridge.erm.ErmChenSizeProvider
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
@@ -1019,8 +1021,16 @@ internal object RenderPipeline {
 
         ensureEnginesRegistered()
         val hints = LayoutHints.DEFAULT
-        val sizes = ErmContentSizeProvider(model, diagram, hints.direction)
-        val graph = ErmLayoutBridge.toLayoutGraph(model, diagram, sizes)
+        // Chen expands attributes/relationships into their own layout nodes
+        // (see ErmChenLayoutBridge's KDoc) — a structurally different graph
+        // from the Martin/Bachman one entity-box-per-entity graph, so it
+        // gets its own bridge + size provider before the shared ELK run.
+        val graph =
+            if (notation == ErmNotation.CHEN) {
+                ErmChenLayoutBridge.toChenLayoutGraph(model, diagram, ErmChenSizeProvider(model, diagram))
+            } else {
+                ErmLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
+            }
         val engine =
             LayoutEngineRegistry.get("elk.layered")
                 ?: error("ELK layout engine not available for ERM diagrams.")
@@ -1045,7 +1055,7 @@ internal object RenderPipeline {
     /**
      * Renders an ERM diagram to SVG, translating the [IllegalArgumentException]
      * that [KumlSvgRenderer.toSvg] throws for not-yet-implemented notations
-     * (Bachman/Chen/IDEF1X in V3.4.2) into a [ScriptEvaluationException].
+     * (only IDEF1X, as of V3.4.4) into a [ScriptEvaluationException].
      *
      * Narrowly scoped to this single renderer call so that unrelated
      * `require(...)`-style precondition failures elsewhere in the render

@@ -301,6 +301,19 @@ internal object SvgDocument {
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-erm-bachman-mandatory { fill: ${c.edge.toHex()}; stroke: ${c.edge.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
+                // V3.4.4 — ERM/Chen renderer. Entities reuse `.kuml-erm-entity` /
+                // `.kuml-erm-entity-inner` (title-only box, weak-entity double
+                // border) and the PK underline / plain `.kuml-edge` line from
+                // above; attribute ovals and relationship diamonds are new
+                // shapes with no Martin/Bachman equivalent.
+                append(".kuml-erm-chen-attribute { fill: $nodeFill; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-erm-chen-relationship { fill: $nodeFill; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-erm-chen-relationship-inner { fill: none; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.thinPx}; }\n")
+                append(".kuml-erm-chen-cardinality { font-family: ${ty.small.family};")
+                append(" font-size: ${ty.small.sizePt}px; fill: ${c.foreground.toHex()}; }\n")
             }
 
         b.tag("style") {
