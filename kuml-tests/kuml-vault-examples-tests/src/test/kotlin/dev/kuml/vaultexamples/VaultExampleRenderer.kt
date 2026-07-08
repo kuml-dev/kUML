@@ -21,6 +21,8 @@ import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
+import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.renderer.theme.core.ThemeRegistry
@@ -291,9 +293,14 @@ object VaultExampleRenderer {
                     RenderResult(svg, null, null)
                 }
 
-                // V3.4.1: ERM rendering is out of scope — planned for V3.4.2.
-                is ExtractedDiagram.Erm ->
-                    RenderResult(null, null, "ERM-Rendering wird noch nicht unterstützt — geplant für kUML V3.4.2.")
+                // V3.4.2 — ERM/Martin: laid out via ELK, same shape as UML class diagrams.
+                is ExtractedDiagram.Erm -> {
+                    val sizeProvider = ErmContentSizeProvider(extracted.model, extracted.diagram)
+                    val graph = ErmLayoutBridge.toLayoutGraph(extracted.model, extracted.diagram, sizeProvider)
+                    val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
+                    val svg = KumlSvgRenderer.toSvg(extracted.model, extracted.diagram, layout, theme)
+                    RenderResult(svg, null, null)
+                }
             }
         } catch (e: Exception) {
             RenderResult(null, null, "Render-Exception: ${e.javaClass.simpleName}: ${e.message}")

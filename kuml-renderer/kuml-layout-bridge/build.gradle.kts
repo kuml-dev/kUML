@@ -26,6 +26,7 @@ kotlin {
             api(project(":kuml-metamodel:kuml-metamodel-sysml2")) // V2.0.4 — SysML 2 BDD-Bridge
             api(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.3 — BPMN Layout Bridge
             api(project(":kuml-metamodel:kuml-metamodel-blueprint")) // V3.1.23 — Blueprint grid layout
+            api(project(":kuml-metamodel:kuml-metamodel-erm")) // V3.4.2 — ERM layout bridge
             implementation(project(":kuml-core:kuml-core-model"))
             implementation(libs.kotlinx.serialization.json)
             // Layout-Keys aus dem DSL-Modul werden NICHT verlinkt — String-Literale duplizieren wir lokal

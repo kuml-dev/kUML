@@ -16,6 +16,10 @@ import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.erm.constraint.ErmConstraintChecker
+import dev.kuml.erm.model.ErmDiagram
+import dev.kuml.erm.model.ErmModel
+import dev.kuml.erm.model.ErmNotation
 import dev.kuml.io.anim.AnimEncoderException
 import dev.kuml.io.anim.AnimFormat
 import dev.kuml.io.anim.AnimRenderOptions
@@ -48,6 +52,8 @@ import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
+import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.render.smil.SpeedFactor
@@ -70,6 +76,7 @@ import java.io.IOException
 import java.nio.file.Path
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
+import dev.kuml.erm.constraint.ViolationSeverity as ErmViolationSeverity
 
 /**
  * Maps a [DiagramType] to the default [DiagramKind] used for engine selection.
@@ -190,6 +197,7 @@ internal object RenderPipeline {
         animated: Boolean = false,
         traceFile: File? = null,
         speed: Double = 1.0,
+        notation: String? = null,
     ) {
         // 1. Evaluate script
         val evalResult = KumlScriptHost.eval(input)
@@ -236,11 +244,7 @@ internal object RenderPipeline {
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme, animated, traceFile, speed)
                 is ExtractedDiagram.Bpmn -> renderBpmn(extracted, output, format, width, theme, animated, traceFile, speed)
                 is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, output, format, width, theme, latexStandalone)
-                is ExtractedDiagram.Erm ->
-                    throw ScriptEvaluationException(
-                        "ERM rendering is not yet supported — planned for kUML V3.4.2 (Martin/crow's-foot " +
-                            "notation first). V3.4.1 only supports `kuml validate` for ERM scripts.",
-                    )
+                is ExtractedDiagram.Erm -> renderErm(extracted, output, format, width, theme, notation)
             }
         } catch (e: IOException) {
             throw e
@@ -979,6 +983,87 @@ internal object RenderPipeline {
             )
         }
     }
+
+    /**
+     * ERM render branch (V3.4.2).
+     *
+     * ERM entities/relationships are laid out via ELK — structurally
+     * identical to a UML class diagram (see [ErmLayoutBridge]'s KDoc).
+     * [ErmConstraintChecker] runs first; like [renderBpmn], violations are
+     * printed as warnings/errors to stderr but never block the render — the
+     * model may still be partially renderable.
+     *
+     * [notationOverride] is the raw `--notation` CLI flag value (already
+     * validated against the `martin|bachman|chen|idef1x` choice list by
+     * Clikt); `null` means "use the notation declared in the DSL script"
+     * (`diagram.notation`).
+     */
+    private fun renderErm(
+        extracted: ExtractedDiagram.Erm,
+        output: Path,
+        format: String,
+        width: Int,
+        theme: KumlTheme,
+        notationOverride: String? = null,
+    ) {
+        val model = extracted.model
+        val diagram = extracted.diagram
+
+        val violations = ErmConstraintChecker().check(model)
+        violations.forEach { v ->
+            val prefix = if (v.severity == ErmViolationSeverity.ERROR) "ERM ERROR" else "ERM WARNING"
+            System.err.println("[$prefix] ${v.elementId ?: "model"}: ${v.message}")
+        }
+
+        val notation = notationOverride?.let { ErmNotation.valueOf(it.uppercase()) } ?: diagram.notation
+
+        ensureEnginesRegistered()
+        val hints = LayoutHints.DEFAULT
+        val sizes = ErmContentSizeProvider(model, diagram, hints.direction)
+        val graph = ErmLayoutBridge.toLayoutGraph(model, diagram, sizes)
+        val engine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: error("ELK layout engine not available for ERM diagrams.")
+        val layout: LayoutResult = engine.layout(graph, hints)
+
+        when (format) {
+            "svg" -> writeText(output, ermToSvg(model, diagram, layout, theme, notation))
+            "png" -> {
+                val svg = ermToSvg(model, diagram, layout, theme, notation)
+                val pngBytes = KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = width))
+                writeBinary(output, pngBytes)
+            }
+            "latex" -> throw ScriptEvaluationException(
+                "ERM LaTeX export is not yet supported (planned for a post-V3.4 wave).",
+            )
+            else -> throw ScriptEvaluationException(
+                "Unsupported format for ERM: $format (supported: svg, png)",
+            )
+        }
+    }
+
+    /**
+     * Renders an ERM diagram to SVG, translating the [IllegalArgumentException]
+     * that [KumlSvgRenderer.toSvg] throws for not-yet-implemented notations
+     * (Bachman/Chen/IDEF1X in V3.4.2) into a [ScriptEvaluationException].
+     *
+     * Narrowly scoped to this single renderer call so that unrelated
+     * `require(...)`-style precondition failures elsewhere in the render
+     * pipeline are not misreported as user-facing script errors — they
+     * propagate as-is and crash loudly, as they should.
+     */
+    private fun ermToSvg(
+        model: ErmModel,
+        diagram: ErmDiagram,
+        layout: LayoutResult,
+        theme: KumlTheme,
+        notation: ErmNotation,
+    ): String =
+        try {
+            KumlSvgRenderer.toSvg(model, diagram, layout, theme, notation = notation)
+        } catch (e: IllegalArgumentException) {
+            throw ScriptEvaluationException(e.message ?: "Unsupported ERM notation: $notation", e)
+        }
 
     /**
      * Encode [animatedSvg] + [timeline] to APNG, WebP, or MP4 and write to [output].

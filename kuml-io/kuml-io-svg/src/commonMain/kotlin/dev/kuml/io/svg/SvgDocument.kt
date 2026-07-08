@@ -268,6 +268,30 @@ internal object SvgDocument {
                 append(".kuml-timing-frame { fill: $nodeFill; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-timing-line { stroke: ${c.edge.toHex()}; stroke-width: ${bo.regularPx}; fill: none; }\n")
+                // V3.4.2 — ERM/Martin (crow's-foot) renderer. Entity boxes reuse the
+                // `.kuml-class` fill/border convention (see kuml-erm-entity below);
+                // dedicated classes only exist where ERM needs a visual distinct from
+                // UML class diagrams (weak-entity double border, view dashed outline,
+                // PK underline, cardinality glyphs).
+                append(".kuml-erm-entity { fill: $nodeFill; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-erm-entity-inner { fill: none; stroke: ${c.border.toHex()};")
+                append(" stroke-width: ${bo.thinPx}; }\n")
+                append(".kuml-erm-view { fill: $nodeFill; stroke: ${c.muted.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; stroke-dasharray: 6 3; }\n")
+                append(".kuml-erm-view-query { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" font-style: italic; fill: ${c.muted.toHex()}; }\n")
+                append(".kuml-erm-marker { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" font-weight: bold; fill: ${c.muted.toHex()}; }\n")
+                append(".kuml-erm-default { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" font-style: italic; fill: ${c.muted.toHex()}; }\n")
+                append(".kuml-erm-index { font-family: ${ty.small.family}; font-size: ${ty.small.sizePt}px;")
+                append(" font-style: italic; fill: ${c.muted.toHex()}; }\n")
+                append(".kuml-erm-pk-underline { stroke: ${c.foreground.toHex()}; stroke-width: ${bo.thinPx}; }\n")
+                append(".kuml-erm-crowfoot { fill: none; stroke: ${c.edge.toHex()}; stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-erm-optional-marker { fill: $nodeFill; stroke: ${c.edge.toHex()};")
+                append(" stroke-width: ${bo.regularPx}; }\n")
+                append(".kuml-erm-mandatory-marker { stroke: ${c.edge.toHex()}; stroke-width: ${bo.regularPx}; }\n")
             }
 
         b.tag("style") {

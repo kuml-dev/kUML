@@ -29,6 +29,9 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlElement
 import dev.kuml.core.model.PackageDiagramConfig
+import dev.kuml.erm.model.ErmDiagram
+import dev.kuml.erm.model.ErmModel
+import dev.kuml.erm.model.ErmNotation
 import dev.kuml.io.svg.blueprint.renderBlueprintJourney
 import dev.kuml.io.svg.bpmn.renderChoreoSequenceFlow
 import dev.kuml.io.svg.bpmn.renderChoreographyEvent
@@ -40,6 +43,9 @@ import dev.kuml.io.svg.bpmn.renderConversationParticipant
 import dev.kuml.io.svg.c4.c4RelationshipLabel
 import dev.kuml.io.svg.c4.renderC4Interaction
 import dev.kuml.io.svg.c4.renderC4Relationship
+import dev.kuml.io.svg.erm.renderErmEntity
+import dev.kuml.io.svg.erm.renderErmMartinRelationship
+import dev.kuml.io.svg.erm.renderErmView
 import dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
 import dev.kuml.io.svg.sysml2.sysml2SeqFragmentLeftPad
 import dev.kuml.layout.EdgeId
@@ -1856,6 +1862,114 @@ public object KumlSvgRenderer {
     ): String = renderBlueprintJourney(model, diagram, theme)
 
     /** [toSvg]-Variante für Blueprint-Diagramme, schreibt direkt auf Platte. */
+
+    /**
+     * Rendert ein ERM-Diagramm (V3.4.2) als SVG.
+     *
+     * ERM entities are laid out via ELK (structurally identical to UML class
+     * boxes — see [dev.kuml.layout.bridge.erm.ErmLayoutBridge]'s KDoc), so
+     * this overload takes an already-computed [LayoutResult] just like the
+     * SysML-2 / BPMN overloads, rather than doing geometry-driven layout like
+     * the Blueprint overload above.
+     *
+     * [notation] defaults to `diagram.notation` but callers (the CLI's
+     * `--notation` flag) may override it. Only [ErmNotation.MARTIN]
+     * (crow's-foot) is implemented in V3.4.2 — the other three notations
+     * throw a structured "not yet supported" error naming the wave they are
+     * planned for.
+     */
+    public fun toSvg(
+        model: ErmModel,
+        diagram: ErmDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme = PlainTheme(),
+        options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+        notation: ErmNotation = diagram.notation,
+    ): String =
+        when (notation) {
+            ErmNotation.MARTIN -> renderErmMartin(model, diagram, layoutResult, theme, options)
+            ErmNotation.BACHMAN ->
+                throw IllegalArgumentException(
+                    "ERM notation BACHMAN is not yet supported — MARTIN (crow's foot) is the only " +
+                        "notation implemented in kUML V3.4.2. Bachman is planned for V3.4.3.",
+                )
+            ErmNotation.CHEN ->
+                throw IllegalArgumentException(
+                    "ERM notation CHEN is not yet supported — MARTIN (crow's foot) is the only " +
+                        "notation implemented in kUML V3.4.2. Chen is planned for V3.4.4.",
+                )
+            ErmNotation.IDEF1X ->
+                throw IllegalArgumentException(
+                    "ERM notation IDEF1X is not yet supported — MARTIN (crow's foot) is the only " +
+                        "notation implemented in kUML V3.4.2. IDEF1X is planned for V3.4.5.",
+                )
+        }
+
+    private fun renderErmMartin(
+        model: ErmModel,
+        diagram: ErmDiagram,
+        layoutResult: LayoutResult,
+        theme: KumlTheme,
+        options: SvgRenderOptions,
+    ): String {
+        val entitiesById = model.entities.associateBy { it.id }
+        val viewsById = model.views.associateBy { it.id }
+        val relationshipsById = model.relationships.associateBy { it.id }
+        val padding = options.paddingPx
+
+        // V3.4.2 — reuse Sysml2EdgeRenderer's clustering helper so two
+        // relationships between the same pair of entities stack their name
+        // labels instead of overlapping (mirrors the STM/ACT render paths).
+        val stackIndices =
+            Sysml2EdgeRenderer.computeLabelStackIndices(
+                layoutResult.edges.entries.map { (edgeId, route) ->
+                    Triple(edgeId, route, relationshipsById[edgeId.value]?.name)
+                },
+            )
+
+        return SvgDocument.render(
+            layoutResult,
+            theme,
+            options,
+            frameName = diagram.name,
+            frameTypeLabel = "erm",
+        ) { nodesBuilder, edgesBuilder ->
+            for ((nodeId, nodeLayout) in layoutResult.nodes) {
+                val shifted =
+                    nodeLayout.copy(
+                        bounds =
+                            nodeLayout.bounds.copy(
+                                origin =
+                                    nodeLayout.bounds.origin.copy(
+                                        x = nodeLayout.bounds.origin.x + padding,
+                                        y = nodeLayout.bounds.origin.y + padding,
+                                    ),
+                            ),
+                    )
+                val entity = entitiesById[nodeId.value]
+                if (entity != null) {
+                    renderErmEntity(entity, shifted, diagram, theme, nodesBuilder)
+                    continue
+                }
+                val view = viewsById[nodeId.value]
+                if (view != null) {
+                    renderErmView(view, shifted, theme, nodesBuilder)
+                }
+            }
+
+            for ((edgeId, route) in layoutResult.edges) {
+                val rel = relationshipsById[edgeId.value] ?: continue
+                val shiftedRoute = shiftRoute(route, padding)
+                renderErmMartinRelationship(
+                    rel,
+                    shiftedRoute,
+                    theme,
+                    edgesBuilder,
+                    labelStackIndex = stackIndices[edgeId] ?: 0,
+                )
+            }
+        }
+    }
 
     /**
      * Berechnet die Liste der sichtbaren Part-Usages für ein IBD. Spiegelt die

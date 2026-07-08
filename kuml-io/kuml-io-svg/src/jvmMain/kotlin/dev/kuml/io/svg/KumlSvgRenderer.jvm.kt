@@ -7,6 +7,9 @@ import dev.kuml.bpmn.model.ChoreographyDiagram
 import dev.kuml.bpmn.model.CollaborationDiagram
 import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.erm.model.ErmDiagram
+import dev.kuml.erm.model.ErmModel
+import dev.kuml.erm.model.ErmNotation
 import dev.kuml.layout.LayoutResult
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
@@ -175,6 +178,23 @@ public fun KumlSvgRenderer.toSvgFile(
     theme: KumlTheme = PlainTheme(),
 ): File {
     val svg = toSvg(model, diagram, theme)
+    val file = out.toFile()
+    file.parentFile?.mkdirs()
+    file.writeText(svg, Charsets.UTF_8)
+    return file
+}
+
+/** [KumlSvgRenderer.toSvg]-Variante für ERM-Diagramme (V3.4.2), schreibt direkt auf Platte. */
+public fun KumlSvgRenderer.toSvgFile(
+    model: ErmModel,
+    diagram: ErmDiagram,
+    layoutResult: LayoutResult,
+    out: Path,
+    theme: KumlTheme = PlainTheme(),
+    options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
+    notation: ErmNotation = diagram.notation,
+): File {
+    val svg = toSvg(model, diagram, layoutResult, theme, options, notation)
     val file = out.toFile()
     file.parentFile?.mkdirs()
     file.writeText(svg, Charsets.UTF_8)

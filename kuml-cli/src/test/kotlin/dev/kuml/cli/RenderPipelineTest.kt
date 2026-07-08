@@ -271,4 +271,103 @@ class RenderPipelineTest :
             outputFile.toFile().delete()
             outputDir.toFile().delete()
         }
+
+        test("RenderPipeline writes SVG file from ERM/Martin script (V3.4.2)") {
+            val fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-erm-svg-test")
+            val outputFile = outputDir.resolve("valid-ecommerce.svg")
+
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "svg",
+                width = 1024,
+                themeName = "plain",
+            )
+
+            val content = outputFile.toFile().readText()
+            content shouldStartWith "<?xml"
+            content shouldContain "erm: Overview"
+            content shouldContain "Customer"
+            content shouldContain "Order"
+            content shouldContain "OrderItem"
+            content shouldContain "kuml-erm-entity"
+
+            outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
+        test("RenderPipeline writes PNG file from ERM/Martin script (V3.4.2)") {
+            val fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-erm-png-test")
+            val outputFile = outputDir.resolve("valid-ecommerce.png")
+
+            RenderPipeline.run(
+                input = fixture,
+                output = outputFile,
+                format = "png",
+                width = 1024,
+                themeName = "plain",
+            )
+
+            val bytes = outputFile.toFile().readBytes()
+            bytes.size shouldNotBe 0
+            check(bytes[0] == 0x89.toByte() && bytes[1] == 0x50.toByte()) {
+                "Output is not a PNG (first bytes: ${bytes.take(8).joinToString { "%02x".format(it) }})"
+            }
+
+            outputFile.toFile().delete()
+            outputDir.toFile().delete()
+        }
+
+        test("RenderPipeline --notation override picks bachman and throws not-yet-supported") {
+            val fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-erm-notation-test")
+            val outputFile = outputDir.resolve("valid-ecommerce.svg")
+
+            val ex =
+                runCatching {
+                    RenderPipeline.run(
+                        input = fixture,
+                        output = outputFile,
+                        format = "svg",
+                        width = 1024,
+                        themeName = "plain",
+                        notation = "bachman",
+                    )
+                }.exceptionOrNull()
+
+            ex shouldNotBe null
+            // Translated from the renderer's IllegalArgumentException into a
+            // ScriptEvaluationException by RenderPipeline.ermToSvg — keeps
+            // unrelated internal `require(...)` failures elsewhere in the
+            // pipeline from being misreported as script errors (see CLI-level
+            // catch clauses in RenderCommand.kt).
+            (ex is ScriptEvaluationException) shouldBe true
+            ex!!.message shouldContain "not yet supported"
+
+            outputDir.toFile().delete()
+        }
+
+        test("RenderPipeline ERM LaTeX export is rejected with a structured error") {
+            val fixture = File("src/test/resources/erm/valid-ecommerce.kuml.kts")
+            val outputDir = Files.createTempDirectory("kuml-erm-latex-test")
+            val outputFile = outputDir.resolve("valid-ecommerce.tex")
+
+            val ex =
+                runCatching {
+                    RenderPipeline.run(
+                        input = fixture,
+                        output = outputFile,
+                        format = "latex",
+                        width = 1024,
+                        themeName = "plain",
+                    )
+                }.exceptionOrNull()
+
+            ex shouldNotBe null
+            (ex is ScriptEvaluationException) shouldBe true
+
+            outputDir.toFile().delete()
+        }
     })

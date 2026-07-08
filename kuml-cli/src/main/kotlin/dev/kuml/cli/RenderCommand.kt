@@ -83,6 +83,15 @@ internal class RenderCommand : CliktCommand(name = "render") {
                 "instead of a bare tikzpicture snippet. Only valid with --format=latex.",
     ).flag()
 
+    private val notation by option(
+        "--notation",
+        help =
+            "ERM notation override (ERM diagrams only): martin (default), bachman, chen, idef1x. " +
+                "Overrides the `notation = …` set in the diagram's DSL script. Ignored for non-ERM " +
+                "diagrams. Only 'martin' is currently implemented — the other three throw a " +
+                "structured error naming the kUML wave they are planned for.",
+    ).choice("martin", "bachman", "chen", "idef1x")
+
     override fun help(context: Context): String = "Render a kUML script (UML or C4) to SVG, PNG, or LaTeX/TikZ source."
 
     override fun run() {
@@ -154,6 +163,7 @@ internal class RenderCommand : CliktCommand(name = "render") {
                 animated = animated,
                 traceFile = traceFile,
                 speed = speed,
+                notation = notation,
             )
             echo("Wrote $resolvedOutput")
         } catch (e: ScriptEvaluationException) {

@@ -21,6 +21,8 @@ import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.erm.model.ErmDiagram
+import dev.kuml.erm.model.ErmModel
 import dev.kuml.layout.DiagramKind
 import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
@@ -33,6 +35,8 @@ import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
+import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
 import dev.kuml.sysml2.ActDiagram
@@ -211,6 +215,19 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
         }
     }
 
+    // ── ERM ──────────────────────────────────────────────────────────────
+    private fun ermLayout(extracted: ExtractedDiagram.Erm): LayoutResult {
+        ensureEnginesRegistered()
+        val model = extracted.model
+        val diagram = extracted.diagram
+        val sizes = ErmContentSizeProvider(model, diagram, LayoutHints.DEFAULT.direction)
+        val graph = ErmLayoutBridge.toLayoutGraph(model, diagram, sizes)
+        val engine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: error("ELK layout engine not available for ERM diagrams.")
+        return engine.layout(graph, LayoutHints.DEFAULT)
+    }
+
     // ── BPMN ─────────────────────────────────────────────────────────────
     private fun bpmnLayout(extracted: ExtractedDiagram.Bpmn): LayoutResult {
         ensureEnginesRegistered()
@@ -276,13 +293,11 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
                 writeLayout("{}")
             }
             is ExtractedDiagram.Erm -> {
-                // V3.4.1: ERM has no LayoutResult yet — the renderer (and thus the layout
-                // bridge this command needs) is planned for V3.4.2. `kuml validate` is the
-                // only supported entry point for ERM scripts in this wave.
-                throw ScriptEvaluationException(
-                    "`kuml dump-json` does not yet support ERM models — planned for kUML V3.4.2 " +
-                        "alongside the ERM renderer. Use `kuml validate` for ERM scripts.",
-                )
+                requireModelOut("ERM")
+                val layout = ermLayout(extracted)
+                writeModel(modelJson.encodeToString(ErmModel.serializer(), extracted.model))
+                writeDiagram(modelJson.encodeToString(ErmDiagram.serializer(), extracted.diagram))
+                writeLayout(modelJson.encodeToString(LayoutResult.serializer(), layout))
             }
         }
     }
