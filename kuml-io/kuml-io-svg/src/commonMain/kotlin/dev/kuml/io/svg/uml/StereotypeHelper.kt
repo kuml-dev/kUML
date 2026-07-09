@@ -130,6 +130,13 @@ internal object StereotypeHelper {
     /**
      * Rendert ein Stereotyp-Label an einer Edge als Mittelpunkt-Label.
      * Gibt zurück ob ein Label gerendert wurde.
+     *
+     * Bug-fix V0.27.1: das Label sitzt auf der Edge-Polyline — ohne Halo lief
+     * die Linie sichtbar durch die kursiven Glyphen (z. B. `«FK»` auf einer
+     * Assoziation, siehe "38 UML Profil – Exposed"-Vault-Beispiel). Zwei-Pass-
+     * Rendering analog zu [dev.kuml.io.svg.renderEdgeLabelWithHalo]: zuerst die
+     * gestrokte Halo-Kopie (`kuml-stereotype-halo`), danach die sichtbare Kopie
+     * (`kuml-stereotype`) — beide teilen sich x/y/text-anchor.
      */
     fun renderEdgeStereotype(
         element: Stereotypable,
@@ -139,15 +146,14 @@ internal object StereotypeHelper {
         midY: Float,
     ): Boolean {
         val label = headerLabel(element, theme.stereotypes) ?: return false
-        builder.tag(
-            "text",
+        val attrs =
             mapOf(
-                "class" to "kuml-stereotype",
                 "x" to fmt(midX),
                 "y" to fmt(midY),
                 "text-anchor" to "middle",
-            ),
-        ) { text(label) }
+            )
+        builder.tag("text", mapOf("class" to "kuml-stereotype-halo") + attrs) { text(label) }
+        builder.tag("text", mapOf("class" to "kuml-stereotype") + attrs) { text(label) }
         return true
     }
 

@@ -175,6 +175,17 @@ internal object SvgDocument {
                 append(".kuml-stereotype { font-family: ${ty.stereotype.family};")
                 append(" font-size: ${ty.stereotype.sizePt}px; font-style: italic;")
                 append(" fill: ${c.muted.toHex()}; }\n")
+                // V0.27.1 — Halo for edge-mid stereotype labels (e.g. `«FK»` on an
+                // association). Without this, the label sits directly on the edge
+                // polyline with no background contrast — the line visually cuts
+                // through the italic glyphs. Mirrors the kuml-edge-label-halo
+                // two-pass technique: renderEdgeStereotype() emits this class first,
+                // then the fill copy. Not used for in-box header/feature stereotypes
+                // (renderHeader, featureStereotypeTspan) — those never sit on a line.
+                append(".kuml-stereotype-halo { font-family: ${ty.stereotype.family};")
+                append(" font-size: ${ty.stereotype.sizePt}px; font-style: italic;")
+                append(" fill: ${c.background.toHex()}; stroke: ${c.background.toHex()};")
+                append(" stroke-width: 3px; stroke-linejoin: round; }\n")
                 // V1.1: tagged-value compartment text — slightly smaller than body, italic
                 val tvFontSize = theme.stereotypes.taggedValueFontSize
                 append(".kuml-tagged-value { font-family: ${ty.body.family};")

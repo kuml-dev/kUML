@@ -301,6 +301,16 @@ class StereotypeRenderTest :
             val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
 
             svg shouldContain "«FK»"
+            // Bug-fix V0.27.1: edge-mid stereotype labels need a halo pass so the
+            // edge polyline underneath doesn't visually cut through the italic
+            // glyphs (observed on the "38 UML Profil – Exposed" vault example's
+            // «FK» label). The halo <text> must be emitted before the visible
+            // <text class="kuml-stereotype"> copy — same two-pass order as
+            // kuml-edge-label-halo / kuml-edge-label.
+            svg shouldContain "class=\"kuml-stereotype-halo\""
+            val haloIndex = svg.indexOf("class=\"kuml-stereotype-halo\"")
+            val fillIndex = svg.indexOf("class=\"kuml-stereotype\"")
+            (haloIndex in 0 until fillIndex) shouldBe true
         }
 
         // ── Test 10: applied + plain stereotypes on UmlAssociation merge, dedupe ─

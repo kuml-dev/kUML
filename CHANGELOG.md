@@ -6,6 +6,19 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+**Edge stereotype labels (`«FK»` etc.) rendered without background contrast**
+
+`StereotypeHelper.renderEdgeStereotype()` emitted a single `<text class="kuml-stereotype">`
+for association/generalization/realization/dependency/connector display-label stereotypes,
+so the edge polyline underneath visually cut through the italic glyphs (most visible on
+short vertical edges, e.g. the `«FK»` label in the "38 UML Profil – Exposed" example).
+Edge role/name labels already used a two-pass halo technique (`kuml-edge-label-halo` +
+`kuml-edge-label`); `renderEdgeStereotype` now does the same via a new `kuml-stereotype-halo`
+CSS class, drawn before the visible copy. In-box header/feature stereotypes (`renderHeader`,
+`featureStereotypeTspan`) are unaffected — they never sit on a line.
+
 ## [0.27.0] — 2026-07-09
 
 ### Added
