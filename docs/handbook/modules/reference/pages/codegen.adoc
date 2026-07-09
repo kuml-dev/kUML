@@ -142,6 +142,15 @@ Stereotype-driven mapping:
 * `Id` → `PRIMARY KEY`
 * `Column{name="created_at"}` → renames the column
 
+NOTE: Under the hood, `--plugin sql` runs on an ERM model, not directly on the UML
+model — a UML script is first transformed to ERM (`UML → ERM`), then `ErmSqlEmitter`
+turns the ERM model into DDL (`ERM → SQL`). This intermediate step is transparent for
+the UML-direct path above, but it is also directly accessible: author an
+`ermModel(...) { … }` script yourself and generate from it with the same
+`--plugin sql`, or with `--plugin exposed` for Kotlin Exposed tables. See
+xref:erm-dsl.adoc[ERM DSL] for the full model, all four rendering notations, and the
+UML→ERM transform.
+
 == Generating from Gradle
 
 The Gradle plugin's `kumlGenerate` task takes the same options through the extension:

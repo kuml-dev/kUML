@@ -196,6 +196,37 @@ class AsciidocProcessorTest :
             result.output shouldContain "<svg"
         }
 
+        test("ERM diagrams render inline SVG in all four notations (V3.4.x)") {
+            val processor = AsciidocProcessor()
+
+            fun ermScript(notation: String) =
+                """
+                ermModel("Demo") {
+                    val a = entity("A") { id() }
+                    val b = entity("B", weak = true) {
+                        foreignKey(name = "a_id", references = a, nullable = false)
+                    }
+                    relationship(from = a, to = b, kind = RelationshipKind.IDENTIFYING)
+                    diagram(name = "Demo", notation = ErmNotation.$notation)
+                }
+                """.trimIndent()
+
+            listOf("MARTIN", "BACHMAN", "CHEN", "IDEF1X").forEach { notation ->
+                val input =
+                    """
+                    = Demo
+
+                    [source,kuml]
+                    ----
+                    ${ermScript(notation)}
+                    ----
+                    """.trimIndent()
+                val result = processor.process(input, AsciidocOutputMode.InlineSvg)
+                result.output shouldContain "++++"
+                result.output shouldContain "<svg"
+            }
+        }
+
         test("C4 diagrams throw a clear ScriptEvaluationException (not yet supported)") {
             val processor = AsciidocProcessor()
             val c4Script =

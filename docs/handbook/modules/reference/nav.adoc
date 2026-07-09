@@ -4,6 +4,7 @@
 * xref:bpmn-dsl.adoc[BPMN 2.0 DSL]
 * xref:bpmn-xml.adoc[BPMN 2.0 XML I/O]
 * xref:bpmn-uml-bridge.adoc[BPMN ⇌ UML Activity Bridge]
+* xref:erm-dsl.adoc[ERM DSL]
 * xref:ocl.adoc[OCL constraints]
 * xref:profiles.adoc[Profiles]
 * xref:themes.adoc[Themes & config]

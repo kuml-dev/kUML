@@ -10,6 +10,8 @@ import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.core.script.ScriptEvaluationException
+import dev.kuml.erm.constraint.ErmConstraintChecker
+import dev.kuml.erm.model.ErmNotation
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.io.svg.KumlSvgRenderer
@@ -21,6 +23,11 @@ import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
+import dev.kuml.layout.bridge.erm.ErmChenSizeProvider
+import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
+import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
+import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngine
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
@@ -36,6 +43,7 @@ import dev.kuml.sysml2.UcDiagram
 import java.io.File
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
+import dev.kuml.erm.constraint.ViolationSeverity as ErmViolationSeverity
 
 /**
  * Internal glue: evaluate a kUML script string and render to SVG/PNG bytes.
@@ -43,9 +51,10 @@ import kotlin.script.experimental.api.ScriptDiagnostic
  * Spiegelt `MarkdownRenderPipeline` aus `kuml-docs/kuml-markdown` — gleiche
  * Layout-/Theme-Auswahl, gleiche API.
  *
- * **Coverage** (V0.23.3): all five diagram families render here —
+ * **Coverage** (V3.4.x): all six diagram families render here —
  * [ExtractedDiagram.Uml], [ExtractedDiagram.C4], [ExtractedDiagram.Sysml2],
- * [ExtractedDiagram.Bpmn], and [ExtractedDiagram.Blueprint]. The dispatch
+ * [ExtractedDiagram.Bpmn], [ExtractedDiagram.Blueprint], and [ExtractedDiagram.Erm]
+ * (all four ERM notations — Martin, Bachman, Chen, IDEF1X). The dispatch
  * mirrors `kuml-cli`'s `RenderPipeline` (same bridges, same ELK engine, same
  * per-kind spacing tweaks are intentionally *not* duplicated here — Antora
  * docs favour the plain default spacing over the CLI's diagram-specific
@@ -109,7 +118,7 @@ internal object AsciidocRenderPipeline {
             }
             is ExtractedDiagram.Sysml2 -> renderSysml2Svg(extracted, theme)
             is ExtractedDiagram.Bpmn -> renderBpmnSvg(extracted, theme)
-            is ExtractedDiagram.Erm -> throw ermRenderingNotYetSupported()
+            is ExtractedDiagram.Erm -> renderErmSvg(extracted, theme)
         }
 
     internal fun renderPng(
@@ -141,7 +150,10 @@ internal object AsciidocRenderPipeline {
                 val svg = renderBpmnSvg(extracted, theme)
                 KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx))
             }
-            is ExtractedDiagram.Erm -> throw ermRenderingNotYetSupported()
+            is ExtractedDiagram.Erm -> {
+                val svg = renderErmSvg(extracted, theme)
+                KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx))
+            }
         }
 
     /** Display name used for `image::…[alt]` alt text and similar. */
@@ -156,15 +168,50 @@ internal object AsciidocRenderPipeline {
         }
 
     /**
-     * ERM rendering is out of scope for V3.4.1 — the metamodel, DSL and
-     * `kuml validate` wiring land here, the renderer (Martin/crow's-foot
-     * notation first) comes in V3.4.2.
+     * ERM rendering — mirrors `kuml-cli`'s `RenderPipeline.renderErm` (V3.4.2;
+     * IDEF1X added in V3.4.5). Entities/relationships are laid out via the same
+     * ELK engine as every other diagram family here; Chen expands attributes
+     * and relationships into their own layout nodes (see [ErmChenLayoutBridge]'s
+     * KDoc) and IDEF1X injects synthetic category-circle nodes (see
+     * [ErmIdef1xLayoutBridge]'s KDoc), so both get their own bridge + size
+     * provider before the shared ELK run. [ErmConstraintChecker] violations are
+     * printed as warnings/errors to stderr but never block the render, same as
+     * the CLI. Unlike the CLI's `--notation` flag, there is no per-block
+     * notation override here — the notation comes from the script's own
+     * `diagram(notation = …)`.
      */
-    private fun ermRenderingNotYetSupported(): ScriptEvaluationException =
-        ScriptEvaluationException(
-            "ERM rendering is not yet supported — planned for kUML V3.4.2. " +
-                "V3.4.1 only supports `kuml validate` for ERM scripts.",
-        )
+    private fun renderErmSvg(
+        extracted: ExtractedDiagram.Erm,
+        theme: KumlTheme,
+    ): String {
+        val model = extracted.model
+        val diagram = extracted.diagram
+
+        val violations = ErmConstraintChecker().check(model)
+        violations.forEach { v ->
+            val prefix = if (v.severity == ErmViolationSeverity.ERROR) "ERM ERROR" else "ERM WARNING"
+            System.err.println("[$prefix] ${v.elementId ?: "model"}: ${v.message}")
+        }
+
+        val notation = diagram.notation
+        val graph =
+            when (notation) {
+                ErmNotation.CHEN -> ErmChenLayoutBridge.toChenLayoutGraph(model, diagram, ErmChenSizeProvider(model, diagram))
+                ErmNotation.IDEF1X ->
+                    ErmIdef1xLayoutBridge.toLayoutGraph(
+                        model,
+                        diagram,
+                        ErmContentSizeProvider(model, diagram, LayoutHints.DEFAULT.direction),
+                    )
+                else -> ErmLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, LayoutHints.DEFAULT.direction))
+            }
+        val layoutResult = layoutEngine.layout(graph, LayoutHints.DEFAULT)
+        return try {
+            KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, notation = notation)
+        } catch (e: IllegalArgumentException) {
+            throw ScriptEvaluationException(e.message ?: "Unsupported ERM notation: $notation", e)
+        }
+    }
 
     /**
      * SysML 2 dispatches per concrete diagram type — there is no generic

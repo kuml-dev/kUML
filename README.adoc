@@ -12,7 +12,7 @@ One source. Any diagram. Readable for humans and AI.
 
 *Website:* https://kuml.dev · *Handbook:* https://docs.kuml.dev · *Releases:* https://github.com/kuml-dev/kUML/releases
 
-*kUML* is a modelling tool that expresses UML 2.x, SysML 2, C4 and BPMN 2.0 as a
+*kUML* is a modelling tool that expresses UML 2.x, SysML 2, C4, BPMN 2.0 and ERM as a
 type-safe Kotlin DSL — the first UML tool deliberately designed for the LLM era.
 
 image:https://img.shields.io/maven-central/v/dev.kuml/kuml-core-dsl[Maven Central]
@@ -24,7 +24,7 @@ image:https://img.shields.io/github/actions/workflow/status/kuml-dev/kUML/ci.yml
 [.lead]
 *Modeling deserves a compiler.*
 
-Every feature in kUML exists in _some_ tool on the market. The specific combination does not exist anywhere else: *type-safe Kotlin DSL · UML 2.x + SysML 2 + C4 + BPMN 2.0 as first-class peers · executable behaviour runtime · LLM-first design · Apache 2.0.*
+Every feature in kUML exists in _some_ tool on the market. The specific combination does not exist anywhere else: *type-safe Kotlin DSL · UML 2.x + SysML 2 + C4 + BPMN 2.0 + ERM as first-class peers · executable behaviour runtime · LLM-first design · Apache 2.0.*
 
 Existing UML tools fall into two categories:
 
@@ -246,6 +246,9 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 
 | *BPMN ⇌ UML Activity M2M Bridge*
 | `kuml transform --from bpmn --to uml-activity` converts a `BpmnProcess` to a kUML Activity diagram script and vice versa. Bidirectional: `BpmnToUmlActivityTransformer` / `UmlActivityToBpmnTransformer`. Mixed gateways (multiple-in AND multiple-out) are split into MERGE+DECISION or JOIN+FORK pairs sharing a `"bpmn.sourceId"` metadata key for lossless round-trip reconstruction. (v0.20.0)
+
+| *ERM (Entity-Relationship) first-class*
+| `ermModel { entity { … } }` — kUML's seventh first-class metamodel, dedicated to database schema design. Entities (incl. weak entities), attributes, relationships with cardinalities, plus views, indexes, and check constraints as first-class elements (not tagged values). Four rendering notations — Martin (crow's-foot, default), Bachman, Chen, IDEF1X — chosen in the DSL or overridden per render (`kuml render --notation chen`). `UML → ERM` transform derives a schema from an existing class diagram; `ERM → SQL DDL` (PostgreSQL/MySQL/SQLite) and `ERM → Kotlin Exposed` code generation; `SQL → ERM` reverse-engineers an existing database as a crow's-foot diagram.
 |===
 
 == UML 2.x Support
@@ -370,6 +373,29 @@ kUML implements all 6 C4 diagram types as first-class peers alongside UML 2.x an
 
 Structurizr DSL round-trip is supported via `kuml import --format structurizr` and `kuml export --format structurizr`, allowing interoperability with existing Structurizr workspaces.
 
+== ERM Support
+
+kUML implements ERM (Entity-Relationship Modelling) as a first-class metamodel alongside UML 2.x, SysML 2, C4, and BPMN 2.0 — dedicated to database schema design, not a UML profile. Entities, weak entities, attributes (PK/FK/unique/nullable/default), relationships with cardinalities, and views/indexes/check constraints as first-class elements.
+
+[cols="1,3"]
+|===
+| Notation | Description
+
+| *Martin (crow's-foot)*
+| The default and most widely recognised ERD notation — cardinality glyphs on the connecting line.
+
+| *Bachman*
+| Directed-arrow relationships, common in older CASE tools and database-design textbooks.
+
+| *Chen*
+| The original 1976 ER notation — attributes as ovals, relationships as their own diamond-shaped nodes.
+
+| *IDEF1X*
+| Solid lines for identifying relationships, dashed for non-identifying, rounded corners for dependent (weak) entities, plus subtype/supertype category clusters.
+|===
+
+An ERM model can be authored directly (`ermModel { … }`) or derived from an existing UML class diagram (`kuml transform --transformer uml-to-erm-script`). From there, `kuml generate --plugin sql` produces SQL DDL (PostgreSQL, MySQL, SQLite) and `kuml generate --plugin exposed` produces Kotlin Exposed tables — both consuming the ERM model, not the UML model directly, so mapping decisions (inheritance strategy, M:N junction tables, FK naming) stay inspectable. `kuml reverse --format sql` runs the chain in reverse, reconstructing an ERM model from existing SQL DDL. Full reference: link:docs/handbook/modules/reference/pages/erm-dsl.adoc[ERM DSL].
+
 == How kUML compares
 
 [cols="3,^1,^1,^1,^1,^1,^1,^1,^1", options="header"]
@@ -388,6 +414,7 @@ Structurizr DSL round-trip is supported via `kuml import --format structurizr` a
 | SysML 2 first-class          | ✅ | ⚠️ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌
 | C4 first-class               | ✅ | ⚠️ | ⚠️ | ❌ | ✅ | ❌ | ❌ | ⚠️
 | BPMN 2.0 first-class         | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ | ⚠️ | ❌
+| ERM / DB modelling (4 notations) | ✅ | ⚠️ | ⚠️ | ⚠️ | ❌ | ⚠️ | ⚠️ | ❌
 | Type-safe DSL                | ✅ | ❌ | ❌ | ❌ | ⚠️ | ❌ | ❌ | ⚠️
 | Real metamodel               | ✅ | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ❌
 | OCL constraints              | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ | ✅ | ❌

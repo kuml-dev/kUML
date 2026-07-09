@@ -1,0 +1,346 @@
+= ERM DSL Reference
+:description: Author Entity-Relationship models — four notations, UML→ERM transform, ERM→SQL/Exposed codegen, SQL→ERM reverse.
+
+ERM (Entity-Relationship Modelling) is kUML's dedicated language for database schema
+design — a first-class metamodel alongside UML 2.x, SysML 2, C4, and BPMN 2.0, not a
+UML profile bolted on top of class diagrams. The ERM model is the single source of
+truth; diagrams are projections that pick a *notation* (Martin/crow's-foot, Bachman,
+Chen, or IDEF1X) without changing the underlying entities and relationships.
+
+ERM sits at the centre of kUML's database-facing MDA chain: rather than generating SQL
+directly from a UML class diagram, kUML derives an explicit ERM model first
+(`UML → ERM`) and only then generates SQL DDL or Kotlin Exposed tables (`ERM → SQL` /
+`ERM → Exposed`). This makes mapping decisions — inheritance strategy, M:N junction
+tables, FK naming — visible and overridable as an inspectable model, instead of hidden
+inside a code generator. You can also author an ERM model directly, without any UML
+detour, when no UML model exists for the schema you are designing.
+
+== The ERM model
+
+An ERM model is built with the `ermModel(name) { … }` entry point — the same pattern as
+`classDiagram { … }`, `c4Model { … }`, or `bpmnModel { … }`. Auto-generated element ids
+are deterministic (`entity_0`, `rel_1`, `view_2`, …), never random UUIDs, so scripts stay
+stable across re-runs and diff cleanly.
+
+If the script declares no `diagram(…)` call, `build()` synthesizes a default one (Martin
+notation, projecting the whole model) — every other kUML DSL requires at least one
+diagram, and ERM follows the same convention.
+
+[source,kuml]
+----
+ermModel("Blog") {
+    val author =
+        entity("Author") {
+            id()
+            attribute(name = "email", type = ErmDataType.Varchar(255), unique = true, nullable = false)
+        }
+    val post =
+        entity("Post") {
+            id()
+            foreignKey(name = "author_id", references = author, nullable = false)
+            attribute(name = "title", type = ErmDataType.Varchar(255), nullable = false)
+            attribute(name = "published_at", type = ErmDataType.Timestamp())
+        }
+
+    author oneToMany post
+
+    diagram(name = "Blog Schema")
+}
+----
+
+`id()` is a convenience for a not-null primary-key column (`UUID` by default);
+`foreignKey(name, references, onDelete, nullable)` declares a column whose type is
+inferred from the target entity's (single-column) primary key. Note that
+`foreignKey(...)` only declares the *column* — it does not draw an edge in the diagram.
+The rendered relationship comes from a separate `relationship(...)` call (or one of the
+infix helpers below); the ERM layout bridge reads `model.relationships`, not
+`ErmForeignKey` references.
+
+== First-class elements
+
+Unlike UML-based persistence workarounds that bolt table metadata onto class diagrams
+via stereotypes, ERM treats views, indexes, and check constraints as first-class model
+elements — not tagged values:
+
+[cols="1,3"]
+|===
+| Builder | Purpose
+
+| `entity(name, weak = false) { … }`
+| Declares a table. `weak = true` marks a weak entity (rendered with a double-bordered
+box in Martin notation) — typically the child side of an identifying relationship.
+
+| `attribute(name, type, primaryKey, nullable, unique, default, autoIncrement, foreignKey)`
+| General column declaration. `id()` and `foreignKey(...)` (below) are terser
+convenience wrappers around it.
+
+| `index(vararg attributeNames, unique, name)`
+| Index over already-declared columns of the enclosing entity, resolved by name.
+
+| `check(expression, name)`
+| A `CHECK` constraint with a dialect-neutral, raw SQL boolean expression.
+
+| `view(name, query, references)`
+| A first-class database view — raw `SELECT` body plus an optional list of referenced
+entity ids (checked for dangling references, not parsed).
+
+| `category(supertype, subtypes, name, complete, discriminator)`
+| IDEF1X subtype/supertype cluster — see the IDEF1X section below.
+|===
+
+Data types (`ErmDataType`, sealed): `Integer(bits)`, `Decimal(precision, scale)`,
+`Real(double)`, `Varchar(length)`, `Text`, `Boolean`, `Date`, `Time`,
+`Timestamp(withTimeZone)`, `Uuid`, `Blob`, `Json`, and `Custom(raw)` as an escape hatch
+for dialect-specific types with no logical equivalent (e.g. Postgres `tsvector`).
+
+== Relationships and cardinalities
+
+`relationship(from, to, name, sourceCardinality, targetCardinality, kind, sourceRole,
+targetRole)` draws the rendered edge between two entities (by id). `kind` is
+`RelationshipKind.NON_IDENTIFYING` (default, a plain foreign key) or `IDENTIFYING` (the
+child's primary key includes the parent's key through this relationship — typically
+paired with a weak entity).
+
+Three infix helpers cover the common cardinality shapes and return the target id for
+chaining:
+
+[cols="1,2"]
+|===
+| Infix | Cardinality
+
+| `a oneToMany b`
+| source `ONE`, target `ZERO_MANY`
+
+| `a manyToMany b`
+| source `ZERO_MANY`, target `ZERO_MANY`
+
+| `a oneToOne b`
+| source `ONE`, target `ZERO_ONE`
+|===
+
+`sourceRole` / `targetRole` name the ends of a relationship — useful when the same pair
+of entities is connected by more than one relationship (e.g. an `Order` with separate
+`billing`/`shipping` foreign keys into `Address`, each needing its own labelled edge).
+
+== Notations
+
+The same model renders in four notations by setting `notation` on `diagram(…)` — no
+change to entities, attributes, or relationships. All four are implemented end to end
+(model → layout → SVG renderer).
+
+[source,kuml]
+----
+ermModel("Notation Demo — Martin") {
+    val student = entity("Student") { id() }
+    val course = entity("Course") { id() }
+    val enrollment =
+        entity("Enrollment", weak = true) {
+            foreignKey(name = "student_id", references = student, nullable = false)
+            foreignKey(name = "course_id", references = course, nullable = false)
+        }
+
+    relationship(from = student, to = enrollment, kind = RelationshipKind.IDENTIFYING, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = course, to = enrollment, kind = RelationshipKind.IDENTIFYING, targetCardinality = Cardinality.ZERO_MANY)
+
+    diagram(name = "Martin", notation = ErmNotation.MARTIN)
+}
+----
+
+Martin ("crow's foot") is the default and most widely recognised notation — cardinality
+glyphs (`○`, `|`, crow's foot) sit directly on the connecting line.
+
+[source,kuml]
+----
+ermModel("Notation Demo — Bachman") {
+    val student = entity("Student") { id() }
+    val course = entity("Course") { id() }
+    val enrollment =
+        entity("Enrollment", weak = true) {
+            foreignKey(name = "student_id", references = student, nullable = false)
+            foreignKey(name = "course_id", references = course, nullable = false)
+        }
+
+    relationship(from = student, to = enrollment, kind = RelationshipKind.IDENTIFYING, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = course, to = enrollment, kind = RelationshipKind.IDENTIFYING, targetCardinality = Cardinality.ZERO_MANY)
+
+    diagram(name = "Bachman", notation = ErmNotation.BACHMAN)
+}
+----
+
+Bachman uses directed arrows rather than crow's-foot glyphs — a style still common in
+older CASE tools and some database-design textbooks.
+
+[source,kuml]
+----
+ermModel("Notation Demo — Chen") {
+    val student = entity("Student") { id() }
+    val course = entity("Course") { id() }
+    val enrollment =
+        entity("Enrollment", weak = true) {
+            foreignKey(name = "student_id", references = student, nullable = false)
+            foreignKey(name = "course_id", references = course, nullable = false)
+        }
+
+    relationship(from = student, to = enrollment, kind = RelationshipKind.IDENTIFYING, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = course, to = enrollment, kind = RelationshipKind.IDENTIFYING, targetCardinality = Cardinality.ZERO_MANY)
+
+    diagram(name = "Chen", notation = ErmNotation.CHEN)
+}
+----
+
+Chen notation is structurally distinct from the other three: attributes render as
+ovals attached to their entity, and relationships render as their own diamond-shaped
+nodes rather than plain edges — the original 1976 Chen ER notation.
+
+[source,kuml]
+----
+ermModel("Notation Demo — IDEF1X") {
+    val student = entity("Student") { id() }
+    val course = entity("Course") { id() }
+    val enrollment =
+        entity("Enrollment", weak = true) {
+            foreignKey(name = "student_id", references = student, nullable = false)
+            foreignKey(name = "course_id", references = course, nullable = false)
+        }
+
+    relationship(from = student, to = enrollment, kind = RelationshipKind.IDENTIFYING, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = course, to = enrollment, kind = RelationshipKind.IDENTIFYING, targetCardinality = Cardinality.ZERO_MANY)
+
+    diagram(name = "IDEF1X", notation = ErmNotation.IDEF1X)
+}
+----
+
+IDEF1X draws identifying relationships as solid lines and non-identifying relationships
+as dashed lines, rounds the corners of dependent (weak) entities, and adds
+subtype/supertype category symbols via `category(...)`.
+
+CLI override — pick a notation at render time without touching the script:
+
+[source,bash]
+----
+kuml render schema.kuml.kts --notation martin
+kuml render schema.kuml.kts --notation bachman
+kuml render schema.kuml.kts --notation chen
+kuml render schema.kuml.kts --notation idef1x
+----
+
+`--notation` overrides whatever `notation = …` the script's `diagram(…)` call set; it is
+ignored for non-ERM diagrams.
+
+== Full example
+
+A complete schema exercising every first-class element — entity, weak entity,
+identifying relationship, foreign key, index, check constraint, and view (this is the
+kUML CLI's own test fixture, `kuml-cli/src/test/resources/erm/valid-ecommerce.kuml.kts`):
+
+[source,kuml]
+----
+ermModel("ECommerce") {
+    val customer =
+        entity("Customer") {
+            id()
+            attribute(name = "email", type = ErmDataType.Varchar(255), unique = true)
+            index("email", unique = true, name = "idx_customer_email")
+        }
+    val order =
+        entity("Order") {
+            id()
+            foreignKey(name = "customer_id", references = customer)
+            attribute(name = "total", type = ErmDataType.Decimal(precision = 10, scale = 2))
+            check(expression = "total >= 0", name = "non_negative_total")
+        }
+    val item =
+        entity("OrderItem", weak = true) {
+            foreignKey(name = "order_id", references = order)
+            attribute(name = "quantity", type = ErmDataType.Integer())
+        }
+
+    relationship(from = customer, to = order, name = "places")
+    relationship(from = order, to = item, name = "contains", kind = RelationshipKind.IDENTIFYING)
+
+    view(name = "big_orders", query = "SELECT * FROM \"Order\" WHERE total > 100", references = listOf(order))
+
+    diagram(name = "Overview", notation = ErmNotation.MARTIN, showIndexes = true)
+}
+----
+
+A larger, neutral e-commerce schema covering multiple foreign keys into the same table,
+a self-reference, and three foreign keys from a single entity is available as a vault
+worked example: `03 Bereiche/kUML/Beispiele/39 ERM Martin – E-Commerce Schema.md`.
+
+== From UML: the UML→ERM transform
+
+An ERM model can be derived from an existing UML class diagram instead of being written
+by hand — useful when a domain model already exists in UML and a database schema needs
+to be designed from it:
+
+[source,bash]
+----
+kuml transform model.kuml.kts --transformer uml-to-erm-script --output gen/
+----
+
+Transformer id `uml-to-erm-script` (`UmlToErmScriptTransformer`) emits `.kuml.kts` DSL
+source text; the lower-level `uml-to-erm` id (`UmlToErmTransformer`) returns the
+in-memory `ErmModel` directly for chaining into another transformer or generator.
+Mapping decisions that would otherwise be implicit — inheritance strategy, FK naming
+on collision, junction-table names for M:N associations — are overridable through the
+ERM mapping profile (`kuml-profile-erm`) applied as tagged values on the source UML
+model, the same pattern used by the other built-in profiles (see
+xref:profiles.adoc[Profiles]).
+
+== To SQL and Exposed: codegen
+
+Two code generators consume an ERM model — both discoverable through the same
+`kuml generate --plugin <id>` entry point used by the Kotlin, Java, and SQL generators
+described in xref:codegen.adoc[Code generation]:
+
+[cols="1,3"]
+|===
+| Plugin id | Output
+
+| `sql`
+| SQL DDL via `ErmSqlDdlGenerator` / `ErmSqlEmitter` (`kuml-gen-sql`) — PostgreSQL first,
+then MySQL and SQLite. Composite primary keys, indexes, views, check constraints,
+referential actions, and M:N relationships emitted as real junction tables (not a
+`TODO` comment).
+
+| `exposed`
+| Kotlin Exposed `Table` objects via `ErmExposedGenerator` / `ErmExposedEmitter`
+(`kuml-codegen-m2m-exposed`).
+|===
+
+Both plugins accept an ERM model directly (`ermModel(...) { … }` script) or a UML model
+chained through the transform first:
+
+[source,bash]
+----
+# ERM-first — schema authored directly in ERM
+kuml generate --input schema.kuml.kts --plugin sql --options dialect=postgres --output gen/
+kuml generate --input schema.kuml.kts --plugin exposed --output gen/
+
+# UML-first — chain UML → ERM → Exposed in one step
+kuml transform model.kuml.kts --transformer uml-to-exposed-via-erm --output gen/
+----
+
+The older UML-direct transformers (`uml-to-exposed`, `uml-to-exposed-psm`) remain
+runnable but are `@Deprecated` — `erm-to-exposed` (ERM input) and
+`uml-to-exposed-via-erm` (UML input, chained through ERM) are the recommended path
+going forward, since the ERM intermediate model makes the mapping decisions inspectable
+as a diagram instead of hidden inside the generator.
+
+== Reverse: SQL→ERM
+
+Existing SQL DDL can be reconstructed as an ERM model — useful for visualising a
+database that has no kUML model at all yet, as a crow's-foot diagram:
+
+[source,bash]
+----
+kuml reverse schema.sql --format sql --dialect postgres
+kuml reverse migrations/ --format sql --dialect postgres --output schema.kuml.kts
+----
+
+`--format sql` accepts either a single `.sql` file or a directory of `.sql` files
+(all matched via `**/*.sql`); `--dialect` defaults to `postgres`
+(`PostgresErmReverseEngine`, `kuml-codegen-reverse-sql`). The result is emitted as
+`ermModel(...) { … }` DSL text, renderable in any of the four notations like any other
+ERM script.
