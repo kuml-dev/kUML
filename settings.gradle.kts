@@ -99,6 +99,7 @@ include(
     "kuml-codegen:kuml-codegen-reverse-api",    // V3.0.7 — Language-agnostic Reverse-Engine interface
     "kuml-codegen:kuml-codegen-reverse-java",   // V3.0.7 — JavaParser-based Java→UML engine (JVM-only)
     "kuml-codegen:kuml-codegen-reverse-kotlin", // V3.0.8 — Kotlin PSI-based Kotlin→UML engine (JVM-only)
+    "kuml-codegen:kuml-codegen-reverse-sql",    // V3.4.9 — JSqlParser-based SQL DDL → ERM engine (JVM-only)
 )
 
 // ── Runtime ──────────────────────────────────────────── V1.1.5 ──

@@ -11,6 +11,7 @@ kotlin {
 
 dependencies {
     api(project(":kuml-metamodel:kuml-metamodel-uml"))
+    api(project(":kuml-metamodel:kuml-metamodel-erm")) // V3.4.9 — ErmReverseEngine SPI (SQL→ERM reverse)
     api(project(":kuml-core:kuml-core-model"))
 
     implementation(libs.kotlinx.serialization.core)

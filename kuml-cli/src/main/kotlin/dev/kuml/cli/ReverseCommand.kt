@@ -13,10 +13,13 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.path
 import dev.kuml.cli.reverse.ArxmlModelMerge
 import dev.kuml.cli.reverse.ArxmlPackageDslPrinter
+import dev.kuml.cli.reverse.ErmModelDslPrinter
 import dev.kuml.cli.reverse.UmlModelDslPrinter
 import dev.kuml.codegen.reverse.ReverseDiagnostic
 import dev.kuml.codegen.reverse.ReverseRequest
 import dev.kuml.codegen.reverse.ReverseResult
+import dev.kuml.codegen.reverse.erm.ErmReverseResult
+import dev.kuml.codegen.reverse.erm.registry.ErmReverseEngineRegistry
 import dev.kuml.codegen.reverse.registry.ReverseEngineRegistry
 import dev.kuml.core.model.KumlModel
 import kotlinx.coroutines.runBlocking
@@ -27,8 +30,9 @@ import java.nio.file.Path
 /**
  * The `reverse` subcommand.
  *
- * Reverse-engineers source code or ARXML files into a UML model and emits it as a `*.kuml.kts`
- * script. V3.1.36 — added `--format arxml` for multi-file ARXML merge.
+ * Reverse-engineers source code, SQL DDL, or ARXML files into a UML/ERM model and emits it as a
+ * `*.kuml.kts` script. V3.1.36 — added `--format arxml` for multi-file ARXML merge. V3.4.9 —
+ * added `--format sql` for Postgres SQL DDL → ERM reverse.
  *
  * Usage:
  * ```
@@ -36,14 +40,20 @@ import java.nio.file.Path
  * kuml reverse src/main/kotlin --lang kotlin
  * kuml reverse src/main/java --lang auto                     # auto-detect
  * kuml reverse --format arxml models/                        # reads all *.arxml in dir
+ * kuml reverse schema.sql --format sql                       # SQL DDL → ERM, single file
+ * kuml reverse migrations/ --format sql --dialect postgres   # reads all *.sql in dir
  * kuml reverse --list-engines
  * ```
  */
 internal class ReverseCommand : CliktCommand(name = "reverse") {
     private val sourceDir by argument(
         "source-dir",
-        help = "Path to the source root directory containing .java/.kt files",
-    ).path(mustExist = false, canBeFile = false, canBeDir = true)
+        // V3.4.9 — `--format sql` accepts a single file (`kuml reverse schema.sql --format sql`)
+        // in addition to a directory. canBeFile is therefore true at the Clikt-argument level for
+        // all formats; the "source"/"arxml" branches keep their own explicit Files.isDirectory
+        // checks below, so this loosening does not change their behavior.
+        "Path to the source root directory (or, for --format sql, a single file) containing .java/.kt/.sql files",
+    ).path(mustExist = false, canBeFile = true, canBeDir = true)
         .optional()
 
     private val lang by option("--lang")
@@ -64,8 +74,14 @@ internal class ReverseCommand : CliktCommand(name = "reverse") {
         .help("Name for the resulting model (default: ReverseEngineered)")
 
     private val format by option("--format")
-        .help("Reverse format: 'source' for source-language reverse (default), 'arxml' for ARXML import+merge")
-        .default("source")
+        .help(
+            "Reverse format: 'source' for source-language reverse (default), 'arxml' for ARXML " +
+                "import+merge, 'sql' for SQL DDL → ERM reverse",
+        ).default("source")
+
+    private val dialect by option("--dialect")
+        .help("SQL dialect for --format sql (default: postgres)")
+        .default("postgres")
 
     private val listEngines by option("--list-engines")
         .flag()
@@ -75,18 +91,22 @@ internal class ReverseCommand : CliktCommand(name = "reverse") {
         .flag()
         .help("Print every WARN/INFO diagnostic on stderr (default: summary only)")
 
-    override fun help(context: Context): String = "Reverse-engineer source code (Java/Kotlin) or ARXML files into a kUML script."
+    override fun help(context: Context): String = "Reverse-engineer source code (Java/Kotlin), SQL DDL, or ARXML files into a kUML script."
 
     override fun run() {
         if (listEngines) {
             val engines = ReverseEngineRegistry.all()
-            if (engines.isEmpty()) {
+            val ermEngines = ErmReverseEngineRegistry.all()
+            if (engines.isEmpty() && ermEngines.isEmpty()) {
                 echo("No reverse engines registered on the classpath.")
                 return
             }
             echo("Available reverse engines:")
             engines.sortedBy { it.id }.forEach { e ->
                 echo("  ${e.id}: ${e.description}")
+            }
+            ermEngines.sortedBy { it.id }.forEach { e ->
+                echo("  ${e.id} (--format sql --dialect ${e.dialect}): ${e.description}")
             }
             return
         }
@@ -103,6 +123,24 @@ internal class ReverseCommand : CliktCommand(name = "reverse") {
                 throw ProgramResult(ExitCodes.IO_ERROR)
             }
             reverseArxml(srcDir, output)
+            return
+        }
+
+        // ── SQL DDL → ERM reverse path — delegate before source-language engine path ────
+        if (format == "sql") {
+            val src =
+                sourceDir ?: run {
+                    echo(
+                        "Missing argument <source-dir>. Provide a .sql file or a directory containing .sql files.",
+                        err = true,
+                    )
+                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                }
+            if (!Files.exists(src)) {
+                echo("Source path does not exist: $src", err = true)
+                throw ProgramResult(ExitCodes.IO_ERROR)
+            }
+            reverseSql(src, output, dialect)
             return
         }
 
@@ -254,6 +292,60 @@ internal class ReverseCommand : CliktCommand(name = "reverse") {
             echo("Wrote ${dslText.lineSequence().count()} lines to $outputPath")
         }
         echo("Merged ${arxmlFiles.size} ARXML file(s) from $dir")
+    }
+
+    /**
+     * Reverses SQL DDL (`.sql` files under [src], or a single `.sql` file) into an ERM model and
+     * emits it as `ermModel(...) { }` DSL (V3.4.9). [src] may be a directory or a single file —
+     * [dev.kuml.codegen.reverse.sql.PostgresErmReverseEngine]'s file collector always includes an
+     * explicit single-file source root regardless of glob.
+     */
+    private fun reverseSql(
+        src: Path,
+        outputPath: String?,
+        dialectId: String,
+    ) {
+        val engine =
+            ErmReverseEngineRegistry.byDialect(dialectId) ?: run {
+                val known = ErmReverseEngineRegistry.all().map { it.dialect }
+                echo(
+                    "Unknown SQL dialect '$dialectId'. Available dialects: ${known.joinToString(", ")}",
+                    err = true,
+                )
+                throw ProgramResult(ExitCodes.REVERSE_ENGINE_NOT_FOUND)
+            }
+
+        // ReverseRequest.includeGlobs defaults to "**/*.java" — must be set explicitly here,
+        // otherwise a directory source root would yield zero matched files (stolperfalle #9).
+        val request =
+            ReverseRequest(
+                sourceRoots = listOf(src),
+                includeGlobs = listOf("**/*.sql"),
+                targetModelName = modelName ?: "ReverseEngineered",
+            )
+
+        val result = runBlocking { engine.analyze(request) }
+
+        when (result) {
+            is ErmReverseResult.Failure -> {
+                echo("Reverse analysis failed with ${result.errors.size} error(s):", err = true)
+                result.errors.forEach { d ->
+                    echo("  [${d.code}] ${d.message}${formatLocation(d)}", err = true)
+                }
+                throw ProgramResult(ExitCodes.REVERSE_SQL_PARSE_FAILED)
+            }
+            is ErmReverseResult.Success -> {
+                emitDiagnosticsSummary(result.diagnostics)
+                val dslText = ErmModelDslPrinter.print(result.model)
+                if (outputPath == null) {
+                    echo(dslText)
+                } else {
+                    File(outputPath).also { it.parentFile?.mkdirs() }.writeText(dslText)
+                    echo("Wrote ${dslText.lineSequence().count()} lines to $outputPath")
+                }
+                echo("Analysed ${result.filesAnalysed} file(s) in ${result.elapsedMs} ms via '${engine.id}' engine.")
+            }
+        }
     }
 
     private fun emitDiagnosticsSummary(diagnostics: List<ReverseDiagnostic>) {

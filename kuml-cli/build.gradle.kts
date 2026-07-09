@@ -87,6 +87,7 @@ dependencies {
     implementation(project(path = ":kuml-metamodel:kuml-metamodel-uml"))
     implementation(project(path = ":kuml-metamodel:kuml-metamodel-c4"))
     implementation(project(path = ":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN CLI-Integration
+    implementation(project(path = ":kuml-metamodel:kuml-metamodel-erm")) // V3.4.9 — ErmModelDslPrinter (kuml reverse --format sql)
     implementation(project(path = ":kuml-docs:kuml-markdown"))
     implementation(project(path = ":kuml-docs:kuml-asciidoc")) // V3.2.19 — `kuml asciidoc` subcommand, Antora pre-render step
 
@@ -95,6 +96,10 @@ dependencies {
     implementation(project(path = ":kuml-codegen:kuml-codegen-reverse-api"))
     runtimeOnly(project(path = ":kuml-codegen:kuml-codegen-reverse-java")) // V3.0.7
     runtimeOnly(project(path = ":kuml-codegen:kuml-codegen-reverse-kotlin")) // V3.0.8
+    // V3.4.9 — JSqlParser-based SQL DDL → ERM reverse engine. MUST remain runtimeOnly:
+    // JSqlParser is a JavaCC-generated parser, not verified GraalVM Native Image-safe —
+    // exactly the same rationale as reverse-java's JavaParser dependency above.
+    runtimeOnly(project(path = ":kuml-codegen:kuml-codegen-reverse-sql"))
     implementation(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.kotest.runner.junit5)

@@ -77,6 +77,15 @@ internal object ExitCodes {
     /** `kuml reverse` could not detect any source files in the given directory. */
     internal const val REVERSE_NO_SOURCES: Int = 16
 
+    // ── `kuml reverse --format sql` (V3.4.9) ─────────────────────────────────
+
+    /**
+     * `kuml reverse --format sql` — the SQL DDL reverse analysis returned an
+     * [dev.kuml.codegen.reverse.erm.ErmReverseResult.Failure] with ERROR
+     * diagnostics (e.g. no `.sql` sources, or no statement parsed successfully).
+     */
+    internal const val REVERSE_SQL_PARSE_FAILED: Int = 17
+
     // ── `kuml import/export` format availability (V3.0.17) ───────────────────
 
     /**

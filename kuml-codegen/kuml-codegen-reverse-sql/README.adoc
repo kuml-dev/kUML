@@ -1,0 +1,131 @@
+= kuml-codegen-reverse-sql
+:toc: left
+:icons: font
+
+JSqlParser-based Postgres SQL DDL → ERM reverse engine for kUML.
+Implements `ErmReverseEngine` from `kuml-codegen-reverse-api` using
+https://github.com/JSQLParser/JSqlParser[JSqlParser 5.3].
+
+WARNING: This module is *JVM-only*. JSqlParser is a JavaCC-generated parser and is
+not verified GraalVM Native Image-compatible. The `kuml-cli` native binary does not
+include this engine — it is wired as `runtimeOnly`, exactly like
+`kuml-codegen-reverse-java` (JavaParser). It becomes available via the Fat-JAR /
+Desktop distribution, same as the Java/Kotlin reverse engines.
+
+== Quick Start
+
+[source,kotlin]
+----
+import dev.kuml.codegen.reverse.ReverseRequest
+import dev.kuml.codegen.reverse.erm.ErmReverseResult
+import dev.kuml.codegen.reverse.erm.registry.ErmReverseEngineRegistry
+import java.nio.file.Path
+
+val result = ErmReverseEngineRegistry
+    .byDialect("postgres")!!
+    .analyze(
+        ReverseRequest(
+            sourceRoots = listOf(Path.of("schema.sql")),
+            includeGlobs = listOf("**/*.sql"),
+        ),
+    ) as ErmReverseResult.Success
+
+println("Found ${result.model.entities.size} entities, ${result.model.relationships.size} relationships")
+----
+
+== Pipeline
+
+. Glob-collect `.sql` files (default `**/*.sql`) under `ReverseRequest.sourceRoots` —
+  a source root that is itself a regular file is always included.
+. Parse every file into top-level statements (`SqlStatementCollector`). The whole-file
+  parse is tried first; on failure, a dollar-quote-/string-/comment-aware `;` splitter
+  retries statement-by-statement so a `CREATE FUNCTION ... $$ ... $$` body elsewhere in
+  a `pg_dump` file does not block the surrounding DDL from being recovered.
+. Pass 1 — map every `CREATE TABLE` to an `ErmEntity` (`TableMapper` + `ColumnMapper`);
+  build the folded-table-name → entity-id index.
+. Pass 2 — apply `ALTER TABLE` (`ADD CONSTRAINT`/`ADD PRIMARY KEY`/`ADD UNIQUE`/`ADD
+  COLUMN`), `CREATE INDEX`, and `CREATE VIEW` statements (`ConstraintResolver`);
+  resolve every pending foreign key against the name index.
+. Derive `ErmRelationship`s from the resolved foreign keys (`RelationshipInferrer`).
+
+== Relationship Convention
+
+Matches the convention verified against `UmlToErmTransformer.kt` (V3.4.6) so
+UML→ERM→SQL→ERM round-trips stay consistent:
+
+* `sourceEntityId` = parent (PK/referenced side); `targetEntityId` = child (FK side).
+* FK column is part of the child's own primary key ⇒ `RelationshipKind.IDENTIFYING`
+  and `ErmEntity.weak = true`; otherwise `NON_IDENTIFYING`.
+* Cardinality is inferred from column-level facts only (there is no association object
+  in raw SQL): a nullable FK column ⇒ optional parent (`Cardinality.ZERO_ONE` on the
+  source side); an FK column that is the entity's *sole* PK column, or that also
+  carries a `UNIQUE` constraint, models 1:1 (`Cardinality.ZERO_ONE` on the target
+  side); an FK column that is *one of several* composite PK columns (the classic
+  junction-table shape) or an ordinary non-unique FK column models 1:N
+  (`Cardinality.ZERO_MANY` on the target side).
+
+== SQL Type Mapping (Postgres)
+
+[cols="2,2"]
+|===
+| SQL | ErmDataType
+
+| `SMALLINT`/`INT2` · `INTEGER`/`INT`/`INT4` · `BIGINT`/`INT8` | `Integer(16/32/64)`
+| `SMALLSERIAL` · `SERIAL` · `BIGSERIAL` (incl. pg_dump's `integer` + `DEFAULT nextval(...)` expansion) | `Integer(16/32/64)`, `autoIncrement = true`
+| `NUMERIC(p,s)`/`DECIMAL(p,s)` | `Decimal(p,s)`
+| `NUMERIC`/`DECIMAL` without precision | `Decimal(38,0)` + `REV-SQL-010` INFO
+| `REAL`/`FLOAT4` · `DOUBLE PRECISION`/`FLOAT8` | `Real(double=false/true)`
+| `VARCHAR(n)`/`CHARACTER VARYING(n)` | `Varchar(n)`
+| `CHAR(n)`/`CHARACTER(n)` | `Varchar(n)` + `REV-SQL-015` INFO (padding semantics lost)
+| `TEXT` | `Text`
+| `BOOLEAN`/`BOOL` | `Boolean`
+| `DATE` · `TIME` | `Date` · `Time`
+| `TIMESTAMP`/`... WITHOUT TIME ZONE` · `TIMESTAMPTZ`/`... WITH TIME ZONE` | `Timestamp(false/true)`
+| `UUID` | `Uuid`
+| `BYTEA`/`BLOB` | `Blob`
+| `JSON`/`JSONB` | `Json`
+| unrecognized | `Custom(raw)` + `REV-SQL-010` INFO
+|===
+
+== Diagnostic Codes
+
+[cols="1,1,2"]
+|===
+| Code | Severity | Meaning
+
+| `REV-SQL-001` | ERROR | No `.sql` source files found, or none produced a parsable statement
+| `REV-SQL-002` | WARN  | A file/statement failed to parse, or an `ALTER TABLE`/`CREATE INDEX` referenced an unknown table
+| `REV-SQL-010` | INFO  | Column type has no direct `ErmDataType` equivalent — mapped to `Custom`, or `NUMERIC`/`DECIMAL` without precision defaulted to `Decimal(38,0)`
+| `REV-SQL-011` | WARN  | Composite foreign key only partially mapped (attached to the first column only)
+| `REV-SQL-012` | WARN  | Foreign key references an unknown target table/column — relationship skipped
+| `REV-SQL-013` | INFO  | `CREATE VIEW` references a table that could not be resolved to a known entity (best-effort)
+| `REV-SQL-014` | INFO  | A statement or `ALTER TABLE` sub-expression was recognized but not applied (e.g. `DROP`/`RENAME`, `GENERATED ... AS IDENTITY`)
+| `REV-SQL-015` | INFO  | `CHAR`/`CHARACTER` mapped to `Varchar` — fixed-length padding semantics lost
+|===
+
+== Known Limitations (Non-Goals for V3.4.9)
+
+* *Composite foreign keys* — `ErmForeignKey` is single-column; a multi-column
+  `FOREIGN KEY (a, b) REFERENCES ...` is attached to the first column only
+  (`REV-SQL-011`).
+* *Inline column-level `REFERENCES schema.table(...)`* — JSqlParser 5.3's grammar
+  does not accept a schema-qualified target table in this specific inline form (it
+  does for table-level `FOREIGN KEY` constraints and `ALTER TABLE ADD CONSTRAINT`).
+  Use a table-level or `ALTER TABLE` foreign key for schema-qualified references —
+  the common shape emitted by `pg_dump` and Flyway migrations anyway.
+* *M:N junction tables are not auto-collapsed* — a junction table (PK = union of two
+  FKs) is reversed faithfully as a weak entity with two `IDENTIFYING` foreign keys,
+  mirroring the forward UML→ERM expansion (V3.4.6/7/8). Collapsing it to a single
+  `manyToMany`-style relationship is heuristic/lossy (payload columns) and deferred.
+* Non-`ADD` `ALTER TABLE` operations (`DROP`/`RENAME`/column-type changes) are
+  recognized but not applied — `REV-SQL-014` INFO.
+
+== Module Dependencies
+
+----
+kuml-codegen-reverse-sql
+  ├── kuml-codegen-reverse-api
+  ├── kuml-metamodel-erm
+  ├── kuml-core-model
+  └── com.github.jsqlparser:jsqlparser:5.3
+----

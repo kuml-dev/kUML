@@ -24,6 +24,7 @@ vanniktech-publish     = "0.37.0"
 intellij-platform      = "2.17.0"
 intellij-idea          = "2024.3"
 javaparser             = "3.28.2"
+jsqlparser             = "5.3"
 eclipse-emf-ecore      = "2.40.0"
 eclipse-emf-ecore-xmi  = "2.40.0"
 jdom2                  = "2.0.6.1"
@@ -128,6 +129,12 @@ javaparser-symbol-solver-core   = { module = "com.github.javaparser:javaparser-s
 
 # ── SQLite (PersistentPatchStore — V3.1.19) ───────────────────────────────────
 sqlite-jdbc                     = { module = "org.xerial:sqlite-jdbc",                                  version.ref = "sqlite-jdbc" }
+
+# ── JSqlParser (Reverse Engineering SQL→ERM — V3.4.9) ────────────────────────
+# NOTE: the historic Maven Central coordinate "net.sf.jsqlparser:jsqlparser" is
+# abandoned at 0.8.0 (2012) — the project moved groupId to "com.github.jsqlparser"
+# years ago. Verified current coordinate against repo1.maven.org metadata.
+jsqlparser                      = { module = "com.github.jsqlparser:jsqlparser",                        version.ref = "jsqlparser" }
 
 # ── Kotlin Compiler Embeddable (Reverse Engineering — V3.0.8) ─────────────────
 kotlin-compiler-embeddable      = { module = "org.jetbrains.kotlin:kotlin-compiler-embeddable",       version.ref = "kotlin" }
