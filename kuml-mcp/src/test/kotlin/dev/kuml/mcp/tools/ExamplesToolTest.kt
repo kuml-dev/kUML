@@ -25,13 +25,13 @@ class ExamplesToolTest :
 
         fun args(vararg pairs: Pair<String, String>): JsonObject = buildJsonObject { pairs.forEach { (key, value) -> put(key, value) } }
 
-        test("descriptor is kuml.examples with language enum of five and required language") {
+        test("descriptor is kuml.examples with language enum of six and required language") {
             val descriptor = ExamplesTool.descriptor
             descriptor.name shouldBe "kuml.examples"
             val properties = descriptor.inputSchema["properties"]!!.jsonObject
             val languageEnum = properties["language"]!!.jsonObject["enum"]!!.jsonArray.map { it.jsonPrimitive.content }
-            // Order matches ExampleCatalog.languages() catalog-insertion order: uml, c4, sysml2, bpmn, blueprint.
-            languageEnum shouldBe listOf("uml", "c4", "sysml2", "bpmn", "blueprint")
+            // Order matches ExampleCatalog.languages() catalog-insertion order: uml, c4, sysml2, bpmn, blueprint, erm.
+            languageEnum shouldBe listOf("uml", "c4", "sysml2", "bpmn", "blueprint", "erm")
             val required = descriptor.inputSchema["required"]!!.jsonArray.map { it.jsonPrimitive.content }
             required shouldBe listOf("language")
         }

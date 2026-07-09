@@ -7,7 +7,7 @@ package dev.kuml.mcp.examples
  *   by the vault notes, e.g. "01 UML Klasse – Order Domain.md". Must match a name
  *   returned by [BundledExamples.listNames] byte-for-byte.
  * @property language one of [ExampleCatalog.languages] — `uml`, `sysml2`, `c4`, `bpmn`,
- *   or `blueprint`.
+ *   `blueprint`, or `erm`.
  * @property diagramType kebab-case diagram-type token within [language], e.g. `class`,
  *   `sequence`, `composite-structure`, `bdd`, `container`, `service-blueprint`, `journey`.
  * @property description one-sentence English description of what the example shows.
@@ -27,8 +27,8 @@ internal data class CuratedExample(
  * diagramType, description) — the single source of truth backing both the `kuml.examples`
  * MCP tool and the granular `kuml://dsl/examples/<language>/<diagramType>` resources.
  *
- * The language taxonomy mirrors the five [dev.kuml.core.script.ExtractedDiagram] families,
- * in catalog order: `uml`, `c4`, `sysml2`, `bpmn`, `blueprint`. `journey` is a **diagramType** within
+ * The language taxonomy mirrors the six [dev.kuml.core.script.ExtractedDiagram] families,
+ * in catalog order: `uml`, `c4`, `sysml2`, `bpmn`, `blueprint`, `erm`. `journey` is a **diagramType** within
  * `blueprint` (both `journeyDiagram(...)` and `blueprintDiagram(...)` build a
  * `BlueprintModel`) — not a separate language.
  *
@@ -292,9 +292,18 @@ internal object ExampleCatalog {
                     "UML profile diagram defining the Kotlin Exposed ORM stereotype profile " +
                         "(Table/Column/FK) used by the MDA persistence pipeline (ADR-0016).",
             ),
+            CuratedExample(
+                fileName = "39 ERM Martin – E-Commerce Schema.md",
+                language = "erm",
+                diagramType = "martin",
+                description =
+                    "ERM entity-relationship diagram (Martin/crow's-foot notation) of a neutral " +
+                        "e-commerce schema — entities, FKs, self-reference, identifying/weak entity, " +
+                        "multiple FKs to one table, views, indexes and check constraints.",
+            ),
         )
 
-    /** Distinct languages in catalog order: uml, c4, sysml2, bpmn, blueprint. */
+    /** Distinct languages in catalog order: uml, c4, sysml2, bpmn, blueprint, erm. */
     internal fun languages(): List<String> = entries.map { it.language }.distinct()
 
     /** Distinct diagramTypes for [language], in catalog order; empty if [language] is unknown. */

@@ -43,10 +43,14 @@ class ExampleCatalogTest :
             }
         }
 
-        test("languages are exactly the five ExtractedDiagram families") {
+        test("languages include erm as the sixth family") {
             // Order follows first catalog appearance: uml (entry 01), c4 (entry 02),
-            // sysml2 (entry 03), bpmn, blueprint.
-            ExampleCatalog.languages() shouldBe listOf("uml", "c4", "sysml2", "bpmn", "blueprint")
+            // sysml2 (entry 03), bpmn, blueprint, erm (entry 39).
+            ExampleCatalog.languages() shouldBe listOf("uml", "c4", "sysml2", "bpmn", "blueprint", "erm")
+        }
+
+        test("find returns the erm martin example") {
+            ExampleCatalog.find(language = "erm", diagramType = "martin") shouldHaveSize 1
         }
 
         test("find returns multiple examples for uml component") {
