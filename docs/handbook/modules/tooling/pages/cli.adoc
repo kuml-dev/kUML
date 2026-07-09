@@ -70,7 +70,7 @@ Examples:
 [source,bash]
 ----
 kuml generate model.kuml.kts --plugin java --package com.example --options java-style=records
-kuml generate model.kuml.kts --plugin sql --options dialect=mysql,sql-drop=true
+kuml generate model.kuml.kts --plugin sql --options sql-dialect=mysql,sql-drop=true
 ----
 
 == `kuml validate`

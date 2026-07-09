@@ -97,7 +97,7 @@ Look in `gen/com/example/order/Order.kt` — a Kotlin data class with the fields
 enum for `OrderStatus`. Other built-in generators:
 
 * `--plugin java` — POJO, records, or Lombok-flavoured Java (`--options java-style=records`)
-* `--plugin sql` — DDL for PostgreSQL (default), MySQL, H2, or SQLite (`--options dialect=mysql`)
+* `--plugin sql` — DDL for PostgreSQL (default), MySQL, H2, or SQLite (`--options sql-dialect=mysql`)
 
 Both honour JavaEE / Spring / JPA stereotypes if your model applies the matching profile.
 See xref:reference:codegen.adoc[the codegen reference] for the full options.

@@ -105,11 +105,11 @@ expected).
 ----
 kuml generate model.kuml.kts \
     --plugin sql \
-    --options dialect=postgres,sql-drop=true \
+    --options sql-dialect=postgres,sql-drop=true \
     --output gen/
 ----
 
-`dialect` options: `postgres` (default), `mysql`, `h2`, `sqlite`.
+`sql-dialect` options: `postgres` (default), `mysql`, `h2`, `sqlite`.
 `sql-drop=true` prepends `DROP TABLE IF EXISTS …` statements (handy for migrations).
 
 The output is a single `schema.sql` with:

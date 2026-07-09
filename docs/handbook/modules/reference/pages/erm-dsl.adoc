@@ -315,7 +315,7 @@ chained through the transform first:
 [source,bash]
 ----
 # ERM-first — schema authored directly in ERM
-kuml generate --input schema.kuml.kts --plugin sql --options dialect=postgres --output gen/
+kuml generate --input schema.kuml.kts --plugin sql --options sql-dialect=postgres --output gen/
 kuml generate --input schema.kuml.kts --plugin exposed --output gen/
 
 # UML-first — chain UML → ERM → Exposed in one step
