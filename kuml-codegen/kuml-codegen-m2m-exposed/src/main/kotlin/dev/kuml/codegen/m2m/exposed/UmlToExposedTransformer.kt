@@ -79,7 +79,22 @@ import dev.kuml.uml.UmlClass
  * - [GeneratedFile.relativePath] is derived from the validated object name only (never from
  *   raw, unsanitized UML text) and is additionally checked to be a single path segment with
  *   no `/`, `\`, or `..` — see [requireSafeRelativePath].
+ *
+ * ### Superseded by the ERM path (V3.4.8)
+ *
+ * `erm-to-exposed` / `uml-to-exposed-via-erm` (V3.4.8,
+ * [dev.kuml.codegen.m2m.exposed.ErmToExposedTransformer] /
+ * [dev.kuml.codegen.m2m.exposed.UmlToExposedViaErmScriptTransformer]) chain
+ * `UmlToErmTransformer`'s typed [dev.kuml.erm.model.ErmModel] into
+ * [dev.kuml.codegen.m2m.exposed.ErmExposedEmitter] and emit genuine junction
+ * `Table` objects for many-to-many associations (composite primary key)
+ * instead of this transformer's `// *-to-many not represented` comment. This
+ * class remains fully supported for backward compatibility — its own tests
+ * are unmodified and green — but new integrations should prefer the ERM path.
  */
+@Deprecated(
+    "Superseded by the uml-to-erm + erm-to-exposed chain (uml-to-exposed-via-erm). Kept for backward compatibility.",
+)
 public class UmlToExposedTransformer : KumlTransformer<KumlDiagram, List<GeneratedFile>> {
     override val id: String = "uml-to-exposed"
     override val description: String =
@@ -522,6 +537,7 @@ public class UmlToExposedTransformer : KumlTransformer<KumlDiagram, List<Generat
 }
 
 /** ServiceLoader provider for [UmlToExposedTransformer]. */
+@Suppress("DEPRECATION")
 public class UmlToExposedTransformerProvider : KumlTransformerProvider {
     override fun transformer(): UmlToExposedTransformer = UmlToExposedTransformer()
 }

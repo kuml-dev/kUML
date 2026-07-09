@@ -1,2 +1,4 @@
 dev.kuml.codegen.m2m.exposed.UmlToExposedTransformerProvider
 dev.kuml.codegen.m2m.exposed.UmlToExposedPsmTransformerProvider
+dev.kuml.codegen.m2m.exposed.ErmToExposedTransformerProvider
+dev.kuml.codegen.m2m.exposed.UmlToExposedViaErmScriptTransformerProvider

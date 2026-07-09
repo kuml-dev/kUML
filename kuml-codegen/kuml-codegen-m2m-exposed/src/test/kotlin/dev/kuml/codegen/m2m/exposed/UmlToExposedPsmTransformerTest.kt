@@ -24,6 +24,7 @@ import io.kotest.matchers.types.shouldBeInstanceOf
 import java.nio.file.Files
 import io.kotest.matchers.collections.shouldContain as shouldContainItem
 
+@Suppress("DEPRECATION") // UmlToExposedPsmTransformer deprecated V3.4.8 — superseded by uml-to-exposed-via-erm; tests kept unmodified.
 class UmlToExposedPsmTransformerTest :
     FunSpec(body = {
 

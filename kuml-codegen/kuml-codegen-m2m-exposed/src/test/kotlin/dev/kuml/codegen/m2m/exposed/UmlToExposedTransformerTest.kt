@@ -17,6 +17,7 @@ import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 import io.kotest.matchers.types.shouldBeInstanceOf
 
+@Suppress("DEPRECATION") // UmlToExposedTransformer deprecated V3.4.8 — superseded by uml-to-exposed-via-erm; tests kept unmodified.
 class UmlToExposedTransformerTest :
     FunSpec(body = {
 

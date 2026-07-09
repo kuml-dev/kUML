@@ -18,6 +18,7 @@ import io.kotest.matchers.string.shouldContain
 import java.io.File
 import java.nio.file.Files
 
+@Suppress("DEPRECATION") // UmlToExposedPsmTransformer deprecated V3.4.8 — superseded by uml-to-exposed-via-erm; test kept unmodified.
 class FlywayBaselineGeneratorTest :
     FunSpec({
 

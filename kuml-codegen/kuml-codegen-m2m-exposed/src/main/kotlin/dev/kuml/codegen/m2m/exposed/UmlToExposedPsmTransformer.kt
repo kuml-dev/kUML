@@ -84,14 +84,20 @@ import dev.kuml.uml.UmlProperty
  * ### Staggered replacement by the ERM path (kUML V3.4.6+, not yet in effect)
  *
  * `kuml-transform-uml-to-erm` (V3.4.6) introduces a typed [dev.kuml.erm.model.ErmModel]
- * successor to this dual-annotation ("`«Table»` + `«Entity»`") workaround, but does
- * **not** retire this transformer yet — this class remains fully active and
- * unmodified. The actual replacement is staggered: V3.4.7 repoints `kuml-gen-sql`
+ * successor to this dual-annotation ("`«Table»` + `«Entity»`") workaround. The
+ * replacement was staggered across three waves: V3.4.7 repointed `kuml-gen-sql`
  * at [dev.kuml.erm.model.ErmModel] input (removing the need for the dual-apply
- * hack this class relies on), and V3.4.8 *(optional)* would repoint the Exposed
- * source-code transformer at [dev.kuml.erm.model.ErmModel] too, at which point this
- * class could be deprecated. See ADR-0016 and [[kUML V3.4]] (Vault) for the plan.
+ * hack this class relies on for that consumer), and **V3.4.8 repoints the Exposed
+ * source-code transformer at [dev.kuml.erm.model.ErmModel] too** (`erm-to-exposed` /
+ * `uml-to-exposed-via-erm`, see [dev.kuml.codegen.m2m.exposed.ErmToExposedTransformer] /
+ * [dev.kuml.codegen.m2m.exposed.UmlToExposedViaErmScriptTransformer]) — which is what
+ * makes *this* class deprecatable. It remains fully active and unmodified (its own
+ * tests are unchanged and green) for backward compatibility. See ADR-0016 and
+ * [[kUML V3.4]] (Vault) for the plan.
  */
+@Deprecated(
+    "Superseded by the uml-to-erm + erm-to-exposed chain (uml-to-exposed-via-erm, V3.4.8). Kept for backward compatibility.",
+)
 public class UmlToExposedPsmTransformer : KumlTransformer<KumlDiagram, KumlDiagram> {
     override val id: String = "uml-to-exposed-psm"
     override val description: String =
@@ -315,6 +321,7 @@ public class UnsafeUmlNameException(
 ) : RuntimeException(message)
 
 /** ServiceLoader provider for [UmlToExposedPsmTransformer]. */
+@Suppress("DEPRECATION")
 public class UmlToExposedPsmTransformerProvider : KumlTransformerProvider {
     override fun transformer(): UmlToExposedPsmTransformer = UmlToExposedPsmTransformer()
 }

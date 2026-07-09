@@ -1,0 +1,561 @@
+package dev.kuml.codegen.m2m.exposed
+
+import dev.kuml.codegen.m2m.GeneratedFile
+import dev.kuml.codegen.m2m.TraceabilityLink
+import dev.kuml.codegen.m2m.TransformError
+import dev.kuml.codegen.m2m.TransformResult
+import dev.kuml.codegen.m2m.TransformTrace
+import dev.kuml.erm.constraint.ErmConstraintChecker
+import dev.kuml.erm.constraint.ViolationSeverity
+import dev.kuml.erm.model.ErmAttribute
+import dev.kuml.erm.model.ErmDataType
+import dev.kuml.erm.model.ErmEntity
+import dev.kuml.erm.model.ErmForeignKey
+import dev.kuml.erm.model.ErmModel
+import dev.kuml.erm.model.ReferentialAction
+
+/**
+ * V3.4.8 — the single source of truth for Kotlin Exposed `Table` object generation
+ * from an [ErmModel]. All three entry points in this module
+ * ([ErmToExposedTransformer]'s ERM-direct M2M step, [ErmExposedGenerator]'s
+ * ERM-first CLI/plugin path, and [UmlToExposedViaErmScriptTransformer]'s chained
+ * UML→ERM→Exposed path) delegate here; none of them contains any Exposed-rendering
+ * logic of its own. Mirrors [dev.kuml.codegen.sql.ErmSqlEmitter] one-to-one
+ * (V3.4.7's equivalent split for SQL DDL).
+ *
+ * Emission pipeline (see [emit]):
+ *  1. Validate the model with [ErmConstraintChecker] — any `ERROR`-severity
+ *     violation fails generation with [TransformResult.Failure] instead of
+ *     emitting structurally broken Kotlin. This is the *only* validation gate
+ *     for the ERM-first path (which never goes through a UML transformer), and
+ *     a deliberate second gate for the chained UML-direct path (whose
+ *     `UmlToErmTransformer` step already validates once).
+ *  2. Derive and validate a Kotlin `object` name for every [ErmEntity] (needed
+ *     up front so foreign-key columns can resolve their target object name).
+ *  3. Render one [GeneratedFile] per [ErmEntity], path `"<ObjectName>.kt"`.
+ *
+ * ### Mapping specification (`ErmEntity` → Kotlin Exposed `Table` object)
+ *
+ * - **Object name**: PascalCase of `entity.name` (already snake_case/plural —
+ *   the standard shape produced by `UmlToErmTransformer` — but works for any
+ *   ERM-first name too), e.g. `order_items` → `OrderItems`.
+ * - **Columns**: Kotlin property = camelCase(`attr.name`); the Exposed column
+ *   string literal is `attr.name` verbatim (already the intended DB column
+ *   name — unlike the UML-direct [UmlToExposedTransformer], which still has to
+ *   *derive* a column name from a UML property name).
+ * - **Type mapping**: exhaustive `when` over [ErmDataType] into the matching
+ *   Exposed DSL call (`integer`/`long`/`short`/`decimal`/`double`/`float`/
+ *   `varchar`/`text`/`bool`/`date`/`time`/`datetime`/`uuid`/`blob`). `Json` and
+ *   `Custom` fall back to `text(...)` plus an explanatory comment, since neither
+ *   has a derivable idiomatic Exposed column builder.
+ * - **Modifiers**: `.nullable()` when nullable and not a primary-key column;
+ *   `.uniqueIndex()` when unique and not a primary-key column; `.autoIncrement()`
+ *   only when `autoIncrement && type is Integer`. A raw [ErmAttribute.default] is
+ *   emitted as a `// TODO default = "..."` comment rather than a typed Exposed
+ *   `.default(...)` call (no way to safely infer a typed literal from a raw
+ *   dialect-neutral string).
+ * - **Foreign keys**: a non-self-referential [ErmForeignKey] becomes
+ *   `reference(...)` (not-null) or `optReference(...)` (nullable), with
+ *   `onDelete`/`onUpdate` named arguments when the referential action is not
+ *   [ReferentialAction.NO_ACTION]. **Self-referential** foreign keys
+ *   (`fk.targetEntityId == entity.id`) are *not* rendered as `reference()` —
+ *   referencing the enclosing `object` from inside its own initializer body
+ *   does not compile — instead a plain typed column (using the attribute's own
+ *   declared [ErmAttribute.type]) is emitted with an explanatory comment.
+ * - **Primary key**: a single-column PK emits
+ *   `override val primaryKey: PrimaryKey = PrimaryKey(<prop>)`; a composite PK
+ *   (e.g. junction-table entities) emits `PrimaryKey(<p1>, <p2>, ...)`; an empty
+ *   PK (weak entity without one of its own) omits the override entirely, with a
+ *   comment noting why (Exposed permits a PK-less `Table`).
+ * - **Indexes / checks / views**: left as comments (MVP) — see "Known
+ *   limitations" below.
+ *
+ * The conceptual win over the older, still-supported `uml-to-exposed` (Variante
+ * B, [UmlToExposedTransformer]): many-to-many associations are now represented
+ * as genuine junction `Table` objects with a composite primary key (because
+ * `UmlToErmTransformer` already materializes them as junction [ErmEntity]
+ * instances), instead of a `// *-to-many not represented` comment.
+ *
+ * ### Known limitations (not addressed in this wave)
+ * - [ErmEntity.indexes], [ErmEntity.checks], and [ErmModel.views] are emitted
+ *   as comments only — Exposed's `index {}`/`check {}` DSLs need typed
+ *   `Op<Boolean>`/column references that are not mechanically derivable from
+ *   the ERM model's raw expression strings, and Exposed has no idiomatic view
+ *   construct at all.
+ * - IDEF1X categories ([ErmModel.categories]) are not represented — Exposed's
+ *   `Table` DSL has no supertype/subtype construct to map them onto.
+ * - `Timestamp.withTimeZone` is not distinguished — always rendered via
+ *   `datetime(...)`, matching the `java.time`-based `org.jetbrains.exposed.sql.javatime`
+ *   module (no `timestampWithTimeZone()` call is emitted).
+ * - Two attributes whose camelCase-converted names collide (e.g. `user_id` and
+ *   `userId` on the same entity) produce two Kotlin `val`s with the same
+ *   property name — a non-compiling collision. Not defended against, mirroring
+ *   the equivalent limitation already accepted in [UmlToExposedTransformer].
+ *
+ * ### Generated-code-injection / path-traversal defenses
+ *
+ * ERM-first `.kuml.kts` scripts build an [ErmModel] directly via the
+ * `ermModel { }` DSL and therefore never pass through `UmlToErmTransformer`'s
+ * `SqlIdentifiers.requireSafe` gate. The identifier/string-literal defenses
+ * below (intentionally duplicated from [UmlToExposedTransformer] rather than
+ * shared, exactly as [UmlToExposedPsmTransformer] already duplicates its own
+ * `toSnakeCase`/`toPlural` helpers — see that class's KDoc — to keep this
+ * addition fully independent of the existing, still-supported Variante B
+ * transformer, which must not be modified) are therefore applied unconditionally,
+ * regardless of entry point:
+ * - Every string embedded inside a Kotlin string literal is escaped via
+ *   [kotlinStringLiteral].
+ * - Every ERM name used as a Kotlin *identifier* (entity name → object name,
+ *   attribute name → property name) is validated by [requireValidKotlinIdentifier]
+ *   against the Kotlin identifier grammar and the Kotlin hard-keyword list.
+ * - [GeneratedFile.relativePath] is checked by [requireSafeRelativePath] to be a
+ *   single path segment with no `/`, `\`, or `..`.
+ * - Raw [ErmAttribute.default] / [ErmDataType.Custom.raw] text embedded in a
+ *   `//` comment is sanitized by [commentSafe].
+ */
+internal class ErmExposedEmitter(
+    private val packageName: String = DEFAULT_PACKAGE,
+) {
+    fun emit(model: ErmModel): TransformResult<List<GeneratedFile>> {
+        val violations = ErmConstraintChecker().check(model).filter { it.severity == ViolationSeverity.ERROR }
+        if (violations.isNotEmpty()) {
+            return TransformResult.Failure(
+                violations.map { TransformError("erm-to-exposed: ${it.message}", it.elementId) },
+            )
+        }
+
+        // Pass 1: derive + validate every entity's Kotlin object name up front — needed so
+        // foreign-key columns in *other* entities can resolve their reference() target name.
+        val objectNameById = mutableMapOf<String, String>()
+        val nameErrors = mutableListOf<TransformError>()
+        for (entity in model.entities) {
+            val raw = entity.name ?: entity.id
+            val objectName = toPascalCase(raw)
+            try {
+                requireValidKotlinIdentifier(objectName, "entity name", entity.id)
+                requireSafeRelativePath("$objectName.kt", entity.id)
+            } catch (e: InvalidIdentifierException) {
+                nameErrors += TransformError(e.message ?: "invalid entity name", entity.id)
+                continue
+            }
+            objectNameById[entity.id] = objectName
+        }
+        if (nameErrors.isNotEmpty()) return TransformResult.Failure(nameErrors)
+
+        val duplicateNames =
+            objectNameById.values
+                .groupingBy { it }
+                .eachCount()
+                .filter { it.value > 1 }
+                .keys
+        if (duplicateNames.isNotEmpty()) {
+            return TransformResult.Failure(
+                listOf(
+                    TransformError(
+                        "erm-to-exposed: multiple entities map to the same Kotlin object name(s) " +
+                            "${duplicateNames.joinToString(", ")} — refusing to emit colliding files.",
+                    ),
+                ),
+            )
+        }
+
+        // Pass 2: render.
+        val errors = mutableListOf<TransformError>()
+        val files = mutableListOf<GeneratedFile>()
+        var trace = TransformTrace()
+
+        for (entity in model.entities) {
+            when (val result = renderEntity(entity, model, objectNameById)) {
+                is EntityResult.Ok -> {
+                    files += result.file
+                    trace = trace.plus(TraceabilityLink(entity.id, result.file.relativePath, RULE_ENTITY_TO_TABLE))
+                    for (attr in entity.attributes) {
+                        val rule = if (attr.foreignKey != null) RULE_FK_TO_REFERENCE else RULE_ATTR_TO_COLUMN
+                        trace = trace.plus(TraceabilityLink(attr.id, result.file.relativePath, rule))
+                    }
+                }
+                is EntityResult.Error -> errors += result.error
+            }
+        }
+
+        if (errors.isNotEmpty()) return TransformResult.Failure(errors)
+        return TransformResult.Success(files, trace)
+    }
+
+    // ── Rendering ────────────────────────────────────────────────────────────
+
+    private sealed class EntityResult {
+        data class Ok(
+            val file: GeneratedFile,
+        ) : EntityResult()
+
+        data class Error(
+            val error: TransformError,
+        ) : EntityResult()
+    }
+
+    private fun renderEntity(
+        entity: ErmEntity,
+        model: ErmModel,
+        objectNameById: Map<String, String>,
+    ): EntityResult {
+        val objectName = objectNameById.getValue(entity.id)
+        val tableNameLiteral =
+            try {
+                kotlinStringLiteral(entity.name ?: entity.id)
+            } catch (e: InvalidIdentifierException) {
+                return EntityResult.Error(TransformError(e.message ?: "invalid table name", entity.id))
+            }
+
+        val imports = sortedSetOf("org.jetbrains.exposed.sql.Column", "org.jetbrains.exposed.sql.Table")
+        val columnLines = mutableListOf<String>()
+        val propertyNameByAttrId = mutableMapOf<String, String>()
+
+        for (attr in entity.attributes) {
+            val rawName = attr.name ?: attr.id
+            val propName = toCamelCase(rawName)
+            try {
+                requireValidKotlinIdentifier(propName, "attribute name", attr.id)
+            } catch (e: InvalidIdentifierException) {
+                return EntityResult.Error(TransformError(e.message ?: "invalid attribute name", attr.id))
+            }
+            propertyNameByAttrId[attr.id] = propName
+
+            val colLiteral = kotlinStringLiteral(rawName)
+            val fk = attr.foreignKey
+            val line =
+                when {
+                    fk == null -> renderBaseColumnLine(propName, attr, colLiteral, imports)
+                    fk.targetEntityId == entity.id -> {
+                        // Self-referential FK — reference() cannot target the enclosing object
+                        // from inside its own initializer body. Emit a plain typed column instead.
+                        val base = renderBaseColumnLine(propName, attr, colLiteral, imports)
+                        "$base // self-referential FK (target: this entity) — reference() omitted, see KDoc"
+                    }
+                    else -> {
+                        val targetObjectName =
+                            objectNameById[fk.targetEntityId]
+                                ?: return EntityResult.Error(
+                                    TransformError(
+                                        "erm-to-exposed: foreign key on attribute '$rawName' targets unknown " +
+                                            "entity '${fk.targetEntityId}'",
+                                        attr.id,
+                                    ),
+                                )
+                        renderReferenceColumnLine(propName, attr, colLiteral, targetObjectName, fk, imports)
+                    }
+                }
+            columnLines += line
+            attr.default?.let { columnLines += "    // TODO default = \"${commentSafe(it)}\"" }
+        }
+
+        val pkAttrs = entity.primaryKey
+        val pkLine =
+            when {
+                pkAttrs.isEmpty() -> null
+                else ->
+                    "    override val primaryKey: PrimaryKey = PrimaryKey(" +
+                        pkAttrs.joinToString(", ") { propertyNameByAttrId.getValue(it.id) } +
+                        ")"
+            }
+
+        val sb = StringBuilder()
+        sb.appendLine("// Generated by kuml-codegen-m2m-exposed (erm-to-exposed) — do not edit manually.")
+        sb.appendLine()
+        sb.appendLine("package $packageName")
+        sb.appendLine()
+        for (import in imports) sb.appendLine("import $import")
+        sb.appendLine()
+        sb.appendLine("public object $objectName : Table(\"$tableNameLiteral\") {")
+        for (line in columnLines) sb.appendLine(line)
+        if (columnLines.isNotEmpty()) sb.appendLine()
+
+        if (pkLine != null) {
+            sb.appendLine(pkLine)
+        } else {
+            sb.appendLine("    // Weak entity with no primary key of its own — Exposed permits a Table without one.")
+        }
+
+        if (entity.indexes.isNotEmpty()) {
+            sb.appendLine()
+            sb.appendLine("    // Note: ${entity.indexes.size} index(es) declared on this entity are not emitted —")
+            sb.appendLine("    // Exposed's index {} DSL needs typed column references, not wired up in this wave.")
+        }
+        if (entity.checks.isNotEmpty()) {
+            sb.appendLine()
+            sb.appendLine("    // Note: ${entity.checks.size} check constraint(s) declared on this entity are not")
+            sb.appendLine("    // emitted — Exposed's check {} DSL needs a typed Op<Boolean>, not a raw SQL string.")
+        }
+
+        sb.append("}")
+        sb.appendLine()
+
+        if (model.views.isNotEmpty() && entity.id == model.entities.first().id) {
+            sb.appendLine()
+            sb.appendLine(
+                "// Note: ${model.views.size} view(s) declared on this model are not emitted — " +
+                    "Exposed has no idiomatic view DSL.",
+            )
+        }
+
+        return EntityResult.Ok(GeneratedFile("$objectName.kt", sb.toString()))
+    }
+
+    private fun renderBaseColumnLine(
+        propName: String,
+        attr: ErmAttribute,
+        colLiteral: String,
+        imports: MutableSet<String>,
+    ): String {
+        val rendered = renderBaseColumnCall(attr.type, colLiteral)
+        imports += rendered.imports
+
+        var call = rendered.call
+        if (attr.autoIncrement && attr.type is ErmDataType.Integer) call += ".autoIncrement()"
+        if (attr.nullable && !attr.primaryKey) call += ".nullable()"
+        if (attr.unique && !attr.primaryKey) call += ".uniqueIndex()"
+        // The trailing explanatory comment (Json/Custom fallback) must come after every
+        // modifier call, not before — appending `.nullable()` etc. *after* a `//` comment
+        // would silently swallow the modifier into the comment text (still compiles, but
+        // produces a Column<T?> type declaration backed by a non-nullable expression).
+        rendered.trailingComment?.let { call += " // $it" }
+
+        val ktType = if (attr.nullable && !attr.primaryKey) "${rendered.ktType}?" else rendered.ktType
+        return "    public val $propName: Column<$ktType> = $call"
+    }
+
+    private fun renderReferenceColumnLine(
+        propName: String,
+        attr: ErmAttribute,
+        colLiteral: String,
+        targetObjectName: String,
+        fk: ErmForeignKey,
+        imports: MutableSet<String>,
+    ): String {
+        val rendered = renderBaseColumnCall(attr.type, colLiteral)
+        // The Kotlin type of a reference()/optReference() column always matches the FK
+        // attribute's own declared type (its underlying storage type), same as a plain column.
+        imports += rendered.imports
+
+        val optionArgs =
+            buildList {
+                referenceOptionName(fk.onDelete)?.let { add("onDelete = ReferenceOption.$it") }
+                referenceOptionName(fk.onUpdate)?.let { add("onUpdate = ReferenceOption.$it") }
+            }
+        if (optionArgs.isNotEmpty()) imports += "org.jetbrains.exposed.sql.ReferenceOption"
+
+        val args = (listOf("\"$colLiteral\"", targetObjectName) + optionArgs).joinToString(", ")
+        val call = if (attr.nullable) "optReference($args)" else "reference($args)"
+        val ktType = if (attr.nullable) "${rendered.ktType}?" else rendered.ktType
+        return "    public val $propName: Column<$ktType> = $call"
+    }
+
+    private fun referenceOptionName(action: ReferentialAction): String? =
+        when (action) {
+            ReferentialAction.NO_ACTION -> null
+            ReferentialAction.RESTRICT -> "RESTRICT"
+            ReferentialAction.CASCADE -> "CASCADE"
+            ReferentialAction.SET_NULL -> "SET_NULL"
+            ReferentialAction.SET_DEFAULT -> "SET_DEFAULT"
+        }
+
+    // ── Type mapping ─────────────────────────────────────────────────────────
+
+    private data class ColumnCallRendering(
+        val call: String,
+        val ktType: String,
+        val imports: Set<String>,
+        val trailingComment: String? = null,
+    )
+
+    private fun renderBaseColumnCall(
+        type: ErmDataType,
+        colLiteral: String,
+    ): ColumnCallRendering =
+        when (type) {
+            is ErmDataType.Integer ->
+                when (type.bits) {
+                    16 -> ColumnCallRendering("short(\"$colLiteral\")", "Short", emptySet())
+                    64 -> ColumnCallRendering("long(\"$colLiteral\")", "Long", emptySet())
+                    else -> ColumnCallRendering("integer(\"$colLiteral\")", "Int", emptySet())
+                }
+            is ErmDataType.Decimal ->
+                ColumnCallRendering(
+                    "decimal(\"$colLiteral\", ${type.precision}, ${type.scale})",
+                    "BigDecimal",
+                    setOf("java.math.BigDecimal"),
+                )
+            is ErmDataType.Real ->
+                if (type.double) {
+                    ColumnCallRendering("double(\"$colLiteral\")", "Double", emptySet())
+                } else {
+                    ColumnCallRendering("float(\"$colLiteral\")", "Float", emptySet())
+                }
+            is ErmDataType.Varchar ->
+                ColumnCallRendering("varchar(\"$colLiteral\", ${type.length})", "String", emptySet())
+            ErmDataType.Text -> ColumnCallRendering("text(\"$colLiteral\")", "String", emptySet())
+            ErmDataType.Boolean -> ColumnCallRendering("bool(\"$colLiteral\")", "Boolean", emptySet())
+            ErmDataType.Date ->
+                ColumnCallRendering(
+                    "date(\"$colLiteral\")",
+                    "LocalDate",
+                    setOf("org.jetbrains.exposed.sql.javatime.date", "java.time.LocalDate"),
+                )
+            ErmDataType.Time ->
+                ColumnCallRendering(
+                    "time(\"$colLiteral\")",
+                    "LocalTime",
+                    setOf("org.jetbrains.exposed.sql.javatime.time", "java.time.LocalTime"),
+                )
+            is ErmDataType.Timestamp ->
+                ColumnCallRendering(
+                    "datetime(\"$colLiteral\")",
+                    "LocalDateTime",
+                    setOf("org.jetbrains.exposed.sql.javatime.datetime", "java.time.LocalDateTime"),
+                )
+            ErmDataType.Uuid -> ColumnCallRendering("uuid(\"$colLiteral\")", "UUID", setOf("java.util.UUID"))
+            ErmDataType.Blob ->
+                ColumnCallRendering(
+                    "blob(\"$colLiteral\")",
+                    "ExposedBlob",
+                    setOf("org.jetbrains.exposed.sql.statements.api.ExposedBlob"),
+                )
+            ErmDataType.Json ->
+                ColumnCallRendering(
+                    "text(\"$colLiteral\")",
+                    "String",
+                    emptySet(),
+                    trailingComment = "ErmDataType.Json fallback — Exposed's json() needs a serializer",
+                )
+            is ErmDataType.Custom ->
+                ColumnCallRendering(
+                    "text(\"$colLiteral\")",
+                    "String",
+                    emptySet(),
+                    trailingComment = "Custom(${commentSafe(type.raw)}) fallback",
+                )
+        }
+
+    // ── Name conversion ──────────────────────────────────────────────────────
+
+    /** Converts a `snake_case` (or already-`PascalCase`) name to `PascalCase`. */
+    private fun toPascalCase(raw: String): String =
+        raw
+            .split('_')
+            .filter { it.isNotEmpty() }
+            .joinToString("") { part -> part.replaceFirstChar { it.uppercaseChar() } }
+            .ifEmpty { raw }
+
+    /** Converts a `snake_case` (or already-`camelCase`) name to `camelCase`. */
+    private fun toCamelCase(raw: String): String {
+        val pascal = toPascalCase(raw)
+        return pascal.replaceFirstChar { it.lowercaseChar() }
+    }
+
+    // ── Generated-code-injection / path-traversal defenses (V3.4.8) ────────────
+    // Intentionally duplicated from UmlToExposedTransformer — see this file's KDoc.
+
+    private fun kotlinStringLiteral(raw: String): String =
+        buildString {
+            for (ch in raw) {
+                when (ch) {
+                    '\\' -> append("\\\\")
+                    '"' -> append("\\\"")
+                    '$' -> append("\\$")
+                    '\n' -> append("\\n")
+                    '\r' -> append("\\r")
+                    '\t' -> append("\\t")
+                    else -> append(ch)
+                }
+            }
+        }
+
+    private fun commentSafe(raw: String): String =
+        raw
+            .replace("\r\n", " ")
+            .replace('\n', ' ')
+            .replace('\r', ' ')
+            .replace("$STAR$SLASH", "$STAR $SLASH")
+
+    private fun requireValidKotlinIdentifier(
+        name: String,
+        what: String,
+        elementId: String,
+    ) {
+        if (!KOTLIN_IDENTIFIER_REGEX.matches(name)) {
+            throw InvalidIdentifierException(
+                "erm-to-exposed: $what '$name' (element $elementId) is not a safe Kotlin identifier " +
+                    "— only [a-zA-Z_][a-zA-Z0-9_]* is accepted, refusing to emit generated code.",
+            )
+        }
+        if (name in KOTLIN_HARD_KEYWORDS) {
+            throw InvalidIdentifierException(
+                "erm-to-exposed: $what '$name' (element $elementId) is a Kotlin hard keyword " +
+                    "— refusing to emit generated code.",
+            )
+        }
+    }
+
+    private fun requireSafeRelativePath(
+        relativePath: String,
+        elementId: String,
+    ) {
+        val hasSeparator = relativePath.contains('/') || relativePath.contains('\\')
+        val isTraversal = relativePath == "." || relativePath == ".."
+        if (hasSeparator || isTraversal || relativePath.isBlank()) {
+            throw InvalidIdentifierException(
+                "erm-to-exposed: generated file path '$relativePath' (element $elementId) is not a safe " +
+                    "single path segment — refusing to write outside the output directory.",
+            )
+        }
+    }
+
+    private class InvalidIdentifierException(
+        message: String,
+    ) : RuntimeException(message)
+
+    companion object {
+        const val DEFAULT_PACKAGE = "com.example.tables"
+        const val RULE_ENTITY_TO_TABLE = "erm-entity-to-exposed-table"
+        const val RULE_ATTR_TO_COLUMN = "erm-attribute-to-exposed-column"
+        const val RULE_FK_TO_REFERENCE = "erm-fk-to-exposed-reference"
+
+        private val KOTLIN_IDENTIFIER_REGEX = Regex("^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+        // Split to avoid an accidental block-comment-terminator sequence inside this source file's own KDoc.
+        private const val STAR = "*"
+        private const val SLASH = "/"
+
+        private val KOTLIN_HARD_KEYWORDS =
+            setOf(
+                "as",
+                "break",
+                "class",
+                "continue",
+                "do",
+                "else",
+                "false",
+                "for",
+                "fun",
+                "if",
+                "in",
+                "interface",
+                "is",
+                "null",
+                "object",
+                "package",
+                "return",
+                "super",
+                "this",
+                "throw",
+                "true",
+                "try",
+                "typealias",
+                "typeof",
+                "val",
+                "var",
+                "when",
+                "while",
+            )
+    }
+}
