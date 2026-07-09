@@ -245,7 +245,14 @@ public object ChoreographyGridLayout {
             val source = bounds[flow.sourceRef] ?: continue
             val target = bounds[flow.targetRef] ?: continue
             val isBackEdge = flow.id in backEdgeIds
-            edges[EdgeId(flow.id)] = routeFlow(source, target, isBackEdge, canvasHeight)
+            // Alle anderen Knoten sind Hindernisse für dieses Flow — Quelle und Ziel
+            // selbst ausgenommen (die Route darf/soll an ihnen andocken).
+            val obstacles =
+                bounds
+                    .filterKeys { it != flow.sourceRef && it != flow.targetRef }
+                    .values
+                    .toList()
+            edges[EdgeId(flow.id)] = routeFlow(source, target, isBackEdge, canvasHeight, obstacles)
         }
 
         val nodes: Map<NodeId, NodeLayout> =
@@ -337,12 +344,32 @@ public object ChoreographyGridLayout {
         return order.withIndex().associate { (i, p) -> p to i }
     }
 
-    /** Orthogonale/direkte Kanten-Route zwischen zwei platzierten Knoten. */
+    /**
+     * Orthogonale/direkte Kanten-Route zwischen zwei platzierten Knoten.
+     *
+     * Für den kreuzenden (nicht-benachbarten oder Spur-wechselnden) Fall gibt es
+     * zwei Kandidaten-Routen, beide mit genau einem vertikalen Versatz:
+     * - **A (Standard)**: vertikaler Jog auf halber Horizontal-Distanz (`midX`) —
+     *   der lange horizontale Lauf liegt auf der **Quell**-Y. Optisch die
+     *   ruhigste Variante, solange nichts im Weg steht.
+     * - **B (Früh-Jog)**: vertikaler Jog direkt in der freien Lücke hinter der
+     *   Quelle (`source.right + COL_GAP/2`) — der lange horizontale Lauf liegt
+     *   dann auf der **Ziel**-Y.
+     *
+     * B wird nur gewählt, wenn A einen fremden Knoten (`obstacles`) durchschneidet
+     * und B kollisionsfrei ist. Typischer Auslöser: ein Gateway/Event auf der
+     * Spine-Spur verzweigt zu einem Task in einer anderen Spur und „überspringt"
+     * dabei einen dazwischenliegenden Task, der die Spine-Spur mit abdeckt
+     * (Beispiel „37 BPMN Choreography": `gw → Lieferung` über `Nachbestellen`
+     * hinweg). Kreuzt auch B, bleibt es bei A (best effort, nie schlechter als
+     * der bisherige Zustand).
+     */
     private fun routeFlow(
         source: Rect,
         target: Rect,
         isBackEdge: Boolean,
         canvasHeight: Float,
+        obstacles: List<Rect>,
     ): EdgeRoute {
         val sourcePort = Point(source.origin.x + source.size.width, source.origin.y + source.size.height / 2f)
         val targetPort = Point(target.origin.x, target.origin.y + target.size.height / 2f)
@@ -361,16 +388,76 @@ public object ChoreographyGridLayout {
 
         val sameLaneBand = sourcePort.y == targetPort.y
         val adjacentColumns = target.origin.x - (source.origin.x + source.size.width) <= COL_GAP + 1f
-        return if (sameLaneBand && adjacentColumns) {
-            EdgeRoute.Direct(source = sourcePort, target = targetPort)
+        if (sameLaneBand && adjacentColumns) {
+            return EdgeRoute.Direct(source = sourcePort, target = targetPort)
+        }
+
+        // Kandidat A — Jog auf halber Distanz (langer Lauf auf Quell-Y).
+        val midX = (sourcePort.x + targetPort.x) / 2f
+        val routeA = listOf(sourcePort, Point(midX, sourcePort.y), Point(midX, targetPort.y), targetPort)
+
+        // Kandidat B — Jog in der Lücke direkt hinter der Quelle (langer Lauf auf
+        // Ziel-Y). `min(…, midX)` verhindert, dass der Jog bei sehr kurzen Kanten
+        // hinter das Ziel rutscht.
+        val earlyJogX = minOf(sourcePort.x + COL_GAP / 2f, midX)
+        val routeB = listOf(sourcePort, Point(earlyJogX, sourcePort.y), Point(earlyJogX, targetPort.y), targetPort)
+
+        val chosen =
+            when {
+                !polylineHitsAnyRect(routeA, obstacles) -> routeA
+                !polylineHitsAnyRect(routeB, obstacles) -> routeB
+                else -> routeA
+            }
+        return EdgeRoute.OrthogonalRounded(
+            source = chosen.first(),
+            target = chosen.last(),
+            waypoints = chosen.subList(1, chosen.size - 1),
+            cornerRadiusPx = CORNER_RADIUS,
+        )
+    }
+
+    /** True, wenn irgendein Segment der Polylinie das Innere eines der Rechtecke schneidet. */
+    private fun polylineHitsAnyRect(
+        points: List<Point>,
+        rects: List<Rect>,
+    ): Boolean {
+        for (i in 0 until points.size - 1) {
+            val a = points[i]
+            val b = points[i + 1]
+            for (r in rects) if (axisSegmentIntersectsRect(a, b, r)) return true
+        }
+        return false
+    }
+
+    /**
+     * Schnitt-Test für ein achsenparalleles Segment gegen das **Innere** eines
+     * Rechtecks. Segmente, die exakt entlang einer Rechteckkante verlaufen (oder
+     * es nur berühren), zählen dank [EPS] nicht als Treffer — nur ein echtes
+     * Durchqueren der Fläche.
+     */
+    private fun axisSegmentIntersectsRect(
+        a: Point,
+        b: Point,
+        r: Rect,
+    ): Boolean {
+        val left = r.origin.x
+        val right = r.origin.x + r.size.width
+        val top = r.origin.y
+        val bottom = r.origin.y + r.size.height
+        return if (a.y == b.y) {
+            // Horizontales Segment.
+            val y = a.y
+            val x1 = minOf(a.x, b.x)
+            val x2 = maxOf(a.x, b.x)
+            y > top + EPS && y < bottom - EPS && maxOf(x1, left) < minOf(x2, right) - EPS
         } else {
-            val midX = (sourcePort.x + targetPort.x) / 2f
-            EdgeRoute.OrthogonalRounded(
-                source = sourcePort,
-                target = targetPort,
-                waypoints = listOf(Point(midX, sourcePort.y), Point(midX, targetPort.y)),
-                cornerRadiusPx = CORNER_RADIUS,
-            )
+            // Vertikales Segment (a.x == b.x).
+            val x = a.x
+            val y1 = minOf(a.y, b.y)
+            val y2 = maxOf(a.y, b.y)
+            x > left + EPS && x < right - EPS && maxOf(y1, top) < minOf(y2, bottom) - EPS
         }
     }
+
+    private const val EPS: Float = 0.5f
 }

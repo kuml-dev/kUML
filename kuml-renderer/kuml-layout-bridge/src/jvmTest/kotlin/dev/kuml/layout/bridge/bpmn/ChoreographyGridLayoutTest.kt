@@ -162,6 +162,64 @@ class ChoreographyGridLayoutTest :
             route.shouldBeInstanceOf<EdgeRoute.Direct>()
         }
 
+        test("branch edge skipping over an intervening cross-lane task does not cross its bounds") {
+            // Reproduziert Beispiel „37 BPMN Choreography": ein EXCLUSIVE-Gateway auf der
+            // Spine-Spur verzweigt zu einem Task in einer OBEREN Spur (lieferung) und
+            // überspringt dabei einen Task (nachbestellung), der die Spine-Spur mit
+            // abdeckt. Die frühere midX-Route lief horizontal auf Gateway-Y quer durch
+            // die nachbestellung-Box. Die obstacle-aware Route muss das vermeiden.
+            val start = ChoreographyEvent(id = "start", position = EventPosition.START)
+            val bestellung =
+                ChoreographyTask(id = "bestellung", initiatingParticipant = "Kunde", participants = listOf("Kunde", "Händler"))
+            val gw = ChoreographyGateway(id = "gw", type = GatewayType.EXCLUSIVE)
+            val nachbestellung =
+                ChoreographyTask(id = "nachbestellung", initiatingParticipant = "Händler", participants = listOf("Händler", "Lieferant"))
+            val lieferung =
+                ChoreographyTask(id = "lieferung", initiatingParticipant = "Händler", participants = listOf("Händler", "Kunde"))
+            val end = ChoreographyEvent(id = "end", position = EventPosition.END)
+            val choreo =
+                BpmnChoreography(
+                    id = "c1",
+                    tasks = listOf(bestellung, nachbestellung, lieferung),
+                    gateways = listOf(gw),
+                    events = listOf(start, end),
+                    sequenceFlows =
+                        listOf(
+                            ChoreographySequenceFlow(id = "sf1", sourceRef = "start", targetRef = "bestellung"),
+                            ChoreographySequenceFlow(id = "sf2", sourceRef = "bestellung", targetRef = "gw"),
+                            ChoreographySequenceFlow(id = "sf3", sourceRef = "gw", targetRef = "lieferung"),
+                            ChoreographySequenceFlow(id = "sf4", sourceRef = "gw", targetRef = "nachbestellung"),
+                            ChoreographySequenceFlow(id = "sf5", sourceRef = "nachbestellung", targetRef = "lieferung"),
+                            ChoreographySequenceFlow(id = "sf6", sourceRef = "lieferung", targetRef = "end"),
+                        ),
+                )
+            val result =
+                ChoreographyGridLayout.layout(model(choreo), ChoreographyDiagram(name = "d", choreographyId = "c1"))
+
+            // Die Route gw → lieferung (sf3) darf die nachbestellung-Box nicht durchschneiden.
+            val skipRoute = result.edges.getValue(EdgeId("sf3")).shouldBeInstanceOf<EdgeRoute.OrthogonalRounded>()
+            val obstacle = result.nodes.getValue(NodeId("nachbestellung")).bounds
+            val pts = listOf(skipRoute.source) + skipRoute.waypoints + listOf(skipRoute.target)
+            val eps = 0.5f
+            for (i in 0 until pts.size - 1) {
+                val a = pts[i]
+                val b = pts[i + 1]
+                val left = obstacle.origin.x
+                val right = obstacle.origin.x + obstacle.size.width
+                val top = obstacle.origin.y
+                val bottom = obstacle.origin.y + obstacle.size.height
+                val hits =
+                    if (a.y == b.y) {
+                        a.y > top + eps && a.y < bottom - eps &&
+                            maxOf(minOf(a.x, b.x), left) < minOf(maxOf(a.x, b.x), right) - eps
+                    } else {
+                        a.x > left + eps && a.x < right - eps &&
+                            maxOf(minOf(a.y, b.y), top) < minOf(maxOf(a.y, b.y), bottom) - eps
+                    }
+                hits shouldBe false
+            }
+        }
+
         test("loop back-edge routed below all lanes as OrthogonalRounded") {
             val t1 = ChoreographyTask(id = "t1", initiatingParticipant = "A", participants = listOf("A", "B"))
             val t2 = ChoreographyTask(id = "t2", initiatingParticipant = "A", participants = listOf("A", "B"))

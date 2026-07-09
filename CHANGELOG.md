@@ -8,6 +8,21 @@ All notable changes to this project are documented here. Format follows
 
 ### Fixed
 
+**BPMN Choreography: branch edges crossed intervening tasks + condition labels slid under the target box**
+
+`ChoreographyGridLayout.routeFlow` produced its vertical jog at the horizontal
+midpoint regardless of intervening nodes, so a gateway spine-branch that skips a
+cross-lane task (e.g. `gw → Lieferung` over `Nachbestellen` in the "37 BPMN
+Choreography" example) ran straight through that task's box. Routing is now
+obstacle-aware: when the default route would cut through another node's bounds,
+the jog moves into the clear gap right after the source so the long horizontal
+run happens on the *target* lane instead. Separately, `BpmnChoreoSvg`'s
+sequence-flow condition/name label was anchored at the array midpoint (the corner
+kink at the target's edge) with only a +4px offset, so labels like "nicht auf
+Lager" slid under the target task; it now uses `EdgeLabelGeometry.midAnchor` +
+`renderEdgeLabelWithHalo` (the same longest-segment, haloed placement as message
+flows and C4/UML edges).
+
 **Edge stereotype labels (`«FK»` etc.) rendered without background contrast**
 
 `StereotypeHelper.renderEdgeStereotype()` emitted a single `<text class="kuml-stereotype">`

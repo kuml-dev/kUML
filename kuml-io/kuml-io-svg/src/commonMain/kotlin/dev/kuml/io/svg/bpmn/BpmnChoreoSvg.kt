@@ -7,8 +7,10 @@ import dev.kuml.bpmn.model.ChoreographySequenceFlow
 import dev.kuml.bpmn.model.ChoreographyTask
 import dev.kuml.bpmn.model.EventPosition
 import dev.kuml.bpmn.model.GatewayType
+import dev.kuml.io.svg.EdgeLabelGeometry
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt2
+import dev.kuml.io.svg.renderEdgeLabelWithHalo
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.NodeLayout
@@ -448,8 +450,6 @@ internal fun renderChoreoSequenceFlow(
     val tgt = route.target
 
     val edgeColor = theme.colors.edge.toHex()
-    val labelColor = theme.colors.muted.toHex()
-    val fontFamily = theme.typography.body.family
 
     // Pfad-Daten
     val pathD =
@@ -488,41 +488,29 @@ internal fun renderChoreoSequenceFlow(
             """marker-end="url(#$markerId)"/>""",
     )
 
-    // Condition-/Name-Label an der Routenmitte
+    // Condition-/Name-Label auf dem *längsten* Polylinien-Segment (nicht am
+    // Array-Mittelpunkt / Knick), senkrecht zum Segment versetzt und mit Halo —
+    // damit es im freien Raum neben dem langen Lauf liegt und nicht unter den
+    // Ziel-Task rutscht bzw. von der Kante durchschnitten wird. Gleiches Muster
+    // wie BpmnMessageFlowSvg / C4- und UML-Kanten (EdgeLabelGeometry).
+    //
+    // Fix: die frühere Implementierung ankerte das Label bei `allPts[size/2]` —
+    // für die orthogonale Gateway-Verzweigung ist das der Knick direkt an der
+    // Ziel-Box-Kante, sodass z. B. „nicht auf Lager" unter den Nachbestellen-Task
+    // geschoben wurde (Beispiel „37 BPMN Choreography").
     val label = flow.condition ?: flow.name
     if (!label.isNullOrBlank()) {
-        val midX: Float
-        val midY: Float
-        when (route) {
-            is EdgeRoute.OrthogonalRounded -> {
-                val allPts = listOf(src) + route.waypoints + listOf(tgt)
-                val mid = allPts[allPts.size / 2]
-                midX = mid.x
-                midY = mid.y
+        val anchor = EdgeLabelGeometry.midAnchor(route)
+        val (labelX, labelY, textAnchor) =
+            when (anchor.direction) {
+                EdgeLabelGeometry.SegmentDirection.Horizontal ->
+                    // Zentriert ein paar px über dem horizontalen Segment.
+                    Triple(anchor.x, anchor.y - 4f, "middle")
+                EdgeLabelGeometry.SegmentDirection.Vertical ->
+                    // Rechts neben dem vertikalen Segment, linksbündig, mit Abstand.
+                    Triple(anchor.x + 10f, anchor.y + 4f, "start")
             }
-
-            is EdgeRoute.TreeRounded -> {
-                val allPts = listOf(src) + route.waypoints + listOf(tgt)
-                val mid = allPts[allPts.size / 2]
-                midX = mid.x
-                midY = mid.y
-            }
-
-            else -> {
-                midX = (src.x + tgt.x) / 2f
-                midY = (src.y + tgt.y) / 2f
-            }
-        }
-        builder.tag(
-            "text",
-            mapOf(
-                "x" to fmtF(midX + 4f),
-                "y" to fmtF(midY - 4f),
-                "font-family" to fontFamily,
-                "font-size" to "10",
-                "fill" to labelColor,
-            ),
-        ) { text(label) }
+        builder.renderEdgeLabelWithHalo(label, labelX, labelY, textAnchor)
     }
 }
 
