@@ -6,6 +6,124 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.27.0] — 2026-07-09
+
+### Added
+
+**ERM (Entity-Relationship Modelling) as a seventh first-class metamodel (V3.4.1)**
+
+New standalone module `kuml-metamodel-erm`: `Entity`/`Attribute`/`Relationship`/`View`/
+`Index`/`CheckConstraint` model plus a notation-aware `ermModel { }` DSL (Martin/Crow's-Foot,
+Bachman, Chen, IDEF1X as a single `notation` property on the model). Depends only on
+`kuml-core-model` — no reuse of `kuml-metamodel-uml`. `ErmConstraintChecker` ships 19
+structural rules (primary/foreign key, view, index, check-constraint validation, plus the
+category/discriminator rules added in V3.4.5). Wired into `kuml validate` (new `"erm"`
+category in the existing `"structural"` JSON section), the MCP validate tool, and the example
+catalog.
+
+**Four ERM notations as SVG renderers (V3.4.2–V3.4.5)**
+
+- **Martin/Crow's-Foot (V3.4.2)** — `ErmMartinSvg`, `ErmMartinEdgeSvg`, `ErmSizing`,
+  `ErmViewSvg`, a dedicated `ErmContentSizeProvider`/`ErmLayoutBridge` (ELK-based, analogous
+  to the UML class-diagram layout path), wired into `KumlSvgRenderer`, the desktop/web/
+  Asciidoctor render pipelines, and the Vault example renderer.
+- **Bachman (V3.4.3)** — arrow-and-circle notation sharing layout and entity/view rendering
+  with Martin via a new common `renderErm` body; only the relationship-edge glyph
+  (`ErmBachmanEdgeSvg`) differs.
+- **Chen (V3.4.4)** — classic entity-rectangle / relationship-diamond / attribute-ellipse
+  rendering with its own sizing and layout bridge (`ErmChenSvg`, `ErmChenSizing`,
+  `ErmChenLayoutBridge`).
+- **IDEF1X (V3.4.5)** — identifying/non-identifying relationship lines, rounded corners for
+  dependent entities, and a new `ErmCategory` element (supertype/subtype hierarchies with a
+  discriminator circle and completeness line), backed by constraint rules 16–19.
+
+Notation is selected in the DSL (`notation = MARTIN`) with a CLI override
+(`kuml render --notation <martin|bachman|chen|idef1x>`).
+
+**M2M transformation UML → ERM (V3.4.6)**
+
+New module `kuml-transform-uml-to-erm` (`UmlToErmTransformer`): classes become entities,
+associations become foreign keys or join tables, including root-to-leaf resolution of
+`JOINED` inheritance and collision-safe FK column naming from association-end roles. Ships
+with a companion profile module `kuml-profile-erm` (`ErmMappingProfile`) for mapping
+overrides (inheritance strategy, junction-table/FK names), plus `UmlToErmScriptTransformer` /
+`ErmScriptRenderer` to emit the ERM model directly as a runnable Kotlin Exposed script.
+
+**ERM → Kotlin Exposed (V3.4.8)**
+
+Shared engine `ErmToExposedTransformer` / `ErmExposedGenerator` (`ErmExposedEmitter`) reachable
+through three entry points: `erm-to-exposed` (direct M2M), the `exposed` codegen plugin
+(ERM-first via `kuml generate`), and `UmlToExposedViaErmScriptTransformer`
+(`uml-to-exposed-via-erm`, chaining UML → ERM → Exposed via `kuml transform`). Many-to-many
+associations become a real junction table with a composite primary key.
+
+**SQL → ERM reverse engineering (V3.4.9)**
+
+New module `kuml-codegen-reverse-sql` (JSqlParser 5.3): `PostgresErmReverseEngine` parses
+PostgreSQL DDL in a two-pass pipeline (`CREATE TABLE` → entities/attributes with type mapping
+and constraint parsing, then `ALTER TABLE`/`CREATE INDEX`/`CREATE VIEW` resolved against the
+table index, then relationship inference for identifying/weak entities and cardinality). New
+reverse SPI (`ErmReverseEngine`/`ErmReverseEngineRegistry`) in `kuml-codegen-reverse-api`
+parallel to the existing UML reverse SPI. CLI: `kuml reverse <file|dir> --format sql
+[--sql-dialect postgres]` via the new `ErmModelDslPrinter`, which renders the recovered model
+back as `ermModel { }` DSL source. New exit code `REVERSE_SQL_PARSE_FAILED` (17).
+
+**OKF workspaces: `kuml workspace` CLI (ADR-0011 FT-1, spike)**
+
+New `kuml workspace` command with `info`/`validate`/`render` subcommands for Obsidian-vault
+workspaces in the Open Knowledge Format: a YAML frontmatter parser, `OkfValidator`, a
+`WorkspaceScanner` driven by `.kuml-workspace.toml`, and a `WorkspaceRenderer` that renders
+embedded ` ```kuml ` blocks from workspace notes (with path-traversal-safe block-name
+sanitization for file output).
+
+**DSL stereotypes for attributes and associations**
+
+`AssociationBuilder`/`ClassBuilder` can now carry stereotypes on attributes and associations;
+the relationships metamodel stores them, `StereotypeHelper` renders them in SVG output, and
+`UmlContentSizeProvider` accounts for them in content-aware node sizing.
+
+**ERM Vault example + MCP catalog wiring**
+
+New Vault example "39 ERM Martin — E-Commerce Schema" (neutral e-commerce domain: foreign
+keys, self-reference, weak/identifying entity, multi-FK fan-out, views/indexes/checks),
+added as a `kuml-vault-examples-tests` resource. `ExampleCatalog` gains `erm`/`martin` as a
+sixth catalog language. New handbook page `erm-dsl.adoc` (all four notations live-rendered)
+wired into the nav and `codegen.adoc`; README.adoc swept (intro, feature table, ERM Support
+section, comparison table).
+
+### Changed
+
+**`kuml-gen-sql` repointed from UML stereotype matching to the ERM metamodel (V3.4.7)**
+
+New `ErmSqlEmitter` is the single DDL-rendering engine for two equivalent input paths:
+`SqlDdlGenerator` (UML direct path: `KumlDiagram` → `UmlToErmTransformer` → `ErmModel` →
+`ErmSqlEmitter` → DDL) and the new `ErmSqlDdlGenerator` (ERM-first, via a new
+`ErmCodeGenerator`/`ErmCodeGenRegistry` SPI in `kuml-codegen-api`). The emitter now supports
+composite primary keys, indexes, views, check constraints, and referential actions (`ON
+DELETE`/`ON UPDATE`) — none of which the old UML direct path could express. FK columns are
+emitted inline in `CREATE TABLE` instead of via `ALTER TABLE ADD COLUMN`, many-to-many
+associations produce real junction tables instead of TODO comments, and enums are emitted as
+`VARCHAR` + `CHECK` instead of Postgres `CREATE TYPE` (deliberate behavior change). The Dual-
+Annotations workaround from ADR-0016 (`«Table»` + `«Entity»` on the same class) is no longer
+necessary now that the SQL path runs through the typed ERM model. `FlywayBaselineGenerator`
+gains an ERM-first counterpart, `ErmFlywayBaselineGenerator`.
+
+**`uml-to-exposed` / `uml-to-exposed-psm` deprecated (V3.4.8)**
+
+Both remain fully functional; the recommended path for new UML → Exposed work is now the
+ERM-based chain (`uml-to-exposed-via-erm`) introduced in the same wave.
+
+### Fixed
+
+- **`kuml-asciidoc`** — removed a leftover "ERM not yet supported" stub in
+  `AsciidocRenderPipeline` (predating the ERM renderers of V3.4.2–V3.4.5), which blocked the
+  Antora build of the new `erm-dsl.adoc` handbook page.
+- **Handbook/CLI docs** — corrected the SQL generator option key from `dialect` to
+  `sql-dialect` (the actual key read by `SqlDdlGenerator`/`ErmSqlDdlGenerator`) in
+  `erm-dsl.adoc`, `codegen.adoc`, `cli.adoc`, and `quickstart.adoc`. The wrong key silently
+  produced PostgreSQL DDL regardless of the requested dialect, since `postgres` is the
+  default.
+
 ## [0.26.0] — 2026-07-07
 
 ### Added
