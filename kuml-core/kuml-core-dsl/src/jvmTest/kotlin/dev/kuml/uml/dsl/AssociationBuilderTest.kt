@@ -4,6 +4,7 @@ import dev.kuml.uml.AggregationKind
 import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.UmlAssociation
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 
@@ -160,6 +161,30 @@ class AssociationBuilderTest :
                 }
             val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
             assoc.ends[1].role shouldBe "items"
+        }
+
+        // ── Stereotypes (ADR-0017) ────────────────────────────────────────────────
+
+        test(name = "association without block has empty stereotypes by default") {
+            val model =
+                umlModel("M") {
+                    association(sourceId = "Order", targetId = "Item")
+                }
+            val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
+            assoc.stereotypes.shouldBeEmpty()
+        }
+
+        test(name = "association stereotypes += adds a plain display-label stereotype") {
+            val model =
+                umlModel("M") {
+                    classOf("User")
+                    classOf("Address")
+                    association(sourceId = "User", targetId = "Address") {
+                        stereotypes += "FK"
+                    }
+                }
+            val assoc = model.elements.filterIsInstance<UmlAssociation>().first()
+            assoc.stereotypes shouldBe listOf("FK")
         }
 
         // ── Both ends default navigable ────────────────────────────────────────────

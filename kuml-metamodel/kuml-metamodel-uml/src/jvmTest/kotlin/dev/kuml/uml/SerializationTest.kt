@@ -101,6 +101,24 @@ class SerializationTest :
             after shouldBe before
         }
 
+        // ADR-0017: `stereotypes` (plain display-label list) round-trips too.
+        test(name = "UmlAssociation with plain stereotypes round-trips through JSON") {
+            val before =
+                UmlAssociation(
+                    id = "assoc::User-->Address",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "User"),
+                            UmlAssociationEnd(typeId = "Address"),
+                        ),
+                    stereotypes = listOf("FK"),
+                )
+            val text = json.encodeToString(before)
+            val after = json.decodeFromString<UmlAssociation>(text)
+            after shouldBe before
+            text shouldContain "\"FK\""
+        }
+
         // ── UmlStateMachine round-trip ────────────────────────────────────────────
 
         test(name = "UmlStateMachine round-trips through JSON") {

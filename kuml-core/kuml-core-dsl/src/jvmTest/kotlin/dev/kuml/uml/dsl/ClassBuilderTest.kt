@@ -162,6 +162,37 @@ class ClassBuilderTest :
             cls.attributes.map { it.name } shouldBe listOf("id", "createdAt", "status")
         }
 
+        test(name = "attribute block form has empty stereotypes by default") {
+            val cls =
+                umlModel(name = "M") {
+                    classOf(name = "Order") { attribute(name = "id", type = "UUID") { } }
+                }.elements.filterIsInstance<UmlClass>().first()
+            cls.attributes[0].stereotypes.shouldBeEmpty()
+        }
+
+        test(name = "attribute stereotypes += adds a plain display-label stereotype") {
+            val cls =
+                umlModel(name = "M") {
+                    classOf(name = "User") {
+                        attribute(name = "id", type = "Long") { stereotypes += "Id" }
+                    }
+                }.elements.filterIsInstance<UmlClass>().first()
+            cls.attributes[0].stereotypes shouldBe listOf("Id")
+        }
+
+        test(name = "attribute stereotypes += preserves insertion order for multiple entries") {
+            val cls =
+                umlModel(name = "M") {
+                    classOf(name = "User") {
+                        attribute(name = "name", type = "String") {
+                            stereotypes += "Column"
+                            stereotypes += "PK"
+                        }
+                    }
+                }.elements.filterIsInstance<UmlClass>().first()
+            cls.attributes[0].stereotypes shouldBe listOf("Column", "PK")
+        }
+
         // ── Operations ─────────────────────────────────────────────────────────────
 
         test(name = "operation is added to class") {

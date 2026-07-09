@@ -43,6 +43,7 @@ class AttributeBuilder internal constructor(
     var defaultValue: String? = null
     var isStatic: Boolean = false
     var isReadOnly: Boolean = false
+    val stereotypes: MutableList<String> = mutableListOf()
 
     private val appliedStereotypes = mutableListOf<KumlStereotypeApplication>()
 
@@ -66,6 +67,7 @@ class AttributeBuilder internal constructor(
             defaultValue = defaultValue,
             isStatic = isStatic,
             isReadOnly = isReadOnly,
+            stereotypes = stereotypes.toList(),
             appliedStereotypes = appliedStereotypes.toList<AppliedStereotype>(),
         )
     }

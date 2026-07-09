@@ -279,4 +279,71 @@ class StereotypeRenderTest :
             // No tagged-value element references (CSS rule exists in <defs> but no elements use it)
             svg1 shouldNotContain "class=\"kuml-tagged-value\""
         }
+
+        // ── Test 9: plain display-label stereotype on UmlAssociation (ADR-0017) ─
+
+        test("edge with plain UmlAssociation.stereotypes renders as middle label") {
+            val rel =
+                UmlAssociation(
+                    id = "cls9--cls10",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "cls9"),
+                            UmlAssociationEnd(typeId = "cls10"),
+                        ),
+                    stereotypes = listOf("FK"),
+                )
+            val cls9 = UmlClass(id = "cls9", name = "A")
+            val cls10 = UmlClass(id = "cls10", name = "B")
+            val diagram = KumlDiagram(name = "D", elements = listOf(cls9, cls10, rel))
+            val layout = edgeLayout("cls9", "cls10", "cls9--cls10")
+
+            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+
+            svg shouldContain "«FK»"
+        }
+
+        // ── Test 10: applied + plain stereotypes on UmlAssociation merge, dedupe ─
+
+        test("edge with both applied and plain UmlAssociation.stereotypes merges them") {
+            val rel =
+                UmlAssociation(
+                    id = "cls11--cls12",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "cls11"),
+                            UmlAssociationEnd(typeId = "cls12"),
+                        ),
+                    stereotypes = listOf("FK", "Audited"),
+                    appliedStereotypes = listOf(auditedApp),
+                )
+            val cls11 = UmlClass(id = "cls11", name = "A")
+            val cls12 = UmlClass(id = "cls12", name = "B")
+            val diagram = KumlDiagram(name = "D", elements = listOf(cls11, cls12, rel))
+            val layout = edgeLayout("cls11", "cls12", "cls11--cls12")
+
+            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+
+            // Applied name first, then remaining plain names; duplicate "Audited" collapsed once
+            svg shouldContain "«Audited, FK»"
+        }
+
+        // ── Test 11: UmlAssociation.stereotypes via headerLabel directly ────────
+
+        test("headerLabel reads UmlAssociation.stereotypes even without appliedStereotypes") {
+            val rel =
+                UmlAssociation(
+                    id = "cls13--cls14",
+                    ends =
+                        listOf(
+                            UmlAssociationEnd(typeId = "cls13"),
+                            UmlAssociationEnd(typeId = "cls14"),
+                        ),
+                    stereotypes = listOf("FK"),
+                )
+            val label =
+                dev.kuml.io.svg.uml.StereotypeHelper
+                    .headerLabel(rel, StereotypeTheme.Default)
+            label shouldBe "«FK»"
+        }
     })

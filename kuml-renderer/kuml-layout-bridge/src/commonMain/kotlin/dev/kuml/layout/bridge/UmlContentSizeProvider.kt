@@ -468,12 +468,12 @@ public class UmlContentSizeProvider
                     Visibility.PROTECTED -> "#"
                     Visibility.PACKAGE -> "~"
                 }
-            val stereoPrefix =
-                if (appliedStereotypes.isNotEmpty()) {
-                    "«${appliedStereotypes.joinToString(", ") { it.stereotypeName }}» "
-                } else {
-                    ""
-                }
+            // ADR-0017: merge applied (typed) stereotypes with the plain display-label
+            // `stereotypes: List<String>` field — StereotypeHelper.featureStereotypeTspan()
+            // renders both, so the width estimate has to account for both too, otherwise
+            // a plain `stereotypes += "Column"` overflows the class box to the right.
+            val names = (appliedStereotypes.map { it.stereotypeName } + stereotypes.filter { it.isNotBlank() }).distinct()
+            val stereoPrefix = if (names.isEmpty()) "" else "«${names.joinToString(", ")}» "
             return "$stereoPrefix$vis $name: ${type.name}"
         }
 
@@ -488,12 +488,9 @@ public class UmlContentSizeProvider
             val params =
                 parameters.joinToString(", ") { p -> "${p.name}: ${p.type.name}" }
             val ret = returnType?.name?.let { ": $it" } ?: ""
-            val stereoPrefix =
-                if (appliedStereotypes.isNotEmpty()) {
-                    "«${appliedStereotypes.joinToString(", ") { it.stereotypeName }}» "
-                } else {
-                    ""
-                }
+            // ADR-0017: see UmlProperty.toFormattedLine() above — merge applied + plain.
+            val names = (appliedStereotypes.map { it.stereotypeName } + stereotypes.filter { it.isNotBlank() }).distinct()
+            val stereoPrefix = if (names.isEmpty()) "" else "«${names.joinToString(", ")}» "
             return "$stereoPrefix$vis $name($params)$ret"
         }
 

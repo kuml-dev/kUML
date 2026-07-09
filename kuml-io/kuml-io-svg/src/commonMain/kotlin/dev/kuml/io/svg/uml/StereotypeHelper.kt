@@ -8,6 +8,7 @@ import dev.kuml.renderer.theme.core.StereotypeTheme
 import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.Stereotypable
 import dev.kuml.uml.TagValue
+import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlNamedElement
 
 /**
@@ -38,12 +39,15 @@ internal object StereotypeHelper {
         // Previously only `appliedStereotypes` were rendered, so a DSL like
         // `stereotypes += "service"` was silently dropped — observed on
         // docker/k8s component diagrams.
+        // ADR-0017: `UmlAssociation` is not a `UmlNamedElement` — it carries its
+        // own `stereotypes: List<String>` field, so it needs its own branch here.
         val appliedNames = element.appliedStereotypes.map { it.stereotypeName }
         val plainNames =
-            (element as? UmlNamedElement)
-                ?.stereotypes
-                .orEmpty()
-                .filter { it.isNotBlank() }
+            when (element) {
+                is UmlNamedElement -> element.stereotypes
+                is UmlAssociation -> element.stereotypes
+                else -> emptyList()
+            }.filter { it.isNotBlank() }
         val joined = (appliedNames + plainNames).distinct()
         if (joined.isEmpty()) return null
         return "«" + joined.joinToString(theme.joinSeparator) + "»"
@@ -170,12 +174,18 @@ internal object StereotypeHelper {
         theme: KumlTheme,
     ): String {
         if (!theme.stereotypes.showFeatureStereotypes) return ""
-        if (element.appliedStereotypes.isEmpty()) return ""
-        val joined =
-            element.appliedStereotypes
-                .joinToString(theme.stereotypes.joinSeparator) { it.stereotypeName }
+        // ADR-0017: merge applied (typed, profile-bound) stereotypes with the
+        // simple `stereotypes: List<String>` display-label field on
+        // `UmlNamedElement` (attributes/operations) — analog to headerLabel().
+        // Previously only appliedStereotypes were rendered here, so a plain
+        // `stereotypes += "Column"` on an attribute/operation was silently
+        // dropped even though the DSL field existed and was set.
+        val appliedNames = element.appliedStereotypes.map { it.stereotypeName }
+        val plainNames = (element as? UmlNamedElement)?.stereotypes.orEmpty().filter { it.isNotBlank() }
+        val joined = (appliedNames + plainNames).distinct()
+        if (joined.isEmpty()) return ""
         val fontSize = theme.stereotypes.featureStereotypeFontSize.toInt()
-        val label = xmlEscapeContent("«$joined»")
+        val label = xmlEscapeContent("«" + joined.joinToString(theme.stereotypes.joinSeparator) + "»")
         return """<tspan class="kuml-feature-stereotype" font-style="italic" font-size="$fontSize">$label</tspan> """
     }
 

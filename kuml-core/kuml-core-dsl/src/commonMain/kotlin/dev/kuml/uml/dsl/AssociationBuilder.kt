@@ -64,6 +64,9 @@ class AssociationBuilder internal constructor(
     /** Aggregation kind for the source end (default: [AggregationKind.NONE]). */
     var aggregation: AggregationKind = AggregationKind.NONE
 
+    /** Simple display-label stereotype names, e.g. `stereotypes += "FK"`. */
+    val stereotypes: MutableList<String> = mutableListOf()
+
     private val sourceEnd = AssociationEndBuilder(typeId = sourceTypeRef.referencedId ?: sourceTypeRef.name)
     private val targetEnd = AssociationEndBuilder(typeId = targetTypeRef.referencedId ?: targetTypeRef.name)
 
@@ -100,6 +103,7 @@ class AssociationBuilder internal constructor(
             id = assocId,
             name = name,
             aggregation = aggregation,
+            stereotypes = stereotypes.toList(),
             ends = listOf(sourceEnd.build(), targetEnd.build()),
         )
     }

@@ -147,4 +147,34 @@ class UmlContentSizeProviderTest :
             val providerExplicit = UmlContentSizeProvider(hubDiagram, LayoutDirection.TopToBottom)
             providerDefault.sizeOf("Hub", "UmlClass") shouldBe providerExplicit.sizeOf("Hub", "UmlClass")
         }
+
+        // ADR-0017: plain display-label stereotype on an attribute (`stereotypes += "Column"`,
+        // no profile/appliedStereotypes involved) must widen the class box just like an
+        // appliedStereotype does — otherwise StereotypeHelper.featureStereotypeTspan() renders
+        // a «Column» prefix the layout never made room for, and the line overflows the box.
+        // Isolate the effect: same class name, same attribute name/type, only the stereotype
+        // prefix differs between the two classes.
+        test("Attribut mit plain Stereotyp verbreitert die Klassenbox gegenüber gleicher Klasse ohne Stereotyp") {
+            fun classWith(stereotypes: List<String>) =
+                UmlClass(
+                    id = "C-${stereotypes.size}",
+                    name = "WithPlainStereo",
+                    attributes =
+                        listOf(
+                            dev.kuml.uml.UmlProperty(
+                                id = "attr-${stereotypes.size}",
+                                name = "name",
+                                type = dev.kuml.uml.UmlTypeRef("String"),
+                                stereotypes = stereotypes,
+                            ),
+                        ),
+                )
+            val withoutStereo = classWith(emptyList())
+            val withStereo = classWith(listOf("Column"))
+            val plainDiagram = KumlDiagram(name = "PlainStereo", elements = listOf(withoutStereo, withStereo))
+            val provider = UmlContentSizeProvider(plainDiagram, LayoutDirection.TopToBottom)
+            val baseSize = provider.sizeOf(withoutStereo.id, "UmlClass")
+            val stereoSize = provider.sizeOf(withStereo.id, "UmlClass")
+            stereoSize.width shouldBeGreaterThan baseSize.width
+        }
     })

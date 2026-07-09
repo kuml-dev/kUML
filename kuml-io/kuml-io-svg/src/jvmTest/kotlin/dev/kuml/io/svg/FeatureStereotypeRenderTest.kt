@@ -237,4 +237,65 @@ class FeatureStereotypeRenderTest :
             // stereotype prefix must appear before the feature name
             (stereoPos < namePos) shouldBe true
         }
+
+        // ── Test 9: plain display-label stereotype on attribute (ADR-0017) ────
+
+        test("attribute with plain stereotypes (no profile) renders «Column» tspan prefix") {
+            val attr =
+                UmlProperty(
+                    id = "attr9",
+                    name = "name",
+                    type = UmlTypeRef("String"),
+                    stereotypes = listOf("Column"),
+                )
+            val cls = UmlClass(id = "cls9", name = "User", attributes = listOf(attr))
+            val diagram = KumlDiagram(name = "D", elements = listOf(cls))
+            val layout = singleNodeLayout("cls9")
+
+            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+
+            svg shouldContain "«Column»"
+            svg shouldContain "kuml-feature-stereotype"
+            svg shouldContain "name"
+        }
+
+        // ── Test 10: plain display-label stereotype on operation (ADR-0017) ───
+
+        test("operation with plain stereotypes (no profile) renders tspan prefix") {
+            val op =
+                UmlOperation(
+                    id = "op10",
+                    name = "save",
+                    stereotypes = listOf("Transactional"),
+                )
+            val cls = UmlClass(id = "cls10", name = "Repo", operations = listOf(op))
+            val diagram = KumlDiagram(name = "D", elements = listOf(cls))
+            val layout = singleNodeLayout("cls10")
+
+            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+
+            svg shouldContain "«Transactional»"
+            svg shouldContain "kuml-feature-stereotype"
+        }
+
+        // ── Test 11: applied + plain stereotypes merge and dedupe on a feature ─
+
+        test("attribute with both applied and plain stereotypes merges them, deduplicated") {
+            val attr =
+                UmlProperty(
+                    id = "attr11",
+                    name = "id",
+                    type = UmlTypeRef("Long"),
+                    stereotypes = listOf("Id", "PersistenceContext"),
+                    appliedStereotypes = listOf(stereoApp("PersistenceContext")),
+                )
+            val cls = UmlClass(id = "cls11", name = "User", attributes = listOf(attr))
+            val diagram = KumlDiagram(name = "D", elements = listOf(cls))
+            val layout = singleNodeLayout("cls11")
+
+            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+
+            // Applied name comes first, then remaining plain names; duplicate "PersistenceContext" collapsed once
+            svg shouldContain "«PersistenceContext, Id»"
+        }
     })

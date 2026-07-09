@@ -25,6 +25,8 @@ sealed interface UmlRelationship : UmlElement
  * @property name Optional association name (shown on the line label).
  * @property ends Exactly two [UmlAssociationEnd] values.
  * @property aggregation Aggregation kind for the source end (default: none).
+ * @property stereotypes Simple display-label stereotype names (unvalidated), analog zu
+ *   `UmlNamedElement.stereotypes`.
  */
 @Serializable
 data class UmlAssociation(
@@ -32,6 +34,7 @@ data class UmlAssociation(
     val name: String? = null,
     val ends: List<UmlAssociationEnd>,
     val aggregation: AggregationKind = AggregationKind.NONE,
+    val stereotypes: List<String> = emptyList(),
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
     override val appliedStereotypes: List<AppliedStereotype> = emptyList(),
 ) : UmlRelationship,
