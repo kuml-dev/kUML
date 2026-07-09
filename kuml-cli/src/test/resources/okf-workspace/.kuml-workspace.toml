@@ -1,0 +1,5 @@
+[workspace]
+mode = "knowledge"
+
+[okf]
+version = "0.1"

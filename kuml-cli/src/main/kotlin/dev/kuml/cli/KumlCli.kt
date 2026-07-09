@@ -11,6 +11,7 @@ import dev.kuml.cli.run.RunCommand
 import dev.kuml.cli.sandbox.SandboxCommand
 import dev.kuml.cli.trace.TraceCommand
 import dev.kuml.cli.update.UpdateCommand
+import dev.kuml.cli.workspace.WorkspaceCommand
 
 /**
  * Root command for the kUML CLI.
@@ -49,6 +50,7 @@ internal class KumlCli : CliktCommand(name = "kuml") {
                 add(ExportCommand())
                 add(MarkdownCommand())
                 add(AsciidocCommand())
+                add(WorkspaceCommand())
                 add(ProfileCommand())
                 add(SimulateCommand())
                 add(TraceCommand())
