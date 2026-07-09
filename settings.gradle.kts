@@ -34,6 +34,7 @@ include(":kuml-profile:kuml-profile-soaml")
 include(":kuml-profile:kuml-profile-javaee")
 include(":kuml-profile:kuml-profile-spring")
 include(":kuml-profile:kuml-profile-exposed")   // ADR-0016 Variante A — renderable Exposed PSM profile
+include(":kuml-profile:kuml-profile-erm")   // V3.4.6 — ERM mapping overrides (table/inheritance/junction naming)
 include(":kuml-profile:kuml-profile-openapi")
 include(":kuml-profile:kuml-profile-autosar")
 
@@ -77,6 +78,7 @@ include(
     "kuml-codegen:kuml-gen-sql",      // V1.1.4 — SQL DDL generator (Postgres/MySQL/H2/SQLite)
     "kuml-codegen:kuml-transform-bpmn-to-uml",  // V3.1.43 — M2M Bridge BPMN Process ⇌ UML Activity
     "kuml-codegen:kuml-codegen-m2m-exposed",  // ADR-0016 — M2M UML → Kotlin Exposed Table objects
+    "kuml-codegen:kuml-transform-uml-to-erm",  // V3.4.6 — M2M UML class diagram → ERM model (+ renderable .kuml.kts)
 )
 
 // ── Plugin API ──────────────────────────────────────────────── V3.0.27 ──

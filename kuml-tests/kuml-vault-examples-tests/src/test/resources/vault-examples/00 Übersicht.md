@@ -43,6 +43,7 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unters
 | # | Notiz | Profil | Domäne |
 |---|---|---|---|
 | 29 | [[29 UML Profil – AUTOSAR]] | `dev.kuml.profiles.autosar` | Automotive / Embedded |
+| 38 | [[38 UML Profil – Exposed]] | `dev.kuml.profiles.exposed` | Persistenz / MDA (ADR-0016) |
 
 ### C4 (6 Diagrammtypen)
 
@@ -102,6 +103,7 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unters
 | **Fortgeschritten** | [[14 UML Deployment – Cloud Stack]] | UML Deployment |
 | **Fortgeschritten** | [[15 UML Profil – Java EE Profile]] | UML Profile |
 | **Fortgeschritten** | [[29 UML Profil – AUTOSAR]] | UML Profile (AUTOSAR) |
+| **Fortgeschritten** | [[38 UML Profil – Exposed]] | UML Profile (Exposed/MDA) |
 | **Fortgeschritten** | [[22 UML Interaction Overview – Order Process]] | UML Interaction Overview |
 | **Fortgeschritten** | [[06 SysML 2 SEQ – Login Flow]] | SysML 2 SEQ |
 | **Fortgeschritten** | [[07 SysML 2 ACT – Order Processing]] | SysML 2 ACT |
@@ -153,6 +155,7 @@ Der [Playground auf kuml.dev](https://kuml.dev/playground) speist seine Beispiel
 | 31 | [[31 BPMN Process – Sub-Process Loop]] | `bpmn-subprocess-loop` |
 | 32 | [[32 BPMN Collaboration – Customer und Supplier]] | `bpmn-collaboration-customer-supplier` |
 | 36 | [[36 BPMN Conversation – PdV Kommunikation]] | `bpmn-conversation-pdv` *(noch kein Playground-Eintrag — V3.2.3 neu)* |
+| 38 | [[38 UML Profil – Exposed]] | `uml-profile-exposed` **und** `uml-profile-exposed-psm` (Profil-Definition + renderbares PSM-Beispiel) |
 
 ### Playground-Keys ohne Vault-Anker
 

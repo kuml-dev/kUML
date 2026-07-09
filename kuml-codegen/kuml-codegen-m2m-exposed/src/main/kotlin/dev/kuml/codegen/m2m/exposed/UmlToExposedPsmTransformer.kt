@@ -80,6 +80,17 @@ import dev.kuml.uml.UmlProperty
  * [UnsafeUmlNameException] instead of silently emitting malformed/injectable DDL —
  * mirroring the fail-fast, no-mangling convention already used by
  * [UmlToExposedTransformer]'s `requireValidKotlinIdentifier`.
+ *
+ * ### Staggered replacement by the ERM path (kUML V3.4.6+, not yet in effect)
+ *
+ * `kuml-transform-uml-to-erm` (V3.4.6) introduces a typed [dev.kuml.erm.model.ErmModel]
+ * successor to this dual-annotation ("`«Table»` + `«Entity»`") workaround, but does
+ * **not** retire this transformer yet — this class remains fully active and
+ * unmodified. The actual replacement is staggered: V3.4.7 repoints `kuml-gen-sql`
+ * at [dev.kuml.erm.model.ErmModel] input (removing the need for the dual-apply
+ * hack this class relies on), and V3.4.8 *(optional)* would repoint the Exposed
+ * source-code transformer at [dev.kuml.erm.model.ErmModel] too, at which point this
+ * class could be deprecated. See ADR-0016 and [[kUML V3.4]] (Vault) for the plan.
  */
 public class UmlToExposedPsmTransformer : KumlTransformer<KumlDiagram, KumlDiagram> {
     override val id: String = "uml-to-exposed-psm"
