@@ -38,14 +38,24 @@ internal class DslParseException(
 ) : RuntimeException(message)
 
 internal object DslParser {
-    fun parse(src: String): DslScript {
+    /**
+     * Default recursion-depth ceiling used by the parameterless [parse] overload.
+     * Mirrors [InterpreterLimits.DEFAULT]'s `maxNestingDepth`; kept as an explicit
+     * constant so the parser has no dependency on the evaluator's config type.
+     */
+    const val DEFAULT_MAX_DEPTH: Int = 64
+
+    fun parse(
+        src: String,
+        maxDepth: Int = DEFAULT_MAX_DEPTH,
+    ): DslScript {
         val tokens =
             try {
                 DslLexer.tokenize(src)
             } catch (e: DslLexException) {
                 throw DslParseException(e.message, e.line)
             }
-        val parser = Parser(tokens)
+        val parser = Parser(tokens, maxDepth)
         val root = parser.parseCall()
         parser.expect(DslTokenKind.EOF, "Expected end of script after top-level diagram call")
         return DslScript(root)
@@ -53,8 +63,32 @@ internal object DslParser {
 
     private class Parser(
         private val tokens: List<DslToken>,
+        private val maxDepth: Int,
     ) {
         private var pos = 0
+
+        /** Current recursion depth of the mutually-recursive descent. */
+        private var depth = 0
+
+        /**
+         * Runs [body] one recursion level deeper, rejecting input that nests past
+         * [maxDepth] with a plain [DslParseException] — this is the guard that
+         * prevents a deeply nested payload from overflowing the JVM stack with an
+         * uncaught `StackOverflowError`.
+         */
+        private inline fun <T> nested(body: () -> T): T {
+            if (++depth > maxDepth) {
+                throw DslParseException(
+                    "Maximum nesting depth of $maxDepth exceeded — input is too deeply nested.",
+                    peek().line,
+                )
+            }
+            try {
+                return body()
+            } finally {
+                depth--
+            }
+        }
 
         private fun peek(): DslToken = tokens[pos]
 
@@ -80,7 +114,12 @@ internal object DslParser {
          * e.g. `source { ... }` — Kotlin's parenthesis-less trailing-lambda form,
          * which real vault scripts use for `source`/`target` association ends.
          */
-        fun parseCall(): DslCall {
+        fun parseCall(): DslCall =
+            nested {
+                parseCallInner()
+            }
+
+        private fun parseCallInner(): DslCall {
             val nameTok = expect(DslTokenKind.IDENT, "Expected a builder name")
             val name = nameTok.text
             val args = mutableListOf<DslArg>()
@@ -126,7 +165,12 @@ internal object DslParser {
         }
 
         /** block ::= '{' statement* '}' */
-        private fun parseBlock(): List<DslStatement> {
+        private fun parseBlock(): List<DslStatement> =
+            nested {
+                parseBlockInner()
+            }
+
+        private fun parseBlockInner(): List<DslStatement> {
             expect(DslTokenKind.LBRACE, "Expected '{'")
             val stmts = mutableListOf<DslStatement>()
             while (!check(DslTokenKind.RBRACE) && !check(DslTokenKind.EOF)) {
@@ -136,7 +180,12 @@ internal object DslParser {
             return stmts
         }
 
-        private fun parseStatement(): DslStatement {
+        private fun parseStatement(): DslStatement =
+            nested {
+                parseStatementInner()
+            }
+
+        private fun parseStatementInner(): DslStatement {
             if (check(DslTokenKind.KEYWORD_VAL)) {
                 val valTok = advance()
                 val nameTok = expect(DslTokenKind.IDENT, "Expected identifier after 'val'")
@@ -163,7 +212,12 @@ internal object DslParser {
         }
 
         /** expr ::= literal | memberRef | identifier | call */
-        private fun parseExpr(): DslExpr {
+        private fun parseExpr(): DslExpr =
+            nested {
+                parseExprInner()
+            }
+
+        private fun parseExprInner(): DslExpr {
             val t = peek()
             return when (t.kind) {
                 DslTokenKind.STRING -> {

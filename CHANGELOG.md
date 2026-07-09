@@ -6,6 +6,25 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.28.0] — 2026-07-09
+
+### Added
+
+**Security: resource bounds (DoS guards) for the execution-free DSL interpreter**
+
+The execution-free DSL interpreter in `kuml-core-script` never compiles or runs
+bytecode, so it carries no RCE risk — but without bounds a *pathological* input
+could still hurt the host process (memory exhaustion during lexing, a
+`StackOverflowError` escaping the recursive-descent parser, or CPU burn on a huge
+flat input). It now enforces four resource bounds: an input-size cap, a parse
+recursion-depth guard, a wall-clock timeout, and `StackOverflowError`
+containment. Limits are configured via the new `InterpreterLimits` value type
+(defaults 100 000 chars / depth 64 / 5 s) and applied through a new
+backward-compatible `evaluate(source, fileName, limits)` overload; the existing
+`evaluate(source, fileName)` signature is unchanged and now delegates to
+`InterpreterLimits.DEFAULT`. Over-limit inputs are rejected cheaply as an
+`EvaluatedScript.Failure` without an exception escaping the evaluator.
+
 ### Fixed
 
 **BPMN Choreography: branch edges crossed intervening tasks + condition labels slid under the target box**
