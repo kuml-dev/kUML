@@ -137,6 +137,13 @@ classDiagram(name = "Domain") {
 | Applies an applied-stereotype to the surrounding element. Requires a matching profile
   to be `applyProfile`-d on the diagram.
 
+| `stereotypes += "Name"`
+| Cosmetic display-label stereotype (`«Name»` shown above the element, no tagged values,
+  no profile required). Available on `classOf`, `attribute(...) { }` (block form), and
+  `association(...) { }` — added for attributes and associations in V3.4 (ADR-0017:
+  the DSL should expose everything the UML standard allows on the underlying metaclass,
+  and `Property`/`Association` are just as stereotype-capable as `Class`).
+
 | `constraint(name, body)`
 | Adds an OCL invariant. Evaluated by `kuml validate`.
 

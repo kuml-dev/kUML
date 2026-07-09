@@ -115,7 +115,7 @@ kuml generate model.kuml.kts \
 The output is a single `schema.sql` with:
 
 . Optional `DROP TABLE` block
-. `CREATE TYPE` for enum types (Postgres only — other dialects use `VARCHAR` with `CHECK`)
+. Enum types emitted as `VARCHAR` with a `CHECK` constraint on all dialects
 . `CREATE TABLE` statements, topologically sorted so referenced tables exist before referrers
 . `ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY …` block at the end (avoids circular FK
   problems during deployment)
@@ -133,7 +133,7 @@ Multiplicity translates to constraints:
 | `NULL`
 
 | `(1, *)` or `(*, *)` (M:N)
-| `-- TODO: M:N join table` comment (V2 will emit it automatically)
+| Real junction table with a composite primary key (emitted via the ERM path)
 |===
 
 Stereotype-driven mapping:

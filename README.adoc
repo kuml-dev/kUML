@@ -474,7 +474,7 @@ An ERM model can be authored directly (`ermModel { … }`) or derived from an ex
 | Idempotent text formatter for `*.kuml.kts`; `--check` mode exits `5` if reformat needed.
 
 | `kuml generate`
-| Code generation via plugin (`--plugin kotlin\|java\|sql` built-in).
+| Code generation via plugin (`--plugin kotlin\|java\|sql\|exposed` built-in). `sql` and `exposed` consume an ERM model (directly or via the UML→ERM transform); see xref:docs/handbook/modules/reference/pages/erm-dsl.adoc[ERM DSL].
 
 | `kuml import`
 | Import a diagram from another format: `--format structurizr` (Structurizr DSL → `*.kuml.kts`) or `--format xmi` (XMI/EMF → `*.kuml.kts`).
@@ -483,7 +483,10 @@ An ERM model can be authored directly (`ermModel { … }`) or derived from an ex
 | Export a model to another format: `--format structurizr` (Structurizr DSL) or `--format xmi` (XMI/EMF).
 
 | `kuml reverse`
-| Reconstruct a UML class diagram from existing source code. `--lang java\|kotlin\|auto` selects the parser engine (JavaParser for Java, Kotlin Compiler PSI for Kotlin). Optional `--transformer <id>` passes the recovered model through a registered M2M transformer. (V3.0.9)
+| Reconstruct a UML class diagram from existing source code (`--lang java\|kotlin\|auto`, JavaParser / Kotlin Compiler PSI, optional `--transformer <id>`, V3.0.9), or an ERM model from existing SQL DDL (`--format sql --sql-dialect postgres`, JSqlParser-based, V3.4.9). `kuml reverse --format sql` prints the recovered model as `ermModel { }` DSL source.
+
+| `kuml workspace info\|validate\|render <dir>`
+| _Experimental spike (ADR-0011)._ Treat an Obsidian-vault-style directory of Markdown files with YAML frontmatter and embedded ` ```kuml ` blocks as an Open Knowledge Format (OKF) workspace: `info` summarises documents by type, `validate` checks frontmatter/structure, `render` renders the embedded diagrams to SVG.
 
 | `kuml markdown`
 | Render `kuml`-fenced code blocks in a Markdown file to inline SVG, linked SVG, or linked PNG.

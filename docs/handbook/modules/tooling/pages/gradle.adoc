@@ -38,7 +38,7 @@ kuml {
     generator.set("java")                     // "kotlin" | "java" | "sql" | custom
     generatePackage.set("com.example.domain") // Java/Kotlin package
     generateOptions.put("java-style", "records")
-    generateOptions.put("dialect", "postgres")
+    generateOptions.put("sql-dialect", "postgres")
     failOnValidationViolations.set(true)      // fail the build on OCL violations
 }
 ----

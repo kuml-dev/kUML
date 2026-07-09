@@ -84,7 +84,7 @@ the relationships metamodel stores them, `StereotypeHelper` renders them in SVG 
 
 **ERM Vault example + MCP catalog wiring**
 
-New Vault example "39 ERM Martin — E-Commerce Schema" (neutral e-commerce domain: foreign
+New Vault example "39 ERM Martin – E-Commerce Schema" (neutral e-commerce domain: foreign
 keys, self-reference, weak/identifying entity, multi-FK fan-out, views/indexes/checks),
 added as a `kuml-vault-examples-tests` resource. `ExampleCatalog` gains `erm`/`martin` as a
 sixth catalog language. New handbook page `erm-dsl.adoc` (all four notations live-rendered)
