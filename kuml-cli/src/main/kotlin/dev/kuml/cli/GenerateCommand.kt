@@ -9,8 +9,12 @@ import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.path
 import dev.kuml.codegen.api.CodeGenRegistry
+import dev.kuml.codegen.api.CodeGenerationException
+import dev.kuml.codegen.api.ErmCodeGenRegistry
 import dev.kuml.core.script.DiagramExtractor
+import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
+import java.io.File
 import java.io.IOException
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
@@ -24,6 +28,14 @@ import kotlin.script.experimental.api.ScriptDiagnostic
  * ```
  * kuml generate [OPTIONS]
  * ```
+ *
+ * V3.4.7: dispatches on the script's diagram kind — a UML class diagram
+ * (`classDiagram { … }`) resolves the plugin from [CodeGenRegistry]
+ * ([dev.kuml.codegen.api.KumlCodeGenerator]); an ERM model
+ * (`ermModel(…) { … }`) resolves it from the separate [ErmCodeGenRegistry]
+ * ([dev.kuml.codegen.api.ErmCodeGenerator]) instead — the two id-namespaces
+ * are independent (e.g. both `kuml-gen-sql` entry points are registered as
+ * `"sql"`, one per registry).
  */
 internal class GenerateCommand : CliktCommand(name = "generate") {
     private val input by option("-i", "--input", help = "Path to *.kuml.kts script")
@@ -61,26 +73,14 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
                     throw ProgramResult(ExitCodes.SCRIPT_ERROR)
                 }
 
-        val diagram =
+        val extracted =
             try {
-                DiagramExtractor.extract(success.value.returnValue, input)
+                DiagramExtractor.extractAny(success.value.returnValue, input)
             } catch (e: ScriptEvaluationException) {
                 System.err.println(e.message)
                 throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
 
-        if (CodeGenRegistry.names().isEmpty()) {
-            CodeGenRegistry.loadFromClasspath()
-        }
-        val generator =
-            CodeGenRegistry.get(plugin)
-                ?: run {
-                    System.err.println(
-                        "Unknown codegen plugin: '$plugin'. " +
-                            "Registered plugins: ${CodeGenRegistry.names()}",
-                    )
-                    throw ProgramResult(ExitCodes.SCRIPT_ERROR)
-                }
         val options =
             buildMap<String, String> {
                 packageName?.let { put("package", it) }
@@ -98,13 +98,57 @@ internal class GenerateCommand : CliktCommand(name = "generate") {
         val outputDir = output.toFile()
         val generated =
             try {
-                generator.generate(diagram, outputDir, options)
+                generate(extracted, outputDir, options)
             } catch (e: IOException) {
                 System.err.println("I/O error: ${e.message}")
                 throw ProgramResult(ExitCodes.IO_ERROR)
+            } catch (e: CodeGenerationException) {
+                System.err.println("Code generation error: ${e.message}")
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
             }
 
         generated.forEach { file -> echo("Generated: ${file.path}") }
         echo("${generated.size} file(s) generated in ${outputDir.path}")
     }
+
+    private fun generate(
+        extracted: ExtractedDiagram,
+        outputDir: File,
+        options: Map<String, String>,
+    ): List<File> =
+        when (extracted) {
+            is ExtractedDiagram.Uml -> {
+                if (CodeGenRegistry.names().isEmpty()) CodeGenRegistry.loadFromClasspath()
+                val generator =
+                    CodeGenRegistry.get(plugin)
+                        ?: run {
+                            System.err.println(
+                                "Unknown codegen plugin: '$plugin'. " +
+                                    "Registered plugins: ${CodeGenRegistry.names()}",
+                            )
+                            throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                        }
+                generator.generate(extracted.diagram, outputDir, options)
+            }
+            is ExtractedDiagram.Erm -> {
+                if (ErmCodeGenRegistry.names().isEmpty()) ErmCodeGenRegistry.loadFromClasspath()
+                val generator =
+                    ErmCodeGenRegistry.get(plugin)
+                        ?: run {
+                            System.err.println(
+                                "Unknown ERM codegen plugin: '$plugin'. " +
+                                    "Registered plugins: ${ErmCodeGenRegistry.names()}",
+                            )
+                            throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+                        }
+                generator.generate(extracted.model, outputDir, options)
+            }
+            else -> {
+                System.err.println(
+                    "kuml generate currently supports UML class diagrams (`classDiagram { … }`) or " +
+                        "ERM models (`ermModel(…) { … }`).",
+                )
+                throw ProgramResult(ExitCodes.SCRIPT_ERROR)
+            }
+        }
 }

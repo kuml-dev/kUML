@@ -1,0 +1,2 @@
+dev.kuml.codegen.sql.ErmSqlDdlGeneratorProvider
+dev.kuml.codegen.sql.ErmFlywayBaselineGeneratorProvider

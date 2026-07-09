@@ -1,87 +1,52 @@
 package dev.kuml.codegen.sql
 
-import dev.kuml.uml.TagValue
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
+/**
+ * V3.4.7 — [SqlNames] was narrowed down to just the identifier-safety guard
+ * ([SqlNames.requireSafe]); name *derivation* (stereotype-tag lookup,
+ * pluralisation, camelCase→snake_case) moved to `UmlToErmTransformer`'s
+ * `SqlIdentifiers`, tested there.
+ */
 class SqlNamesTest :
     FunSpec({
 
-        test("tableName uses «Entity»{tableName=…} when present") {
-            val name =
-                SqlNames.tableName(
-                    "User",
-                    listOf(
-                        TestStereo(
-                            stereotypeName = "Entity",
-                            tags = mapOf("tableName" to TagValue.StringVal("auth_users")),
-                        ),
-                    ),
-                )
-            name shouldBe "auth_users"
+        test("requireSafe accepts a plain identifier") {
+            SqlNames.requireSafe("users", "table name", "src") shouldBe "users"
         }
 
-        test("tableName falls back to lowercase + pluralization") {
-            SqlNames.tableName("User", emptyList()) shouldBe "users"
-            SqlNames.tableName("Person", emptyList()) shouldBe "persons"
-            SqlNames.tableName("Story", emptyList()) shouldBe "stories"
-            SqlNames.tableName("Class", emptyList()) shouldBe "classes"
+        test("requireSafe accepts underscores and digits (not leading)") {
+            SqlNames.requireSafe("auth_users_2", "table name", "src") shouldBe "auth_users_2"
         }
 
-        test("columnName uses «Column»{name=…} when present") {
-            val name =
-                SqlNames.columnName(
-                    "emailAddress",
-                    listOf(
-                        TestStereo(
-                            stereotypeName = "Column",
-                            tags = mapOf("name" to TagValue.StringVal("email")),
-                        ),
-                    ),
-                )
-            name shouldBe "email"
-        }
-
-        test("columnName falls back to camelCase → snake_case") {
-            SqlNames.columnName("emailAddress", emptyList()) shouldBe "email_address"
-            SqlNames.columnName("id", emptyList()) shouldBe "id"
-            SqlNames.columnName("createdAt", emptyList()) shouldBe "created_at"
-        }
-
-        // ── Identifier-injection guard ───────────────────────────────────────────
-
-        test("tableName rejects explicit «Entity»{tableName=…} containing SQL metacharacters") {
+        test("requireSafe rejects a name containing SQL metacharacters") {
             shouldThrow<UnsafeSqlIdentifierException> {
-                SqlNames.tableName(
-                    "User",
-                    listOf(
-                        TestStereo(
-                            stereotypeName = "Entity",
-                            tags = mapOf("tableName" to TagValue.StringVal("users; DROP TABLE users; --")),
-                        ),
-                    ),
-                )
+                SqlNames.requireSafe("users; DROP TABLE users; --", "table name", "src")
             }
         }
 
-        test("tableName rejects a raw class name that yields an unsafe fallback identifier") {
+        test("requireSafe rejects a name with embedded whitespace") {
             shouldThrow<UnsafeSqlIdentifierException> {
-                SqlNames.tableName("User\"; DROP TABLE users; --", emptyList())
+                SqlNames.requireSafe("evil name", "column name", "src")
             }
         }
 
-        test("columnName rejects explicit «Column»{name=…} containing SQL metacharacters") {
+        test("requireSafe rejects a name starting with a digit") {
             shouldThrow<UnsafeSqlIdentifierException> {
-                SqlNames.columnName(
-                    "email",
-                    listOf(
-                        TestStereo(
-                            stereotypeName = "Column",
-                            tags = mapOf("name" to TagValue.StringVal("email\"; DROP TABLE users; --")),
-                        ),
-                    ),
-                )
+                SqlNames.requireSafe("2fast", "table name", "src")
             }
+        }
+
+        test("requireSafe rejects a name longer than 63 characters") {
+            shouldThrow<UnsafeSqlIdentifierException> {
+                SqlNames.requireSafe("a".repeat(64), "table name", "src")
+            }
+        }
+
+        test("requireSafe accepts exactly 63 characters") {
+            val name = "a".repeat(63)
+            SqlNames.requireSafe(name, "table name", "src") shouldBe name
         }
     })

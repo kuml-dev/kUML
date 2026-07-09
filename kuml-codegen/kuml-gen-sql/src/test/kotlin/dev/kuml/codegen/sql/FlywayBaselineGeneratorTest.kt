@@ -5,6 +5,8 @@ import dev.kuml.codegen.m2m.TransformContext
 import dev.kuml.codegen.m2m.TransformResult
 import dev.kuml.codegen.m2m.exposed.UmlToExposedPsmTransformer
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.erm.dsl.ermModel
+import dev.kuml.erm.model.ErmDataType
 import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlProperty
@@ -223,5 +225,93 @@ class FlywayBaselineGeneratorTest :
             } finally {
                 out.deleteRecursively()
             }
+        }
+
+        // ── V3.4.7 — ERM-first counterpart ──────────────────────────────────────
+
+        fun simpleErmModel() =
+            ermModel("D") {
+                entity("users") {
+                    id("id", ErmDataType.Integer(64))
+                    attribute("email", ErmDataType.Varchar(255), nullable = false)
+                }
+            }
+
+        test("ERM-first: default options produce V1__init.sql") {
+            val out = tempDir()
+            try {
+                val files = ErmFlywayBaselineGenerator().generate(simpleErmModel(), out, emptyMap())
+                files.size shouldBe 1
+                files.single().name shouldBe "V1__init.sql"
+                files.single().readText() shouldContain "CREATE TABLE users ("
+            } finally {
+                out.deleteRecursively()
+            }
+        }
+
+        test("ERM-first: custom flyway-version and flyway-description are respected") {
+            val out = tempDir()
+            try {
+                val files =
+                    ErmFlywayBaselineGenerator().generate(
+                        simpleErmModel(),
+                        out,
+                        mapOf("flyway-version" to "3", "flyway-description" to "add_orders_table"),
+                    )
+                files.single().name shouldBe "V3__add_orders_table.sql"
+            } finally {
+                out.deleteRecursively()
+            }
+        }
+
+        test("ERM-first: output dir contains only the migration file") {
+            val out = tempDir()
+            try {
+                ErmFlywayBaselineGenerator().generate(simpleErmModel(), out, emptyMap())
+                val names =
+                    out
+                        .listFiles()
+                        ?.map { it.name }
+                        ?.sorted()
+                        .orEmpty()
+                names shouldBe listOf("V1__init.sql")
+            } finally {
+                out.deleteRecursively()
+            }
+        }
+
+        test("ERM-first: rejects path traversal via flyway-version") {
+            val out = tempDir()
+            try {
+                shouldThrow<IllegalArgumentException> {
+                    ErmFlywayBaselineGenerator().generate(
+                        simpleErmModel(),
+                        out,
+                        mapOf("flyway-version" to "../../../../../../tmp/evil"),
+                    )
+                }
+                out.listFiles().orEmpty().map { it.name } shouldBe emptyList()
+            } finally {
+                out.deleteRecursively()
+            }
+        }
+
+        test("ERM-first: rejects flyway-description containing a slash even without '..'") {
+            val out = tempDir()
+            try {
+                shouldThrow<IllegalArgumentException> {
+                    ErmFlywayBaselineGenerator().generate(
+                        simpleErmModel(),
+                        out,
+                        mapOf("flyway-description" to "sub/evil"),
+                    )
+                }
+            } finally {
+                out.deleteRecursively()
+            }
+        }
+
+        test("ERM-first provider is exposed as 'sql-flyway-baseline' generator id") {
+            ErmFlywayBaselineGeneratorProvider().generator().id shouldBe "sql-flyway-baseline"
         }
     })

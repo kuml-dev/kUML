@@ -20,17 +20,18 @@ import java.io.File
  * Ergebnisdatei bei Default-Optionen: `V1__init.sql`.
  *
  * Sicherheit: `flyway-version` und `flyway-description` werden gegen
- * Flyways eigene Namenskonvention validiert (siehe [VERSION_PATTERN] /
- * [DESCRIPTION_PATTERN]), bevor sie in den Dateinamen interpoliert werden.
- * Damit sind Pfad-Traversal-Versuche (`..`, `/`, `\`) über diese Optionen
- * ausgeschlossen. Zusätzlich wird vor dem Schreiben verifiziert, dass die
- * resultierende Datei kanonisch ein direktes Kind von `outputDir` ist.
+ * Flyways eigene Namenskonvention validiert ([FlywayFileNaming]), bevor sie
+ * in den Dateinamen interpoliert werden. Damit sind Pfad-Traversal-Versuche
+ * (`..`, `/`, `\`) über diese Optionen ausgeschlossen. Zusätzlich wird vor dem
+ * Schreiben verifiziert, dass die resultierende Datei kanonisch ein direktes
+ * Kind von `outputDir` ist.
  *
- * Funktioniert unverändert sowohl mit dem rohen PIM (naive Pluralisierung
- * via [SqlNames]) als auch mit dem Wave-A-PSM aus
- * `UmlToExposedPsmTransformer` (explizite Tabellennamen über das
- * dual-applied `«Entity»`-Stereotyp) — für [SqlDdlGenerator] ist beides
- * einfach ein [KumlDiagram].
+ * Funktioniert unverändert mit jedem [KumlDiagram], das [SqlDdlGenerator]
+ * akzeptiert — inklusive dem V3.4.7 UML→ERM-Chain (`UmlToErmTransformer`) und
+ * dem älteren Wave-A-PSM aus `UmlToExposedPsmTransformer` (dessen dual-apply
+ * `«Entity»`-Stereotyp-Workaround seit V3.4.7 kein Sonderfall mehr ist, weil
+ * das ERM-Modell ohnehin per Naming-Konvention denselben Tabellennamen
+ * ableitet, sofern kein ERM-`«Entity»`-Stereotyp gesetzt ist).
  */
 public class FlywayBaselineGenerator(
     private val delegate: KumlCodeGenerator = SqlDdlGenerator(),
@@ -46,15 +47,7 @@ public class FlywayBaselineGenerator(
         outputDir.mkdirs()
         val version = options["flyway-version"] ?: "1"
         val description = options["flyway-description"] ?: "init"
-
-        require(VERSION_PATTERN.matches(version)) {
-            "Invalid flyway-version '$version' — must match ${VERSION_PATTERN.pattern} " +
-                "(Flyway version naming convention, e.g. \"1\" or \"1.2.1\")"
-        }
-        require(DESCRIPTION_PATTERN.matches(description)) {
-            "Invalid flyway-description '$description' — must match ${DESCRIPTION_PATTERN.pattern} " +
-                "(letters, digits, underscores only — no path separators or '..')"
-        }
+        val migrationFile = FlywayFileNaming.resolveMigrationFile(outputDir, version, description)
 
         // Delegate into a scratch subdirectory so SqlDdlGenerator's fixed
         // "schema.sql" never touches outputDir directly — avoids collisions
@@ -66,26 +59,10 @@ public class FlywayBaselineGenerator(
         }
         val content = delegateFiles.single().readText()
 
-        val migrationFile = File(outputDir, "V${version}__$description.sql")
-
-        // Defense in depth: even though version/description are validated
-        // above, verify the resulting file is still a direct child of
-        // outputDir before writing.
-        val canonicalOutputDir = outputDir.canonicalFile
-        val canonicalMigrationFile = migrationFile.canonicalFile
-        check(canonicalMigrationFile.parentFile == canonicalOutputDir) {
-            "Resolved migration file '$canonicalMigrationFile' escapes outputDir '$canonicalOutputDir'"
-        }
-
         migrationFile.writeText(content)
 
         scratchDir.deleteRecursively()
 
         return listOf(migrationFile)
-    }
-
-    private companion object {
-        val VERSION_PATTERN = Regex("^[0-9]+(\\.[0-9]+)*$")
-        val DESCRIPTION_PATTERN = Regex("^[A-Za-z0-9_]+$")
     }
 }

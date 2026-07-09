@@ -27,9 +27,9 @@ class ProfileCommandTest :
             ProfileRegistry.clear()
         }
 
-        // ── Test 1: kuml profile list shows 6 built-in profiles ──────────────────
+        // ── Test 1: kuml profile list shows all built-in profiles ────────────────
 
-        test("profile list shows all 6 built-in profiles") {
+        test("profile list shows all built-in profiles") {
             val result = KumlCli().test("profile list")
             result.statusCode shouldBe 0
             result.output shouldContain "dev.kuml.profiles.soaml"
@@ -38,11 +38,14 @@ class ProfileCommandTest :
             result.output shouldContain "dev.kuml.profiles.openapi"
             result.output shouldContain "dev.kuml.profiles.autosar"
             result.output shouldContain "dev.kuml.profiles.autosar.adaptive"
+            // V3.4.7: kuml-gen-sql now depends on kuml-transform-uml-to-erm, which pulls the ERM
+            // mapping profile onto kuml-cli's runtime classpath for the first time.
+            result.output shouldContain "dev.kuml.profiles.erm"
         }
 
         // ── Test 2: kuml profile list --output json produces valid JSON ──────────
 
-        test("profile list --output json produces valid JSON with all 6 profiles") {
+        test("profile list --output json produces valid JSON with all built-in profiles") {
             val result = KumlCli().test("profile list --output json")
             result.statusCode shouldBe 0
 
@@ -52,7 +55,8 @@ class ProfileCommandTest :
                 json.jsonObject["profiles"]?.jsonArray
                     ?: error("Expected 'profiles' array in JSON output")
 
-            profiles.size shouldBe 6
+            // V3.4.7: 6 pre-existing profiles + the ERM mapping profile (see Test 1).
+            profiles.size shouldBe 7
 
             // Each entry must have a namespace field
             val namespaces = profiles.map { it.jsonObject["namespace"]?.toString()?.trim('"') ?: "" }
@@ -62,6 +66,7 @@ class ProfileCommandTest :
             namespaces shouldContain "dev.kuml.profiles.openapi"
             namespaces shouldContain "dev.kuml.profiles.autosar"
             namespaces shouldContain "dev.kuml.profiles.autosar.adaptive"
+            namespaces shouldContain "dev.kuml.profiles.erm"
         }
 
         // ── Test 3: kuml profile show javaee shows 4 stereotypes ────────────────
