@@ -16,7 +16,7 @@ status: aktiv
 ← [[00 Übersicht]] · Bereich [[03 Bereiche/kUML/Übersicht|kUML]]
 
 > [!info] Worum es geht
-> **Neutrales** relationales Beispielschema für einen kleinen Online-Shop — bewusst **ohne PZB-Bezug**, damit es 1:1 als Worked-Example auf der kuml.dev-Webseite wiederverwendet werden kann (siehe [[03 Bereiche/kUML/Bewertung kUML vs PlantUML vs Mermaid (DB-Modellierung)#Offene Punkte vor Webseiten-Übernahme|offener Punkt „neutrales Schema"]]). Gerendert wird in **Martin-Notation** (Crow's Foot) — die einzige Notation, die kUML aktuell für ERM produktionsreif rendert (Chen/Bachman/IDEF1X sind Modell-Ebene bereits vorhanden, Renderer folgt später, siehe „Mögliche Erweiterungen"). Das Schema deckt genau die Stolperstellen ab, die reale relationale Modelle typischerweise mitbringen: **mehrere Fremdschlüssel auf dieselbe Tabelle** (`Order` → `Address` zweimal, `Review` → drei verschiedene Ziele), eine **Self-Reference** (`Category.parent_id`), eine **identifizierende Beziehung / schwache Entität** (`OrderItem` als Kompositionskind von `Order`) sowie First-Class-**Views**, **Indizes** und **Check-Constraints**.
+> **Neutrales** relationales Beispielschema für einen kleinen Online-Shop — bewusst **ohne PZB-Bezug**, damit es 1:1 als Worked-Example auf der kuml.dev-Webseite wiederverwendet werden kann (siehe [[03 Bereiche/kUML/Bewertung kUML vs PlantUML vs Mermaid (DB-Modellierung)#Offene Punkte vor Webseiten-Übernahme|offener Punkt „neutrales Schema"]]). Gerendert wird in **Martin-Notation** (Crow's Foot) — der gebräuchlichsten der vier von kUML unterstützten ERM-Notationen (Bachman/Chen/IDEF1X sind seit V3.4.3–V3.4.5 ebenso produktionsreif, siehe „Mögliche Erweiterungen" für dasselbe Modell in den anderen Notationen). Das Schema deckt genau die Stolperstellen ab, die reale relationale Modelle typischerweise mitbringen: **mehrere Fremdschlüssel auf dieselbe Tabelle** (`Order` → `Address` zweimal, `Review` → drei verschiedene Ziele), eine **Self-Reference** (`Category.parent_id`), eine **identifizierende Beziehung / schwache Entität** (`OrderItem` als Kompositionskind von `Order`) sowie First-Class-**Views**, **Indizes** und **Check-Constraints**.
 
 ## Diagramm
 
@@ -192,10 +192,9 @@ Anders als bei UML-basierten Persistenz-Workarounds (vgl. [[38 UML Profil – Ex
 
 ## Mögliche Erweiterungen
 
-- **Weitere Notationen (Chen/Bachman/IDEF1X)**: Das Modell ist notationsunabhängig — `diagram(name = "…", notation = ErmNotation.CHEN)` (oder `BACHMAN`/`IDEF1X`) auf demselben `ermModel(...)` würde dieselben Entitäten/Kanten in einer anderen Notation projizieren. `category(...)` (IDEF1X-Subtyp-Cluster) wurde hier bewusst **nicht** eingebaut, weil es kein Martin-Konstrukt ist — siehe `kuml-io-svg`-Tests für `ErmChenLayoutBridge`/`ErmIdef1xLayoutBridge`.
+- **Weitere Notationen (Chen/Bachman/IDEF1X)**: Das Modell ist notationsunabhängig und alle drei Renderer sind bereits produktionsreif (V3.4.3–V3.4.5) — `diagram(name = "…", notation = ErmNotation.CHEN)` (oder `BACHMAN`/`IDEF1X`) auf demselben `ermModel(...)` projiziert dieselben Entitäten/Kanten sofort in der jeweils anderen Notation, ohne Modelländerung. `category(...)` (IDEF1X-Subtyp-Cluster) wurde hier bewusst **nicht** eingebaut, weil es kein Martin-Konstrukt ist — siehe `kuml-io-svg`-Tests für `ErmChenLayoutBridge`/`ErmIdef1xLayoutBridge`.
 - **`kuml reverse --format sql`**: Seit V3.4.9 kann dasselbe Modell auch aus echtem SQL-DDL rekonstruiert werden (SQL → ERM-DSL-Quelltext) — siehe [[02 Projekte/kUML V3.4]].
-- **`kuml gen sql`**: Der ERM-zu-SQL-Codegenerator (V3.4.x, PostgreSQL-Dialekt zuerst) könnte aus genau diesem Modell direkt `CREATE TABLE`-Statements inkl. FK/Index/Check erzeugen.
-- **Playground-Anbindung**: Dieses Beispiel hat aktuell **kein** Pendant unter `kuml.dev/playground-sources/` — Lücke, siehe [[00 Übersicht#Zuordnung Vault → kuml.dev-Playground]].
+- **`kuml generate --plugin sql`**: Der ERM-zu-SQL-Codegenerator (V3.4.7, PostgreSQL-Dialekt zuerst) erzeugt aus genau diesem Modell direkt `CREATE TABLE`-Statements inkl. FK/Index/Check.
 
 ## Verwandte Beispiele
 

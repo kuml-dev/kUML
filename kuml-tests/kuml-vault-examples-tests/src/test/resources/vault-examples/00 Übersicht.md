@@ -17,7 +17,7 @@ Sammlung lebender Beispielnotizen, die das [[02 Projekte/kUML V2.0]]-Plugin [[02
 
 ## Vollständige Abdeckung
 
-Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unterstützten Modellierungssprachen ab — UML 2.x (14), C4 (6) und SysML 2 (8). Hinzu kommen seit V3.1 **BPMN 2.0**-Beispiele (Process + Collaboration + Conversation) als vierte Modellierungssprache sowie **profil-spezifische Vertiefungsbeispiele** für die Built-in-Profile.
+Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unterstützten Modellierungssprachen ab — UML 2.x (14), C4 (6) und SysML 2 (8). Hinzu kommen seit V3.1 **BPMN 2.0**-Beispiele (Process + Collaboration + Conversation) als vierte Modellierungssprache, **profil-spezifische Vertiefungsbeispiele** für die Built-in-Profile sowie seit V3.4 das **ERM-Metamodell** (Entity-Relationship, Martin-Notation) als fünfte Modellierungssprache.
 
 ### UML 2.x (14 Diagrammtypen)
 
@@ -78,6 +78,12 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unters
 | 32 | [[32 BPMN Collaboration – Customer und Supplier]] | Collaboration — Pools + MessageFlows |
 | 36 | [[36 BPMN Conversation – PdV Kommunikation]] | Conversation — Participants + Hexagons (V3.2.3) |
 
+### ERM (seit V3.4)
+
+| # | Notiz | Notation |
+|---|---|---|
+| 39 | [[39 ERM Martin – E-Commerce Schema]] | Martin / Crow's Foot |
+
 ## Empfohlene Lese-Reihenfolge nach Komplexität
 
 | Stufe | Notiz | Diagrammtyp |
@@ -115,6 +121,7 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unters
 | **Mittel** | [[30 BPMN Process – Order Fulfillment]] | BPMN Process |
 | **Fortgeschritten** | [[31 BPMN Process – Sub-Process Loop]] | BPMN Sub-Process |
 | **Fortgeschritten** | [[32 BPMN Collaboration – Customer und Supplier]] | BPMN Collaboration |
+| **Fortgeschritten** | [[39 ERM Martin – E-Commerce Schema]] | ERM Martin |
 
 ## Zuordnung Vault → kuml.dev-Playground
 
@@ -156,6 +163,7 @@ Der [Playground auf kuml.dev](https://kuml.dev/playground) speist seine Beispiel
 | 32 | [[32 BPMN Collaboration – Customer und Supplier]] | `bpmn-collaboration-customer-supplier` |
 | 36 | [[36 BPMN Conversation – PdV Kommunikation]] | `bpmn-conversation-pdv` *(noch kein Playground-Eintrag — V3.2.3 neu)* |
 | 38 | [[38 UML Profil – Exposed]] | `uml-profile-exposed` **und** `uml-profile-exposed-psm` (Profil-Definition + renderbares PSM-Beispiel) |
+| 39 | [[39 ERM Martin – E-Commerce Schema]] | *(noch kein Playground-Eintrag — V3.4 neu)* |
 
 ### Playground-Keys ohne Vault-Anker
 

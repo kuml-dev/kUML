@@ -83,26 +83,35 @@ classDiagram(name = "Exposed PSM – User & Address") {
     val address = classOf(name = "Address") {
         stereotypes += "Table"
         stereotypes += "Entity"
-        attribute(name = "id", type = "Long")
-        attribute(name = "city", type = "String")
+        attribute(name = "id", type = "Long") {
+            stereotypes += "Id"
+        }
+        attribute(name = "city", type = "String") {
+            stereotypes += "Column"
+        }
     }
 
     val user = classOf(name = "User") {
         stereotypes += "Table"
         stereotypes += "Entity"
-        attribute(name = "id", type = "Long")
-        attribute(name = "name", type = "String")
+        attribute(name = "id", type = "Long") {
+            stereotypes += "Id"
+        }
+        attribute(name = "name", type = "String") {
+            stereotypes += "Column"
+        }
     }
 
     association(source = user, target = address) {
         name = "billingAddress"
+        stereotypes += "FK"
         target { multiplicity("1") }
     }
 }
 ```
 
-> [!info] Warum keine `«Column»`/`«Id»`/`«FK»`-Labels im gerenderten Beispiel?
-> `ClassBuilder` hat ein einfaches, unvalidiertes `stereotypes: MutableList<String>`-Feld für Display-Labels (genutzt oben für `«Table»`/`«Entity»`). `AttributeBuilder` und `AssociationBuilder` haben dieses Feld **nicht** — Attribut- und Assoziations-Stereotypen lassen sich im `.kuml.kts`-Skript aktuell nur über den validierten, profil-gebundenen `stereotype(name) { … }`-Mechanismus setzen, der ein per `applyProfile(...)` registriertes Profil voraussetzt. Die eingebauten Profile (`exposedProfile`, `javaEeProfile`, …) stehen als Kotlin-Objekte aber nicht in den Skript-Default-Imports (`KumlScript.kt`) — sie sind für den programmatischen Gebrauch (M2M-Transformer, JVM-API) gedacht, nicht fürs Skript. Siehe „Bekannte DSL-Lücken" unten.
+> [!success] `«Column»`/`«Id»`/`«FK»`-Labels seit v0.27.0 (2026-07-09) renderbar
+> Behoben in Commit `a1fb2b8` („kUML DSL-Stereotypen — Attribut-/Assoziations-Stereotypen in DSL, Rendering und Layout"), Teil des heutigen v0.27.0-Release. `AttributeBuilder` und `AssociationBuilder` tragen jetzt dasselbe unvalidierte Display-Label-Feld `stereotypes: MutableList<String>` wie `ClassBuilder`; `StereotypeHelper` rendert es im SVG-Output, `UmlContentSizeProvider` berücksichtigt es bei der Knotengrößenberechnung. Das obige Skript wurde entsprechend aktualisiert und mit `kuml_render` verifiziert — `«Id»`/`«Column»` erscheinen jetzt vor den Attributzeilen, `«FK»` an der Assoziationskante. Der validierte, profil-gebundene `stereotype(name) { … }`-Weg (siehe unten) bleibt davon unberührt und ist weiterhin nur programmatisch nutzbar.
 
 ## Weiterverarbeitung — SQL-DDL und Exposed-Kotlin
 
@@ -123,15 +132,15 @@ Verkettet über `TransformChain<KumlDiagram, KumlDiagram, List<GeneratedFile>>(U
 | **Bezug** | Teil von kUML, kein Setup nötig | Per JAR, Maven-Koordinaten oder Inline-DSL |
 | **Stereotypen** | `Table`, `Column`, `FK` | Frei definierbar |
 | **Anwenden (programmatisch)** | `UmlToExposedPsmTransformer` (automatisch) oder `applyProfile(exposedProfile)` in Kotlin-Code | `applyProfile(myProfile)` — nach `ProfileRegistry`-Registrierung |
-| **Anwenden (im `.kuml.kts`-Skript)** | `stereotypes += "Table"` (Display-Label, nur Klassenebene) | Identisch — Attribut-/Assoziationsebene derzeit ebenfalls nicht skriptfähig |
+| **Anwenden (im `.kuml.kts`-Skript)** | `stereotypes += "Table"` / `"Column"` / `"FK"` (Display-Label, seit v0.27.0 auf Klassen-, Attribut- und Assoziationsebene) | Identisch |
 
-## Bekannte DSL-Lücken (Fix beschlossen)
+## Bekannte DSL-Lücken (behoben, v0.27.0)
 
-- **Attributebene**: `AttributeBuilder` besitzt kein Display-Label-`stereotypes`-Feld — nur den profil-validierten `stereotype(name) { }`-Weg. Ein einfaches `stereotypes: MutableList<String>` analog zu `ClassBuilder` würde `«Column»`/`«Id»`-Labels auch im Skript renderbar machen.
-- **Assoziationsebene**: `AssociationBuilder` implementiert `UmlElementScope` nicht und hat gar keinen Stereotyp-Mechanismus — weder validiert noch Display-Label. `«FK»` ist deshalb aktuell ausschließlich über den programmatischen `UmlToExposedPsmTransformer`-Pfad sichtbar, nie im gerenderten Skript-Beispiel.
+- ~~**Attributebene**: `AttributeBuilder` besitzt kein Display-Label-`stereotypes`-Feld — nur den profil-validierten `stereotype(name) { }`-Weg.~~ Behoben: `AttributeBuilder` hat jetzt ein `stereotypes: MutableList<String>`-Feld analog zu `ClassBuilder`, `«Column»`/`«Id»`-Labels sind im Skript renderbar.
+- ~~**Assoziationsebene**: `AssociationBuilder` hat gar keinen Stereotyp-Mechanismus.~~ Behoben: `AssociationBuilder` trägt ebenfalls ein `stereotypes`-Display-Label-Feld. `«FK»` ist jetzt auch im gerenderten Skript-Beispiel sichtbar, nicht mehr nur über den programmatischen `UmlToExposedPsmTransformer`-Pfad.
 
-> [!success] Kein Standard-Problem, DSL-Nachzieh-Bug — [[03 Bereiche/kUML/ADR/ADR-0017 DSL-Vollständigkeit gegenüber unterstützten Metamodell-Standards|ADR-0017]] (2026-07-08)
-> Der UML-2.5-Standard erlaubt Stereotypen auf `Property` und `Association` genauso wie auf `Class`; kUMLs Metamodell trägt das bereits (`UmlProperty.appliedStereotypes`, `UmlAssociation : Stereotypable`). Die Lücke sitzt ausschließlich in der Skript-DSL-Komfortschicht. Per ADR-0017 gilt das als **zu behebender Bug**, nicht als optionale Erweiterung — nachgezogen in Hintergrund-Aufgabe `task_b52cc45e`. Nach dem Fix sollte das „Renderbares Beispiel" oben um `«Column»`/`«Id»`/`«FK»`-Labels ergänzt werden.
+> [!success] Kein Standard-Problem, DSL-Nachzieh-Bug — [[03 Bereiche/kUML/ADR/ADR-0017 DSL-Vollständigkeit gegenüber unterstützten Metamodell-Standards|ADR-0017]] (2026-07-08), behoben 2026-07-09
+> Der UML-2.5-Standard erlaubt Stereotypen auf `Property` und `Association` genauso wie auf `Class`; kUMLs Metamodell trug das bereits (`UmlProperty.appliedStereotypes`, `UmlAssociation : Stereotypable`). Die Lücke saß ausschließlich in der Skript-DSL-Komfortschicht. Per ADR-0017 galt das als **zu behebender Bug**, nicht als optionale Erweiterung — umgesetzt in Commit `a1fb2b8` („kUML DSL-Stereotypen"), Teil von **v0.27.0** (2026-07-09). Das „Renderbares Beispiel" oben wurde entsprechend um `«Column»`/`«Id»`/`«FK»`-Labels ergänzt und mit `kuml_render` verifiziert.
 
 ## Ausblick — ERM (V3.4)
 
@@ -141,7 +150,7 @@ Der hier gezeigte Dual-Annotations-Mechanismus (`«Table»` + `«Entity»` neben
 
 - **Views/Indizes/Check-Constraints**: kommen mit dem ERM-Metamodell in V3.4 als First-Class-Elemente — im UML-basierten PSM hier bewusst nicht nachgebildet.
 - **Weitere Dialekte**: `SqlDdlGenerator` unterstützt MySQL/H2/SQLite bereits über dieselbe `sql-dialect`-Option — ungenutzt in diesem Beispiel, das PostgreSQL (Default) zeigt.
-- **DSL-Lücken schließen** *(beschlossen, ADR-0017)*: Display-Label-`stereotypes`-Feld für `AttributeBuilder` und `AssociationBuilder` (siehe oben) — schließt die Lücke zwischen „skriptbarem Beispiel" und „automatisch erzeugtem PSM".
+- ~~**DSL-Lücken schließen** *(beschlossen, ADR-0017)*~~ — erledigt in v0.27.0 (siehe oben): Display-Label-`stereotypes`-Feld für `AttributeBuilder` und `AssociationBuilder` schließt die Lücke zwischen „skriptbarem Beispiel" und „automatisch erzeugtem PSM".
 
 ## Verwandte Beispiele
 
