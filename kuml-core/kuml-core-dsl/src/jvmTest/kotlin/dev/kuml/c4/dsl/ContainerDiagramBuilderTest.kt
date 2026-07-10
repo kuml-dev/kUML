@@ -1,5 +1,6 @@
 package dev.kuml.c4.dsl
 
+import dev.kuml.c4.model.C4Container
 import dev.kuml.c4.model.C4Model
 import dev.kuml.c4.model.ContainerDiagram
 import io.kotest.core.spec.style.FunSpec
@@ -57,22 +58,28 @@ class ContainerDiagramBuilderTest :
         }
 
         test(name = "exclude containers is supported") {
+            lateinit var excluded: C4Container
             val model =
                 c4Model("Test") {
                     val system =
                         softwareSystem("System") {
                             container("Container 1")
-                            container("Container 2")
+                            excluded = container("Container 2")
                         }
 
                     containerDiagram("Containers") {
                         this.system = system
+                        exclude(excluded)
                     }
                 }
             model.diagrams shouldHaveSize 1
             val diag = model.diagrams[0].shouldBeInstanceOf<ContainerDiagram>()
-            // Should contain system + 2 containers = 3 elements
-            diag.elements shouldHaveSize 3
+            val elementNames =
+                diag.elements.map { id -> model.elements.find { it.id == id }?.name }
+            // System + Container 1 remain; Container 2 was excluded → 2 elements
+            diag.elements shouldHaveSize 2
+            elementNames shouldContain "Container 1"
+            elementNames shouldNotContain "Container 2"
         }
 
         test(name = "container count includes system plus all its containers") {
