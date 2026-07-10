@@ -55,11 +55,67 @@ test('manifest registers the render command and its menu placements', () => {
     }
 });
 
+test('manifest registers the preview + restart commands', () => {
+    const commands = MANIFEST.contributes.commands as Array<Record<string, string>>;
+    for (const cmd of ['kuml.showPreview', 'kuml.restartServer']) {
+        assert.ok(commands.find((c) => c.command === cmd), `${cmd} command must be declared`);
+    }
+});
+
+test('manifest places kuml.showPreview in editor/title, editor/context, and commandPalette', () => {
+    const menus = MANIFEST.contributes.menus as Record<string, Array<Record<string, string>>>;
+    for (const surface of ['editor/title', 'editor/context', 'commandPalette']) {
+        assert.ok(
+            menus[surface]?.some((m) => m.command === 'kuml.showPreview'),
+            `kuml.showPreview must appear in menu surface ${surface}`,
+        );
+    }
+});
+
 test('manifest declares the required configuration settings', () => {
-    const props = MANIFEST.contributes.configuration.properties as Record<string, unknown>;
-    for (const key of ['kuml.cliPath', 'kuml.theme', 'kuml.format']) {
+    const props = MANIFEST.contributes.configuration.properties as Record<
+        string,
+        Record<string, unknown>
+    >;
+    for (const key of [
+        'kuml.cliPath',
+        'kuml.theme',
+        'kuml.format',
+        'kuml.lspPath',
+        'kuml.serverUrl',
+        'kuml.diagnostics.enable',
+        'kuml.diagnostics.debounceMs',
+    ]) {
         assert.ok(props[key], `setting ${key} must exist`);
     }
+
+    const diagEnable = props['kuml.diagnostics.enable'];
+    assert.equal(diagEnable.type, 'boolean');
+    assert.equal(diagEnable.default, true);
+
+    const debounce = props['kuml.diagnostics.debounceMs'];
+    assert.equal(debounce.type, 'number');
+    assert.equal(debounce.minimum, 0);
+});
+
+test('manifest declares a PNG marketplace icon that exists on disk', () => {
+    const icon = MANIFEST.icon as string | undefined;
+    assert.ok(icon, 'manifest must declare an "icon" field');
+    assert.ok(icon!.endsWith('.png'), 'marketplace icon must be a PNG (vsce rejects SVG icons)');
+    assert.ok(fs.existsSync(path.join(ROOT, icon!)), `icon file ${icon} must exist on disk`);
+});
+
+test('manifest version is bumped to 0.2.0 for the LSP client + live-preview wave', () => {
+    assert.equal(MANIFEST.version, '0.2.0');
+});
+
+test('vscode-languageclient is declared as a runtime dependency', () => {
+    const deps = MANIFEST.dependencies as Record<string, string> | undefined;
+    assert.ok(deps, 'manifest must declare a "dependencies" block');
+    assert.ok(
+        typeof deps!['vscode-languageclient'] === 'string' && deps!['vscode-languageclient'].length > 0,
+        'vscode-languageclient must be a non-empty runtime dependency',
+    );
 });
 
 test('every snippet targets the kuml language and has a non-empty body', () => {

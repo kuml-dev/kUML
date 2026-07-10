@@ -9,6 +9,10 @@ vsc-extension-quickstart.md
 **/.eslintrc.json
 **/*.map
 **/*.ts
-!out/extension.js
-node_modules/**
+!out/*.js
+# Deliberately NOT excluding node_modules/** here: vsce ships production
+# `dependencies` (vscode-languageclient + its transitive deps) and prunes
+# `devDependencies` (@types/*, typescript, @vscode/vsce) automatically —
+# verified via `npx vsce ls`. A blanket `node_modules/**` exclude would drop
+# vscode-languageclient too and silently break the LSP client at runtime.
 **/.DS_Store

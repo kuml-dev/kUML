@@ -2,7 +2,7 @@
   "name": "kuml-vscode",
   "displayName": "kUML",
   "description": "Syntax highlighting, snippets, and CLI-driven SVG preview for kUML diagram scripts (*.kuml.kts).",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "kuml-dev",
   "license": "Apache-2.0",
   "homepage": "https://kuml.dev",
@@ -14,7 +14,8 @@
   "bugs": {
     "url": "https://github.com/kuml-dev/kUML/issues"
   },
-  "_comment_icon": "Marketplace icon must be a 128x128+ PNG (SVGs are rejected by vsce). Add `\"icon\": \"icons/kuml-marketplace.png\"` here before publishing to the VS Code Marketplace.",
+  "icon": "icons/kuml-marketplace.png",
+  "_comment_icon": "PNG required by vsce (SVGs are rejected). Generated from icons/kuml-script-dark.svg.",
   "categories": [
     "Programming Languages",
     "Snippets",
@@ -65,6 +66,16 @@
         "command": "kuml.renderToSvg",
         "title": "kUML: Render to SVG",
         "category": "kUML"
+      },
+      {
+        "command": "kuml.showPreview",
+        "title": "kUML: Open Live Preview",
+        "category": "kUML"
+      },
+      {
+        "command": "kuml.restartServer",
+        "title": "kUML: Restart Language Server",
+        "category": "kUML"
       }
     ],
     "menus": {
@@ -73,6 +84,11 @@
           "when": "resourceLangId == kuml",
           "command": "kuml.renderToSvg",
           "group": "navigation"
+        },
+        {
+          "when": "resourceLangId == kuml",
+          "command": "kuml.showPreview",
+          "group": "navigation"
         }
       ],
       "editor/context": [
@@ -80,11 +96,24 @@
           "when": "resourceLangId == kuml",
           "command": "kuml.renderToSvg",
           "group": "kuml@1"
+        },
+        {
+          "when": "resourceLangId == kuml",
+          "command": "kuml.showPreview",
+          "group": "kuml@2"
         }
       ],
       "commandPalette": [
         {
           "command": "kuml.renderToSvg",
+          "when": "resourceLangId == kuml"
+        },
+        {
+          "command": "kuml.showPreview",
+          "when": "resourceLangId == kuml"
+        },
+        {
+          "command": "kuml.restartServer",
           "when": "resourceLangId == kuml"
         }
       ]
@@ -107,6 +136,27 @@
           "enum": ["svg", "png"],
           "default": "svg",
           "description": "Render output format used by the `kUML: Render to SVG` command. PNG is opened in the default OS viewer; SVG is opened in a VS Code preview tab."
+        },
+        "kuml.lspPath": {
+          "type": "string",
+          "default": "",
+          "description": "Explicit path to the `kuml-lsp` language server launcher. Empty resolves it automatically: PATH, Homebrew (`/opt/homebrew/bin`, `/usr/local/bin`), `~/.local/bin`, then a local Gradle build (`kuml-language-server/build/install/kuml-lsp/bin`) — same order as the `kuml` CLI."
+        },
+        "kuml.serverUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Base URL of a running `kuml serve` instance (e.g. http://127.0.0.1:8080) used by the live preview for rendering. Empty makes the preview shell out to `kuml render` instead."
+        },
+        "kuml.diagnostics.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable push diagnostics (parse/validation errors) from the kUML language server."
+        },
+        "kuml.diagnostics.debounceMs": {
+          "type": "number",
+          "default": 300,
+          "minimum": 0,
+          "description": "Debounce interval (milliseconds) between an edit and the language server re-validating the document."
         }
       }
     }
@@ -117,6 +167,9 @@
     "test": "node --test --enable-source-maps out/test/*.test.js",
     "package": "vsce package",
     "vscode:prepublish": "npm run compile"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
