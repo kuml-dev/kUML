@@ -100,7 +100,7 @@ private fun applyChangeGuard(
     // ── static OCL guard: size/complexity cap + scope/type check (blank ⇒ no guard)
     val normalized: String? = patch.newOcl.ifBlank { null }
     if (normalized != null) {
-        when (val r = OclSyntax.typeCheck(normalized, scopeOf())) {
+        when (val r = OclSyntax.typeCheck(normalized, defaultGuardScope())) {
             is OclCheckResult.Error -> return PatchResult.Rejected.InvalidOcl(patch.transitionId, r)
             OclCheckResult.Ok -> Unit
         }
@@ -132,11 +132,13 @@ private fun applyChangeGuard(
 }
 
 /**
- * Conservative baseline scope mirroring [OclGuardEvaluator]'s env namespace
- * (`self` implicit; `event` + `vars` navigable OBJECTs) so a guard the evaluator
- * could run is never statically rejected here.
+ * Baseline OCL scope for interactive guard edits — mirrors [OclGuardEvaluator]'s
+ * runtime env (`self` implicit; `event` + `vars` navigable OBJECTs). Single
+ * source of truth shared by [applyPatch]'s static check and the widget editor,
+ * so the editor's live type-check and applyPatch's static check can never
+ * disagree.
  */
-private fun scopeOf(): OclScope = OclScope(mapOf("event" to OclType.OBJECT, "vars" to OclType.OBJECT))
+public fun defaultGuardScope(): OclScope = OclScope(mapOf("event" to OclType.OBJECT, "vars" to OclType.OBJECT))
 
 /** Build a new instance over [newModel], copying this instance's live runtime state. */
 internal fun StateMachineInstance.rebuildOnto(newModel: UmlStateMachine): StateMachineInstance {

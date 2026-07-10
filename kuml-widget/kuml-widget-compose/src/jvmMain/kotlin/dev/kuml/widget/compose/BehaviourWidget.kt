@@ -7,10 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -37,22 +34,19 @@ public fun BehaviourWidget(
     state: BehaviourWidgetState,
     modifier: Modifier = Modifier,
 ) {
-    // Compute layout once and cache it — only needs to change if the model changes,
-    // which is not supported in the MVP.
+    // Layout and SVG are re-derived whenever the model changes (e.g. a guard
+    // edit via ControlPanel/OclGuardEditor swaps in a new state.model) as well
+    // as when the highlighted vertices change.
     val layoutResult = remember(state.model) { computeLayout(state.model) }
-    var lastHighlightIds by remember { mutableStateOf(emptySet<String>()) }
-    var lastSvg by remember { mutableStateOf("") }
-
     val highlightIds = state.currentHighlightIds()
-    if (highlightIds != lastHighlightIds || lastSvg.isEmpty()) {
-        lastHighlightIds = highlightIds
-        lastSvg = renderStateMachineSvg(state.model, layoutResult, highlightIds)
+    val svg = remember(state.model, highlightIds, layoutResult) {
+        renderStateMachineSvg(state.model, layoutResult, highlightIds)
     }
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
             DiagramPanel(
-                svgString = lastSvg,
+                svgString = svg,
                 modifier = Modifier.weight(1f).fillMaxHeight(),
             )
             ControlPanel(

@@ -44,7 +44,7 @@ class BehaviourWidgetStateTest : FunSpec({
     fun buildState(): BehaviourWidgetState {
         val model = buildTrafficLight()
         val runtime = StateMachineRuntime(guards = OclGuardEvaluator())
-        return BehaviourWidgetState(model = model, runtime = runtime)
+        return BehaviourWidgetState(initialModel = model, runtime = runtime)
     }
 
     test("initial state contains at least one active vertex") {

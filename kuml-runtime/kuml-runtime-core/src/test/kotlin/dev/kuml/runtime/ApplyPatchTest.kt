@@ -1,6 +1,8 @@
 package dev.kuml.runtime
 
 import dev.kuml.core.model.KumlMetaValue
+import dev.kuml.core.ocl.OclCheckResult
+import dev.kuml.core.ocl.OclSyntax
 import dev.kuml.runtime.snapshot.MigrationPolicy
 import dev.kuml.runtime.snapshot.fingerprint
 import dev.kuml.uml.TransitionMetadataKeys
@@ -186,6 +188,25 @@ class ApplyPatchTest :
             stepResult.shouldBeInstanceOf<StepResult.Terminated>()
             newInstance.currentVertexIds shouldBe listOf("B")
             newInstance.isTerminated shouldBe true
+        }
+
+        test("defaultGuardScope() is exactly the scope applyPatch's static check uses (drift guard)") {
+            // applyPatch's static gate calls OclSyntax.typeCheck(normalized, defaultGuardScope())
+            // directly (see ModelPatch.kt) — this pins that behaviorally so a future refactor
+            // that reintroduces a private/divergent scope inside applyPatch breaks loudly here,
+            // rather than silently letting the editor's live type-check and applyPatch's static
+            // check disagree.
+            val instance = runtime.start(model)
+
+            // "vars.ready" only type-checks because "vars" is in defaultGuardScope() ...
+            OclSyntax.typeCheck("vars.ready", defaultGuardScope()).shouldBeInstanceOf<OclCheckResult.Ok>()
+            val accepted = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "vars.ready"))
+            accepted.shouldBeInstanceOf<PatchResult.Applied>()
+
+            // ... while "nope.ready" fails under defaultGuardScope() because "nope" isn't a scope variable.
+            OclSyntax.typeCheck("nope.ready", defaultGuardScope()).shouldBeInstanceOf<OclCheckResult.Error>()
+            val rejected = runtime.applyPatch(instance, ModelPatch.ChangeGuard("t1", "nope.ready"))
+            rejected.shouldBeInstanceOf<PatchResult.Rejected.InvalidOcl>()
         }
 
         test("guard edits are fingerprint-transparent") {

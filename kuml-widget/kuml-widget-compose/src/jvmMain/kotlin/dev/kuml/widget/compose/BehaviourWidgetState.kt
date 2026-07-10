@@ -18,17 +18,25 @@ import kotlinx.serialization.json.JsonObject
  * Holds the runtime, instance, trace, and scrub position. All mutable fields
  * are backed by [mutableStateOf] so Compose recomposition is triggered automatically.
  *
- * @param model the [UmlStateMachine] to simulate.
+ * @param initialModel the [UmlStateMachine] to simulate.
  * @param runtime the [StateMachineRuntime] driving the instance.
  * @param editPolicy editing permissions for the widget.
  */
 @Stable
 public class BehaviourWidgetState(
-    public val model: UmlStateMachine,
-    private val runtime: StateMachineRuntime,
+    initialModel: UmlStateMachine,
+    internal val runtime: StateMachineRuntime,
     public val editPolicy: EditPolicy = EditPolicy.None,
 ) {
-    private var _instance: StateMachineInstance = runtime.start(model)
+    /**
+     * The currently simulated [UmlStateMachine]. Observable — a successful guard
+     * edit ([changeGuard]) replaces this with a new model instance, which
+     * recomposes any layout/SVG derived from it (see [BehaviourWidget]).
+     */
+    public var model: UmlStateMachine by mutableStateOf(initialModel)
+        internal set
+
+    internal var _instance: StateMachineInstance = runtime.start(model)
     private var initialSnapshot: StateMachineSnapshot
 
     /** Full trace of all [dev.kuml.runtime.TraceEntry]s recorded so far. */
@@ -136,6 +144,17 @@ public class BehaviourWidgetState(
             isTerminated = false,
         )
         _instance = runtime.restoreFrom(model, forkedSnapshot, MigrationPolicy.Reject)
+        trace = _instance.trace.toList()
+        tracePosition = trace.size
+    }
+
+    /**
+     * Re-derives [trace]/[tracePosition] from the current [_instance] and moves
+     * the scrub position back to live. Used after an in-place instance swap
+     * (e.g. [changeGuard]) where the swap itself doesn't go through
+     * [sendEvent]/[reset]/[forkAtScrubPosition].
+     */
+    internal fun syncTrace() {
         trace = _instance.trace.toList()
         tracePosition = trace.size
     }
