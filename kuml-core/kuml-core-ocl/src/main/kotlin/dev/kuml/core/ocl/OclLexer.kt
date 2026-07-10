@@ -1,12 +1,30 @@
 package dev.kuml.core.ocl
 
+/**
+ * One scanned OCL lexeme: its [token], its 0-based char span `[start, end)`
+ * within the source string, its 1-based [position], and whether it represents
+ * a scan error ([isError]).
+ *
+ * Introduced (Wave 1 — `OclSyntax`) so [dev.kuml.core.ocl.OclSyntax.highlight]
+ * can report exact highlight spans without re-scanning the source. [token] is
+ * a placeholder ([OclToken.Eof]) when [isError] is `true` — error lexemes
+ * carry no meaningful token, only a span to highlight.
+ */
+internal data class OclLexeme(
+    val token: OclToken,
+    val start: Int,
+    val end: Int,
+    val position: OclPosition,
+    val isError: Boolean = false,
+)
+
 internal object OclLexer {
     /**
      * Tokenizes [input] and returns the token list only, discarding source
      * positions. Retained for callers that only need the parsed AST (the vast
      * majority — [OclParser] does not require positions to build the tree).
      */
-    internal fun tokenize(input: String): List<OclToken> = tokenizeWithPositions(input).first
+    internal fun tokenize(input: String): List<OclToken> = scan(input).map { it.token }
 
     /**
      * Tokenizes [input] and returns both the token list and a parallel list of
@@ -21,16 +39,56 @@ internal object OclLexer {
      * break every such comparison across the parser.
      */
     internal fun tokenizeWithPositions(input: String): Pair<List<OclToken>, List<OclPosition>> {
-        val tokens = mutableListOf<OclToken>()
-        val positions = mutableListOf<OclPosition>()
+        val lexemes = scan(input)
+        return lexemes.map { it.token } to lexemes.map { it.position }
+    }
+
+    /**
+     * Scans [input] into [OclLexeme]s, one per token plus a trailing
+     * [OclToken.Eof]. This is the single char-scanner the rest of the module
+     * is built on; [tokenize] and [tokenizeWithPositions] are thin
+     * projections of its result.
+     *
+     * In the default (non-[tolerant]) mode this behaves exactly like the
+     * original inline scanner it replaces: it throws [OclEvaluationException]
+     * on an unterminated string literal or an unexpected character.
+     * [OclParser] relies on this strict mode via [tokenize] /
+     * [tokenizeWithPositions] — nothing about parsing changes.
+     *
+     * In [tolerant] mode (used only by
+     * [dev.kuml.core.ocl.OclSyntax.highlight]), scan errors never throw —
+     * they are recorded as [OclLexeme.isError] entries so the rest of the
+     * (possibly still-valid) source keeps highlighting:
+     *  - an unexpected character becomes a single-char error lexeme; the scan
+     *    resumes right after it, so good tokens after the bad char still
+     *    highlight.
+     *  - an unterminated string literal becomes an error lexeme spanning from
+     *    the opening quote to the end of input; since there is no closing
+     *    quote to resume from, the scan stops there (the rest of the input is
+     *    presumed to be inside the unterminated string).
+     */
+    internal fun scan(
+        input: String,
+        tolerant: Boolean = false,
+    ): List<OclLexeme> {
+        val lexemes = mutableListOf<OclLexeme>()
         var i = 0
         var line = 1
         var lineStart = 0 // index into `input` of the first character of the current line
 
         fun posAt(index: Int) = OclPosition(line = line, col = index - lineStart + 1)
+
+        fun push(
+            token: OclToken,
+            start: Int,
+            end: Int,
+            isError: Boolean = false,
+        ) {
+            lexemes += OclLexeme(token, start, end, posAt(start), isError)
+        }
+
         while (i < input.length) {
             val tokenStart = i
-            val tokenCountBefore = tokens.size
             when {
                 input[i] == '\n' -> {
                     i++
@@ -40,87 +98,95 @@ internal object OclLexer {
                 input[i].isWhitespace() -> i++
                 // Two-char operators first
                 i + 1 < input.length && input.substring(i, i + 2) == "->" -> {
-                    tokens += OclToken.Arrow
+                    push(OclToken.Arrow, tokenStart, tokenStart + 2)
                     i += 2
                 }
                 i + 1 < input.length && input.substring(i, i + 2) == "<>" -> {
-                    tokens += OclToken.Op("<>")
+                    push(OclToken.Op("<>"), tokenStart, tokenStart + 2)
                     i += 2
                 }
                 i + 1 < input.length && input.substring(i, i + 2) == "<=" -> {
-                    tokens += OclToken.Op("<=")
+                    push(OclToken.Op("<="), tokenStart, tokenStart + 2)
                     i += 2
                 }
                 i + 1 < input.length && input.substring(i, i + 2) == ">=" -> {
-                    tokens += OclToken.Op(">=")
+                    push(OclToken.Op(">="), tokenStart, tokenStart + 2)
                     i += 2
                 }
                 // "@pre" — post-condition pre-state snapshot marker (OCL 2.x `expr@pre`).
                 i + 3 < input.length &&
                     input.substring(i, i + 4) == "@pre" &&
                     (i + 4 >= input.length || !(input[i + 4].isLetterOrDigit() || input[i + 4] == '_')) -> {
-                    tokens += OclToken.AtPre
+                    push(OclToken.AtPre, tokenStart, tokenStart + 4)
                     i += 4
                 }
                 // Single-char
                 input[i] == '.' -> {
-                    tokens += OclToken.Dot
+                    push(OclToken.Dot, tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == '(' -> {
-                    tokens += OclToken.LParen
+                    push(OclToken.LParen, tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == ')' -> {
-                    tokens += OclToken.RParen
+                    push(OclToken.RParen, tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == '|' -> {
-                    tokens += OclToken.Pipe
+                    push(OclToken.Pipe, tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == ',' -> {
-                    tokens += OclToken.Comma
+                    push(OclToken.Comma, tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == ';' -> {
-                    tokens += OclToken.Semicolon
+                    push(OclToken.Semicolon, tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == '=' -> {
-                    tokens += OclToken.Op("=")
+                    push(OclToken.Op("="), tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == '<' -> {
-                    tokens += OclToken.Op("<")
+                    push(OclToken.Op("<"), tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == '>' -> {
-                    tokens += OclToken.Op(">")
+                    push(OclToken.Op(">"), tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == '+' -> {
-                    tokens += OclToken.Op("+")
+                    push(OclToken.Op("+"), tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == '-' -> {
-                    tokens += OclToken.Op("-")
+                    push(OclToken.Op("-"), tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == '*' -> {
-                    tokens += OclToken.Op("*")
+                    push(OclToken.Op("*"), tokenStart, tokenStart + 1)
                     i++
                 }
                 input[i] == '/' -> {
-                    tokens += OclToken.Op("/")
+                    push(OclToken.Op("/"), tokenStart, tokenStart + 1)
                     i++
                 }
                 // String literal (single-quoted)
                 input[i] == '\'' -> {
                     val end = input.indexOf('\'', i + 1)
-                    if (end < 0) throw OclEvaluationException("Unterminated string literal")
-                    tokens += OclToken.StrLit(input.substring(i + 1, end))
-                    i = end + 1
+                    if (end < 0) {
+                        if (tolerant) {
+                            push(OclToken.Eof, tokenStart, input.length, isError = true)
+                            i = input.length
+                        } else {
+                            throw OclEvaluationException("Unterminated string literal")
+                        }
+                    } else {
+                        push(OclToken.StrLit(input.substring(i + 1, end)), tokenStart, end + 1)
+                        i = end + 1
+                    }
                 }
                 // Integer or Real literal (e.g. "3.14"). A '.' is only consumed as
                 // part of the number if followed by another digit — otherwise it is
@@ -133,16 +199,16 @@ internal object OclLexer {
                     if (isReal) {
                         i++ // consume '.'
                         while (i < input.length && input[i].isDigit()) i++
-                        tokens += OclToken.RealLit(input.substring(start, i).toDouble())
+                        push(OclToken.RealLit(input.substring(start, i).toDouble()), tokenStart, i)
                     } else {
-                        tokens += OclToken.IntLit(input.substring(start, i).toInt())
+                        push(OclToken.IntLit(input.substring(start, i).toInt()), tokenStart, i)
                     }
                 }
                 // Identifiers and keywords
                 input[i].isLetter() || input[i] == '_' -> {
                     val start = i
                     while (i < input.length && (input[i].isLetterOrDigit() || input[i] == '_')) i++
-                    tokens +=
+                    val token =
                         when (val word = input.substring(start, i)) {
                             "true" -> OclToken.TrueLit
                             "false" -> OclToken.FalseLit
@@ -150,17 +216,19 @@ internal object OclLexer {
                             "self" -> OclToken.Self
                             else -> OclToken.Ident(word)
                         }
+                    push(token, tokenStart, i)
                 }
-                else -> throw OclEvaluationException("Unexpected character: '${input[i]}' at position $i")
-            }
-            // A branch may add zero (whitespace/newline) or one token; record `tokenStart`'s
-            // position for whichever token was just appended.
-            for (idx in tokenCountBefore until tokens.size) {
-                positions += posAt(tokenStart)
+                else -> {
+                    if (tolerant) {
+                        push(OclToken.Eof, tokenStart, tokenStart + 1, isError = true)
+                        i++
+                    } else {
+                        throw OclEvaluationException("Unexpected character: '${input[i]}' at position $i")
+                    }
+                }
             }
         }
-        tokens += OclToken.Eof
-        positions += posAt(i)
-        return tokens to positions
+        lexemes += OclLexeme(OclToken.Eof, input.length, input.length, posAt(i))
+        return lexemes
     }
 }

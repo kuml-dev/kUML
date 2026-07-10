@@ -16,12 +16,52 @@ internal class OclParser(
 ) {
     private var pos = 0
 
+    /**
+     * Current recursive-descent depth, tracked via [guardedRecursion]. Grammar
+     * parens are transparent in the AST (`parsePrimary`'s `LParen` branch
+     * discards the wrapping — see [parsePrimary]), so a chain of nested
+     * parens produces *no* extra [dev.kuml.core.ocl.ast.OclExpression] depth
+     * but *does* recurse through [parseExpr] once per paren. Without a guard
+     * here, an input well under [OclSyntax.MAX_EXPRESSION_LENGTH] chars (e.g.
+     * ~2000 nested `(`) drives this recursive-descent parser to a
+     * [StackOverflowError] long before [OclSyntax.typeCheck]'s post-parse
+     * `nodeCount`/`depth` check ([OclSyntax.MAX_NESTING_DEPTH]) ever runs —
+     * silently defeating that guard. The same applies to `not`/unary `-`
+     * chains, which recurse directly in [parseNot]/[parseUnary] without going
+     * through [parseExpr] at all.
+     */
+    private var recursionDepth = 0
+
     private fun peek(): OclToken = tokens.getOrElse(pos) { OclToken.Eof }
 
     private fun consume(): OclToken = tokens.getOrElse(pos++) { OclToken.Eof }
 
     /** Position of the token at [pos], or `null` if [positions] was not supplied. */
     private fun currentPosition(): OclPosition? = positions.getOrNull(pos)
+
+    /**
+     * Wraps every unbounded-recursion entry point ([parseExpr], [parseNot],
+     * [parseUnary]) with a depth cap shared with [OclSyntax]'s post-parse
+     * complexity guard ([OclSyntax.MAX_NESTING_DEPTH]), so a
+     * [StackOverflowError] can never occur before that guard gets a chance to
+     * reject the expression cleanly. Throws [OclEvaluationException] — a type
+     * every caller of [OclParser.parse] already catches — instead of letting
+     * the JVM stack overflow.
+     */
+    private fun <T> guardedRecursion(block: () -> T): T {
+        recursionDepth++
+        if (recursionDepth > OclSyntax.MAX_NESTING_DEPTH) {
+            throw OclEvaluationException(
+                "expression too complex (nesting exceeds ${OclSyntax.MAX_NESTING_DEPTH} levels)",
+                position = currentPosition(),
+            )
+        }
+        try {
+            return block()
+        } finally {
+            recursionDepth--
+        }
+    }
 
     private fun expect(token: OclToken) {
         val at = currentPosition()
@@ -49,10 +89,12 @@ internal class OclParser(
      * above [parseImplies] in the precedence chain.
      */
     private fun parseExpr(): OclExpression =
-        when {
-            matchIdent("let") -> parseLet()
-            matchIdent("if") -> parseIf()
-            else -> parseImplies()
+        guardedRecursion {
+            when {
+                matchIdent("let") -> parseLet()
+                matchIdent("if") -> parseIf()
+                else -> parseImplies()
+            }
         }
 
     private fun parseLet(): OclExpression {
@@ -122,13 +164,15 @@ internal class OclParser(
         return left
     }
 
-    private fun parseNot(): OclExpression {
-        if (matchIdent("not")) {
-            consume()
-            return OclExpression.UnaryOp("not", parseNot())
+    private fun parseNot(): OclExpression =
+        guardedRecursion {
+            if (matchIdent("not")) {
+                consume()
+                OclExpression.UnaryOp("not", parseNot())
+            } else {
+                parseCompare()
+            }
         }
-        return parseCompare()
-    }
 
     private fun parseCompare(): OclExpression {
         val left = parseAdd()
@@ -158,13 +202,15 @@ internal class OclParser(
         return left
     }
 
-    private fun parseUnary(): OclExpression {
-        if (peek() is OclToken.Op && (peek() as OclToken.Op).sym == "-") {
-            consume()
-            return OclExpression.UnaryOp("-", parseUnary())
+    private fun parseUnary(): OclExpression =
+        guardedRecursion {
+            if (peek() is OclToken.Op && (peek() as OclToken.Op).sym == "-") {
+                consume()
+                OclExpression.UnaryOp("-", parseUnary())
+            } else {
+                parsePostfix()
+            }
         }
-        return parsePostfix()
-    }
 
     /** OCL type operations, callable via dot-navigation: `self.oclIsTypeOf(Order)`. */
     private val typeOpNames =

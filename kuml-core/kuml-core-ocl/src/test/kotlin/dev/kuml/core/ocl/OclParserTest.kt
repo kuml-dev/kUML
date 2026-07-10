@@ -4,6 +4,7 @@ import dev.kuml.core.ocl.ast.OclExpression
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
 
 class OclParserTest :
     FunSpec({
@@ -288,5 +289,40 @@ class OclParserTest :
             // the lexer should instead fail on the unexpected '@' character, since
             // "@pre" followed immediately by more letters is not the @pre token.
             shouldThrow<OclEvaluationException> { OclLexer.tokenize("self.attributes@preview") }
+        }
+
+        // ── recursion-depth guard (security fix) ─────────────────────────────
+
+        test("rejects deeply nested parens with a clean exception instead of overflowing the stack") {
+            // Grammar parens are transparent in the AST (parsePrimary discards the
+            // wrapping), so this nesting is invisible to any post-parse AST-depth
+            // check — the parser itself must reject it during the recursive
+            // descent, before a StackOverflowError has a chance to occur.
+            val expr = "(".repeat(2000) + "1" + ")".repeat(2000)
+            val tokens = OclLexer.tokenize(expr)
+            val ex = shouldThrow<OclEvaluationException> { OclParser(tokens).parse() }
+            ex.message shouldContain "too complex"
+        }
+
+        test("rejects a deeply nested 'not' chain with a clean exception instead of overflowing the stack") {
+            val expr = "not ".repeat(2000) + "true"
+            val tokens = OclLexer.tokenize(expr)
+            val ex = shouldThrow<OclEvaluationException> { OclParser(tokens).parse() }
+            ex.message shouldContain "too complex"
+        }
+
+        test("rejects a deeply nested unary-minus chain with a clean exception instead of overflowing the stack") {
+            val expr = "-".repeat(2000) + "1"
+            val tokens = OclLexer.tokenize(expr)
+            val ex = shouldThrow<OclEvaluationException> { OclParser(tokens).parse() }
+            ex.message shouldContain "too complex"
+        }
+
+        test("accepts a moderately nested unary-minus chain well under the depth cap") {
+            // The guard must only reject nesting that actually risks a stack
+            // overflow, not ordinary (if unusual) hand-written expressions.
+            val expr = "-".repeat(10) + "1"
+            val tokens = OclLexer.tokenize(expr)
+            OclParser(tokens).parse() // must not throw
         }
     })
