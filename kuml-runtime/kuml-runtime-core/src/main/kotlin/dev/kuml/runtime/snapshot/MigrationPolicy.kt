@@ -1,5 +1,7 @@
 package dev.kuml.runtime.snapshot
 
+import dev.kuml.runtime.ModelPatch
+
 /**
  * Strategie, die entscheidet ob ein [StateMachineSnapshot] oder
  * [ActivityInstanceSnapshot] auf ein (potenziell verändertes) Modell
@@ -24,6 +26,30 @@ public sealed interface MigrationPolicy {
         snapshotVertexIds: List<String>,
         currentVertexIds: Set<String>,
     )
+
+    /**
+     * Decides whether an in-flight [patch] may be applied to a *live* instance.
+     * Distinct from [check] (which is snapshot-restore/fingerprint oriented):
+     * a live edit intentionally changes the model, so the default only guards the
+     * structural invariant that no currently-active vertex is removed. Guard-only
+     * patches (Wave 3) therefore pass under every built-in policy, including [Reject].
+     *
+     * @throws MigrationException on rejection.
+     */
+    public fun onPatch(
+        patch: ModelPatch,
+        activeVertexIds: List<String>,
+        patchedVertexIds: Set<String>,
+    ) {
+        val missing = activeVertexIds.filter { it !in patchedVertexIds }
+        if (missing.isNotEmpty()) {
+            throw MigrationException(
+                reason = "patch would remove active vertices",
+                expected = activeVertexIds.joinToString(","),
+                actual = "missing: ${missing.joinToString(",")}",
+            )
+        }
+    }
 
     /**
      * Wirft bei ANY Mismatch sofort [MigrationException] — Default-Policy.
