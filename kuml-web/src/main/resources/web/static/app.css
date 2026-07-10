@@ -175,3 +175,33 @@ main {
 #error-banner.hidden {
   display: none;
 }
+
+/* ── Drag-and-drop gesture (V3.2 Wave 3) ──────────────────────────
+   Only affords the grab cursor when the current diagram exposes a
+   grid (class diagrams) — #preview.drag-enabled is toggled by
+   DragController.setDraggable() based on the /api/render `grid` field. */
+
+#preview.drag-enabled g#nodes > g[id] {
+  cursor: grab;
+}
+
+#preview.drag-enabled g#nodes > g[id]:active {
+  cursor: grabbing;
+}
+
+.kuml-drag-source {
+  opacity: 0.3;
+}
+
+.kuml-drag-ghost {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.kuml-drag-cell {
+  fill: var(--accent);
+  fill-opacity: 0.12;
+  stroke: var(--accent);
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}

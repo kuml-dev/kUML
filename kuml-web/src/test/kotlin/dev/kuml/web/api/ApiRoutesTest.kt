@@ -116,8 +116,21 @@ class ApiRoutesTest :
                 val body = json.decodeFromString<RenderResponse>(response.bodyAsText())
                 body.ok.shouldBeTrue()
                 body.nodes.size shouldBe 2
-                body.grid shouldNotBe null
-                (body.grid!!.cols >= 1) shouldBe true
+                val grid = body.grid
+                grid shouldNotBe null
+                check(grid != null)
+
+                // V3.2 Wave 3 hardening — pin the exact invariants the browser
+                // DragController's resolveAxis()/clientToUser() mirror relies on:
+                // unique non-blank node ids (hit-testing keys off `id`), and a
+                // well-formed grid (positive cell extents, at least one row/col).
+                body.nodes.forEach { it.id.shouldNotBeBlank() }
+                val nodeIds = body.nodes.map { it.id }
+                nodeIds.toSet().size shouldBe nodeIds.size
+                (grid.cols >= 1) shouldBe true
+                (grid.rows >= 1) shouldBe true
+                (grid.cellW > 0f) shouldBe true
+                (grid.cellH > 0f) shouldBe true
             }
         }
 

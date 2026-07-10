@@ -26,6 +26,12 @@ let lastSvg = null;
 let lastLatex = null;
 let debounceTimer = null;
 
+// V3.2 Wave 3 — drag-and-drop gesture state. Geometry from the last successful
+// SVG render (Wave 2 payload: /api/render → { nodes, grid }).
+let currentNodes = []; // NodeBox[]  {id,x,y,w,h}  in viewBox user-space
+let currentGrid = null; // GridGeometry|null {cols,rows,cellW,cellH,originX,originY}
+let dragController = null; // constructed in init(), used by renderSvg()
+
 // ── Editor ────────────────────────────────────────────────────────────────────
 const updateListener = EditorView.updateListener.of((update) => {
   if (update.docChanged) {
@@ -57,6 +63,9 @@ async function renderSvg() {
     lastLatex = null;
     downloadLatexBtn.disabled = true;
     renderTimeEl.textContent = '';
+    currentNodes = [];
+    currentGrid = null;
+    dragController?.setDraggable(false);
     return;
   }
 
@@ -79,14 +88,23 @@ async function renderSvg() {
       errorBannerEl.classList.add('hidden');
       renderTimeEl.textContent = `Rendered in ${data.durationMs}ms`;
       downloadLatexBtn.disabled = false;
+      currentNodes = data.nodes || [];
+      currentGrid = data.grid || null;
+      dragController?.setDraggable(currentGrid !== null);
     } else {
       showError(data.error || 'Unknown error');
       renderTimeEl.textContent = '';
       downloadLatexBtn.disabled = true;
+      currentNodes = [];
+      currentGrid = null;
+      dragController?.setDraggable(false);
     }
   } catch (err) {
     showError(`Network error: ${err.message}`);
     renderTimeEl.textContent = '';
+    currentNodes = [];
+    currentGrid = null;
+    dragController?.setDraggable(false);
   }
 }
 
@@ -224,7 +242,161 @@ function triggerDownload(blob, filename) {
   URL.revokeObjectURL(url);
 }
 
+// ── Drag-and-drop gesture (V3.2 Wave 3) ────────────────────────────────────────
+// Maps a client (screen) coordinate to SVG root/viewBox user-space, cancelling
+// the CSS scaling applied by `#preview svg { max-width:100% }`. All hit-testing
+// and cell math below happens in user units so it matches NodeBox/GridGeometry
+// (both come from the same /api/render response — see Wave 2 payload).
+function clientToUser(svg, clientX, clientY) {
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  return new DOMPoint(clientX, clientY).matrixTransform(ctm.inverse());
+}
+
+// Mirror of dev.kuml.web.layout.GridCellResolver (server-side, authoritative,
+// tested by GridCellResolverTest). Keep both in sync — floor into the containing
+// cell, clamp to [0, count-1]; a degenerate (<=0) cell extent collapses to 0.
+function resolveAxis(origin, cellExtent, count, pos) {
+  if (cellExtent <= 0) return 0;
+  const idx = Math.floor((pos - origin) / cellExtent);
+  return Math.max(0, Math.min(idx, Math.max(count - 1, 0)));
+}
+
+function resolveCell(grid, xUser, yUser) {
+  return {
+    col: resolveAxis(grid.originX, grid.cellW, grid.cols, xUser),
+    row: resolveAxis(grid.originY, grid.cellH, grid.rows, yUser),
+  };
+}
+
+class DragController {
+  constructor({ container, getNodes, getGrid, onDrop }) {
+    this.container = container; // #preview (never re-created, survives innerHTML swaps)
+    this.getNodes = getNodes; // () => currentNodes
+    this.getGrid = getGrid; // () => currentGrid
+    this.onDrop = onDrop; // (id, col, row) => Promise<void>
+    this.drag = null; // active-drag state or null
+    container.addEventListener('pointerdown', this.onDown.bind(this));
+    container.addEventListener('pointermove', this.onMove.bind(this));
+    container.addEventListener('pointerup', this.onUp.bind(this));
+    container.addEventListener('pointercancel', this.onCancel.bind(this));
+  }
+
+  setDraggable(enabled) {
+    this.container.classList.toggle('drag-enabled', enabled);
+  }
+
+  onDown(e) {
+    if (e.button !== 0) return; // ignore non-primary buttons
+    const grid = this.getGrid();
+    if (!grid) return; // non-class diagram → no drag
+    const svg = this.container.querySelector('svg');
+    if (!svg) return;
+    const g = e.target.closest('g[id]');
+    if (!g) return;
+    const id = g.id; // DOM already un-escaped &apos;/&amp;/etc.
+    const node = this.getNodes().find((n) => n.id === id);
+    if (!node) return; // excludes structural #nodes/#edges groups and edges
+    const start = clientToUser(svg, e.clientX, e.clientY);
+    if (!start) return;
+
+    const ghost = g.cloneNode(true);
+    ghost.removeAttribute('id');
+    ghost.style.pointerEvents = 'none';
+    ghost.classList.add('kuml-drag-ghost');
+    ghost.setAttribute('transform', `translate(${node.x},${node.y})`);
+    svg.appendChild(ghost); // parent = root → NodeBox coords apply directly
+    g.classList.add('kuml-drag-source'); // dim the original
+
+    this.drag = { pointerId: e.pointerId, svg, node, start, ghost, source: g, dx: 0, dy: 0 };
+    this.container.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+
+  onMove(e) {
+    const d = this.drag;
+    if (!d || e.pointerId !== d.pointerId) return;
+    const cur = clientToUser(d.svg, e.clientX, e.clientY);
+    if (!cur) return;
+    const dx = cur.x - d.start.x;
+    const dy = cur.y - d.start.y;
+    d.ghost.setAttribute('transform', `translate(${d.node.x + dx},${d.node.y + dy})`);
+    d.dx = dx;
+    d.dy = dy;
+  }
+
+  async onUp(e) {
+    const d = this.drag;
+    if (!d || e.pointerId !== d.pointerId) return;
+    this.drag = null;
+    const { node, source, ghost, dx, dy } = d;
+
+    const grid = this.getGrid();
+    ghost.remove();
+    source.classList.remove('kuml-drag-source');
+    this.container.releasePointerCapture(e.pointerId);
+
+    if (!grid) return; // grid vanished mid-drag (e.g. doc changed) — abort quietly
+
+    // Resolve target cell from the node's *center* (not the raw cursor), so
+    // the whole box snaps predictably regardless of where inside it the user
+    // grabbed.
+    const cx = node.x + node.w / 2 + dx;
+    const cy = node.y + node.h / 2 + dy;
+    const { col, row } = resolveCell(grid, cx, cy);
+
+    // Skip the round-trip if the node did not actually move to a new cell.
+    const currentCell = resolveCell(grid, node.x + node.w / 2, node.y + node.h / 2);
+    if (currentCell.col === col && currentCell.row === row) return;
+
+    await this.onDrop(node.id, col, row);
+  }
+
+  onCancel(e) {
+    const d = this.drag;
+    if (!d || e.pointerId !== d.pointerId) return;
+    this.drag = null;
+    d.ghost.remove();
+    d.source.classList.remove('kuml-drag-source');
+    this.container.releasePointerCapture(e.pointerId);
+  }
+}
+
+// Posts the resolved (elementId, col, row) drop to /api/layout/hint and, on
+// success, replaces the editor doc with the returned re-parseable script. The
+// client always sends its *current full editor text* as `script` — the
+// stateless-server contract — never a cached server model. On failure the
+// editor document is left untouched and the error banner is shown.
+async function applyLayoutDrop(id, col, row) {
+  const script = editorView.state.doc.toString();
+  try {
+    const res = await fetch('/api/layout/hint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ script, elementId: id, col, row }),
+    });
+    const data = await res.json();
+    if (res.ok && data.ok && data.script) {
+      editorView.dispatch({
+        changes: { from: 0, to: editorView.state.doc.length, insert: data.script },
+      });
+      // docChanged → existing updateListener → scheduleRender() → /api/render
+      // refreshes currentNodes/currentGrid for the next drag. No manual call needed.
+    } else {
+      showError(data.error || 'Layout hint failed');
+    }
+  } catch (err) {
+    showError(`Layout hint error: ${err.message}`);
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 (async function init() {
+  dragController = new DragController({
+    container: previewEl,
+    getNodes: () => currentNodes,
+    getGrid: () => currentGrid,
+    onDrop: applyLayoutDrop,
+  });
   await Promise.all([loadExamples(), loadThemes()]);
 })();
