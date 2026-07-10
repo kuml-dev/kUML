@@ -6,6 +6,113 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.29.0] — 2026-07-10
+
+### Added
+
+**`kuml-language-server`: editor-agnostic LSP server (Wave 2–3)**
+
+A new `kuml-language-server` module implements an LSP4J-based Language Server
+Protocol server for kUML, giving any LSP-capable editor real-time diagnostics
+and autocomplete instead of relying solely on CLI round-trips. Diagnostics are
+produced by invoking the kUML CLI as a subprocess and translating its
+validation output into LSP diagnostics with correct document ranges
+(`DiagnosticsRunner`, `RangeMapping`). Completion serves the full 38-item
+`KumlCompletionItems` catalogue via `CompletionMapper`, with per-group
+`CompletionItemKind`s, snippet-style insert text with sequential tab stops,
+and lazily-filled documentation on `completionItem/resolve`. The
+editor-agnostic completion/rename/diagnostics/CLI-locator logic was extracted
+from `kuml-jetbrains-plugin` into a new pure-Kotlin `kuml-lang-support`
+module (no IntelliJ Platform dependency) so the JetBrains plugin and the LSP
+server share one implementation instead of diverging.
+
+**VS Code extension: LSP client + live-preview webview**
+
+The VS Code extension now locates and launches the kUML language server via
+an LSP client, and adds a live-preview webview panel with sanitized SVG
+rendering — editor-integrated diagnostics and completion plus an in-editor
+diagram preview, instead of relying solely on CLI round-trips.
+
+**Interactive OCL guard editing (state-machine transitions)**
+
+Transition guards (OCL boolean expressions) can now be edited live, both
+programmatically and through a dedicated editor widget:
+- `OclSyntax` is a new public facade for editor tooling (syntax highlight,
+  live type-check) that validates an OCL expression against a scope without
+  throwing, returning a structured `OclCheckResult` with position info for
+  diagnostics. `OclParser`'s unbounded recursive-descent entry points now
+  share a recursion-depth guard so pathological input (deeply nested parens
+  or unary/`not` chains) fails cleanly instead of risking a
+  `StackOverflowError` that would bypass the post-parse
+  `MAX_NESTING_DEPTH` check.
+- Transitions can be marked `protected` (`UmlTransition.isProtected`, a new
+  `protected` DSL flag on `TransitionBuilder`), and a new
+  `EditPolicy.guardEditGate(transition)` decision function
+  (`Denied`/`Allowed`/`RequiresConfirmation`) in `kuml-widget-compose` makes
+  protected transitions always demand confirmation before a guard edit is
+  applied, preventing accidental silent edits to explicitly locked guards.
+- `ModelPatch.ChangeGuard` + `applyPatch` (runtime) let a transition's OCL
+  guard be edited on a running `StateMachineInstance` without in-place
+  mutation: the new guard is statically type-checked, protected transitions
+  are gated behind explicit confirmation, and a new `MigrationPolicy.onPatch`
+  structural hook is consulted before atomically rebuilding a fresh instance
+  over the patched model — closing the gap between static model authoring
+  and live runtime edits.
+- `OclGuardEditor` is a new Compose Multiplatform text field with live
+  syntax highlighting for OCL guard expressions (`OclHighlightTransformation`
+  + a dedicated `OclHighlightColors` scheme), wired into `BehaviourWidget`
+  via a `ChangeGuard` bridge so edits flow through `BehaviourWidgetState`
+  into `ModelPatch` application. Covered by new Compose UI robot tests
+  (`ComposeUiTestSupport`, stable `EditorTestTags`) for the guard-editing
+  flows in `OclGuardEditor` and `ControlPanel`.
+
+**`kuml-web`: drag-and-drop node placement for class diagrams (V3.2 Waves 1–4)**
+
+Class-diagram nodes in the web preview pane can now be dragged to a new grid
+position instead of only round-tripping through the DSL editor:
+- `LayoutHintService` + `POST /api/layout/hint` persists a dropped element's
+  grid cell back into the DSL script (`UmlModelDslPrinter` relocated into
+  `kuml-core-dsl` so both the CLI `reverse` command and the web layer share
+  it).
+- `RenderResponse` gained per-node hit-test boxes (`NodeBox`) and an
+  approximate uniform grid (`GridGeometry`), extracted from the same
+  `LayoutResult` used by the SVG renderer, so a client can hit-test nodes and
+  resolve pointer drops to grid cells (`GridCellResolver`) without
+  re-implementing layout math. Grid extraction is currently limited to class
+  diagrams.
+- The web UI preview pane gained a pointer-events-based drag gesture
+  (`DragController`: pointer down/move/up/cancel via event delegation) that
+  maps screen pixels to SVG viewBox user-space, mirrors the server-side
+  `GridCellResolver`, and applies the drop through the existing CodeMirror
+  editor + re-render flow.
+- UX polish: hover/grabbing cursor affordance, an occupied-cell snap-preview
+  highlight, and a distinct auto-dismissing error banner for drag-and-drop
+  placement errors so transient drop errors no longer read as persistent
+  render failures.
+
+**`kuml-web`: ERM diagrams render end-to-end (all four notations)**
+
+`ExtractedDiagram.Erm` is now wired through `WebRenderPipeline` (ELK layout
+via the `Erm`/`ErmChen`/`ErmIdef1x` layout bridges, SVG/PNG output),
+replacing the V3.4.1 stub that hard-errored on every ERM script. The
+`/api/render` request gained an optional notation override
+(`martin`/`bachman`/`chen`/`idef1x`) and `/api/examples` gained an ERM
+example; ERROR-severity constraint violations block the render while
+WARNINGs are ignored, mirroring the CLI's non-blocking treatment.
+
+### Fixed
+
+**ERM: self-loop relationship-name/role label collisions**
+
+Self-referential ERM relationships (e.g. `Category -> Category`) always
+rendered the relationship-name label with `text-anchor="middle"` and pushed
+both role labels the same direction, so on tight self-loop routes the name
+label straddled the entity border and the two role labels converged on it.
+A shared, route/direction-aware `ErmEdgeLabels` helper (with a `perpBias`
+param so self-loop role labels diverge from the shared name label) is now
+used by all three ERM notations (Martin, Bachman, IDEF1X), consolidating
+previously triplicated label-rendering logic.
+
 ## [0.28.0] — 2026-07-09
 
 ### Added
