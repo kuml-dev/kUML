@@ -9,6 +9,7 @@ import com.intellij.openapi.ui.Messages
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.refactoring.rename.RenameHandler
+import dev.kuml.langsupport.rename.KumlRenameExtractor
 
 /**
  * Provides Shift+F6 rename refactoring for DSL element names in `*.kuml.kts` files.

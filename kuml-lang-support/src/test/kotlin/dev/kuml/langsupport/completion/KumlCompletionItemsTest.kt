@@ -1,4 +1,4 @@
-package dev.kuml.jetbrains.completion
+package dev.kuml.langsupport.completion
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.booleans.shouldBeTrue

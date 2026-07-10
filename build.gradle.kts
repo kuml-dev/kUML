@@ -74,6 +74,9 @@ val nonPublishedModules =
         // (Gradle Plugin Portal, JetBrains Marketplace, VS Code Marketplace).
         "kuml-gradle-plugin",
         "kuml-jetbrains-plugin",
+        // Wave 1 — shared editor brain (completion/rename/diagnostics/CLI locator),
+        // rides the monorepo version but has no independent release cadence yet.
+        "kuml-lang-support",
         // Aggregator parent projects with no JAR of their own — leaf names.
         "kuml-gradle",
         "kuml-jetbrains",

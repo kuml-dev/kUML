@@ -1,17 +1,18 @@
-package dev.kuml.jetbrains.completion
+package dev.kuml.langsupport.completion
 
 /**
  * Pure-Kotlin catalogue of all kUML DSL completion items.
  *
  * No IntelliJ Platform dependency — fully testable in plain Kotest.
- * [KumlCompletionContributor] consumes [ALL] to build [com.intellij.codeInsight.lookup.LookupElement]s.
+ * `KumlCompletionContributor` (in the kuml-jetbrains module) consumes [ALL] to
+ * build `com.intellij.codeInsight.lookup.LookupElement`s.
  *
  * V2.0.41
  */
-object KumlCompletionItems {
-    enum class Group { ENTRY, UML, SYSML2, C4, SHARED }
+public object KumlCompletionItems {
+    public enum class Group { ENTRY, UML, SYSML2, C4, SHARED }
 
-    data class Item(
+    public data class Item(
         val name: String,
         val insertText: String,
         val tail: String,
@@ -19,7 +20,7 @@ object KumlCompletionItems {
         val group: Group,
     )
 
-    val ALL: List<Item> =
+    public val ALL: List<Item> =
         listOf(
             // ENTRY
             Item("umlModel", "umlModel {\n    \n}", " { … }", "Top-Level UML model container", Group.ENTRY),
@@ -78,7 +79,7 @@ object KumlCompletionItems {
             Item("literal", "literal(\"\")", "(value: String)", "Enum literal", Group.SHARED),
         )
 
-    fun byName(name: String): Item? = ALL.firstOrNull { it.name == name }
+    public fun byName(name: String): Item? = ALL.firstOrNull { it.name == name }
 
-    fun startingWith(prefix: String): List<Item> = ALL.filter { it.name.startsWith(prefix, ignoreCase = true) }
+    public fun startingWith(prefix: String): List<Item> = ALL.filter { it.name.startsWith(prefix, ignoreCase = true) }
 }

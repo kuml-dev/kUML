@@ -56,6 +56,9 @@ listOf("compileClasspath", "runtimeClasspath", "testCompileClasspath", "testRunt
 }
 
 dependencies {
+    // Shared editor-agnostic "brain" (completion catalogue, rename extractor,
+    // diagnostics TSV parser, CLI locator) — pure Kotlin, no IntelliJ dep.
+    implementation(project(":kuml-lang-support"))
     // kUML-Module, die wir in den Plugin-Classpath bundeln:
     // Die `KumlScript`-Template-Klasse (inkl. ihrer @KotlinScript-Annotation und
     // `KumlScriptCompilationConfiguration`) ist das Herzstück — IntelliJs Kotlin-

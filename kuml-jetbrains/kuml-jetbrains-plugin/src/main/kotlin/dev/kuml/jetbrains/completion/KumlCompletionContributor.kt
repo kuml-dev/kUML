@@ -6,6 +6,7 @@ import com.intellij.codeInsight.completion.CompletionResultSet
 import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.codeInsight.completion.InsertionContext
 import com.intellij.codeInsight.lookup.LookupElementBuilder
+import dev.kuml.langsupport.completion.KumlCompletionItems
 
 /**
  * Provides kUML DSL completions in `*.kuml.kts` files.

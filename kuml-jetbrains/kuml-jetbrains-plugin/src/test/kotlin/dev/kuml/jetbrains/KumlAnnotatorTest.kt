@@ -1,5 +1,6 @@
 package dev.kuml.jetbrains
 
+import dev.kuml.langsupport.diagnostics.KumlDiagnostic
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
 
@@ -19,10 +20,10 @@ class KumlAnnotatorTest :
         }
 
         "KumlDiagnostic has correct fields" {
-            val d = KumlDiagnostic("test error", 3, 5, KumlDiagnostic.DiagnosticSeverity.ERROR)
+            val d = KumlDiagnostic("test error", 3, 5, 3, 5, KumlDiagnostic.Severity.ERROR)
             d.message shouldBe "test error"
-            d.line shouldBe 3
-            d.column shouldBe 5
-            d.severity shouldBe KumlDiagnostic.DiagnosticSeverity.ERROR
+            d.startLine shouldBe 3
+            d.startCol shouldBe 5
+            d.severity shouldBe KumlDiagnostic.Severity.ERROR
         }
     })

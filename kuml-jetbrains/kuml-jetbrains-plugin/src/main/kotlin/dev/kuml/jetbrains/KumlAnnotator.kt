@@ -6,6 +6,7 @@ import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiFile
+import dev.kuml.langsupport.diagnostics.KumlDiagnostic
 
 /**
  * Validates `.kuml.kts` files in a background thread and reports compilation
@@ -70,7 +71,7 @@ class KumlAnnotator : ExternalAnnotator<KumlAnnotator.Info, List<KumlDiagnostic>
         val text = file.text
 
         for (diag in diagnostics) {
-            val offset = lineColToOffset(text, diag.line, diag.column)
+            val offset = lineColToOffset(text, diag.startLine, diag.startCol)
             val range =
                 if (offset >= 0) {
                     val end =
@@ -84,9 +85,9 @@ class KumlAnnotator : ExternalAnnotator<KumlAnnotator.Info, List<KumlDiagnostic>
 
             val severity =
                 when (diag.severity) {
-                    KumlDiagnostic.DiagnosticSeverity.ERROR -> HighlightSeverity.ERROR
-                    KumlDiagnostic.DiagnosticSeverity.WARNING -> HighlightSeverity.WARNING
-                    KumlDiagnostic.DiagnosticSeverity.INFO -> HighlightSeverity.INFORMATION
+                    KumlDiagnostic.Severity.ERROR -> HighlightSeverity.ERROR
+                    KumlDiagnostic.Severity.WARNING -> HighlightSeverity.WARNING
+                    KumlDiagnostic.Severity.INFO -> HighlightSeverity.INFORMATION
                 }
 
             val builder = holder.newAnnotation(severity, diag.message).range(range)

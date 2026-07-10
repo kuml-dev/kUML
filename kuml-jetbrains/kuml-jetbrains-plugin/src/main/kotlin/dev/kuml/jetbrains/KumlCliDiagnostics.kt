@@ -1,5 +1,7 @@
 package dev.kuml.jetbrains
 
+import dev.kuml.langsupport.diagnostics.KumlDiagnostic
+import dev.kuml.langsupport.diagnostics.KumlDiagnosticTsvParser
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -67,7 +69,7 @@ internal object KumlCliDiagnostics {
             }
             drainer.join(1000)
 
-            parse(stdout.toString())
+            KumlDiagnosticTsvParser.parse(stdout.toString())
         } catch (_: Throwable) {
             emptyList()
         } finally {
@@ -75,26 +77,4 @@ internal object KumlCliDiagnostics {
             tmpDir.delete()
         }
     }
-
-    /** Parse the TSV emitted by `kuml diagnostics` (see DiagnosticsCommand). */
-    internal fun parse(output: String): List<KumlDiagnostic> =
-        output
-            .lineSequence()
-            .map { it.trimEnd('\r') }
-            .filter { it.isNotBlank() }
-            .mapNotNull { line ->
-                val f = line.split('\t', limit = 6)
-                if (f.size < 6) return@mapNotNull null
-                KumlDiagnostic(
-                    message = f[5],
-                    line = f[1].toIntOrNull() ?: 1,
-                    column = f[2].toIntOrNull() ?: 1,
-                    severity =
-                        when (f[0].uppercase()) {
-                            "ERROR", "FATAL" -> KumlDiagnostic.DiagnosticSeverity.ERROR
-                            "WARNING" -> KumlDiagnostic.DiagnosticSeverity.WARNING
-                            else -> KumlDiagnostic.DiagnosticSeverity.INFO
-                        },
-                )
-            }.toList()
 }

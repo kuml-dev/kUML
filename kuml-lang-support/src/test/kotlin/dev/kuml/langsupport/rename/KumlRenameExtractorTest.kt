@@ -1,4 +1,4 @@
-package dev.kuml.jetbrains.rename
+package dev.kuml.langsupport.rename
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty

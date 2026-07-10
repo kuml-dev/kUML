@@ -4,6 +4,7 @@ import com.intellij.codeInsight.intention.IntentionAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiFile
+import dev.kuml.langsupport.diagnostics.KumlDiagnostic
 
 /**
  * Maps [KumlDiagnostic] messages to [IntentionAction] quick fixes.
@@ -20,7 +21,7 @@ object KumlQuickFixFactory {
                 RemoveUnknownParameterFix(diag.message)
             diag.message.contains("Unresolved reference") ->
                 RenameToKnownFunctionFix(diag.message)
-            diag.severity == KumlDiagnostic.DiagnosticSeverity.WARNING ->
+            diag.severity == KumlDiagnostic.Severity.WARNING ->
                 SuppressWarningFix(diag.message)
             else -> null
         }

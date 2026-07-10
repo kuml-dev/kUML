@@ -1,11 +1,12 @@
-package dev.kuml.jetbrains.rename
+package dev.kuml.langsupport.rename
 
 /**
  * Pure-Kotlin helper that locates all rename candidates for a given DSL element name
  * inside a `.kuml.kts` script text.
  *
  * No IntelliJ Platform dependency — fully testable in plain Kotest.
- * [KumlRenameHandler] delegates to this object for the analysis step.
+ * `KumlRenameHandler` (in the kuml-jetbrains module) delegates to this object
+ * for the analysis step.
  *
  * ## Algorithm
  *
@@ -22,19 +23,19 @@ package dev.kuml.jetbrains.rename
  *
  * V2.0.41
  */
-object KumlRenameExtractor {
-    enum class Kind { STRING_LITERAL, VARIABLE_REF }
+public object KumlRenameExtractor {
+    public enum class Kind { STRING_LITERAL, VARIABLE_REF }
 
-    data class Candidate(
+    public data class Candidate(
         val offset: Int,
         val length: Int,
         val kind: Kind,
     ) {
-        val endOffset: Int get() = offset + length
-        val range: IntRange get() = offset until endOffset
+        public val endOffset: Int get() = offset + length
+        public val range: IntRange get() = offset until endOffset
     }
 
-    fun findRenameCandidates(
+    public fun findRenameCandidates(
         text: String,
         name: String,
     ): List<Candidate> {
