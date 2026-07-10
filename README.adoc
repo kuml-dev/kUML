@@ -705,9 +705,13 @@ kuml-mcp/              ✅  MCP server — stdio JSON-RPC 2.0
 
 kuml-web/              ✅  Browser-based editing environment (V2.0.34)
                            Ktor/Netty HTTP + CodeMirror 6 SPA + SVG/PNG/LaTeX REST API
+                           Drag-and-drop node placement for class diagrams (v0.29.0)
+                           ERM diagrams end-to-end, all four notations (v0.29.0)
 
 kuml-widget/
   kuml-widget-compose  ✅  Executable behaviour widget (Compose Multiplatform, V2.0.43)
+                           OclGuardEditor: interactive, syntax-highlighted OCL guard
+                           editing with protected-transition confirmation gate (v0.29.0)
 
 kuml-desktop/          ✅  Compose Desktop app (V3.0.10–14)
                            Editor (RSyntaxTextArea) + Live preview (JSVGCanvas/Batik)
@@ -744,8 +748,15 @@ kuml-gradle/           ✅  Gradle plugin (plugin ID: dev.kuml)
 kuml-jetbrains/        ✅  JetBrains IDE plugin (IntelliJ IDEA 2024.3+)
                            Annotator + 4 quick fixes, live SVG preview, structure view, code folding
 
+kuml-lang-support/     ✅  Editor-agnostic completion/rename/diagnostics/CLI-locator
+                           logic, shared by kuml-jetbrains and kuml-language-server (v0.29.0)
+
+kuml-language-server/  ✅  LSP4J-based Language Server: diagnostics via CLI subprocess,
+                           full 38-item DSL completion catalogue (v0.29.0)
+
 kuml-vscode-plugin/    ✅  VS Code extension
                            TextMate grammar + DSL snippets + kUML: Render to SVG
+                           LSP client + live-preview webview (v0.29.0)
 
 kuml-llm/
   kuml-llm-core        ✅  LlmBackend interface

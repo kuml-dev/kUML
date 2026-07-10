@@ -137,3 +137,9 @@ hs_err_pid*.log
 
 # GCR benchmark: raw daily-resume log (noisy, not a result artifact)
 research/gcr-benchmark/results/*/daily-run.log
+
+# GCR benchmark: per-run console logs (noisy, not a result artifact — final
+# per-cell status is already captured in raw-results*.json; the scoring
+# scripts never read these). Covers full-run.log, full-run-2.log,
+# full-run-billing.log, full-run-sample{2,3}.log, etc.
+research/gcr-benchmark/results/*/full-run*.log
