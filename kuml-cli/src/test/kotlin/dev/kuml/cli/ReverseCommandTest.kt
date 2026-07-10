@@ -27,7 +27,7 @@ class ReverseCommandTest :
             val result = KumlCli().test(listOf("reverse", tmp.toString()))
             result.statusCode shouldBe 0
             result.stdout shouldContain "classDiagram"
-            result.stdout shouldContain "class(name = \"A\""
+            result.stdout shouldContain "classOf(name = \"A\""
             result.stdout shouldContain "'java' engine"
         }
 
@@ -41,7 +41,7 @@ class ReverseCommandTest :
             val result = KumlCli().test(listOf("reverse", tmp.toString()))
             result.statusCode shouldBe 0
             result.stdout shouldContain "'kotlin' engine"
-            result.stdout shouldContain "class(name = \"A\""
+            result.stdout shouldContain "classOf(name = \"A\""
         }
 
         test("--lang kotlin overrides auto-detection") {
@@ -79,7 +79,7 @@ class ReverseCommandTest :
             outFile.exists() shouldBe true
             val text = outFile.readText()
             text shouldContain "classDiagram"
-            text shouldContain "class(name = \"Foo\""
+            text shouldContain "classOf(name = \"Foo\""
         }
 
         test("missing source-dir without --list-engines exits with SCRIPT_ERROR") {

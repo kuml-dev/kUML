@@ -8,10 +8,10 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
-import dev.kuml.cli.reverse.UmlModelDslPrinter
 import dev.kuml.cli.structurizr.KumlDslGenerator
 import dev.kuml.cli.structurizr.StructurizrDslParser
 import dev.kuml.core.model.KumlModel
+import dev.kuml.uml.dsl.print.UmlModelDslPrinter
 import java.io.File
 import java.io.IOException
 

@@ -14,7 +14,6 @@ import com.github.ajalt.clikt.parameters.types.path
 import dev.kuml.cli.reverse.ArxmlModelMerge
 import dev.kuml.cli.reverse.ArxmlPackageDslPrinter
 import dev.kuml.cli.reverse.ErmModelDslPrinter
-import dev.kuml.cli.reverse.UmlModelDslPrinter
 import dev.kuml.codegen.reverse.ReverseDiagnostic
 import dev.kuml.codegen.reverse.ReverseRequest
 import dev.kuml.codegen.reverse.ReverseResult
@@ -22,6 +21,7 @@ import dev.kuml.codegen.reverse.erm.ErmReverseResult
 import dev.kuml.codegen.reverse.erm.registry.ErmReverseEngineRegistry
 import dev.kuml.codegen.reverse.registry.ReverseEngineRegistry
 import dev.kuml.core.model.KumlModel
+import dev.kuml.uml.dsl.print.UmlModelDslPrinter
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Files

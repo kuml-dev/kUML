@@ -1,7 +1,7 @@
 package dev.kuml.desktop.ai
 
 import dev.kuml.ai.tools.context.AnyKumlModel
-import dev.kuml.cli.reverse.UmlModelDslPrinter
+import dev.kuml.uml.dsl.print.UmlModelDslPrinter
 
 /**
  * Converts an [AnyKumlModel] to a *.kuml.kts DSL string suitable for the editor.

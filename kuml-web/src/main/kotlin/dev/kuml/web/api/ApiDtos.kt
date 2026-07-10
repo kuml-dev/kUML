@@ -46,3 +46,30 @@ data class HealthResponse(
     val status: String,
     val version: String,
 )
+
+/**
+ * Request body for `POST /api/layout/hint` — a drag-and-drop grid placement
+ * for a single element in a UML class-diagram script.
+ */
+@Serializable
+data class LayoutHintRequest(
+    val script: String,
+    val elementId: String,
+    val col: Int,
+    val row: Int,
+)
+
+/**
+ * Response body for `POST /api/layout/hint`.
+ *
+ * On success, [script] carries the re-parseable `.kuml.kts` source with the
+ * new grid hint applied — the client re-renders from this script. On
+ * failure, [error] carries a human-readable reason (unknown element,
+ * relationship target, occupied cell, non-UML-class-diagram script, …).
+ */
+@Serializable
+data class LayoutHintResponse(
+    val ok: Boolean,
+    val script: String? = null,
+    val error: String? = null,
+)
