@@ -3,9 +3,11 @@ package dev.kuml.lsp
 import org.eclipse.lsp4j.CompletionOptions
 import org.eclipse.lsp4j.InitializeParams
 import org.eclipse.lsp4j.InitializeResult
+import org.eclipse.lsp4j.SaveOptions
 import org.eclipse.lsp4j.ServerCapabilities
 import org.eclipse.lsp4j.ServerInfo
 import org.eclipse.lsp4j.TextDocumentSyncKind
+import org.eclipse.lsp4j.TextDocumentSyncOptions
 import org.eclipse.lsp4j.services.LanguageClient
 import org.eclipse.lsp4j.services.LanguageClientAware
 import org.eclipse.lsp4j.services.LanguageServer
@@ -20,8 +22,11 @@ class KumlLanguageServer :
     var client: LanguageClient? = null
         private set
 
-    private val textDocumentService = KumlTextDocumentService(this)
-    private val workspaceService = KumlWorkspaceService()
+    /** Shared, thread-safe settings holder — single source of truth for both services. */
+    val config = ServerConfig()
+
+    private val textDocumentService = KumlTextDocumentService(this, config)
+    private val workspaceService = KumlWorkspaceService(config, textDocumentService)
 
     override fun connect(client: LanguageClient) {
         this.client = client
@@ -30,8 +35,15 @@ class KumlLanguageServer :
     override fun initialize(params: InitializeParams): CompletableFuture<InitializeResult> {
         val capabilities =
             ServerCapabilities().apply {
-                // Full sync: didChange delivers the entire document text.
-                setTextDocumentSync(TextDocumentSyncKind.Full)
+                // Full sync: didChange delivers the entire document text. Also
+                // request didSave notifications (Wave 3: save re-triggers validation).
+                setTextDocumentSync(
+                    TextDocumentSyncOptions().apply {
+                        openClose = true
+                        change = TextDocumentSyncKind.Full
+                        setSave(SaveOptions(false))
+                    },
+                )
                 // Completion advertised now; handler is a Wave 2 stub.
                 completionProvider = CompletionOptions(false, listOf(".", " "))
                 // NOTE: push diagnostics need no capability entry (no diagnosticProvider).

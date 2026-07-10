@@ -29,7 +29,7 @@ import java.util.concurrent.TimeUnit
 class KumlLanguageServerBootTest :
     StringSpec({
 
-        "initialize advertises full sync + completion with '.'/' ' triggers and serverInfo name" {
+        "initialize advertises full sync + save + completion with '.'/' ' triggers and serverInfo name" {
             // clientOut -> serverIn ; serverOut -> clientIn
             val serverIn = PipedInputStream()
             val clientOut = PipedOutputStream(serverIn)
@@ -50,8 +50,13 @@ class KumlLanguageServerBootTest :
                 val result = remote.initialize(InitializeParams()).get(10, TimeUnit.SECONDS)
                 val caps = result.capabilities
 
-                // textDocumentSync: setTextDocumentSync(kind) stores it as the Left of the Either.
-                caps.textDocumentSync.left shouldBe TextDocumentSyncKind.Full
+                // Wave 3: full TextDocumentSyncOptions (Right of the Either), not a
+                // bare TextDocumentSyncKind — save must be requested so didSave fires.
+                val syncOptions = caps.textDocumentSync.right
+                syncOptions.shouldNotBeNull()
+                syncOptions.openClose shouldBe true
+                syncOptions.change shouldBe TextDocumentSyncKind.Full
+                syncOptions.save.right.includeText shouldBe false
                 caps.completionProvider.shouldNotBeNull()
                 caps.completionProvider.triggerCharacters shouldContainExactly listOf(".", " ")
                 result.serverInfo?.name shouldBe "kuml-lsp"

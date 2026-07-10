@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
  * submit. Used to coalesce rapid didChange bursts into a single validation run.
  */
 class Debouncer(
-    private val delayMs: Long,
+    @Volatile var delayMs: Long,
 ) : AutoCloseable {
     private val scheduler =
         Executors.newSingleThreadScheduledExecutor { r ->
