@@ -18,9 +18,11 @@ every provider script that imports this module, which is what keeps the
 cross-model comparison fair.
 """
 import concurrent.futures
+import datetime
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -230,6 +232,52 @@ def strip_fences(text):
 def run(cmd, cwd):
     p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=60)
     return p.returncode, (p.stdout or "") + (p.stderr or "")
+
+
+def get_kuml_version():
+    """Best-effort `kuml --version` capture for reproducibility bookkeeping.
+
+    The original single-sample benchmark run (2026-07-06) never recorded which
+    kuml build/PATH resolution produced its results, which made an exact-version
+    replication for the 3-samples-per-cell study impossible to verify after the
+    fact (only reconstructable from Homebrew-tap timestamps). This function
+    exists so every subsequent run leaves a verifiable trail. Never raises: an
+    unavailable or misbehaving `kuml` just yields an explanatory string instead
+    of failing the whole benchmark run.
+    """
+    kuml_path = shutil.which("kuml")
+    if not kuml_path:
+        return {"kuml_path": None, "kuml_version": "kuml not found on $PATH"}
+    try:
+        p = subprocess.run(["kuml", "--version"], capture_output=True, text=True, timeout=10)
+        # Prefer stdout (the actual version line); JVM native-access warnings
+        # land on stderr and would otherwise pollute the recorded string.
+        version_str = (p.stdout or "").strip() or ((p.stdout or "") + (p.stderr or "")).strip()
+    except Exception as e:
+        version_str = f"kuml --version failed: {e}"
+    return {"kuml_path": kuml_path, "kuml_version": version_str}
+
+
+def record_run_metadata(out_path):
+    """Appends a {kuml_path, kuml_version, recorded_at} snapshot to
+    "<out_path-without-ext>.meta.json" every time a run starts (including
+    resumes), so later samples/replications can check whether the same
+    renderer/compiler build produced this run. See Paper 3, Threats to
+    Validity, "One sample per cell" / version-drift discussion."""
+    meta_path = os.path.splitext(out_path)[0] + ".meta.json"
+    entries = []
+    if os.path.exists(meta_path):
+        try:
+            entries = json.load(open(meta_path))
+        except Exception:
+            entries = []
+    entry = get_kuml_version()
+    entry["recorded_at"] = datetime.datetime.now().isoformat(timespec="seconds")
+    entries.append(entry)
+    os.makedirs(os.path.dirname(meta_path) or ".", exist_ok=True)
+    with open(meta_path, "w") as f:
+        json.dump(entries, f, indent=2)
+    print(f"kuml version recorded: {entry['kuml_version']} -> {meta_path}", file=sys.stderr)
 
 
 def type_suffix(t):
@@ -485,6 +533,7 @@ def run_benchmark(call_fn, quota_exc_type, model, out_path, workers=3, limit=Non
     all_cells = [(t, dsl) for t in tasks for dsl in ("kuml", "plantuml", "mermaid")]
 
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    record_run_metadata(out_path)
 
     results = []
     if os.path.exists(out_path):
