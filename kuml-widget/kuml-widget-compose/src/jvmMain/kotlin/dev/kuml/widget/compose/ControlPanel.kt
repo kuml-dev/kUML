@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.kuml.runtime.defaultGuardScope
@@ -160,7 +161,7 @@ private fun TransitionsSection(state: BehaviourWidgetState) {
             Text(lastError.orEmpty(), fontSize = 12.sp)
         }
     } else {
-        Text("Transitions:", fontSize = 13.sp)
+        Text("Transitions:", fontSize = 13.sp, modifier = Modifier.testTag(EditorTestTags.TRANSITIONS_SECTION))
         Spacer(modifier = Modifier.height(4.dp))
         if (state.isScrubbing) {
             Text("(return to live to edit guards)", fontSize = 12.sp)
@@ -173,6 +174,7 @@ private fun TransitionsSection(state: BehaviourWidgetState) {
             TextButton(
                 onClick = { if (!state.isScrubbing && gate != GuardEditGate.Denied) editing = transition },
                 enabled = !state.isScrubbing && gate != GuardEditGate.Denied,
+                modifier = Modifier.testTag(EditorTestTags.transitionRow(transition.id)),
             ) {
                 Text(label, fontSize = 12.sp)
             }
@@ -183,7 +185,12 @@ private fun TransitionsSection(state: BehaviourWidgetState) {
     if (toConfirm != null) {
         AlertDialog(
             onDismissRequest = { pendingConfirm = null },
-            title = { Text("Edit protected transition?") },
+            title = {
+                Text(
+                    "Edit protected transition?",
+                    modifier = Modifier.testTag(EditorTestTags.CONFIRM_DIALOG_TITLE),
+                )
+            },
             text = {
                 Text("Transition '${toConfirm.transitionId}' is protected. Confirm to change its guard.")
             },
@@ -193,10 +200,14 @@ private fun TransitionsSection(state: BehaviourWidgetState) {
                         apply(toConfirm.transitionId, toConfirm.newOcl, confirmed = true)
                         pendingConfirm = null
                     },
+                    modifier = Modifier.testTag(EditorTestTags.CONFIRM_APPLY),
                 ) { Text("Confirm") }
             },
             dismissButton = {
-                TextButton(onClick = { pendingConfirm = null }) { Text("Cancel") }
+                TextButton(
+                    onClick = { pendingConfirm = null },
+                    modifier = Modifier.testTag(EditorTestTags.CONFIRM_CANCEL),
+                ) { Text("Cancel") }
             },
         )
     }

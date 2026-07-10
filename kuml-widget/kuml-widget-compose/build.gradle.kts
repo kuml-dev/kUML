@@ -44,6 +44,9 @@ kotlin {
             dependencies {
                 implementation(libs.kotest.runner.junit5)
                 implementation(libs.kotest.assertions.core)
+                // runComposeUiTest + onNode* matchers (desktop actual); driven with
+                // kotest, not the JUnit4 rule, so no test-framework change.
+                implementation(libs.compose.ui.test.junit4)
             }
         }
     }
@@ -55,4 +58,9 @@ compose.desktop {
     }
 }
 
-tasks.withType<Test>().configureEach { useJUnitPlatform() }
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+    // Off-screen Skia scene for Compose UI tests — no display needed, because
+    // only ControlPanel/OclGuardEditor (no SwingPanel/Batik) are hosted in tests.
+    systemProperty("java.awt.headless", "true")
+}

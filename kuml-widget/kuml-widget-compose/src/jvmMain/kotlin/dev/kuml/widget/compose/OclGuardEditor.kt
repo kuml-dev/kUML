@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -80,19 +81,24 @@ internal fun OclGuardEditor(
             singleLine = true,
             isError = error != null,
             visualTransformation = transformation,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().testTag(EditorTestTags.GUARD_INPUT),
         )
         Spacer(Modifier.height(4.dp))
         Text(
             text = error?.message ?: " ",
             color = colors.errorText,
             fontSize = 12.sp,
+            modifier = Modifier.testTag(EditorTestTags.GUARD_ERROR),
         )
         Spacer(Modifier.height(8.dp))
         Row {
-            Button(onClick = { onSave(value.text) }, enabled = guardSaveEnabled(check)) { Text("Save") }
+            Button(
+                onClick = { onSave(value.text) },
+                enabled = guardSaveEnabled(check),
+                modifier = Modifier.testTag(EditorTestTags.GUARD_SAVE),
+            ) { Text("Save") }
             Spacer(Modifier.width(8.dp))
-            Button(onClick = onCancel) { Text("Cancel") }
+            Button(onClick = onCancel, modifier = Modifier.testTag(EditorTestTags.GUARD_CANCEL)) { Text("Cancel") }
         }
     }
 }
