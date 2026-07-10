@@ -3,10 +3,12 @@ package dev.kuml.uml.dsl
 import dev.kuml.core.dsl.KumlDsl
 import dev.kuml.core.dsl.layout.LayoutHintsBuilder
 import dev.kuml.core.dsl.layout.LayoutHintsScope
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.profile.KumlStereotypeApplication
 import dev.kuml.profile.UmlMetaclass
 import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.PseudostateKind
+import dev.kuml.uml.TransitionMetadataKeys
 import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlPseudostate
 import dev.kuml.uml.UmlState
@@ -338,6 +340,8 @@ fun UmlStateMachineScope.transitionByIds(
     takenIds += resolvedId
     val containerScope = this as? UmlContainerScope
     val body = TransitionBuilder(containerScope = containerScope).apply(block)
+    val metadata: Map<String, KumlMetaValue> =
+        if (body.protected) mapOf(TransitionMetadataKeys.PROTECTED to KumlMetaValue.Flag(true)) else emptyMap()
     val t =
         UmlTransition(
             id = resolvedId,
@@ -346,6 +350,7 @@ fun UmlStateMachineScope.transitionByIds(
             trigger = body.trigger,
             guard = body.guard,
             effect = body.effect,
+            metadata = metadata,
             appliedStereotypes = body.appliedStereotypeList.toList<AppliedStereotype>(),
         )
     addTransition(t)
@@ -359,6 +364,9 @@ class TransitionBuilder internal constructor(
     var trigger: String? = null
     var guard: String? = null
     var effect: String? = null
+
+    /** When true, marks the transition protected (guard edits need confirmation in widgets). */
+    var protected: Boolean = false
 
     override val metaclass: UmlMetaclass = UmlMetaclass.Transition
 
