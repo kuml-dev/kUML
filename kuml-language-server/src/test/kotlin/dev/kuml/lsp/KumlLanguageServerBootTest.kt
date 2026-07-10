@@ -59,6 +59,7 @@ class KumlLanguageServerBootTest :
                 syncOptions.save.right.includeText shouldBe false
                 caps.completionProvider.shouldNotBeNull()
                 caps.completionProvider.triggerCharacters shouldContainExactly listOf(".", " ")
+                caps.completionProvider.resolveProvider shouldBe true
                 result.serverInfo?.name shouldBe "kuml-lsp"
 
                 remote.initialized(InitializedParams())

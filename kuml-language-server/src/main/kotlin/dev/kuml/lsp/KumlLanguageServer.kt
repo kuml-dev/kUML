@@ -44,8 +44,10 @@ class KumlLanguageServer :
                         setSave(SaveOptions(false))
                     },
                 )
-                // Completion advertised now; handler is a Wave 2 stub.
-                completionProvider = CompletionOptions(false, listOf(".", " "))
+                // Completion + resolve are live (Wave 4): the full 38-item
+                // KumlCompletionItems catalogue on `textDocument/completion`,
+                // documentation filled lazily on `completionItem/resolve`.
+                completionProvider = CompletionOptions(true, listOf(".", " "))
                 // NOTE: push diagnostics need no capability entry (no diagnosticProvider).
             }
         val info = ServerInfo("kuml-lsp", serverVersion())

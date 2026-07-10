@@ -1,6 +1,7 @@
 package dev.kuml.lsp
 
 import dev.kuml.langsupport.cli.KumlCliLocator
+import dev.kuml.langsupport.completion.KumlCompletionItems
 import dev.kuml.langsupport.diagnostics.KumlDiagnostic
 import org.eclipse.lsp4j.CompletionItem
 import org.eclipse.lsp4j.CompletionList
@@ -74,10 +75,16 @@ class KumlTextDocumentService(
         scheduleValidation(params.textDocument.uri)
     }
 
-    override fun completion(params: CompletionParams): CompletableFuture<Either<MutableList<CompletionItem>, CompletionList>> =
-        // Wave 4 wires KumlCompletionItems; this wave advertises the capability
-        // but returns an empty, non-incomplete list.
-        CompletableFuture.completedFuture(Either.forLeft(mutableListOf()))
+    override fun completion(params: CompletionParams): CompletableFuture<Either<MutableList<CompletionItem>, CompletionList>> {
+        // Context-free static catalogue: return every item, complete (isIncomplete=false),
+        // and let the client filter by the typed prefix. Server-side prefix filtering is
+        // intentionally omitted (would need isIncomplete=true to stay correct as the user types).
+        val items = KumlCompletionItems.ALL.map { CompletionMapper.toLsp(it) }.toMutableList()
+        return CompletableFuture.completedFuture(Either.forRight(CompletionList(false, items)))
+    }
+
+    override fun resolveCompletionItem(unresolved: CompletionItem): CompletableFuture<CompletionItem> =
+        CompletableFuture.completedFuture(CompletionMapper.resolve(unresolved))
 
     /** Debounced entry point: coalesces rapid didChange/didSave bursts into one CLI run. */
     private fun scheduleValidation(uri: String) {

@@ -2,16 +2,23 @@ package dev.kuml.lsp
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldBeEmpty
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.nulls.shouldBeNull
+import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.string.shouldContain
+import org.eclipse.lsp4j.CompletionItem
+import org.eclipse.lsp4j.CompletionParams
 import org.eclipse.lsp4j.DiagnosticSeverity
 import org.eclipse.lsp4j.DidChangeTextDocumentParams
 import org.eclipse.lsp4j.DidCloseTextDocumentParams
 import org.eclipse.lsp4j.DidOpenTextDocumentParams
 import org.eclipse.lsp4j.DidSaveTextDocumentParams
+import org.eclipse.lsp4j.InsertTextFormat
 import org.eclipse.lsp4j.MessageActionItem
 import org.eclipse.lsp4j.MessageParams
 import org.eclipse.lsp4j.MessageType
+import org.eclipse.lsp4j.Position
 import org.eclipse.lsp4j.PublishDiagnosticsParams
 import org.eclipse.lsp4j.ShowMessageRequestParams
 import org.eclipse.lsp4j.TextDocumentContentChangeEvent
@@ -201,6 +208,49 @@ class KumlTextDocumentServiceTest :
             } finally {
                 service.close()
                 stub.parentFile.deleteRecursively()
+            }
+        }
+
+        test("completion returns all 38 mapped items, complete") {
+            val server = KumlLanguageServer()
+            val client = RecordingClient()
+            server.connect(client)
+            val service = server.getTextDocumentService() as KumlTextDocumentService
+            try {
+                val uri = "file:///completion.kuml.kts"
+                val result =
+                    service
+                        .completion(CompletionParams(TextDocumentIdentifier(uri), Position(0, 0)))
+                        .get(10, TimeUnit.SECONDS)
+
+                result.isLeft shouldBe false
+                val list = result.right
+                list.shouldNotBeNull()
+                list.isIncomplete shouldBe false
+                list.items shouldHaveSize 38
+
+                val umlModel = list.items.first { it.label == "umlModel" }
+                umlModel.insertTextFormat shouldBe InsertTextFormat.Snippet
+                umlModel.insertText shouldContain "\$1"
+            } finally {
+                service.close()
+            }
+        }
+
+        test("resolveCompletionItem fills documentation") {
+            val server = KumlLanguageServer()
+            val client = RecordingClient()
+            server.connect(client)
+            val service = server.getTextDocumentService() as KumlTextDocumentService
+            try {
+                val resolved = service.resolveCompletionItem(CompletionItem("partDef")).get(10, TimeUnit.SECONDS)
+
+                val doc = resolved.documentation
+                doc.shouldNotBeNull()
+                doc.right.shouldNotBeNull()
+                doc.right.value shouldContain "SysML 2 part definition"
+            } finally {
+                service.close()
             }
         }
     })
