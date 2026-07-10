@@ -57,6 +57,24 @@ class WebRenderPipelineTest :
             }
             """.trimIndent()
 
+        val ermScript =
+            """
+            ermModel("Blog") {
+                val author =
+                    entity("Author") {
+                        id()
+                        attribute(name = "name", type = ErmDataType.Varchar(120), nullable = false)
+                    }
+                val post =
+                    entity("Post") {
+                        id()
+                        foreignKey(name = "author_id", references = author, nullable = false)
+                        attribute(name = "title", type = ErmDataType.Varchar(255), nullable = false)
+                    }
+                relationship(from = author, to = post, name = "writes")
+            }
+            """.trimIndent()
+
         val invalidScript = "this is not valid kUML @@@ !!!"
 
         test("UML class script renders to SVG containing <svg tag") {
@@ -91,5 +109,50 @@ class WebRenderPipelineTest :
             val result = WebRenderPipeline.render(sysml2Script, "svg", null, null)
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
             result.svg shouldContain "<svg"
+        }
+
+        test("ERM script renders to SVG containing <svg tag") {
+            val result = WebRenderPipeline.render(ermScript, "svg", null, null)
+            result.shouldBeInstanceOf<WebRenderResult.Svg>()
+            result.svg shouldContain "<svg"
+        }
+
+        test("ERM script renders to PNG with correct magic bytes") {
+            val result = WebRenderPipeline.render(ermScript, "png", null, null)
+            val bytes = result.shouldBeInstanceOf<WebRenderResult.Png>().pngBytes
+            bytes[0] shouldBe 0x89.toByte()
+            bytes[1] shouldBe 0x50.toByte()
+            bytes[2] shouldBe 0x4E.toByte()
+            bytes[3] shouldBe 0x47.toByte()
+        }
+
+        test("ERM notation override to CHEN renders to SVG") {
+            val result = WebRenderPipeline.render(ermScript, "svg", null, null, notation = "chen")
+            result.shouldBeInstanceOf<WebRenderResult.Svg>()
+            result.svg shouldContain "<svg"
+        }
+
+        test("ERM notation override to BACHMAN renders to SVG") {
+            val result = WebRenderPipeline.render(ermScript, "svg", null, null, notation = "bachman")
+            result.shouldBeInstanceOf<WebRenderResult.Svg>()
+            result.svg shouldContain "<svg"
+        }
+
+        test("ERM notation override to IDEF1X renders to SVG") {
+            val result = WebRenderPipeline.render(ermScript, "svg", null, null, notation = "idef1x")
+            result.shouldBeInstanceOf<WebRenderResult.Svg>()
+            result.svg shouldContain "<svg"
+        }
+
+        test("ERM invalid notation override returns WebRenderResult.Error") {
+            val result = WebRenderPipeline.render(ermScript, "svg", null, null, notation = "bogus")
+            result.shouldBeInstanceOf<WebRenderResult.Error>()
+            result.message shouldContain "notation"
+        }
+
+        test("ERM latex format returns WebRenderResult.Error") {
+            val result = WebRenderPipeline.render(ermScript, "latex", null, null)
+            result.shouldBeInstanceOf<WebRenderResult.Error>()
+            result.message.shouldNotBeEmpty()
         }
     })

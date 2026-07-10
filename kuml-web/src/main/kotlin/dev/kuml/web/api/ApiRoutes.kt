@@ -36,6 +36,7 @@ internal fun Application.configureApiRoutes(version: String = "0.6.0") {
                         layoutOverride = req.layout,
                         widthPx = req.widthPx,
                         standaloneTex = req.standaloneTex,
+                        notation = req.notation,
                     )
                 val response =
                     when (result) {

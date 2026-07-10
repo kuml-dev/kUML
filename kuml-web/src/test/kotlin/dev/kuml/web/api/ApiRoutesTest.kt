@@ -56,13 +56,13 @@ class ApiRoutesTest :
             }
         }
 
-        test("GET /api/examples returns 200 with 3 entries") {
+        test("GET /api/examples returns 200 with 4 entries") {
             testApplication {
                 application { kumlWebModule() }
                 val response = client.get("/api/examples")
                 response.status shouldBe HttpStatusCode.OK
                 val body = json.decodeFromString<ExamplesResponse>(response.bodyAsText())
-                body.examples.size shouldBe 3
+                body.examples.size shouldBe 4
             }
         }
 
@@ -73,6 +73,16 @@ class ApiRoutesTest :
                 response.status shouldBe HttpStatusCode.OK
                 val body = response.bodyAsText()
                 body shouldContain "classDiagram"
+            }
+        }
+
+        test("GET /api/examples/erm-martin returns 200 with ermModel script content") {
+            testApplication {
+                application { kumlWebModule() }
+                val response = client.get("/api/examples/erm-martin")
+                response.status shouldBe HttpStatusCode.OK
+                val body = response.bodyAsText()
+                body shouldContain "ermModel"
             }
         }
 
@@ -107,6 +117,34 @@ class ApiRoutesTest :
                 body.ok.shouldBeTrue()
                 body.pngBase64 shouldNotBe null
                 body.pngBase64!!.shouldNotBeBlank()
+            }
+        }
+
+        test("POST /api/render with valid ERM script returns ok=true with SVG") {
+            testApplication {
+                application { kumlWebModule() }
+                val ermScript =
+                    """
+                    ermModel("Blog") {
+                        val author = entity("Author") { id() }
+                        val post = entity("Post") {
+                            id()
+                            foreignKey(name = "author_id", references = author, nullable = false)
+                        }
+                        relationship(from = author, to = post)
+                    }
+                    """.trimIndent()
+                val requestBody = json.encodeToString(RenderRequest(script = ermScript, format = "svg"))
+                val response =
+                    client.post("/api/render") {
+                        contentType(ContentType.Application.Json)
+                        setBody(requestBody)
+                    }
+                response.status shouldBe HttpStatusCode.OK
+                val body = json.decodeFromString<RenderResponse>(response.bodyAsText())
+                body.ok.shouldBeTrue()
+                body.svg shouldNotBe null
+                body.svg!! shouldContain "<svg"
             }
         }
 

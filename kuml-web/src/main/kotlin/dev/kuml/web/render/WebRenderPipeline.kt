@@ -13,6 +13,9 @@ import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptGuard
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.core.script.ScriptEvaluationException
+import dev.kuml.erm.constraint.ErmConstraintChecker
+import dev.kuml.erm.constraint.ViolationSeverity
+import dev.kuml.erm.model.ErmNotation
 import dev.kuml.io.latex.KumlLatexRenderer
 import dev.kuml.io.latex.LatexRenderOptions
 import dev.kuml.io.png.KumlPngRenderer
@@ -31,6 +34,11 @@ import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
+import dev.kuml.layout.bridge.erm.ErmChenSizeProvider
+import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
+import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
+import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.sysml2.ActDiagram
@@ -99,6 +107,7 @@ internal object WebRenderPipeline {
         layoutOverride: String?,
         widthPx: Int = 1024,
         standaloneTex: Boolean = false,
+        notation: String? = null,
     ): WebRenderResult {
         val startMs = System.currentTimeMillis()
         return try {
@@ -129,11 +138,7 @@ internal object WebRenderPipeline {
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, format, theme, widthPx, durationMs, standaloneTex)
                 is ExtractedDiagram.Bpmn -> renderBpmn(extracted, format, theme, widthPx, durationMs)
                 is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, format, widthPx, durationMs)
-                is ExtractedDiagram.Erm ->
-                    WebRenderResult.Error(
-                        "ERM rendering is not yet supported — planned for kUML V3.4.2. " +
-                            "V3.4.1 only supports `kuml validate` for ERM scripts.",
-                    )
+                is ExtractedDiagram.Erm -> renderErm(extracted, format, theme, widthPx, durationMs, notation)
             }
         } catch (e: ScriptEvaluationException) {
             WebRenderResult.Error(e.message ?: "Script error")
@@ -596,6 +601,80 @@ internal object WebRenderPipeline {
                 WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
             }
             else -> WebRenderResult.Error("Unsupported format for Blueprint: $format (svg, png supported)")
+        }
+    }
+
+    /**
+     * ERM render branch for the web render pipeline.
+     *
+     * Mirrors [dev.kuml.cli.RenderPipeline]'s `renderErm` — ELK layout via
+     * the notation-specific [ErmLayoutBridge]/[ErmChenLayoutBridge]/
+     * [ErmIdef1xLayoutBridge], then [KumlSvgRenderer.toSvg] for SVG/PNG.
+     *
+     * Unlike the CLI (which prints violations to stderr and always renders),
+     * this web branch blocks the render on ERROR-severity constraint
+     * violations and returns them as a [WebRenderResult.Error] — an HTTP API
+     * has no stderr to surface warnings to, so a hard error on structural
+     * violations is the cleaner contract. WARNING-severity violations are
+     * ignored, matching the CLI's non-blocking treatment of them.
+     *
+     * [notationOverride] is the raw `notation` request field (`martin`,
+     * `bachman`, `chen`, or `idef1x`, case-insensitive); `null` means "use
+     * the notation declared in the DSL script" (`diagram.notation`).
+     */
+    private fun renderErm(
+        extracted: ExtractedDiagram.Erm,
+        format: String,
+        theme: KumlTheme,
+        widthPx: Int,
+        durationMs: Long,
+        notationOverride: String? = null,
+    ): WebRenderResult {
+        val model = extracted.model
+        val diagram = extracted.diagram
+
+        val violations = ErmConstraintChecker().check(model)
+        val errors = violations.filter { it.severity == ViolationSeverity.ERROR }
+        if (errors.isNotEmpty()) {
+            val msg = errors.joinToString("\n") { "[ERM ERROR] ${it.elementId ?: "model"}: ${it.message}" }
+            return WebRenderResult.Error(msg)
+        }
+
+        val notation =
+            try {
+                notationOverride?.let { ErmNotation.valueOf(it.uppercase()) } ?: diagram.notation
+            } catch (e: IllegalArgumentException) {
+                return WebRenderResult.Error(
+                    "Unknown ERM notation: '$notationOverride'. Use martin, bachman, chen, or idef1x.",
+                )
+            }
+
+        val hints = LayoutHints.DEFAULT
+        val graph =
+            when (notation) {
+                ErmNotation.CHEN ->
+                    ErmChenLayoutBridge.toChenLayoutGraph(model, diagram, ErmChenSizeProvider(model, diagram))
+                ErmNotation.IDEF1X ->
+                    ErmIdef1xLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
+                else ->
+                    ErmLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
+            }
+        val engine =
+            LayoutEngineRegistry.get("elk.layered")
+                ?: return WebRenderResult.Error("ELK layout engine not available for ERM diagrams")
+        val layout: LayoutResult = engine.layout(graph, hints)
+
+        return when (format) {
+            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, diagram, layout, theme, notation = notation), durationMs)
+            "png" -> {
+                val svg = KumlSvgRenderer.toSvg(model, diagram, layout, theme, notation = notation)
+                WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
+            }
+            "latex" ->
+                WebRenderResult.Error(
+                    "ERM LaTeX export is not yet supported (planned for a post-V3.4 wave).",
+                )
+            else -> WebRenderResult.Error("Unsupported format for ERM: $format (svg, png supported)")
         }
     }
 

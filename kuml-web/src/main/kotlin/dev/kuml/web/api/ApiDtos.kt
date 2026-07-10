@@ -10,6 +10,8 @@ data class RenderRequest(
     val layout: String? = null,
     val widthPx: Int = 1024,
     val standaloneTex: Boolean = false,
+    // ERM notation override: martin|bachman|chen|idef1x (case-insensitive); null uses the DSL's declared notation.
+    val notation: String? = null,
 )
 
 @Serializable
