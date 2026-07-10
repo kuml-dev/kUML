@@ -17,7 +17,7 @@ Sammlung lebender Beispielnotizen, die das [[02 Projekte/kUML V2.0]]-Plugin [[02
 
 ## Vollständige Abdeckung
 
-Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unterstützten Modellierungssprachen ab — UML 2.x (14), C4 (6) und SysML 2 (8). Hinzu kommen seit V3.1 **BPMN 2.0**-Beispiele (Process + Collaboration + Conversation) als vierte Modellierungssprache, **profil-spezifische Vertiefungsbeispiele** für die Built-in-Profile sowie seit V3.4 das **ERM-Metamodell** (Entity-Relationship, Martin-Notation) als fünfte Modellierungssprache.
+Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unterstützten Modellierungssprachen ab — UML 2.x (14), C4 (6) und SysML 2 (8). Hinzu kommen seit V3.1 **BPMN 2.0**-Beispiele (Process + Collaboration + Conversation) als vierte Modellierungssprache, **profil-spezifische Vertiefungsbeispiele** für die Built-in-Profile sowie seit V3.4 das **ERM-Metamodell** (Entity-Relationship, alle vier Notationen Martin/Bachman/Chen/IDEF1X) als fünfte Modellierungssprache.
 
 ### UML 2.x (14 Diagrammtypen)
 
@@ -82,7 +82,7 @@ Die Sammlung deckt **alle 28 Diagrammtypen** der drei klassischen in kUML unters
 
 | # | Notiz | Notation |
 |---|---|---|
-| 39 | [[39 ERM Martin – E-Commerce Schema]] | Martin / Crow's Foot |
+| 39 | [[39 ERM Martin – E-Commerce Schema]] | Martin / Crow's Foot, Bachman, Chen, IDEF1X (alle vier seit 2026-07-10 in einer Notiz) |
 
 ## Empfohlene Lese-Reihenfolge nach Komplexität
 

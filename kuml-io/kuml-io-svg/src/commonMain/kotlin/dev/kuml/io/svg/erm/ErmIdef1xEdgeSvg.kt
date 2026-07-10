@@ -7,7 +7,6 @@ import dev.kuml.io.svg.EdgeLabelGeometry
 import dev.kuml.io.svg.EdgePathBuilder
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt2
-import dev.kuml.io.svg.renderEdgeLabelWithHalo
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -64,26 +63,19 @@ internal fun renderErmIdef1xRelationship(
         renderCardinalityLabel(route.target, targetDir, label, b)
     }
 
+    val selfLoop = rel.sourceEntityId == rel.targetEntityId
     val relName = rel.name
     if (!relName.isNullOrBlank()) {
-        val anchor = EdgeLabelGeometry.midAnchor(route)
-        val yOffset = LABEL_BASE_OFFSET_PX + labelStackIndex * LABEL_STACK_OFFSET_PX
-        b.renderEdgeLabelWithHalo(relName, anchor.x, anchor.y - yOffset, "middle")
+        b.renderErmRelationshipNameLabel(relName, route, labelStackIndex, selfLoop, sourceDir, targetDir)
     }
 
     rel.sourceRole?.let { role ->
-        renderRoleLabel(route.source, sourceDir, role, b)
+        b.renderErmRoleLabel(route.source, sourceDir, role)
     }
     rel.targetRole?.let { role ->
-        renderRoleLabel(route.target, targetDir, role, b)
+        b.renderErmRoleLabel(route.target, targetDir, role, perpBias = if (selfLoop) 1f else -1f)
     }
 }
-
-/** Vertical offset above the line where the relationship-name label baseline sits. */
-private const val LABEL_BASE_OFFSET_PX: Float = 6f
-
-/** Additional downward shift per [renderErmIdef1xRelationship]'s `labelStackIndex` step. */
-private const val LABEL_STACK_OFFSET_PX: Float = 16f
 
 /** Radius of the filled child-end dot. */
 private const val DOT_RADIUS_PX: Float = 4f
@@ -93,9 +85,6 @@ private const val DIAMOND_HALF_PX: Float = 6f
 
 /** Gap between the child dot and the cardinality annotation text. */
 private const val CARDINALITY_GAP_PX: Float = 10f
-
-/** Distance from the role-label anchor point back along the edge (keeps role text off the entity border). */
-private const val ROLE_LABEL_OFFSET_PX: Float = 20f
 
 /** Draws the filled child-end dot, touching the entity border at [anchor], extending along [dir]. */
 private fun renderChildDot(
@@ -171,17 +160,5 @@ internal fun idef1xCardinalityLabel(cardinality: Cardinality): String? =
         cardinality.min >= 1 && cardinality.many -> "P"
         else -> null
     }
-
-private fun renderRoleLabel(
-    anchor: Point,
-    dir: Pair<Float, Float>,
-    role: String,
-    b: SvgBuilder,
-) {
-    val (dx, dy) = dir
-    val x = anchor.x + dx * ROLE_LABEL_OFFSET_PX
-    val y = anchor.y + dy * ROLE_LABEL_OFFSET_PX
-    b.renderEdgeLabelWithHalo(role, x, y, "middle")
-}
 
 private fun fmt(v: Float): String = fmt2(v)

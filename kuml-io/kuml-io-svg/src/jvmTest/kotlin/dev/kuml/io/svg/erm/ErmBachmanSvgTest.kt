@@ -11,6 +11,7 @@ import dev.kuml.erm.model.ErmRelationship
 import dev.kuml.erm.model.RelationshipKind
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SampleOutput
+import dev.kuml.io.svg.SvgRenderOptions
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutEngineId
@@ -218,6 +219,46 @@ class ErmBachmanSvgTest :
             val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), notation = ErmNotation.BACHMAN)
 
             svg shouldContain "kuml-erm-entity"
+        }
+
+        // ── Self-loop edge-label-collision regression guard (fix/erm-martin-edge-label-collision) ──
+
+        "self-referential relationship name label does not overflow into the entity box" {
+            val category = ErmEntity(id = "category", name = "Category", attributes = listOf(pk("id")))
+            val rel =
+                ErmRelationship(
+                    id = "rel1",
+                    name = "subcategory of",
+                    sourceEntityId = "category",
+                    targetEntityId = "category",
+                    sourceCardinality = Cardinality.ZERO_ONE,
+                    targetCardinality = Cardinality.ZERO_MANY,
+                    sourceRole = "parent",
+                    targetRole = "child",
+                )
+            val model = ErmModel(name = "Catalog", entities = listOf(category), relationships = listOf(rel))
+            val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.BACHMAN)
+            val layout =
+                layoutOf(
+                    nodes = listOf("category" to Rect(Point(200f, 100f), Size(180f, 120f))),
+                    edges =
+                        listOf(
+                            "rel1" to
+                                EdgeRoute.OrthogonalRounded(
+                                    source = Point(200f, 140f),
+                                    target = Point(200f, 190f),
+                                    waypoints = listOf(Point(180f, 140f), Point(180f, 190f)),
+                                    cornerRadiusPx = 6f,
+                                ),
+                        ),
+                )
+
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
+
+            val nameLabel = edgeLabels(svg).single { it.text == "subcategory of" }
+            nameLabel.textAnchor shouldBe "end"
+            (nameLabel.x <= 200f) shouldBe true
+            SampleOutput.write("erm/bachman-self-loop-name-label-no-overflow.svg", svg)
         }
     })
 

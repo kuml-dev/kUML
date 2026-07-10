@@ -16,9 +16,9 @@ status: aktiv
 ← [[00 Übersicht]] · Bereich [[03 Bereiche/kUML/Übersicht|kUML]]
 
 > [!info] Worum es geht
-> **Neutrales** relationales Beispielschema für einen kleinen Online-Shop — bewusst **ohne PZB-Bezug**, damit es 1:1 als Worked-Example auf der kuml.dev-Webseite wiederverwendet werden kann (siehe [[03 Bereiche/kUML/Bewertung kUML vs PlantUML vs Mermaid (DB-Modellierung)#Offene Punkte vor Webseiten-Übernahme|offener Punkt „neutrales Schema"]]). Gerendert wird in **Martin-Notation** (Crow's Foot) — der gebräuchlichsten der vier von kUML unterstützten ERM-Notationen (Bachman/Chen/IDEF1X sind seit V3.4.3–V3.4.5 ebenso produktionsreif, siehe „Mögliche Erweiterungen" für dasselbe Modell in den anderen Notationen). Das Schema deckt genau die Stolperstellen ab, die reale relationale Modelle typischerweise mitbringen: **mehrere Fremdschlüssel auf dieselbe Tabelle** (`Order` → `Address` zweimal, `Review` → drei verschiedene Ziele), eine **Self-Reference** (`Category.parent_id`), eine **identifizierende Beziehung / schwache Entität** (`OrderItem` als Kompositionskind von `Order`) sowie First-Class-**Views**, **Indizes** und **Check-Constraints**.
+> **Neutrales** relationales Beispielschema für einen kleinen Online-Shop — bewusst **ohne PZB-Bezug**, damit es 1:1 als Worked-Example auf der kuml.dev-Webseite wiederverwendet werden kann (siehe [[03 Bereiche/kUML/Bewertung kUML vs PlantUML vs Mermaid (DB-Modellierung)#Offene Punkte vor Webseiten-Übernahme|offener Punkt „neutrales Schema"]]). Dasselbe `ermModel(...)` wird unten in **allen vier von kUML unterstützten ERM-Notationen** gerendert — **Martin** (Crow's Foot, die gebräuchlichste), **Bachman**, **Chen** und **IDEF1X** (alle seit V3.4.3–V3.4.5 produktionsreif). Das Schema deckt genau die Stolperstellen ab, die reale relationale Modelle typischerweise mitbringen: **mehrere Fremdschlüssel auf dieselbe Tabelle** (`Order` → `Address` zweimal, `Review` → drei verschiedene Ziele), eine **Self-Reference** (`Category.parent_id`), eine **identifizierende Beziehung / schwache Entität** (`OrderItem` als Kompositionskind von `Order`) sowie First-Class-**Views**, **Indizes** und **Check-Constraints**.
 
-## Diagramm
+## Diagramm (Martin / Crow's Foot)
 
 ```kuml
 ermModel("E-Commerce Schema") {
@@ -160,6 +160,403 @@ ermModel("E-Commerce Schema") {
 }
 ```
 
+## Diagramm (Bachman)
+
+Identisches Modell, nur die letzte `diagram(...)`-Zeile wechselt die Notation. Bachman zeichnet Beziehungen als einfache Linien mit Kardinalitäts-Punkten/-Kreisen statt Krähenfuß-Gabeln.
+
+```kuml
+ermModel("E-Commerce Schema") {
+    val customer =
+        entity("Customer") {
+            id()
+            attribute(name = "email", type = ErmDataType.Varchar(255), unique = true, nullable = false)
+            attribute(name = "name", type = ErmDataType.Varchar(255))
+            attribute(name = "created_at", type = ErmDataType.Timestamp(), default = "now()")
+        }
+
+    val address =
+        entity("Address") {
+            id()
+            foreignKey(name = "customer_id", references = customer, nullable = false)
+            attribute(name = "street", type = ErmDataType.Varchar(255))
+            attribute(name = "city", type = ErmDataType.Varchar(120))
+            attribute(name = "zip", type = ErmDataType.Varchar(20))
+        }
+
+    val category =
+        entity("Category") {
+            id()
+            attribute(name = "name", type = ErmDataType.Varchar(120))
+            attribute(name = "parent_id", type = ErmDataType.Uuid, nullable = true)
+        }
+
+    val product =
+        entity("Product") {
+            id()
+            foreignKey(name = "category_id", references = category, nullable = false)
+            attribute(name = "sku", type = ErmDataType.Varchar(64), unique = true)
+            attribute(name = "name", type = ErmDataType.Varchar(255))
+            attribute(name = "price", type = ErmDataType.Decimal(10, 2), nullable = false)
+            check(expression = "price >= 0", name = "positive_price")
+            index("sku", unique = true, name = "idx_product_sku")
+        }
+
+    val order =
+        entity("Order") {
+            id()
+            foreignKey(name = "customer_id", references = customer, nullable = false)
+            foreignKey(name = "billing_address_id", references = address, nullable = false)
+            foreignKey(name = "shipping_address_id", references = address, nullable = false)
+            attribute(name = "status", type = ErmDataType.Varchar(32), default = "'pending'")
+            attribute(name = "placed_at", type = ErmDataType.Timestamp(), default = "now()")
+            index("status", name = "idx_order_status")
+        }
+
+    val orderItem =
+        entity("OrderItem", weak = true) {
+            foreignKey(name = "order_id", references = order, onDelete = ReferentialAction.CASCADE, nullable = false)
+            foreignKey(name = "product_id", references = product, nullable = false)
+            attribute(name = "quantity", type = ErmDataType.Integer(), nullable = false)
+            attribute(name = "unit_price", type = ErmDataType.Decimal(10, 2), nullable = false)
+        }
+
+    val payment =
+        entity("Payment") {
+            id()
+            foreignKey(name = "order_id", references = order, nullable = false)
+            attribute(name = "amount", type = ErmDataType.Decimal(10, 2), nullable = false)
+            attribute(name = "method", type = ErmDataType.Varchar(32))
+            attribute(name = "paid_at", type = ErmDataType.Timestamp())
+        }
+
+    val review =
+        entity("Review") {
+            id()
+            foreignKey(name = "customer_id", references = customer, nullable = false)
+            foreignKey(name = "product_id", references = product, nullable = false)
+            foreignKey(name = "order_id", references = order, nullable = false)
+            attribute(name = "rating", type = ErmDataType.Integer(bits = 16), nullable = false)
+            attribute(name = "comment", type = ErmDataType.Text)
+            check(expression = "rating BETWEEN 1 AND 5", name = "rating_range")
+        }
+
+    relationship(from = customer, to = address, name = "has", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(
+        from = category,
+        to = category,
+        name = "subcategory of",
+        sourceRole = "parent",
+        targetRole = "child",
+        sourceCardinality = Cardinality.ZERO_ONE,
+        targetCardinality = Cardinality.ZERO_MANY,
+    )
+    relationship(from = category, to = product, name = "groups", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = customer, to = order, name = "places", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(
+        from = address,
+        to = order,
+        name = "bills",
+        targetRole = "billing",
+        sourceCardinality = Cardinality.ONE,
+        targetCardinality = Cardinality.ZERO_MANY,
+    )
+    relationship(
+        from = address,
+        to = order,
+        name = "ships",
+        targetRole = "shipping",
+        sourceCardinality = Cardinality.ONE,
+        targetCardinality = Cardinality.ZERO_MANY,
+    )
+    relationship(
+        from = order,
+        to = orderItem,
+        name = "contains",
+        kind = RelationshipKind.IDENTIFYING,
+        sourceCardinality = Cardinality.ONE,
+        targetCardinality = Cardinality.ONE_MANY,
+    )
+    relationship(from = product, to = orderItem, name = "ordered as", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = order, to = payment, name = "paid by", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = customer, to = review, name = "writes", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = product, to = review, name = "reviewed in", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = order, to = review, name = "reviewed via", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+
+    view(
+        name = "active_orders",
+        query = "SELECT o.id, o.status, o.placed_at, c.email FROM \"order\" o JOIN customer c ON c.id = o.customer_id WHERE o.status != 'cancelled'",
+        references = listOf(order, customer),
+    )
+
+    diagram(name = "E-Commerce Schema (Bachman)", notation = ErmNotation.BACHMAN, showIndexes = true)
+}
+```
+
+## Diagramm (Chen)
+
+> [!bug] Bekannter Renderer-Bug bei dichten Modellen (entdeckt 2026-07-10)
+> Für dieses Modell (8 Entitäten, 12 Beziehungen) legt der `ErmChenLayoutBridge` alle Knoten in **eine einzige, ca. 5100×512px breite Zeile** statt sie vertikal zu verteilen — Ergebnis ist ein kaum lesbares, extrem breites Diagramm. Bachman, Martin und IDEF1X sind von diesem Problem **nicht** betroffen; `--layout=grid` als CLI-Override ändert nichts an den Maßen. Der Block ist trotzdem hier eingebunden (vollständige Notations-Abdeckung + Dokumentation des Bugs), aber Vorsicht bei der visuellen Interpretation. Tracking: [[02 Projekte/kUML V3.4#Bekannte Probleme|kUML V3.4]].
+
+```kuml
+ermModel("E-Commerce Schema") {
+    val customer =
+        entity("Customer") {
+            id()
+            attribute(name = "email", type = ErmDataType.Varchar(255), unique = true, nullable = false)
+            attribute(name = "name", type = ErmDataType.Varchar(255))
+            attribute(name = "created_at", type = ErmDataType.Timestamp(), default = "now()")
+        }
+
+    val address =
+        entity("Address") {
+            id()
+            foreignKey(name = "customer_id", references = customer, nullable = false)
+            attribute(name = "street", type = ErmDataType.Varchar(255))
+            attribute(name = "city", type = ErmDataType.Varchar(120))
+            attribute(name = "zip", type = ErmDataType.Varchar(20))
+        }
+
+    val category =
+        entity("Category") {
+            id()
+            attribute(name = "name", type = ErmDataType.Varchar(120))
+            attribute(name = "parent_id", type = ErmDataType.Uuid, nullable = true)
+        }
+
+    val product =
+        entity("Product") {
+            id()
+            foreignKey(name = "category_id", references = category, nullable = false)
+            attribute(name = "sku", type = ErmDataType.Varchar(64), unique = true)
+            attribute(name = "name", type = ErmDataType.Varchar(255))
+            attribute(name = "price", type = ErmDataType.Decimal(10, 2), nullable = false)
+            check(expression = "price >= 0", name = "positive_price")
+            index("sku", unique = true, name = "idx_product_sku")
+        }
+
+    val order =
+        entity("Order") {
+            id()
+            foreignKey(name = "customer_id", references = customer, nullable = false)
+            foreignKey(name = "billing_address_id", references = address, nullable = false)
+            foreignKey(name = "shipping_address_id", references = address, nullable = false)
+            attribute(name = "status", type = ErmDataType.Varchar(32), default = "'pending'")
+            attribute(name = "placed_at", type = ErmDataType.Timestamp(), default = "now()")
+            index("status", name = "idx_order_status")
+        }
+
+    val orderItem =
+        entity("OrderItem", weak = true) {
+            foreignKey(name = "order_id", references = order, onDelete = ReferentialAction.CASCADE, nullable = false)
+            foreignKey(name = "product_id", references = product, nullable = false)
+            attribute(name = "quantity", type = ErmDataType.Integer(), nullable = false)
+            attribute(name = "unit_price", type = ErmDataType.Decimal(10, 2), nullable = false)
+        }
+
+    val payment =
+        entity("Payment") {
+            id()
+            foreignKey(name = "order_id", references = order, nullable = false)
+            attribute(name = "amount", type = ErmDataType.Decimal(10, 2), nullable = false)
+            attribute(name = "method", type = ErmDataType.Varchar(32))
+            attribute(name = "paid_at", type = ErmDataType.Timestamp())
+        }
+
+    val review =
+        entity("Review") {
+            id()
+            foreignKey(name = "customer_id", references = customer, nullable = false)
+            foreignKey(name = "product_id", references = product, nullable = false)
+            foreignKey(name = "order_id", references = order, nullable = false)
+            attribute(name = "rating", type = ErmDataType.Integer(bits = 16), nullable = false)
+            attribute(name = "comment", type = ErmDataType.Text)
+            check(expression = "rating BETWEEN 1 AND 5", name = "rating_range")
+        }
+
+    relationship(from = customer, to = address, name = "has", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(
+        from = category,
+        to = category,
+        name = "subcategory of",
+        sourceRole = "parent",
+        targetRole = "child",
+        sourceCardinality = Cardinality.ZERO_ONE,
+        targetCardinality = Cardinality.ZERO_MANY,
+    )
+    relationship(from = category, to = product, name = "groups", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = customer, to = order, name = "places", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(
+        from = address,
+        to = order,
+        name = "bills",
+        targetRole = "billing",
+        sourceCardinality = Cardinality.ONE,
+        targetCardinality = Cardinality.ZERO_MANY,
+    )
+    relationship(
+        from = address,
+        to = order,
+        name = "ships",
+        targetRole = "shipping",
+        sourceCardinality = Cardinality.ONE,
+        targetCardinality = Cardinality.ZERO_MANY,
+    )
+    relationship(
+        from = order,
+        to = orderItem,
+        name = "contains",
+        kind = RelationshipKind.IDENTIFYING,
+        sourceCardinality = Cardinality.ONE,
+        targetCardinality = Cardinality.ONE_MANY,
+    )
+    relationship(from = product, to = orderItem, name = "ordered as", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = order, to = payment, name = "paid by", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = customer, to = review, name = "writes", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = product, to = review, name = "reviewed in", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = order, to = review, name = "reviewed via", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+
+    view(
+        name = "active_orders",
+        query = "SELECT o.id, o.status, o.placed_at, c.email FROM \"order\" o JOIN customer c ON c.id = o.customer_id WHERE o.status != 'cancelled'",
+        references = listOf(order, customer),
+    )
+
+    diagram(name = "E-Commerce Schema (Chen)", notation = ErmNotation.CHEN, showIndexes = true)
+}
+```
+
+## Diagramm (IDEF1X)
+
+Identifying Relationship (`Order` → `OrderItem`) und schwache Entität (`OrderItem`) werden in IDEF1X mit abgerundeten Ecken bzw. durchgezogener Verbindungslinie dargestellt — analog zur doppelt umrandeten Box in Martin.
+
+```kuml
+ermModel("E-Commerce Schema") {
+    val customer =
+        entity("Customer") {
+            id()
+            attribute(name = "email", type = ErmDataType.Varchar(255), unique = true, nullable = false)
+            attribute(name = "name", type = ErmDataType.Varchar(255))
+            attribute(name = "created_at", type = ErmDataType.Timestamp(), default = "now()")
+        }
+
+    val address =
+        entity("Address") {
+            id()
+            foreignKey(name = "customer_id", references = customer, nullable = false)
+            attribute(name = "street", type = ErmDataType.Varchar(255))
+            attribute(name = "city", type = ErmDataType.Varchar(120))
+            attribute(name = "zip", type = ErmDataType.Varchar(20))
+        }
+
+    val category =
+        entity("Category") {
+            id()
+            attribute(name = "name", type = ErmDataType.Varchar(120))
+            attribute(name = "parent_id", type = ErmDataType.Uuid, nullable = true)
+        }
+
+    val product =
+        entity("Product") {
+            id()
+            foreignKey(name = "category_id", references = category, nullable = false)
+            attribute(name = "sku", type = ErmDataType.Varchar(64), unique = true)
+            attribute(name = "name", type = ErmDataType.Varchar(255))
+            attribute(name = "price", type = ErmDataType.Decimal(10, 2), nullable = false)
+            check(expression = "price >= 0", name = "positive_price")
+            index("sku", unique = true, name = "idx_product_sku")
+        }
+
+    val order =
+        entity("Order") {
+            id()
+            foreignKey(name = "customer_id", references = customer, nullable = false)
+            foreignKey(name = "billing_address_id", references = address, nullable = false)
+            foreignKey(name = "shipping_address_id", references = address, nullable = false)
+            attribute(name = "status", type = ErmDataType.Varchar(32), default = "'pending'")
+            attribute(name = "placed_at", type = ErmDataType.Timestamp(), default = "now()")
+            index("status", name = "idx_order_status")
+        }
+
+    val orderItem =
+        entity("OrderItem", weak = true) {
+            foreignKey(name = "order_id", references = order, onDelete = ReferentialAction.CASCADE, nullable = false)
+            foreignKey(name = "product_id", references = product, nullable = false)
+            attribute(name = "quantity", type = ErmDataType.Integer(), nullable = false)
+            attribute(name = "unit_price", type = ErmDataType.Decimal(10, 2), nullable = false)
+        }
+
+    val payment =
+        entity("Payment") {
+            id()
+            foreignKey(name = "order_id", references = order, nullable = false)
+            attribute(name = "amount", type = ErmDataType.Decimal(10, 2), nullable = false)
+            attribute(name = "method", type = ErmDataType.Varchar(32))
+            attribute(name = "paid_at", type = ErmDataType.Timestamp())
+        }
+
+    val review =
+        entity("Review") {
+            id()
+            foreignKey(name = "customer_id", references = customer, nullable = false)
+            foreignKey(name = "product_id", references = product, nullable = false)
+            foreignKey(name = "order_id", references = order, nullable = false)
+            attribute(name = "rating", type = ErmDataType.Integer(bits = 16), nullable = false)
+            attribute(name = "comment", type = ErmDataType.Text)
+            check(expression = "rating BETWEEN 1 AND 5", name = "rating_range")
+        }
+
+    relationship(from = customer, to = address, name = "has", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(
+        from = category,
+        to = category,
+        name = "subcategory of",
+        sourceRole = "parent",
+        targetRole = "child",
+        sourceCardinality = Cardinality.ZERO_ONE,
+        targetCardinality = Cardinality.ZERO_MANY,
+    )
+    relationship(from = category, to = product, name = "groups", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = customer, to = order, name = "places", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(
+        from = address,
+        to = order,
+        name = "bills",
+        targetRole = "billing",
+        sourceCardinality = Cardinality.ONE,
+        targetCardinality = Cardinality.ZERO_MANY,
+    )
+    relationship(
+        from = address,
+        to = order,
+        name = "ships",
+        targetRole = "shipping",
+        sourceCardinality = Cardinality.ONE,
+        targetCardinality = Cardinality.ZERO_MANY,
+    )
+    relationship(
+        from = order,
+        to = orderItem,
+        name = "contains",
+        kind = RelationshipKind.IDENTIFYING,
+        sourceCardinality = Cardinality.ONE,
+        targetCardinality = Cardinality.ONE_MANY,
+    )
+    relationship(from = product, to = orderItem, name = "ordered as", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = order, to = payment, name = "paid by", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = customer, to = review, name = "writes", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = product, to = review, name = "reviewed in", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+    relationship(from = order, to = review, name = "reviewed via", sourceCardinality = Cardinality.ONE, targetCardinality = Cardinality.ZERO_MANY)
+
+    view(
+        name = "active_orders",
+        query = "SELECT o.id, o.status, o.placed_at, c.email FROM \"order\" o JOIN customer c ON c.id = o.customer_id WHERE o.status != 'cancelled'",
+        references = listOf(order, customer),
+    )
+
+    diagram(name = "E-Commerce Schema (IDEF1X)", notation = ErmNotation.IDEF1X, showIndexes = true)
+}
+```
+
 ## DSL-Anatomie
 
 | Element | Bedeutung |
@@ -192,9 +589,10 @@ Anders als bei UML-basierten Persistenz-Workarounds (vgl. [[38 UML Profil – Ex
 
 ## Mögliche Erweiterungen
 
-- **Weitere Notationen (Chen/Bachman/IDEF1X)**: Das Modell ist notationsunabhängig und alle drei Renderer sind bereits produktionsreif (V3.4.3–V3.4.5) — `diagram(name = "…", notation = ErmNotation.CHEN)` (oder `BACHMAN`/`IDEF1X`) auf demselben `ermModel(...)` projiziert dieselben Entitäten/Kanten sofort in der jeweils anderen Notation, ohne Modelländerung. `category(...)` (IDEF1X-Subtyp-Cluster) wurde hier bewusst **nicht** eingebaut, weil es kein Martin-Konstrukt ist — siehe `kuml-io-svg`-Tests für `ErmChenLayoutBridge`/`ErmIdef1xLayoutBridge`.
+- **IDEF1X-Subtyp-Cluster (`category(...)`)**: Wurde hier bewusst **nicht** eingebaut, weil es kein Martin/Bachman/Chen-Konstrukt ist und das Modell notationsübergreifend gleich bleiben soll — siehe `kuml-io-svg`-Tests für `ErmIdef1xCategorySvg` für ein eigenständiges Subtyp/Supertyp-Beispiel.
 - **`kuml reverse --format sql`**: Seit V3.4.9 kann dasselbe Modell auch aus echtem SQL-DDL rekonstruiert werden (SQL → ERM-DSL-Quelltext) — siehe [[02 Projekte/kUML V3.4]].
 - **`kuml generate --plugin sql`**: Der ERM-zu-SQL-Codegenerator (V3.4.7, PostgreSQL-Dialekt zuerst) erzeugt aus genau diesem Modell direkt `CREATE TABLE`-Statements inkl. FK/Index/Check.
+- **Chen-Renderer-Bug**: siehe Warnhinweis im Abschnitt „Diagramm (Chen)" oben — bei diesem dichten Modell (8 Entitäten, 12 Beziehungen) quetscht `ErmChenLayoutBridge` alles in eine einzige, extrem breite Zeile statt vertikal zu verteilen. Fix noch offen, siehe [[02 Projekte/kUML V3.4#Bekannte Probleme]].
 
 ## Verwandte Beispiele
 

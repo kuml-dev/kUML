@@ -12,6 +12,7 @@ import dev.kuml.erm.model.ErmRelationship
 import dev.kuml.erm.model.RelationshipKind
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SampleOutput
+import dev.kuml.io.svg.SvgRenderOptions
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.LayoutEngineId
@@ -253,7 +254,142 @@ class ErmMartinSvgTest :
             val two = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme())
             one shouldBe two
         }
+
+        // ── Self-loop / edge-label-collision regression guards (fix/erm-martin-edge-label-collision) ──
+
+        "self-referential relationship name label does not overflow into the entity box" {
+            val svg = selfLoopSvg()
+
+            val nameLabel = edgeLabels(svg).single { it.text == "subcategory of" }
+            // Box left edge sits at x=200 (see selfLoopSvg()); the label must grow
+            // AWAY from the box (text-anchor="end") and its anchor x must not be
+            // to the right of the border — before the fix this was
+            // text-anchor="middle" at x≈180, painting glyphs across x=200..223.
+            nameLabel.textAnchor shouldBe "end"
+            (nameLabel.x <= 200f) shouldBe true
+            SampleOutput.write("erm/self-loop-name-label-no-overflow.svg", svg)
+        }
+
+        "self-loop role labels occupy distinct vertical bands from the name label" {
+            val svg = selfLoopSvg()
+            val labels = edgeLabels(svg)
+
+            val parentY = labels.single { it.text == "parent" }.y
+            val nameY = labels.single { it.text == "subcategory of" }.y
+            val childY = labels.single { it.text == "child" }.y
+
+            (kotlin.math.abs(parentY - nameY) >= 12f) shouldBe true
+            (kotlin.math.abs(nameY - childY) >= 12f) shouldBe true
+            (kotlin.math.abs(parentY - childY) >= 12f) shouldBe true
+        }
+
+        "self-loop determinism — same input renders byte-identically" {
+            val one = selfLoopSvg()
+            val two = selfLoopSvg()
+            one shouldBe two
+        }
+
+        "vertical-segment name label is pushed to the side, not centered on the line" {
+            val parent = ErmEntity(id = "parent", name = "Parent", attributes = listOf(pk("id")))
+            val child = ErmEntity(id = "child", name = "Child", attributes = listOf(pk("id")))
+            val rel =
+                ErmRelationship(
+                    id = "rel1",
+                    name = "contains",
+                    sourceEntityId = "parent",
+                    targetEntityId = "child",
+                    sourceCardinality = Cardinality.ONE,
+                    targetCardinality = Cardinality.ZERO_MANY,
+                )
+            val model = ErmModel(name = "Tree", entities = listOf(parent, child), relationships = listOf(rel))
+            val diagram = ErmDiagram(name = "Overview")
+            val layout =
+                layoutOf(
+                    nodes =
+                        listOf(
+                            "parent" to Rect(Point(50f, 20f), Size(160f, 90f)),
+                            "child" to Rect(Point(50f, 300f), Size(160f, 90f)),
+                        ),
+                    edges =
+                        listOf(
+                            "rel1" to
+                                EdgeRoute.OrthogonalRounded(
+                                    source = Point(130f, 110f),
+                                    target = Point(130f, 300f),
+                                    waypoints = emptyList(),
+                                    cornerRadiusPx = 6f,
+                                ),
+                        ),
+                )
+
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
+
+            val nameLabel = edgeLabels(svg).single { it.text == "contains" }
+            nameLabel.textAnchor shouldBe "start"
+            (nameLabel.x > 130f) shouldBe true
+            SampleOutput.write("erm/vertical-segment-name-label.svg", svg)
+        }
     })
+
+private fun selfLoopSvg(): String {
+    val category = ErmEntity(id = "category", name = "Category", attributes = listOf(pk("id")))
+    val rel =
+        ErmRelationship(
+            id = "rel1",
+            name = "subcategory of",
+            sourceEntityId = "category",
+            targetEntityId = "category",
+            sourceCardinality = Cardinality.ZERO_ONE,
+            targetCardinality = Cardinality.ZERO_MANY,
+            sourceRole = "parent",
+            targetRole = "child",
+        )
+    val model = ErmModel(name = "Catalog", entities = listOf(category), relationships = listOf(rel))
+    val diagram = ErmDiagram(name = "Overview")
+    val layout =
+        layoutOf(
+            nodes = listOf("category" to Rect(Point(200f, 100f), Size(180f, 120f))),
+            edges =
+                listOf(
+                    "rel1" to
+                        EdgeRoute.OrthogonalRounded(
+                            source = Point(200f, 140f),
+                            target = Point(200f, 190f),
+                            waypoints = listOf(Point(180f, 140f), Point(180f, 190f)),
+                            cornerRadiusPx = 6f,
+                        ),
+                ),
+        )
+    return KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
+}
+
+/**
+ * One `kuml-edge-label` `<text>` element (the coloured pass, not its halo
+ * twin). Internal (not private) so `ErmBachmanSvgTest`/`ErmIdef1xSvgTest` can
+ * reuse it for their own self-loop overflow guard tests instead of
+ * duplicating the parsing logic.
+ */
+internal data class EdgeLabelInfo(
+    val x: Float,
+    val y: Float,
+    val textAnchor: String,
+    val text: String,
+)
+
+/**
+ * Extracts every `kuml-edge-label` (non-halo) `<text>` element from [svg]. The
+ * halo pass shares the same x/y/text-anchor but carries the
+ * `kuml-edge-label-halo` class, whose value does not match the exact
+ * `class="kuml-edge-label"` literal below (different closing quote position).
+ */
+internal fun edgeLabels(svg: String): List<EdgeLabelInfo> {
+    val regex =
+        Regex("""<text class="kuml-edge-label" x="([^"]+)" y="([^"]+)" text-anchor="([^"]+)">([^<]*)</text>""")
+    return regex.findAll(svg).map { m ->
+        val (x, y, anchor, text) = m.destructured
+        EdgeLabelInfo(x.toFloat(), y.toFloat(), anchor, text)
+    }.toList()
+}
 
 private fun pk(name: String): ErmAttribute = ErmAttribute(id = name, name = name, type = ErmDataType.Uuid, primaryKey = true)
 

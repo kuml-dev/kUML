@@ -7,7 +7,6 @@ import dev.kuml.io.svg.EdgeLabelGeometry
 import dev.kuml.io.svg.EdgePathBuilder
 import dev.kuml.io.svg.SvgBuilder
 import dev.kuml.io.svg.fmt2
-import dev.kuml.io.svg.renderEdgeLabelWithHalo
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -57,26 +56,19 @@ internal fun renderErmMartinRelationship(
     renderCardinalityGlyph(route.source, sourceDir, rel.sourceCardinality, theme, b)
     renderCardinalityGlyph(route.target, targetDir, rel.targetCardinality, theme, b)
 
+    val selfLoop = rel.sourceEntityId == rel.targetEntityId
     val relName = rel.name
     if (!relName.isNullOrBlank()) {
-        val anchor = EdgeLabelGeometry.midAnchor(route)
-        val yOffset = LABEL_BASE_OFFSET_PX + labelStackIndex * LABEL_STACK_OFFSET_PX
-        b.renderEdgeLabelWithHalo(relName, anchor.x, anchor.y - yOffset, "middle")
+        b.renderErmRelationshipNameLabel(relName, route, labelStackIndex, selfLoop, sourceDir, targetDir)
     }
 
     rel.sourceRole?.let { role ->
-        renderRoleLabel(route.source, sourceDir, role, b)
+        b.renderErmRoleLabel(route.source, sourceDir, role)
     }
     rel.targetRole?.let { role ->
-        renderRoleLabel(route.target, targetDir, role, b)
+        b.renderErmRoleLabel(route.target, targetDir, role, perpBias = if (selfLoop) 1f else -1f)
     }
 }
-
-/** Vertical offset above the line where the relationship-name label baseline sits. */
-private const val LABEL_BASE_OFFSET_PX: Float = 6f
-
-/** Additional downward shift per [renderErmMartinRelationship]'s `labelStackIndex` step. */
-private const val LABEL_STACK_OFFSET_PX: Float = 16f
 
 /** Distance from the entity border to the crow's-foot apex. */
 private const val CROWFOOT_LEN_PX: Float = 14f
@@ -92,9 +84,6 @@ private const val BAR_HALF_PX: Float = 5f
 
 /** Radius of the "optional" open-circle marker. */
 private const val CIRCLE_RADIUS_PX: Float = 4f
-
-/** Distance from the role-label anchor point back along the edge (keeps role text off the entity border). */
-private const val ROLE_LABEL_OFFSET_PX: Float = 20f
 
 /**
  * Draws the crow's-foot / bar / circle combination for one end of a
@@ -167,18 +156,6 @@ private fun renderCardinalityGlyph(
             ),
         )
     }
-}
-
-private fun renderRoleLabel(
-    anchor: Point,
-    dir: Pair<Float, Float>,
-    role: String,
-    b: SvgBuilder,
-) {
-    val (dx, dy) = dir
-    val x = anchor.x + dx * ROLE_LABEL_OFFSET_PX
-    val y = anchor.y + dy * ROLE_LABEL_OFFSET_PX
-    b.renderEdgeLabelWithHalo(role, x, y, "middle")
 }
 
 private fun fmt(v: Float): String = fmt2(v)
