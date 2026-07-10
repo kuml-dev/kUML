@@ -31,6 +31,7 @@ kotlin {
                 implementation(project(":kuml-renderer:kuml-layout-elk"))
                 implementation(project(":kuml-renderer:kuml-themes-core"))
                 implementation(project(":kuml-core:kuml-core-script"))
+                implementation(project(":kuml-core:kuml-core-ocl"))
                 implementation(libs.batik.swing)
                 implementation(libs.batik.codec)
                 implementation(libs.batik.transcoder)
