@@ -103,6 +103,24 @@ class ApiRoutesTest :
             }
         }
 
+        test("POST /api/render with valid UML script returns nodes and grid in the response") {
+            testApplication {
+                application { kumlWebModule() }
+                val requestBody = json.encodeToString(RenderRequest(script = umlScript, format = "svg"))
+                val response =
+                    client.post("/api/render") {
+                        contentType(ContentType.Application.Json)
+                        setBody(requestBody)
+                    }
+                response.status shouldBe HttpStatusCode.OK
+                val body = json.decodeFromString<RenderResponse>(response.bodyAsText())
+                body.ok.shouldBeTrue()
+                body.nodes.size shouldBe 2
+                body.grid shouldNotBe null
+                (body.grid!!.cols >= 1) shouldBe true
+            }
+        }
+
         test("POST /api/render with format png returns ok=true with pngBase64") {
             testApplication {
                 application { kumlWebModule() }

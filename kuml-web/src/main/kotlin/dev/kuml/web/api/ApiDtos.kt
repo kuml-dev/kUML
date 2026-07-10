@@ -23,6 +23,44 @@ data class RenderResponse(
     val latex: String? = null,
     val durationMs: Long = 0,
     val error: String? = null,
+    // V3.2 Wave 2 — drag-and-drop node geometry. Only populated for SVG renders;
+    // empty/null for png/latex/error responses (backward-compatible defaults).
+    val nodes: List<NodeBox> = emptyList(),
+    val grid: GridGeometry? = null,
+)
+
+/**
+ * Absolute hit-test box of a single rendered node, in the same padded SVG
+ * user-unit space as the `viewBox` and `<g id="…">` transforms produced by
+ * `KumlSvgRenderer` — i.e. `bounds.origin + paddingPx`. [id] matches the
+ * `<g id>` attribute (the raw, un-escaped element id).
+ */
+@Serializable
+data class NodeBox(
+    val id: String,
+    val x: Float,
+    val y: Float,
+    val w: Float,
+    val h: Float,
+)
+
+/**
+ * Approximate *uniform* grid derived from a [DiagramType.CLASS] layout's node
+ * positions — used by drag-and-drop clients to snap a pointer position to a
+ * `(col, row)` grid cell (see [dev.kuml.web.layout.GridCellResolver]).
+ *
+ * ELK's real cells are not equal-width/-height; this is an accepted
+ * approximation for MVP snapping, not an exact reconstruction of the layout
+ * engine's grid.
+ */
+@Serializable
+data class GridGeometry(
+    val cols: Int,
+    val rows: Int,
+    val cellW: Float,
+    val cellH: Float,
+    val originX: Float,
+    val originY: Float,
 )
 
 @Serializable

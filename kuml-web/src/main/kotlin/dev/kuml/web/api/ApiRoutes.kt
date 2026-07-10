@@ -63,6 +63,8 @@ internal fun Application.configureApiRoutes(version: String = "0.6.0") {
                                 format = "svg",
                                 svg = result.svg,
                                 durationMs = result.durationMs,
+                                nodes = result.nodes,
+                                grid = result.grid,
                             )
                         is WebRenderResult.Png ->
                             RenderResponse(

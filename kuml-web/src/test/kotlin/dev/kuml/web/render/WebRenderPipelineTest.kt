@@ -1,7 +1,10 @@
 package dev.kuml.web.render
 
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContainAll
+import io.kotest.matchers.collections.shouldNotBeEmpty
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotBeEmpty
 import io.kotest.matchers.types.shouldBeInstanceOf
@@ -81,6 +84,26 @@ class WebRenderPipelineTest :
             val result = WebRenderPipeline.render(umlClassScript, "svg", null, null)
             result.shouldBeInstanceOf<WebRenderResult.Svg>()
             result.svg shouldContain "<svg"
+        }
+
+        test("UML class script populates node geometry and grid in the result") {
+            val result = WebRenderPipeline.render(umlClassScript, "svg", null, null)
+            val svgResult = result.shouldBeInstanceOf<WebRenderResult.Svg>()
+            svgResult.nodes.shouldNotBeEmpty()
+            svgResult.nodes.map { it.id } shouldContainAll listOf("Alpha", "Beta")
+            svgResult.grid shouldNotBe null
+        }
+
+        test("C4 script does not populate a grid (feature stays UML-class-only)") {
+            val result = WebRenderPipeline.render(c4Script, "svg", null, null)
+            val svgResult = result.shouldBeInstanceOf<WebRenderResult.Svg>()
+            svgResult.grid shouldBe null
+        }
+
+        test("SysML2 script does not populate a grid (feature stays UML-class-only)") {
+            val result = WebRenderPipeline.render(sysml2Script, "svg", null, null)
+            val svgResult = result.shouldBeInstanceOf<WebRenderResult.Svg>()
+            svgResult.grid shouldBe null
         }
 
         test("UML class script renders to PNG with correct magic bytes") {

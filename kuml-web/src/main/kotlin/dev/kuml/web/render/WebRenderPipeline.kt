@@ -50,6 +50,8 @@ import dev.kuml.sysml2.SeqDiagram
 import dev.kuml.sysml2.StmDiagram
 import dev.kuml.sysml2.Sysml2Model
 import dev.kuml.sysml2.UcDiagram
+import dev.kuml.web.api.GridGeometry
+import dev.kuml.web.api.NodeBox
 import java.util.Base64
 import kotlin.script.experimental.api.ResultWithDiagnostics
 import kotlin.script.experimental.api.ScriptDiagnostic
@@ -61,6 +63,12 @@ internal sealed class WebRenderResult {
     data class Svg(
         val svg: String,
         val durationMs: Long,
+        // V3.2 Wave 2 — drag-and-drop node geometry, extracted from the same
+        // LayoutResult the SVG was rendered from. Only populated in renderUml;
+        // every other diagram-type branch keeps the defaults (no per-node hit
+        // targets outside UML class diagrams yet).
+        val nodes: List<NodeBox> = emptyList(),
+        val grid: GridGeometry? = null,
     ) : WebRenderResult()
 
     data class Png(
@@ -161,7 +169,15 @@ internal object WebRenderPipeline {
         val engine = pickEngine(diagram, layoutOverride)
         val layoutResult: LayoutResult = engine.layout(layoutGraph, LayoutHints.DEFAULT)
         return when (format) {
-            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(diagram, layoutResult, theme), durationMs)
+            "svg" -> {
+                val geometry = NodeGeometryExtractor.extract(diagram.type, layoutResult)
+                WebRenderResult.Svg(
+                    svg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme),
+                    durationMs = durationMs,
+                    nodes = geometry.nodes,
+                    grid = geometry.grid,
+                )
+            }
             "png" -> {
                 val bytes = KumlPngRenderer.toPng(diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx))
                 WebRenderResult.Png(bytes, durationMs)
