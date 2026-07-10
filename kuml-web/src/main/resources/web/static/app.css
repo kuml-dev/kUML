@@ -176,17 +176,27 @@ main {
   display: none;
 }
 
+#error-banner.drop-error {
+  background: #422006;
+  border-top-color: #d97706;
+  color: #fcd34d;
+}
+
 /* ── Drag-and-drop gesture (V3.2 Wave 3) ──────────────────────────
    Only affords the grab cursor when the current diagram exposes a
    grid (class diagrams) — #preview.drag-enabled is toggled by
    DragController.setDraggable() based on the /api/render `grid` field. */
 
-#preview.drag-enabled g#nodes > g[id] {
+/* Grab affordance only on genuinely draggable nodes (tagged from currentNodes
+   by DragController.decorate — not the diagram frame or edges). */
+#preview.drag-enabled .kuml-draggable {
   cursor: grab;
 }
-
-#preview.drag-enabled g#nodes > g[id]:active {
+#preview.kuml-dragging .kuml-draggable {
   cursor: grabbing;
+}
+#preview.drag-enabled .kuml-draggable:hover {
+  filter: brightness(1.08);
 }
 
 .kuml-drag-source {
@@ -203,5 +213,12 @@ main {
   fill-opacity: 0.12;
   stroke: var(--accent);
   stroke-dasharray: 4 3;
+  stroke-width: 2;
   pointer-events: none;
+}
+
+.kuml-drag-cell.occupied {
+  fill: var(--error-border);
+  fill-opacity: 0.14;
+  stroke: var(--error-border);
 }

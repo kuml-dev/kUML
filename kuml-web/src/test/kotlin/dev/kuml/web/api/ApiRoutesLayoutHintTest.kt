@@ -91,6 +91,39 @@ class ApiRoutesLayoutHintTest :
             }
         }
 
+        test("POST /api/layout/hint onto an occupied cell returns 422 with the occupant id") {
+            testApplication {
+                application { kumlWebModule() }
+                // First move Beta to (1,0)…
+                val first =
+                    json.encodeToString(LayoutHintRequest(script = umlScript, elementId = "Beta", col = 1, row = 0))
+                val occupiedScript =
+                    json
+                        .decodeFromString<LayoutHintResponse>(
+                            client
+                                .post("/api/layout/hint") {
+                                    contentType(ContentType.Application.Json)
+                                    setBody(first)
+                                }.bodyAsText(),
+                        ).script!!
+                // …then dropping Alpha onto the same cell must be rejected with a message the banner can show.
+                val second =
+                    json.encodeToString(
+                        LayoutHintRequest(script = occupiedScript, elementId = "Alpha", col = 1, row = 0),
+                    )
+                val response =
+                    client.post("/api/layout/hint") {
+                        contentType(ContentType.Application.Json)
+                        setBody(second)
+                    }
+                response.status shouldBe HttpStatusCode.UnprocessableEntity
+                val body = json.decodeFromString<LayoutHintResponse>(response.bodyAsText())
+                body.ok shouldBe false
+                body.error shouldContain "occupied"
+                body.error shouldContain "Beta"
+            }
+        }
+
         test("POST /api/layout/hint targeting a relationship id returns 422 with ok=false") {
             testApplication {
                 application { kumlWebModule() }

@@ -91,6 +91,7 @@ async function renderSvg() {
       currentNodes = data.nodes || [];
       currentGrid = data.grid || null;
       dragController?.setDraggable(currentGrid !== null);
+      if (currentGrid !== null) dragController?.decorate();
     } else {
       showError(data.error || 'Unknown error');
       renderTimeEl.textContent = '';
@@ -111,6 +112,24 @@ async function renderSvg() {
 function showError(msg) {
   errorBannerEl.textContent = msg;
   errorBannerEl.classList.remove('hidden');
+}
+
+let dropErrorTimer = null;
+// Drop errors (non-UML diagram, occupied cell, unknown/relationship target) are
+// transient user-action feedback, not a persistent render failure — show the
+// server's exact message in an amber banner that auto-clears. Safe to reuse the
+// render banner element: a drop only happens on an already-successfully-rendered
+// class diagram, so no render error is competing for it.
+function showDropError(msg) {
+  errorBannerEl.textContent = msg;
+  errorBannerEl.classList.remove('hidden');
+  errorBannerEl.classList.add('drop-error');
+  clearTimeout(dropErrorTimer);
+  dropErrorTimer = setTimeout(() => {
+    errorBannerEl.classList.add('hidden');
+    errorBannerEl.classList.remove('drop-error');
+    errorBannerEl.textContent = '';
+  }, 4000);
 }
 
 // ── Load examples ─────────────────────────────────────────────────────────────
@@ -269,6 +288,27 @@ function resolveCell(grid, xUser, yUser) {
   };
 }
 
+// Absolute user-space bounds of grid cell (col,row) — inverse of resolveAxis.
+function cellBounds(grid, col, row) {
+  return {
+    x: grid.originX + col * grid.cellW,
+    y: grid.originY + row * grid.cellH,
+    w: grid.cellW,
+    h: grid.cellH,
+  };
+}
+
+// True if some node OTHER than draggedId has its center in (col,row) — mirrors
+// LayoutHintService's server-side collision check so the highlight can pre-warn
+// (red) before the drop round-trips and the server rejects it.
+function cellOccupied(grid, nodes, draggedId, col, row) {
+  return nodes.some((n) => {
+    if (n.id === draggedId) return false;
+    const c = resolveCell(grid, n.x + n.w / 2, n.y + n.h / 2);
+    return c.col === col && c.row === row;
+  });
+}
+
 class DragController {
   constructor({ container, getNodes, getGrid, onDrop }) {
     this.container = container; // #preview (never re-created, survives innerHTML swaps)
@@ -276,6 +316,7 @@ class DragController {
     this.getGrid = getGrid; // () => currentGrid
     this.onDrop = onDrop; // (id, col, row) => Promise<void>
     this.drag = null; // active-drag state or null
+    this.cellEl = null; // lazily-created SVG <rect> for the snap-preview highlight
     container.addEventListener('pointerdown', this.onDown.bind(this));
     container.addEventListener('pointermove', this.onMove.bind(this));
     container.addEventListener('pointerup', this.onUp.bind(this));
@@ -284,6 +325,50 @@ class DragController {
 
   setDraggable(enabled) {
     this.container.classList.toggle('drag-enabled', enabled);
+  }
+
+  // Tags exactly the currently-draggable node groups (membership in currentNodes)
+  // with .kuml-draggable so CSS can afford grab/hover only on real nodes — never
+  // the diagram frame or edges, and including nested package-member nodes that a
+  // structural `#nodes > g[id]` selector would miss. Re-run every render because
+  // innerHTML replacement drops the previous tags.
+  decorate() {
+    const svg = this.container.querySelector('svg');
+    if (!svg) return;
+    const ids = new Set(this.getNodes().map((n) => n.id));
+    svg.querySelectorAll('#nodes g[id]').forEach((g) => {
+      g.classList.toggle('kuml-draggable', ids.has(g.id));
+    });
+  }
+
+  showCell(grid, col, row, occupied) {
+    const svg = this.container.querySelector('svg');
+    if (!svg) return;
+    if (!this.cellEl) {
+      this.cellEl = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      this.cellEl.setAttribute('class', 'kuml-drag-cell');
+    }
+    if (this.cellEl.parentNode !== svg) svg.insertBefore(this.cellEl, svg.firstChild);
+    const b = cellBounds(grid, col, row);
+    this.cellEl.setAttribute('x', b.x);
+    this.cellEl.setAttribute('y', b.y);
+    this.cellEl.setAttribute('width', b.w);
+    this.cellEl.setAttribute('height', b.h);
+    this.cellEl.classList.toggle('occupied', occupied);
+  }
+
+  hideCell() {
+    this.cellEl?.remove();
+  }
+
+  cleanupDrag(pointerId) {
+    this.container.classList.remove('kuml-dragging');
+    this.hideCell();
+    try {
+      this.container.releasePointerCapture(pointerId);
+    } catch (_) {
+      /* already released */
+    }
   }
 
   onDown(e) {
@@ -310,6 +395,7 @@ class DragController {
 
     this.drag = { pointerId: e.pointerId, svg, node, start, ghost, source: g, dx: 0, dy: 0 };
     this.container.setPointerCapture(e.pointerId);
+    this.container.classList.add('kuml-dragging');
     e.preventDefault();
   }
 
@@ -323,6 +409,19 @@ class DragController {
     d.ghost.setAttribute('transform', `translate(${d.node.x + dx},${d.node.y + dy})`);
     d.dx = dx;
     d.dy = dy;
+
+    const grid = this.getGrid();
+    if (grid) {
+      const cx = d.node.x + d.node.w / 2 + dx;
+      const cy = d.node.y + d.node.h / 2 + dy;
+      const { col, row } = resolveCell(grid, cx, cy);
+      const src = resolveCell(grid, d.node.x + d.node.w / 2, d.node.y + d.node.h / 2);
+      if (col === src.col && row === src.row) {
+        this.hideCell(); // back on origin cell → no-op, hide the preview
+      } else {
+        this.showCell(grid, col, row, cellOccupied(grid, this.getNodes(), d.node.id, col, row));
+      }
+    }
   }
 
   async onUp(e) {
@@ -334,7 +433,7 @@ class DragController {
     const grid = this.getGrid();
     ghost.remove();
     source.classList.remove('kuml-drag-source');
-    this.container.releasePointerCapture(e.pointerId);
+    this.cleanupDrag(e.pointerId);
 
     if (!grid) return; // grid vanished mid-drag (e.g. doc changed) — abort quietly
 
@@ -358,7 +457,7 @@ class DragController {
     this.drag = null;
     d.ghost.remove();
     d.source.classList.remove('kuml-drag-source');
-    this.container.releasePointerCapture(e.pointerId);
+    this.cleanupDrag(e.pointerId);
   }
 }
 
@@ -377,16 +476,20 @@ async function applyLayoutDrop(id, col, row) {
     });
     const data = await res.json();
     if (res.ok && data.ok && data.script) {
+      // Full-document replace as a single history-tracked transaction (default
+      // addToHistory) → Cmd/Ctrl-Z reverts the drop in one step and re-renders
+      // via the updateListener. Undo is CodeMirror's (basicSetup history), not a
+      // hand-rolled stack. Verified manually — see Wave 4 checklist.
       editorView.dispatch({
         changes: { from: 0, to: editorView.state.doc.length, insert: data.script },
       });
       // docChanged → existing updateListener → scheduleRender() → /api/render
       // refreshes currentNodes/currentGrid for the next drag. No manual call needed.
     } else {
-      showError(data.error || 'Layout hint failed');
+      showDropError(data.error || 'Layout hint failed');
     }
   } catch (err) {
-    showError(`Layout hint error: ${err.message}`);
+    showDropError(`Layout hint error: ${err.message}`);
   }
 }
 
