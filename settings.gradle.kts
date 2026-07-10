@@ -153,6 +153,9 @@ include("kuml-gradle:kuml-gradle-plugin")  // V1.1.9 — dev.kuml Gradle plugin 
 // ── Editor Language Support ──────────────────────────── Wave 1 ──
 include("kuml-lang-support")   // Shared editor brain (completion/rename/diagnostics/CLI locator)
 
+// ── LSP Server (Wave 2) ──────────────────────────────── Editor Language Support ──
+include("kuml-language-server")   // Editor-agnostic LSP (kuml-lsp launcher); consumes kuml-lang-support
+
 // ── JetBrains IDE Plugin ────────────────────────────── V1.1.10 ──
 include("kuml-jetbrains:kuml-jetbrains-plugin")  // V1.1.10 — IntelliJ Platform plugin (script definition + file type)
 

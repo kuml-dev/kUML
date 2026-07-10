@@ -77,6 +77,9 @@ val nonPublishedModules =
         // Wave 1 — shared editor brain (completion/rename/diagnostics/CLI locator),
         // rides the monorepo version but has no independent release cadence yet.
         "kuml-lang-support",
+        // Wave 2 — editor-agnostic LSP server application (kuml-lsp launcher,
+        // ships as distZip like kuml-web/kuml-cli, never a Maven artifact).
+        "kuml-language-server",
         // Aggregator parent projects with no JAR of their own — leaf names.
         "kuml-gradle",
         "kuml-jetbrains",
