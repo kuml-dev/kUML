@@ -84,7 +84,7 @@ class WebsiteExamplesPngExportTest :
                     // 1:1-Auflösung, kleinere Beispiele werden nur leicht
                     // hochskaliert.
                     width = 3_600,
-                    themeName = "plain",
+                    themeName = "kuml",
                 )
 
                 val bytes = outputFile.toFile().readBytes()

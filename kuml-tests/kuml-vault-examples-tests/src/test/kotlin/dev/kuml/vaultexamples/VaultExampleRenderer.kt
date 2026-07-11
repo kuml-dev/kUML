@@ -9,6 +9,7 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
+import dev.kuml.erm.model.ErmNotation
 import dev.kuml.io.latex.KumlLatexRenderer
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SvgRenderOptions
@@ -21,7 +22,10 @@ import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
+import dev.kuml.layout.bridge.erm.ErmChenSizeProvider
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
+import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
@@ -294,10 +298,55 @@ object VaultExampleRenderer {
                 }
 
                 // V3.4.2 — ERM/Martin: laid out via ELK, same shape as UML class diagrams.
+                // V3.4.5 — Chen and IDEF1X notations need their own layout bridges: Chen
+                // expands attributes/relationships into their own layout nodes (diamonds
+                // + ovals), IDEF1X injects synthetic category-circle nodes. Using the
+                // generic ErmLayoutBridge for these produces a layout graph that the
+                // Chen/IDEF1X SVG renderer can't match up with, rendering an empty
+                // diagram (only the outer frame). Mirrors the dispatch in
+                // RenderPipeline.renderErm.
                 is ExtractedDiagram.Erm -> {
-                    val sizeProvider = ErmContentSizeProvider(extracted.model, extracted.diagram)
-                    val graph = ErmLayoutBridge.toLayoutGraph(extracted.model, extracted.diagram, sizeProvider)
-                    val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
+                    // V3.4.x — widened FK-hub spacing (nodeToNode/edgeToEdge/layerToLayer)
+                    // so dense entities (e.g. Order/Review with 3 FKs each) don't crowd.
+                    // NOTE (2026-07-11): kuml-cli's RenderPipeline.renderErm does NOT
+                    // (yet) apply this same tuning — it currently uses plain
+                    // LayoutHints.DEFAULT for ERM. That parity is being worked on
+                    // separately on the fix/erm-martin-spacing branch; once merged,
+                    // update this comment and re-verify vault-example PNGs still match
+                    // CLI output 1:1. Until then, vault-example ERM renders intentionally
+                    // use the wider spacing regardless of what the CLI currently does.
+                    val ermHints =
+                        LayoutHints.DEFAULT.copy(
+                            spacing =
+                                LayoutHints.DEFAULT.spacing.copy(
+                                    nodeToNode = 70f,
+                                    edgeToEdge = 20f,
+                                    layerToLayer = 110f,
+                                ),
+                        )
+                    val notation = extracted.diagram.notation
+                    val graph =
+                        when (notation) {
+                            ErmNotation.CHEN ->
+                                ErmChenLayoutBridge.toChenLayoutGraph(
+                                    extracted.model,
+                                    extracted.diagram,
+                                    ErmChenSizeProvider(extracted.model, extracted.diagram),
+                                )
+                            ErmNotation.IDEF1X ->
+                                ErmIdef1xLayoutBridge.toLayoutGraph(
+                                    extracted.model,
+                                    extracted.diagram,
+                                    ErmContentSizeProvider(extracted.model, extracted.diagram, ermHints.direction),
+                                )
+                            else ->
+                                ErmLayoutBridge.toLayoutGraph(
+                                    extracted.model,
+                                    extracted.diagram,
+                                    ErmContentSizeProvider(extracted.model, extracted.diagram, ermHints.direction),
+                                )
+                        }
+                    val layout = elkEngine.layout(graph, ermHints)
                     val svg = KumlSvgRenderer.toSvg(extracted.model, extracted.diagram, layout, theme)
                     RenderResult(svg, null, null)
                 }

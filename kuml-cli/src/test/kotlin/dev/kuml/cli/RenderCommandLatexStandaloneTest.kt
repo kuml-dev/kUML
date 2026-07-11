@@ -46,7 +46,7 @@ class RenderCommandLatexStandaloneTest :
                 output = outputFile,
                 format = "latex",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
                 layoutEngineOverride = null,
                 latexStandalone = true,
             )
@@ -70,7 +70,7 @@ class RenderCommandLatexStandaloneTest :
                 output = outputFile,
                 format = "latex",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
                 layoutEngineOverride = null,
                 latexStandalone = false,
             )

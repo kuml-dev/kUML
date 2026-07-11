@@ -247,7 +247,7 @@ internal object RenderPipeline {
                 is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, output, format, width, theme, animated, traceFile, speed)
                 is ExtractedDiagram.Bpmn -> renderBpmn(extracted, output, format, width, theme, animated, traceFile, speed)
                 is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, output, format, width, theme, latexStandalone)
-                is ExtractedDiagram.Erm -> renderErm(extracted, output, format, width, theme, notation)
+                is ExtractedDiagram.Erm -> renderErm(extracted, output, format, width, theme, notation, layoutEngineOverride)
             }
         } catch (e: IOException) {
             throw e
@@ -1000,6 +1000,12 @@ internal object RenderPipeline {
      * validated against the `martin|bachman|chen|idef1x` choice list by
      * Clikt); `null` means "use the notation declared in the DSL script"
      * (`diagram.notation`).
+     *
+     * [layoutEngineOverride] is the raw `--layout` CLI flag value, same
+     * semantics as in [renderUml]/[pickEngine]. ERM has no DSL-level
+     * `KumlDiagram.metadata`-style engine override ([ErmDiagram] carries no
+     * diagram-level metadata map), so the priority chain is just
+     * CLI-override → ELK default — no middle "DSL metadata" tier.
      */
     private fun renderErm(
         extracted: ExtractedDiagram.Erm,
@@ -1008,6 +1014,7 @@ internal object RenderPipeline {
         width: Int,
         theme: KumlTheme,
         notationOverride: String? = null,
+        layoutEngineOverride: String? = null,
     ) {
         val model = extracted.model
         val diagram = extracted.diagram
@@ -1036,8 +1043,16 @@ internal object RenderPipeline {
                 else -> ErmLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
             }
         val engine =
-            LayoutEngineRegistry.get("elk.layered")
-                ?: error("ELK layout engine not available for ERM diagrams.")
+            if (layoutEngineOverride != null && layoutEngineOverride != "auto") {
+                val engineId = layoutEngineOverride.normaliseEngineId()
+                LayoutEngineRegistry.get(engineId)
+                    ?: error(
+                        "Layout engine '$layoutEngineOverride' not found. Available: ${LayoutEngineRegistry.ids().map { it.value }}",
+                    )
+            } else {
+                LayoutEngineRegistry.pickFor(DiagramKind.Generic, LayoutEngineId("elk.layered"))
+                    ?: error("No layout engine available for ERM diagrams.")
+            }
         val layout: LayoutResult = engine.layout(graph, hints)
 
         when (format) {

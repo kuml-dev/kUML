@@ -22,7 +22,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
 
             val content = outputFile.toFile().readText()
@@ -43,7 +43,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
 
             val content = outputFile.toFile().readText()
@@ -69,7 +69,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
 
             val content = outputFile.toFile().readText()
@@ -94,7 +94,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
             val content = outputFile.toFile().readText()
             content shouldStartWith "<?xml"
@@ -112,7 +112,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
             val content = outputFile.toFile().readText()
             content shouldStartWith "<?xml"
@@ -133,7 +133,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
             val content = outputFile.toFile().readText()
             content shouldStartWith "<?xml"
@@ -164,7 +164,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
 
             val content = outputFile.toFile().readText()
@@ -188,7 +188,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
 
             val content = outputFile.toFile().readText()
@@ -214,7 +214,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "png",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
 
             val bytes = outputFile.toFile().readBytes()
@@ -237,7 +237,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "latex",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
 
             val content = outputFile.toFile().readText()
@@ -258,7 +258,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "png",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
 
             val bytes = outputFile.toFile().readBytes()
@@ -282,7 +282,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
 
             val content = outputFile.toFile().readText()
@@ -307,7 +307,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "png",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
             )
 
             val bytes = outputFile.toFile().readBytes()
@@ -330,7 +330,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
                 notation = "bachman",
             )
 
@@ -356,7 +356,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
                 notation = "chen",
             )
 
@@ -385,7 +385,7 @@ class RenderPipelineTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
                 notation = "idef1x",
             )
 
@@ -415,7 +415,7 @@ class RenderPipelineTest :
                         output = outputFile,
                         format = "latex",
                         width = 1024,
-                        themeName = "plain",
+                        themeName = "kuml",
                     )
                 }.exceptionOrNull()
 

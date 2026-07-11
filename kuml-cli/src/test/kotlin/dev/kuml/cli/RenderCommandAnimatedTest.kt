@@ -29,7 +29,7 @@ class RenderCommandAnimatedTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
                 animated = true,
             )
 
@@ -53,7 +53,7 @@ class RenderCommandAnimatedTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
                 animated = true,
             )
 
@@ -93,7 +93,7 @@ class RenderCommandAnimatedTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
                 animated = true,
                 traceFile = traceFile,
             )
@@ -119,7 +119,7 @@ class RenderCommandAnimatedTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
                 animated = true,
                 speed = 2.0,
             )
@@ -159,7 +159,7 @@ class RenderCommandAnimatedTest :
                 output = outputFile,
                 format = "svg",
                 width = 1024,
-                themeName = "plain",
+                themeName = "kuml",
                 animated = true,
                 traceFile = traceFile,
             )
@@ -197,7 +197,7 @@ class RenderCommandAnimatedTest :
                     output = outputFile,
                     format = "svg",
                     width = 1024,
-                    themeName = "plain",
+                    themeName = "kuml",
                     animated = true,
                     traceFile = traceFile,
                 )
