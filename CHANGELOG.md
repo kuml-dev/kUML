@@ -4,9 +4,27 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.31.0] — 2026-07-11
 
 ### Added
+
+**Knowledge Workspaces: `kuml-workspace` core module + OKF type vocabulary 16 → 29 (ADR-0011 FT-2, V3.6.1)**
+
+Wave 1 of V3.6.1 extracts the OKF workspace core (`Frontmatter`, `OkfDocument`/`OkfWorkspace`,
+`OkfType`, `OkfValidator`, `WorkspaceScanner`) out of `kuml-cli` into a new
+`kuml-docs:kuml-workspace` module with an explicit public API, making the workspace model
+reusable outside the CLI (Desktop viewer, future `kuml-okf-types` artifact). The OkfType `type:`
+vocabulary grows from 16 to 29 entries — 8 SysML 2, 4 BPMN, and 1 Service Blueprint diagram type,
+each `requiresKumlBlock=true` — with `since`/`description` properties and a
+`VOCABULARY_VERSION` constant, backed by a machine-readable contract at
+`src/main/resources/okf/kuml-okf-vocabulary.json` kept in lockstep with the enum by a bijective
+parity test. The tolerant mode-only TOML regex is replaced by a hand-rolled
+`WorkspaceMarkerParser` covering the full `[workspace]`/`[okf]` marker subset (mode, name,
+kuml-version, version, vocabulary, strict). New `kuml workspace validate --strict-vocabulary`
+escalates an unrecognised `type:` (OKF-W-002) from WARNING to ERROR, with a Levenshtein-based
+did-you-mean suggestion for near-miss type values. `WorkspaceCommand`/`WorkspaceRenderer` stay in
+`kuml-cli` and only change their imports. A new "Knowledge Workspaces" handbook page documents
+the marker format, the full vocabulary table, and the OKF-* finding codes.
 
 **`kuml workspace init` scaffold + shared CLI scaffold engine (ADR-0011 FT-4, V3.6.2)**
 
@@ -19,7 +37,43 @@ renders cleanly; `engineering` mode writes a bare `.kuml-workspace.toml`, a star
 loop previously private to `kuml plugin init` were extracted into a shared
 `dev.kuml.cli.scaffold.Scaffolder` engine so both commands render templates and enforce the
 non-empty-target-dir `--force` guard the same way; `PluginScaffolder` now delegates to it with
-no behavior change.
+no behavior change. Also fixes a code-injection-adjacent bug caught during review: the
+user-supplied workspace name was interpolated unescaped into generated Kotlin/kuml script
+content; the scaffold now properly escapes it for Kotlin string-literal context.
+
+**Fictional sample-association Knowledge Workspace demo + rot-guard test (V3.6.3)**
+
+FT-3 of V3.6.3 adds a self-contained, fictional Bürgerverein e.V. OKF knowledge workspace under
+`kuml-examples` as a scan+validate+render demo of the `kuml-workspace` core (V3.6.1). The new
+`sample-association-charter/` ships a `.kuml-workspace.toml` marker plus `articles/`, `concepts/`,
+`glossary/`, and `models/` documents covering a fictional association's charter, membership
+lifecycle, organs, and dispute resolution — three OKF models (class + state diagrams) embedded as
+` ```kuml``` ` blocks. A new `SampleAssociationWorkspaceTest` + `WorkspaceExampleRenderer` scans
+the workspace with `WorkspaceScanner`, validates it with `OkfValidator`, extracts diagrams via
+`KumlScriptHost`/`DiagramExtractor`, and renders them through the layout/theme pipeline as a
+rot-guard against regressions in the workspace core or renderer pipeline.
+
+**kUML Desktop: read-only Knowledge Workspace viewer (V3.6.4)**
+
+Adds "File → Open Workspace..." to kUML Desktop: a directory chooser that mode-detects via
+`WorkspaceScanner` (`kuml-docs:kuml-workspace`) and opens either a three-pane Knowledge Workspace
+view (document tree | rendered Markdown | live SVG preview for kuml-blocks, reusing
+`DesktopRenderPipeline`) or, for Engineering workspaces, a symmetric file tree that loads a
+selected `.kuml.kts` into the existing single-file editor. Unknown-mode directories show a
+chooser dialog per the ADR-0011 fallback rule. Markdown rendering uses a minimal custom renderer
+(`org.jetbrains:markdown`-based) rather than the originally proposed
+multiplatform-markdown-renderer dependency. ERM diagrams in a Knowledge Workspace show a clear
+"not yet supported in Desktop" message instead of crashing. Internal document links navigate the
+tree selection via a new `WorkspaceLinkHandler` seam (external links open the system browser).
+
+### Security
+
+**kUML Desktop Knowledge Workspace viewer: mandatory trust dialog before any kuml-block evaluation**
+
+Opening a Knowledge Workspace in kUML Desktop can evaluate `kuml-block` scripts from disk. A
+mandatory "Trust this workspace?" dialog (`WorkspaceTrust`, `TrustDialog`) now gates all
+kuml-block evaluation on first open of a workspace root, with the decision persisted per path in
+`AppSettings` so it isn't re-asked. No kuml-block can be rendered before trust is confirmed.
 
 ## [0.30.1] — 2026-07-11
 
