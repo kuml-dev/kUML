@@ -10,7 +10,9 @@ import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ReferentialAction
 import dev.kuml.erm.model.RelationshipKind
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
+import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
@@ -404,5 +406,104 @@ class ErmToExposedTransformerTest :
             entityLink.sourceElementId shouldBe "entity_1"
             val fkLink = result.trace.links.first { it.ruleId == ErmExposedEmitter.RULE_FK_TO_REFERENCE }
             fkLink.targetArtifactId shouldBe "Books.kt"
+        }
+
+        // ── PostGIS geometry columns (ADR-0016 §2.3) ─────────────────────────
+
+        test("a recognized PostGIS geometry Custom column renders geometry(...) and emits a support file") {
+            val model =
+                ermModel("M") {
+                    entity("places") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("location", ErmDataType.Custom("geometry(Point,4326)"), nullable = false)
+                    }
+                }
+            val files = successFiles(model)
+            files.map { it.relativePath } shouldContain "PostGisColumnTypes.kt"
+
+            val placesContent = files.first { it.relativePath == "Places.kt" }.content
+            placesContent shouldContain "val location: Column<String> = geometry(\"location\", \"geometry(Point,4326)\")"
+
+            val supportContent = files.first { it.relativePath == "PostGisColumnTypes.kt" }.content
+            supportContent shouldContain "package com.example.tables"
+            supportContent shouldContain "private class GeometryColumnType(private val sql: String) : ColumnType<String>()"
+            supportContent shouldContain "public fun Table.geometry(name: String, sqlType: String): Column<String> ="
+        }
+
+        test("a model with no geometry column does not emit the PostGIS support file") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("name", ErmDataType.Varchar(255))
+                    }
+                }
+            successFiles(model).map { it.relativePath } shouldNotContain "PostGisColumnTypes.kt"
+        }
+
+        test("an unrecognized Custom column still falls back to text() with the explanatory comment") {
+            val model =
+                ermModel("M") {
+                    entity("widgets") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("payload", ErmDataType.Custom("tsvector"))
+                    }
+                }
+            val files = successFiles(model)
+            files.map { it.relativePath } shouldNotContain "PostGisColumnTypes.kt"
+            files[0].content shouldContain "val payload: Column<String?> = text(\"payload\").nullable() // Custom(tsvector) fallback"
+        }
+
+        test("a nullable recognized geometry column still gets .nullable() after the geometry(...) call") {
+            val model =
+                ermModel("M") {
+                    entity("places") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("location", ErmDataType.Custom("geometry(polygon)"), nullable = true)
+                    }
+                }
+            val content = successFiles(model).first { it.relativePath == "Places.kt" }.content
+            content shouldContain
+                "val location: Column<String?> = geometry(\"location\", \"geometry(Polygon)\").nullable()"
+        }
+
+        test("a geometry column with a Kotlin string literal collision in colLiteral is still safely escaped") {
+            // colLiteral is derived from the attribute name (already validated as a safe Kotlin
+            // identifier by requireValidKotlinIdentifier before this point) — this test only pins
+            // the exact geometry(...) call shape for a plain valid name.
+            val model =
+                ermModel("M") {
+                    entity("places") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("geom", ErmDataType.Custom("GEOMETRY(LineString, 3857)"), nullable = false)
+                    }
+                }
+            val content = successFiles(model).first { it.relativePath == "Places.kt" }.content
+            content shouldContain "val geom: Column<String> = geometry(\"geom\", \"geometry(LineString,3857)\")"
+        }
+
+        // ── TimescaleDB hypertable parity note (ADR-0016 §2.3) ───────────────
+
+        test("hypertable() marker emits an explanatory note comment, no functional Exposed change") {
+            val model =
+                ermModel("M") {
+                    entity("sensor_readings") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
+                        hypertable("recorded_at", "7 days")
+                    }
+                }
+            val content = successFiles(model)[0].content
+            content shouldContain
+                "// Note: entity marked as TimescaleDB hypertable — emitted only in SQL DDL, not in Exposed."
+            content shouldNotContain "create_hypertable"
+        }
+
+        test("no hypertable() marker produces no hypertable note comment") {
+            val model =
+                ermModel("M") {
+                    entity("users") { id("id", ErmDataType.Integer(64)) }
+                }
+            successFiles(model)[0].content shouldNotContain "TimescaleDB hypertable"
         }
     })

@@ -101,6 +101,45 @@ class ErmSqlTypeMapperTest :
             }
         }
 
+        // ── PostGIS geometry recognition (ADR-0016 §2.3) ─────────────────────────
+
+        test("recognized PostGIS geometry Custom types normalize to canonical form on POSTGRES") {
+            ErmSqlTypeMapper.baseType(
+                ErmDataType.Custom("geometry(Point,4326)"),
+                SqlDialect.POSTGRES,
+            ) shouldBe "geometry(Point,4326)"
+            ErmSqlTypeMapper.baseType(
+                ErmDataType.Custom("  geometry( polygon )  "),
+                SqlDialect.POSTGRES,
+            ) shouldBe "geometry(Polygon)"
+            ErmSqlTypeMapper.baseType(
+                ErmDataType.Custom("GEOMETRY(LineString, 3857)"),
+                SqlDialect.POSTGRES,
+            ) shouldBe "geometry(LineString,3857)"
+            ErmSqlTypeMapper.baseType(
+                ErmDataType.Custom("geometry(geometry)"),
+                SqlDialect.POSTGRES,
+            ) shouldBe "geometry(Geometry)"
+        }
+
+        test("recognized PostGIS geometry Custom types are unchanged verbatim on non-Postgres dialects") {
+            listOf(SqlDialect.MYSQL, SqlDialect.H2, SqlDialect.SQLITE).forEach { dialect ->
+                ErmSqlTypeMapper.baseType(ErmDataType.Custom("geometry(Point,4326)"), dialect) shouldBe "geometry(Point,4326)"
+            }
+        }
+
+        test("unrecognized Custom strings fall back to verbatim even on POSTGRES") {
+            ErmSqlTypeMapper.baseType(ErmDataType.Custom("tsvector"), SqlDialect.POSTGRES) shouldBe "tsvector"
+            ErmSqlTypeMapper.baseType(ErmDataType.Custom("geometry(circle,4326)"), SqlDialect.POSTGRES) shouldBe "geometry(circle,4326)"
+        }
+
+        test("an over-long SRID is not recognized and falls back to verbatim (DoS guard)") {
+            ErmSqlTypeMapper.baseType(
+                ErmDataType.Custom("geometry(Point,12345678901234)"),
+                SqlDialect.POSTGRES,
+            ) shouldBe "geometry(Point,12345678901234)"
+        }
+
         // ── autoIncrement / columnType ───────────────────────────────────────────
 
         test("autoIncrement Integer(64) maps to BIGSERIAL/AUTO_INCREMENT/INTEGER per dialect") {

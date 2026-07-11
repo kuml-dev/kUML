@@ -1,5 +1,6 @@
 package dev.kuml.codegen.sql
 
+import dev.kuml.codegen.api.customtype.CustomTypeHooks
 import dev.kuml.erm.model.ErmAttribute
 import dev.kuml.erm.model.ErmDataType
 
@@ -106,6 +107,12 @@ internal object ErmSqlTypeMapper {
                     SqlDialect.MYSQL, SqlDialect.H2 -> "JSON"
                     SqlDialect.SQLITE -> "TEXT"
                 }
-            is ErmDataType.Custom -> type.raw
+            is ErmDataType.Custom -> {
+                // ADR-0016 §2.3 — recognized PostGIS geometry strings are normalized to a
+                // canonical Postgres type; every other dialect (and any unrecognized Custom
+                // string, on any dialect) is unchanged verbatim behavior.
+                val geo = CustomTypeHooks.recognize(type.raw)
+                if (geo != null && dialect == SqlDialect.POSTGRES) geo.postgresType() else type.raw
+            }
         }
 }

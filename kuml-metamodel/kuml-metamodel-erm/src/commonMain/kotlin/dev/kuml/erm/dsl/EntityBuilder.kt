@@ -1,11 +1,13 @@
 package dev.kuml.erm.dsl
 
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.erm.model.ErmAttribute
 import dev.kuml.erm.model.ErmCheckConstraint
 import dev.kuml.erm.model.ErmDataType
 import dev.kuml.erm.model.ErmEntity
 import dev.kuml.erm.model.ErmForeignKey
 import dev.kuml.erm.model.ErmIndex
+import dev.kuml.erm.model.ErmMetadataKeys
 import dev.kuml.erm.model.ReferentialAction
 
 /**
@@ -26,6 +28,7 @@ class EntityBuilder internal constructor(
     private val attributes = mutableListOf<ErmAttribute>()
     private val indexes = mutableListOf<ErmIndex>()
     private val checks = mutableListOf<ErmCheckConstraint>()
+    private var metadata: Map<String, KumlMetaValue> = emptyMap()
 
     /** Declares a column on this entity. */
     fun attribute(
@@ -118,6 +121,26 @@ class EntityBuilder internal constructor(
             )
     }
 
+    /**
+     * Marks this entity as a TimescaleDB hypertable (Postgres-only — honored by
+     * `ErmSqlEmitter.renderHypertables`; every other SQL dialect and the Exposed
+     * emitter ignore the marker except for an explanatory comment). [timeColumn]
+     * must name an attribute already (or later) declared on this entity — that is
+     * validated at emission time, not here, since attribute declaration order
+     * relative to [hypertable] within the builder block is not constrained.
+     */
+    fun hypertable(
+        timeColumn: String,
+        chunkInterval: String? = null,
+    ) {
+        val entries =
+            buildMap {
+                put(ErmMetadataKeys.HT_TIME_COLUMN, KumlMetaValue.Text(timeColumn))
+                chunkInterval?.let { put(ErmMetadataKeys.HT_CHUNK_INTERVAL, KumlMetaValue.Text(it)) }
+            }
+        metadata = metadata + (ErmMetadataKeys.HYPERTABLE to KumlMetaValue.Entries(entries))
+    }
+
     internal fun build(
         name: String,
         weak: Boolean,
@@ -129,5 +152,6 @@ class EntityBuilder internal constructor(
             weak = weak,
             indexes = indexes.toList(),
             checks = checks.toList(),
+            metadata = metadata,
         )
 }

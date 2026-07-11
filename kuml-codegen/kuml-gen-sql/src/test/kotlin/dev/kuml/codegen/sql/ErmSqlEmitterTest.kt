@@ -8,6 +8,7 @@ import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ReferentialAction
 import io.kotest.assertions.throwables.shouldThrow
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
 
@@ -287,6 +288,115 @@ class ErmSqlEmitterTest :
                     }
                 }
             shouldThrow<CodeGenerationException> { emit(model) }
+        }
+
+        // ── PostGIS geometry column DDL (ADR-0016 §2.3) ──────────────────────────
+
+        test("a Custom PostGIS geometry column renders the canonical type on POSTGRES") {
+            val model =
+                ermModel("M") {
+                    entity("places") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("location", ErmDataType.Custom("geometry(Point,4326)"), nullable = false)
+                    }
+                }
+            val sql = emit(model, dialect = SqlDialect.POSTGRES)
+            sql shouldContain "location geometry(Point,4326) NOT NULL"
+        }
+
+        test("a Custom PostGIS geometry column is unchanged verbatim on non-Postgres dialects") {
+            val model =
+                ermModel("M") {
+                    entity("places") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("location", ErmDataType.Custom("geometry(Point,4326)"), nullable = false)
+                    }
+                }
+            val sql = emit(model, dialect = SqlDialect.SQLITE)
+            sql shouldContain "location geometry(Point,4326) NOT NULL"
+        }
+
+        // ── TimescaleDB hypertables (ADR-0016 §2.3) ──────────────────────────────
+
+        test("hypertable() marker emits create_hypertable after CREATE TABLE and before FKs/indexes on POSTGRES") {
+            val model =
+                ermModel("M") {
+                    entity("sensor_readings") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
+                        hypertable("recorded_at", "7 days")
+                        index("recorded_at", name = "idx_recorded_at")
+                    }
+                }
+            val sql = emit(model, dialect = SqlDialect.POSTGRES)
+            sql shouldContain
+                "SELECT create_hypertable('sensor_readings', 'recorded_at', " +
+                "if_not_exists => TRUE, chunk_time_interval => INTERVAL '7 days');"
+            val createTableEnd = sql.indexOf("SELECT create_hypertable")
+            val indexPos = sql.indexOf("CREATE INDEX")
+            (createTableEnd > sql.indexOf("CREATE TABLE sensor_readings")) shouldBe true
+            (createTableEnd < indexPos) shouldBe true
+        }
+
+        test("hypertable() marker without chunkInterval omits the chunk_time_interval argument") {
+            val model =
+                ermModel("M") {
+                    entity("sensor_readings") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
+                        hypertable("recorded_at")
+                    }
+                }
+            val sql = emit(model, dialect = SqlDialect.POSTGRES)
+            sql shouldContain "SELECT create_hypertable('sensor_readings', 'recorded_at', if_not_exists => TRUE);"
+        }
+
+        test("hypertable() marker is ignored (no create_hypertable) on non-Postgres dialects") {
+            val model =
+                ermModel("M") {
+                    entity("sensor_readings") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
+                        hypertable("recorded_at", "7 days")
+                    }
+                }
+            listOf(SqlDialect.MYSQL, SqlDialect.H2, SqlDialect.SQLITE).forEach { dialect ->
+                emit(model, dialect = dialect) shouldNotContain "create_hypertable"
+            }
+        }
+
+        test("no hypertable() marker produces no create_hypertable on any dialect") {
+            val model =
+                ermModel("M") {
+                    entity("sensor_readings") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
+                    }
+                }
+            SqlDialect.entries.forEach { dialect -> emit(model, dialect = dialect) shouldNotContain "create_hypertable" }
+        }
+
+        test("hypertable() marker with a non-existent timeColumn refuses to emit DDL") {
+            val model =
+                ermModel("M") {
+                    entity("sensor_readings") {
+                        id("id", ErmDataType.Integer(64))
+                        hypertable("does_not_exist")
+                    }
+                }
+            shouldThrow<CodeGenerationException> { emit(model, dialect = SqlDialect.POSTGRES) }
+        }
+
+        test("hypertable() marker with an injection attempt in chunkInterval refuses to emit DDL") {
+            val model =
+                ermModel("M") {
+                    entity("sensor_readings") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
+                        hypertable("recorded_at", "1 day'); DROP TABLE users;--")
+                    }
+                }
+            shouldThrow<CodeGenerationException> { emit(model, dialect = SqlDialect.POSTGRES) }
         }
     })
 

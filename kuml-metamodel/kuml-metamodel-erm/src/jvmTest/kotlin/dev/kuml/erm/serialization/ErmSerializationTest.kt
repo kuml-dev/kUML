@@ -1,5 +1,6 @@
 package dev.kuml.erm.serialization
 
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.erm.model.Cardinality
 import dev.kuml.erm.model.ErmAttribute
 import dev.kuml.erm.model.ErmCategory
@@ -9,6 +10,7 @@ import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmEntity
 import dev.kuml.erm.model.ErmForeignKey
 import dev.kuml.erm.model.ErmIndex
+import dev.kuml.erm.model.ErmMetadataKeys
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmNotation
 import dev.kuml.erm.model.ErmRelationship
@@ -149,6 +151,28 @@ class ErmSerializationTest :
                 val decoded = json.decodeFromString(ErmDataType.serializer(), encoded)
                 decoded shouldBe type
             }
+        }
+
+        "ErmEntity.metadata (HYPERTABLE marker) round-trips through the IPC codec's Json config" {
+            val entity =
+                ErmEntity(
+                    id = "entity_0",
+                    name = "sensor_readings",
+                    attributes = listOf(ErmAttribute("attr_0_0", "recorded_at", ErmDataType.Timestamp())),
+                    metadata =
+                        mapOf(
+                            ErmMetadataKeys.HYPERTABLE to
+                                KumlMetaValue.Entries(
+                                    mapOf(
+                                        ErmMetadataKeys.HT_TIME_COLUMN to KumlMetaValue.Text("recorded_at"),
+                                        ErmMetadataKeys.HT_CHUNK_INTERVAL to KumlMetaValue.Text("7 days"),
+                                    ),
+                                ),
+                        ),
+                )
+            val encoded = json.encodeToString(ErmEntity.serializer(), entity)
+            val decoded = json.decodeFromString(ErmEntity.serializer(), encoded)
+            decoded shouldBe entity
         }
 
         "every ErmElement variant round-trips through the sealed ErmElement serializer" {

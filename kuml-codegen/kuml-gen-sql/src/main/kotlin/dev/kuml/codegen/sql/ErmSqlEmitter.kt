@@ -1,10 +1,12 @@
 package dev.kuml.codegen.sql
 
 import dev.kuml.codegen.api.CodeGenerationException
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.erm.constraint.ErmConstraintChecker
 import dev.kuml.erm.constraint.ViolationSeverity
 import dev.kuml.erm.model.ErmAttribute
 import dev.kuml.erm.model.ErmEntity
+import dev.kuml.erm.model.ErmMetadataKeys
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ReferentialAction
 
@@ -55,6 +57,10 @@ internal class ErmSqlEmitter(
         }
 
         for (entity in sorted) sb.append(renderCreateTable(entity))
+
+        // TimescaleDB hypertables must be declared on the freshly-created, still-empty table,
+        // before secondary indexes — hence between CREATE TABLE and the FK/index/view blocks.
+        sb.append(renderHypertables(model))
 
         sb.append(renderForeignKeys(model))
         sb.append(renderIndexes(model))
@@ -134,6 +140,72 @@ internal class ErmSqlEmitter(
             lines += "    ${prefix}CHECK (${check.expression})"
         }
         return lines
+    }
+
+    // ── TimescaleDB hypertables (ADR-0016 §2.3) ─────────────────────────────────
+
+    /**
+     * Emits `SELECT create_hypertable(...)` for every entity carrying an
+     * [ErmMetadataKeys.HYPERTABLE] metadata marker. Postgres-only: TimescaleDB is a
+     * Postgres extension, so every other dialect returns an empty string unconditionally,
+     * regardless of whether the marker is present.
+     */
+    private fun renderHypertables(model: ErmModel): String {
+        if (dialect != SqlDialect.POSTGRES) return ""
+
+        val sb = StringBuilder()
+        var any = false
+        for (entity in model.entities) {
+            val entries = (entity.metadata[ErmMetadataKeys.HYPERTABLE] as? KumlMetaValue.Entries)?.value ?: continue
+            val timeColName =
+                (entries[ErmMetadataKeys.HT_TIME_COLUMN] as? KumlMetaValue.Text)?.value
+                    ?: throw CodeGenerationException(
+                        "kuml-gen-sql: hypertable marker on entity '${entity.name ?: entity.id}' is missing " +
+                            "the required '${ErmMetadataKeys.HT_TIME_COLUMN}' entry.",
+                    )
+            val timeAttr =
+                entity.attributeByName(timeColName)
+                    ?: throw CodeGenerationException(
+                        "kuml-gen-sql: hypertable time column '$timeColName' declared on entity " +
+                            "'${entity.name ?: entity.id}' does not exist on that entity.",
+                    )
+
+            val table = tableNameOf(entity)
+            val col = columnNameOf(timeAttr)
+            val interval =
+                (entries[ErmMetadataKeys.HT_CHUNK_INTERVAL] as? KumlMetaValue.Text)
+                    ?.value
+                    ?.let { requireSafeInterval(it, entity.id) }
+
+            if (!any) {
+                sb.appendLine("-- TimescaleDB hypertables")
+                sb.appendLine()
+                any = true
+            }
+            val chunkArg = interval?.let { ", chunk_time_interval => INTERVAL '$it'" } ?: ""
+            sb.appendLine("SELECT create_hypertable('$table', '$col', if_not_exists => TRUE$chunkArg);")
+        }
+        if (any) sb.appendLine()
+        return sb.toString()
+    }
+
+    /**
+     * Whitelist guard for the [ErmMetadataKeys.HT_CHUNK_INTERVAL] free-text value — the only
+     * user-supplied string that lands inside a SQL string literal (`INTERVAL '...'`) in the
+     * hypertable block. Table/column names go through [SqlNames.requireSafe] as identifiers
+     * instead; this value is a literal, so it needs its own injection guard.
+     */
+    private fun requireSafeInterval(
+        interval: String,
+        entityId: String,
+    ): String {
+        if (!SAFE_INTERVAL_REGEX.matches(interval)) {
+            throw CodeGenerationException(
+                "kuml-gen-sql: hypertable chunkInterval '$interval' (entity '$entityId') is not a safe " +
+                    "Postgres INTERVAL literal — expected e.g. '7 days', refusing to emit DDL.",
+            )
+        }
+        return interval
     }
 
     // ── Foreign Keys ─────────────────────────────────────────────────────────
@@ -284,6 +356,15 @@ internal class ErmSqlEmitter(
         }
         for (entity in entities) if (entity.id !in seen) sorted += entity
         return sorted
+    }
+
+    private companion object {
+        /** `<digits> <unit>[s]`, e.g. `"7 days"`, `"1 hour"` — whitelist for [requireSafeInterval]. */
+        val SAFE_INTERVAL_REGEX =
+            Regex(
+                """^\d{1,6}\s+(second|minute|hour|day|week|month|year)s?$""",
+                RegexOption.IGNORE_CASE,
+            )
     }
 }
 

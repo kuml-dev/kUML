@@ -1,11 +1,14 @@
 package dev.kuml.erm.dsl
 
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.erm.model.Cardinality
 import dev.kuml.erm.model.ErmDataType
+import dev.kuml.erm.model.ErmMetadataKeys
 import dev.kuml.erm.model.ErmNotation
 import dev.kuml.erm.model.RelationshipKind
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.types.shouldBeInstanceOf
 
 /**
  * DSL-builder tests for V3.4.1: deterministic auto-ids, notation defaults,
@@ -183,5 +186,44 @@ class ErmDslTest :
             val category = model.categories.single()
             category.complete shouldBe false
             category.discriminatorAttributeId shouldBe null
+        }
+
+        // ── hypertable() (ADR-0016 §2.3) ────────────────────────────────────────
+
+        "hypertable() sets the HYPERTABLE metadata entry with timeColumn and chunkInterval" {
+            val model =
+                ermModel("Sensors") {
+                    entity("sensor_readings") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("recorded_at", ErmDataType.Timestamp())
+                        hypertable("recorded_at", "7 days")
+                    }
+                }
+            val entries = model.entityById("entity_0")!!.metadata[ErmMetadataKeys.HYPERTABLE]
+            entries.shouldBeInstanceOf<KumlMetaValue.Entries>()
+            entries.value shouldBe
+                mapOf(
+                    ErmMetadataKeys.HT_TIME_COLUMN to KumlMetaValue.Text("recorded_at"),
+                    ErmMetadataKeys.HT_CHUNK_INTERVAL to KumlMetaValue.Text("7 days"),
+                )
+        }
+
+        "hypertable() without a chunkInterval omits the chunkInterval entry" {
+            val model =
+                ermModel("Sensors") {
+                    entity("sensor_readings") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("recorded_at", ErmDataType.Timestamp())
+                        hypertable("recorded_at")
+                    }
+                }
+            val entries =
+                (model.entityById("entity_0")!!.metadata[ErmMetadataKeys.HYPERTABLE] as KumlMetaValue.Entries).value
+            entries shouldBe mapOf(ErmMetadataKeys.HT_TIME_COLUMN to KumlMetaValue.Text("recorded_at"))
+        }
+
+        "an entity without hypertable() has no HYPERTABLE metadata entry" {
+            val model = ermModel("Plain") { entity("A") { id() } }
+            model.entityById("entity_0")!!.metadata shouldBe emptyMap()
         }
     })
