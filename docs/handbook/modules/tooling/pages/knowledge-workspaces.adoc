@@ -11,19 +11,68 @@ The canonical entry point is the `kuml workspace` subcommand group:
 
 [source,bash]
 ----
-kuml workspace info <dir>                    # mode + document inventory
+kuml workspace init [--name <name>] [--mode knowledge|engineering]   # scaffold a new workspace (see below)
+kuml workspace info <dir>                     # mode + document inventory
 kuml workspace validate <dir>                 # structural OKF conformance checks
 kuml workspace render <dir>                   # render every ```kuml block to SVG/PNG
-kuml workspace init <dir>                     # scaffold a new workspace (see below)
 ----
+
+`init` takes its target from the `--output` option (default `./<slug>`), *not* a positional
+directory argument; `info`, `validate` and `render` each take the workspace root as a
+positional `<dir>`.
 
 There are no top-level `kuml validate`/`kuml render` aliases for workspace operations —
 `kuml validate`/`kuml render` operate on a single `*.kuml.kts` script, `kuml workspace
 validate`/`render` operate on a whole document tree. Keep the two mental models separate.
 
-NOTE: `kuml workspace init` scaffolds a new workspace (marker file, `index.md`, starter
-documents). It is introduced in a later wave — this page will grow a dedicated section
-once it lands.
+== `kuml workspace init`
+
+`kuml workspace init` scaffolds a new workspace from a built-in template set — a
+`.kuml-workspace.toml` marker plus starter documents — using the same scaffold engine as
+`kuml plugin init`. The freshly generated workspace passes `kuml workspace validate` with
+zero findings and renders cleanly out of the box.
+
+[source,bash]
+----
+kuml workspace init --name "My Club Bylaws" --mode knowledge
+kuml workspace init --name "My Diagrams" --mode engineering --non-interactive
+----
+
+[cols="1,3"]
+|===
+| Option | Meaning
+
+| `--name <text>`
+| Human-readable workspace name. Used for the marker's `[workspace] name`, the generated
+  content, and — after slugification (`[a-z0-9-]`) — the default output directory. When
+  omitted, `init` prompts for it interactively unless `--non-interactive` is set.
+
+| `--mode knowledge\|engineering`
+| Template set to scaffold. `knowledge` (default) generates prose + diagram Markdown
+  documents (`index.md`, an article, a domain-model diagram, a glossary). `engineering`
+  generates a bare `<slug>.kuml.kts` script plus `.gitignore`.
+
+| `--output <path>`
+| Target directory. Defaults to `./<slug>` derived from `--name`.
+
+| `-y`, `--non-interactive`
+| Fail with a usage error instead of prompting for a missing `--name`.
+
+| `--force`
+| Overwrite the target directory if it already exists and is non-empty.
+|===
+
+The `knowledge`-mode scaffold produces this tree:
+
+[source]
+----
+<slug>/
+├── .kuml-workspace.toml
+├── index.md                    # type: KumlWorkspace
+├── articles/01-introduction.md # type: Article
+├── models/domain-classes.md    # type: UmlClassDiagram
+└── glossary/index.md           # type: Glossary
+----
 
 == The `.kuml-workspace.toml` marker
 

@@ -324,10 +324,14 @@ documents with `type:` frontmatter and ` ```kuml ` diagram blocks:
 
 [source,bash]
 ----
+kuml workspace init [--name <name>] [--mode knowledge|engineering] [--output <dir>]
 kuml workspace info <dir>
 kuml workspace validate <dir> [--strict-vocabulary]
 kuml workspace render <dir> [-f svg|png] [--strict] [--no-mirror]
 ----
+
+`init` scaffolds a new workspace into `--output` (default `./<slug>` from `--name`); the
+other three take the workspace root as a positional `<dir>`.
 
 This is the canonical subcommand group for workspace-level operations — there are no
 top-level `kuml validate`/`kuml render` aliases for it. See
