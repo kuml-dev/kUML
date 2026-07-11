@@ -1,0 +1,1091 @@
+[
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results.json",
+    "taskId": "SYS-M-01",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results.json",
+    "taskId": "SYS-M-02",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results.json",
+    "taskId": "SYS-S-02",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "generalizes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results.json",
+    "taskId": "SYS-M-03",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results.json",
+    "taskId": "SYS-C-02",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results.json",
+    "taskId": "SYS-C-03",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-S-02",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-M-02",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-M-03",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-C-01",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-C-02",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-C-03",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SEQ-C-03",
+    "family": "SequenceDiagram",
+    "category": "wrong_param_name",
+    "detail": "condition",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-C-01",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-S-02",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-M-02",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-M-03",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "claude-sonnet-5",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-C-03",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gpt-4o",
+    "sample": "raw-results.json",
+    "taskId": "SYS-M-03",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gpt-4o",
+    "sample": "raw-results-sample2.json",
+    "taskId": "CLASS-C-06",
+    "family": "ClassDiagram",
+    "category": "wrong_param_name",
+    "detail": "lower",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gpt-4o",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-S-04",
+    "family": "C4",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gpt-4o",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-M-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "container",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gpt-4o",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-M-03",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gpt-4o",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-M-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "storefront",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gpt-4o",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-S-02",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gpt-4o",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-C-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "ingestservice",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "C4-S-02",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "webapplication",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "C4-S-04",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "C4-M-02",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "webapplication",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "C4-M-03",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "C4-M-04",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "webplayer",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "C4-M-05",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "deviceregistry",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "C4-C-01",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "mobileapp",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "SYS-S-02",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "generalizes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "C4-C-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "container",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "SYS-M-02",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "SYS-M-03",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "SYS-C-01",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results.json",
+    "taskId": "C4-M-01",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SEQ-M-02",
+    "family": "SequenceDiagram",
+    "category": "wrong_param_name",
+    "detail": "label",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SEQ-C-01",
+    "family": "SequenceDiagram",
+    "category": "unresolved_reference",
+    "detail": "destroy",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SEQ-C-03",
+    "family": "SequenceDiagram",
+    "category": "unresolved_reference",
+    "detail": "operand",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-S-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "managementapplication",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-M-01",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "apigateway",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-M-04",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-M-05",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "mobileapp",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-C-02",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "container",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-S-02",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "min",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-M-02",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "general",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-M-03",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "min",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-C-01",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "generalizes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-C-03",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-C-01",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "apigateway",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-C-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "webinterface",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-M-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "container",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-S-02",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "container",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-S-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "webapp",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-S-01",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "webmailfrontend",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-S-04",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "ingestservice",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-M-02",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "webapplication",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-M-03",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-M-04",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-M-05",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "findcontainer",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-C-01",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "mobileapplication",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-C-02",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "container",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-S-02",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "general",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-C-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "container",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-M-02",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-M-03",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "supertypeid",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-C-01",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-C-03",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-M-01",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "apigateway",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "C4-S-01",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "webmailfrontend",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "C4-S-02",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "C4-S-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "container",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "C4-S-04",
+    "family": "C4",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "C4-M-02",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "C4-M-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "storefront",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "C4-C-01",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "SYS-M-02",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "SYS-M-03",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "SYS-C-01",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "isabstract",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "SYS-C-03",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "supertype",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "C4-M-04",
+    "family": "C4",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "SYS-S-02",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "lower",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "C4-C-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "webinterface",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results.json",
+    "taskId": "SYS-C-02",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "CLASS-M-03",
+    "family": "ClassDiagram",
+    "category": "syntax_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-S-01",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-S-03",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-S-04",
+    "family": "C4",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-M-01",
+    "family": "C4",
+    "category": "wrong_param_name",
+    "detail": "description",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-M-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "storefront",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-M-05",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "mobileapp",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-C-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "webinterface",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-S-02",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-M-01",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-M-02",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "specialization",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-M-03",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-C-01",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "SYS-C-03",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-S-02",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "element",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-M-02",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-M-04",
+    "family": "C4",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample2.json",
+    "taskId": "C4-C-01",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "mobileapp",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-S-01",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-M-01",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "mobileapp",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-M-02",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "database",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-M-05",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-C-02",
+    "family": "C4",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-C-03",
+    "family": "C4",
+    "category": "unresolved_reference",
+    "detail": "webinterface",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-S-02",
+    "family": "SysML2",
+    "category": "wrong_param_name",
+    "detail": "lower",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-M-01",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-M-02",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "supertype",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-M-03",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-C-01",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-C-02",
+    "family": "SysML2",
+    "category": "type_mismatch",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "SYS-C-03",
+    "family": "SysML2",
+    "category": "unresolved_reference",
+    "detail": "specializes",
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-M-03",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-M-04",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  },
+  {
+    "model": "gemini-2.5-pro",
+    "sample": "raw-results-sample3.json",
+    "taskId": "C4-S-04",
+    "family": "C4",
+    "category": "other_compiler_error",
+    "detail": null,
+    "diag_excerpt": "WARNING: A terminally deprecated method in sun.misc.Unsafe has been called\nWARNING: sun.misc.Unsafe::invokeCleaner has been called by org.jetbrains.kotlin.cli.jvm.compiler.jarfs.FastJarFileSystemKt (file:/Users/irakli/IdeaProjects/kUML-wt-benchmark-v0.24.3/kuml-cli/build/install/kuml/lib/kotlin-compiler-embeddable-2.4.0.jar)\nWARNING: Please consider reporting this to the maintainers of class org.j"
+  }
+]
