@@ -5,9 +5,12 @@ import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.erm.constraint.ErmConstraintChecker
 import dev.kuml.erm.constraint.ViolationSeverity
 import dev.kuml.erm.model.ErmAttribute
+import dev.kuml.erm.model.ErmCheckConstraint
 import dev.kuml.erm.model.ErmEntity
+import dev.kuml.erm.model.ErmIndex
 import dev.kuml.erm.model.ErmMetadataKeys
 import dev.kuml.erm.model.ErmModel
+import dev.kuml.erm.model.ErmView
 import dev.kuml.erm.model.ReferentialAction
 
 /**
@@ -29,6 +32,12 @@ import dev.kuml.erm.model.ReferentialAction
  *  5. `ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY …` block.
  *  6. `CREATE [UNIQUE] INDEX` block.
  *  7. `CREATE VIEW` block.
+ *
+ * ADR-0016 (deferred item) — several per-element fragment renderers below are
+ * `internal` (rather than `private`) specifically so [ErmSchemaDiffEmitter]
+ * can reuse them to render a single new table/column/FK/index/view/check
+ * statement for an additive schema-diff migration, without re-implementing
+ * any DDL-rendering or identifier-safety logic of its own.
  */
 internal class ErmSqlEmitter(
     private val dialect: SqlDialect,
@@ -93,7 +102,7 @@ internal class ErmSqlEmitter(
 
     // ── CREATE TABLE ─────────────────────────────────────────────────────────
 
-    private fun renderCreateTable(entity: ErmEntity): String {
+    internal fun renderCreateTable(entity: ErmEntity): String {
         val tableName = tableNameOf(entity)
         val singleColumnPk = entity.primaryKey.size == 1
 
@@ -106,6 +115,23 @@ internal class ErmSqlEmitter(
         sb.appendLine(");")
         sb.appendLine()
         return sb.toString()
+    }
+
+    /**
+     * Emits a single `ALTER TABLE <t> ADD COLUMN <col> …;` statement — used by
+     * [ErmSchemaDiffEmitter] for a newly-added attribute on an already-existing
+     * entity. Never renders an inline `PRIMARY KEY` clause (adding a primary-key
+     * column via `ALTER TABLE … ADD COLUMN` is not something any of the four
+     * supported dialects allow safely on a populated table, and the diff
+     * generator's safety gate already refuses primary-key changes upstream).
+     */
+    internal fun renderAddColumnStatement(
+        entity: ErmEntity,
+        attr: ErmAttribute,
+    ): String {
+        val table = tableNameOf(entity)
+        val column = renderColumn(attr, singleColumnPk = false).trim()
+        return "ALTER TABLE $table ADD COLUMN $column;\n"
     }
 
     private fun renderColumn(
@@ -136,10 +162,29 @@ internal class ErmSqlEmitter(
             lines += "    PRIMARY KEY ($cols)"
         }
         entity.checks.forEach { check ->
-            val prefix = check.name?.let { "CONSTRAINT ${checkNameOf(it, check.id)} " } ?: ""
-            lines += "    ${prefix}CHECK (${check.expression})"
+            lines += "    ${checkConstraintPrefix(check)}CHECK (${check.expression})"
         }
         return lines
+    }
+
+    private fun checkConstraintPrefix(check: ErmCheckConstraint): String =
+        check.name?.let { "CONSTRAINT ${checkNameOf(it, check.id)} " } ?: ""
+
+    /**
+     * Emits a single `ALTER TABLE <t> ADD [CONSTRAINT <name>] CHECK (<expr>);`
+     * statement — used by [ErmSchemaDiffEmitter] for a `CHECK` constraint newly
+     * added to an already-existing entity. Anonymous checks (`check.name ==
+     * null`) render as a bare `ADD CHECK (…)`, which Postgres/MySQL/H2 accept
+     * (auto-naming the constraint); SQLite does not support `ALTER TABLE …
+     * ADD CONSTRAINT`/`ADD CHECK` at all — a pre-existing dialect limitation of
+     * SQLite's `ALTER TABLE`, not something this generator can work around.
+     */
+    internal fun renderCheckConstraintStatement(
+        entity: ErmEntity,
+        check: ErmCheckConstraint,
+    ): String {
+        val table = tableNameOf(entity)
+        return "ALTER TABLE $table ADD ${checkConstraintPrefix(check)}CHECK (${check.expression});\n"
     }
 
     // ── TimescaleDB hypertables (ADR-0016 §2.3) ─────────────────────────────────
@@ -151,42 +196,54 @@ internal class ErmSqlEmitter(
      * regardless of whether the marker is present.
      */
     private fun renderHypertables(model: ErmModel): String {
-        if (dialect != SqlDialect.POSTGRES) return ""
-
         val sb = StringBuilder()
         var any = false
         for (entity in model.entities) {
-            val entries = (entity.metadata[ErmMetadataKeys.HYPERTABLE] as? KumlMetaValue.Entries)?.value ?: continue
-            val timeColName =
-                (entries[ErmMetadataKeys.HT_TIME_COLUMN] as? KumlMetaValue.Text)?.value
-                    ?: throw CodeGenerationException(
-                        "kuml-gen-sql: hypertable marker on entity '${entity.name ?: entity.id}' is missing " +
-                            "the required '${ErmMetadataKeys.HT_TIME_COLUMN}' entry.",
-                    )
-            val timeAttr =
-                entity.attributeByName(timeColName)
-                    ?: throw CodeGenerationException(
-                        "kuml-gen-sql: hypertable time column '$timeColName' declared on entity " +
-                            "'${entity.name ?: entity.id}' does not exist on that entity.",
-                    )
-
-            val table = tableNameOf(entity)
-            val col = columnNameOf(timeAttr)
-            val interval =
-                (entries[ErmMetadataKeys.HT_CHUNK_INTERVAL] as? KumlMetaValue.Text)
-                    ?.value
-                    ?.let { requireSafeInterval(it, entity.id) }
-
+            val statement = renderHypertableStatementOrNull(entity) ?: continue
             if (!any) {
                 sb.appendLine("-- TimescaleDB hypertables")
                 sb.appendLine()
                 any = true
             }
-            val chunkArg = interval?.let { ", chunk_time_interval => INTERVAL '$it'" } ?: ""
-            sb.appendLine("SELECT create_hypertable('$table', '$col', if_not_exists => TRUE$chunkArg);")
+            sb.append(statement)
         }
         if (any) sb.appendLine()
         return sb.toString()
+    }
+
+    /**
+     * Emits a single `SELECT create_hypertable(...)` statement for [entity] if
+     * it carries an [ErmMetadataKeys.HYPERTABLE] metadata marker, `null`
+     * otherwise (including unconditionally on every non-Postgres dialect —
+     * TimescaleDB is a Postgres extension). Extracted out of [renderHypertables]
+     * so [ErmSchemaDiffEmitter] can emit the hypertable statement for a single
+     * newly-added entity without looping the whole model.
+     */
+    internal fun renderHypertableStatementOrNull(entity: ErmEntity): String? {
+        if (dialect != SqlDialect.POSTGRES) return null
+        val entries = (entity.metadata[ErmMetadataKeys.HYPERTABLE] as? KumlMetaValue.Entries)?.value ?: return null
+        val timeColName =
+            (entries[ErmMetadataKeys.HT_TIME_COLUMN] as? KumlMetaValue.Text)?.value
+                ?: throw CodeGenerationException(
+                    "kuml-gen-sql: hypertable marker on entity '${entity.name ?: entity.id}' is missing " +
+                        "the required '${ErmMetadataKeys.HT_TIME_COLUMN}' entry.",
+                )
+        val timeAttr =
+            entity.attributeByName(timeColName)
+                ?: throw CodeGenerationException(
+                    "kuml-gen-sql: hypertable time column '$timeColName' declared on entity " +
+                        "'${entity.name ?: entity.id}' does not exist on that entity.",
+                )
+
+        val table = tableNameOf(entity)
+        val col = columnNameOf(timeAttr)
+        val interval =
+            (entries[ErmMetadataKeys.HT_CHUNK_INTERVAL] as? KumlMetaValue.Text)
+                ?.value
+                ?.let { requireSafeInterval(it, entity.id) }
+
+        val chunkArg = interval?.let { ", chunk_time_interval => INTERVAL '$it'" } ?: ""
+        return "SELECT create_hypertable('$table', '$col', if_not_exists => TRUE$chunkArg);\n"
     }
 
     /**
@@ -215,34 +272,49 @@ internal class ErmSqlEmitter(
         var any = false
         for (entity in model.entities) {
             for (attr in entity.attributes) {
-                val fk = attr.foreignKey ?: continue
-                val targetEntity = model.entityById(fk.targetEntityId) ?: continue
+                val statement = renderForeignKeyConstraintOrNull(entity, attr, model) ?: continue
                 if (!any) {
                     sb.appendLine("-- Foreign Keys")
                     sb.appendLine()
                     any = true
                 }
-
-                val fkTable = tableNameOf(entity)
-                val fkColumn = columnNameOf(attr)
-                val refTable = tableNameOf(targetEntity)
-                val targetAttr =
-                    fk.targetAttributeId?.let { id -> targetEntity.attributes.firstOrNull { it.id == id } }
-                        ?: targetEntity.primaryKey.singleOrNull()
-                val refColumn = targetAttr?.let { columnNameOf(it) } ?: "id"
-
-                val constraintName = SqlNames.requireSafe("fk_${fkTable}_$fkColumn", "FK constraint name", attr.id)
-                val onDelete = referentialClause("ON DELETE", fk.onDelete)
-                val onUpdate = referentialClause("ON UPDATE", fk.onUpdate)
-
-                sb.appendLine(
-                    "ALTER TABLE $fkTable ADD CONSTRAINT $constraintName " +
-                        "FOREIGN KEY ($fkColumn) REFERENCES $refTable($refColumn)$onDelete$onUpdate;",
-                )
+                sb.append(statement)
             }
         }
         if (any) sb.appendLine()
         return sb.toString()
+    }
+
+    /**
+     * Emits a single `ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY …;` statement
+     * for [attr] if it carries an [dev.kuml.erm.model.ErmForeignKey] whose
+     * target entity resolves within [model], `null` otherwise. Extracted out of
+     * [renderForeignKeys] so [ErmSchemaDiffEmitter] can emit the FK constraint
+     * for a single newly-added column (or newly-added entity) without looping
+     * the whole model.
+     */
+    internal fun renderForeignKeyConstraintOrNull(
+        entity: ErmEntity,
+        attr: ErmAttribute,
+        model: ErmModel,
+    ): String? {
+        val fk = attr.foreignKey ?: return null
+        val targetEntity = model.entityById(fk.targetEntityId) ?: return null
+
+        val fkTable = tableNameOf(entity)
+        val fkColumn = columnNameOf(attr)
+        val refTable = tableNameOf(targetEntity)
+        val targetAttr =
+            fk.targetAttributeId?.let { id -> targetEntity.attributes.firstOrNull { it.id == id } }
+                ?: targetEntity.primaryKey.singleOrNull()
+        val refColumn = targetAttr?.let { columnNameOf(it) } ?: "id"
+
+        val constraintName = SqlNames.requireSafe("fk_${fkTable}_$fkColumn", "FK constraint name", attr.id)
+        val onDelete = referentialClause("ON DELETE", fk.onDelete)
+        val onUpdate = referentialClause("ON UPDATE", fk.onUpdate)
+
+        return "ALTER TABLE $fkTable ADD CONSTRAINT $constraintName " +
+            "FOREIGN KEY ($fkColumn) REFERENCES $refTable($refColumn)$onDelete$onUpdate;\n"
     }
 
     private fun referentialClause(
@@ -269,20 +341,31 @@ internal class ErmSqlEmitter(
                 sb.appendLine()
                 any = true
             }
-            val tableName = tableNameOf(entity)
-            for (index in entity.indexes) {
-                val cols =
-                    index.attributeIds
-                        .mapNotNull { attrId -> entity.attributes.firstOrNull { it.id == attrId } }
-                        .map { columnNameOf(it) }
-                val defaultName = "idx_${tableName}_${cols.joinToString("_")}"
-                val idxName = SqlNames.requireSafe(index.name ?: defaultName, "index name", index.id)
-                val uniqueKeyword = if (index.unique) "UNIQUE " else ""
-                sb.appendLine("CREATE ${uniqueKeyword}INDEX $idxName ON $tableName (${cols.joinToString(", ")});")
-            }
+            for (index in entity.indexes) sb.append(renderIndexStatement(entity, index))
         }
         if (any) sb.appendLine()
         return sb.toString()
+    }
+
+    /**
+     * Emits a single `CREATE [UNIQUE] INDEX …;` statement for [index] on
+     * [entity]. Extracted out of [renderIndexes] so [ErmSchemaDiffEmitter] can
+     * emit the statement for a single newly-added index without looping the
+     * whole model.
+     */
+    internal fun renderIndexStatement(
+        entity: ErmEntity,
+        index: ErmIndex,
+    ): String {
+        val tableName = tableNameOf(entity)
+        val cols =
+            index.attributeIds
+                .mapNotNull { attrId -> entity.attributes.firstOrNull { it.id == attrId } }
+                .map { columnNameOf(it) }
+        val defaultName = "idx_${tableName}_${cols.joinToString("_")}"
+        val idxName = SqlNames.requireSafe(index.name ?: defaultName, "index name", index.id)
+        val uniqueKeyword = if (index.unique) "UNIQUE " else ""
+        return "CREATE ${uniqueKeyword}INDEX $idxName ON $tableName (${cols.joinToString(", ")});\n"
     }
 
     // ── Views ────────────────────────────────────────────────────────────────
@@ -292,12 +375,17 @@ internal class ErmSqlEmitter(
         val sb = StringBuilder()
         sb.appendLine("-- Views")
         sb.appendLine()
-        for (view in model.views) {
-            sb.appendLine("CREATE VIEW ${viewNameOf(view.name, view.id)} AS ${view.query};")
-            sb.appendLine()
-        }
+        for (view in model.views) sb.append(renderViewStatement(view))
         return sb.toString()
     }
+
+    /**
+     * Emits a single `CREATE VIEW … AS …;` statement (followed by a blank
+     * line, matching [renderViews]' per-view spacing). Extracted out of
+     * [renderViews] so [ErmSchemaDiffEmitter] can emit the statement for a
+     * single newly-added view without looping the whole model.
+     */
+    internal fun renderViewStatement(view: ErmView): String = "CREATE VIEW ${viewNameOf(view.name, view.id)} AS ${view.query};\n\n"
 
     // ── Naming / identifier safety ───────────────────────────────────────────
 
