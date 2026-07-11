@@ -29,7 +29,7 @@ profile — `META-INF/services` registration, done.
 
 [source,bash]
 ----
-kuml generate model.kuml.kts \
+kuml generate --input model.kuml.kts \
     --plugin kotlin \
     --package com.example.domain \
     --output gen/
@@ -55,7 +55,7 @@ implementations. That's a deliberate choice: model the contract, write the body 
 
 [source,bash]
 ----
-kuml generate model.kuml.kts \
+kuml generate --input model.kuml.kts \
     --plugin java \
     --package com.example.domain \
     --options java-style=records \
@@ -103,7 +103,7 @@ expected).
 
 [source,bash]
 ----
-kuml generate model.kuml.kts \
+kuml generate --input model.kuml.kts \
     --plugin sql \
     --options sql-dialect=postgres,sql-drop=true \
     --output gen/
