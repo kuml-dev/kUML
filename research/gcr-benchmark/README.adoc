@@ -10,28 +10,49 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   diagram family (Class/Sequence/C4/SysML 2) and difficulty (Simple/Medium/Complex).
 * `gcr_common.py` — shared prompt primers, per-DSL validation/extraction, and the generic
   Generate-Compile-Repair loop + resumable run driver used by every provider script.
-* `run-gemini.py` / `run-gpt4o.py` — provider-specific orchestration scripts built on
-  `gcr_common.py`. Each supplies its own API call function and a "stop the whole run,
-  quota exhausted" exception type; everything else (primers, validation, resume-on-rerun)
-  is shared. Usage: `export GEMINI_API_KEY=...` / `export OPENAI_API_KEY=...`, then
+* `run-claude.py` / `run-gemini.py` / `run-gpt4o.py` — provider-specific orchestration
+  scripts built on `gcr_common.py`. Each supplies its own API call function and a "stop the
+  whole run, quota exhausted" exception type; everything else (primers, validation,
+  resume-on-rerun) is shared, so all four models' primary datasets use byte-identical
+  Sequence/C4/SysML 2 primers. Usage: `export ANTHROPIC_API_KEY=...` /
+  `export GEMINI_API_KEY=...` / `export OPENAI_API_KEY=...`, then `python3 run-claude.py` /
   `python3 run-gemini.py` / `python3 run-gpt4o.py` (see `--help` for `--model`, `--workers`,
-  `--limit`, `--ids`).
+  `--limit`, `--ids`, `--out`).
+* `run-claude-examples.py` / `run-gemini-examples.py` — companion scripts for the
+  V3.3 `kuml.examples` MCP-tool-use arm (kUML cells only); see the handbook page for that
+  separate research question.
 * `build-manifest.py` — renders SVGs from a `results/<model>/raw-results.json` (via
   `kuml render`/`dump-json`, `plantuml -tsvg`, `mmdc`) and merges per-cell metrics into
   the kuml.dev gallery manifest additively, under `modelVariants[<model-key>]` — never
   touches the default model's existing data or image paths.
-* `score.py` — scores a results file against `corpus.json` (Compile Rate, Final Compile
-  Rate, Structural Fidelity, Hallucination Rate, Repair Iterations).
-* `results/2026-07-06-claude-sonnet-5/` — the first full-corpus run (Claude Sonnet 5,
-  1 sample/cell, via isolated Claude Code subagents): raw generations, per-row scores,
-  and aggregates.
-* `results/gpt-4o/`, `results/gemini-2.5-flash/`, `results/gemini-2.5-pro/` — full-corpus
-  runs (1 sample/cell) via `run-gpt4o.py`/`run-gemini.py`. Each `raw-results.json` row
-  includes `finalCode` (the last generated attempt), so `build-manifest.py` can
-  render/re-render images from them without new LLM calls. The Gemini 2.5 Pro run was
-  added specifically to test whether Flash's weak kUML results were a model-capability-tier
-  artifact — they were not: Pro reproduces Flash's divergence rather than resolving it
-  (see the handbook page for the full comparison).
+* `score.py` — scores a single results file against `corpus.json` (Compile Rate, Final
+  Compile Rate, Structural Fidelity, Hallucination Rate, Repair Iterations).
+* `score_multisample.py` / `score_multisample_family.py` / `score_multisample_difficulty.py`
+  — aggregate CR/FCR/SF/HR/RI as mean (±sample stdev) across each model's 3 samples
+  (`raw-results.json` + `raw-results-sample2.json` + `raw-results-sample3.json`), at the
+  DSL-aggregate, per-family, and per-difficulty granularities respectively. Write
+  `results/multisample*-summary.json`.
+* `results/claude-sonnet-5/`, `results/gpt-4o/`, `results/gemini-2.5-flash/`,
+  `results/gemini-2.5-pro/` — the paper's **primary** dataset for all four models: 3
+  independent samples per cell (`raw-results.json` = sample 1, `raw-results-sample{2,3}.json`
+  = replication samples added 2026-07-10 for GPT-4o/Gemini and 2026-07-11 for Claude), each
+  validated against an isolated, version-pinned `kuml` build recorded in a per-sample
+  `.meta.json`. Claude Sonnet 5's sample 1 (2026-07-07) is itself already a "confound-free"
+  script-based run (`run-claude.py`, raw Anthropic API, no MCP/tool access, byte-identical
+  primers to GPT-4o/Gemini) — it supersedes an earlier subagent-orchestrated attempt (below).
+  Every `raw-results.json` row includes `finalCode` (the last generated attempt), so
+  `build-manifest.py` can render/re-render images without new LLM calls. The Gemini 2.5 Pro
+  run was added specifically to test whether Flash's weak kUML results were a
+  model-capability-tier artifact — they were not: Pro reproduces Flash's divergence rather
+  than resolving it (see the handbook page for the full comparison).
+* `results/2026-07-06-claude-sonnet-5/` — **retained as a robustness check, not part of the
+  primary dataset above.** The very first full-corpus run (Claude Sonnet 5, 1 sample/cell),
+  produced via isolated Claude Code subagents rather than a scripted API call. Its
+  Sequence/C4/SysML 2 primers were never preserved as standalone artifacts, and it disagrees
+  substantially with the primary (script-based) Claude dataset on two families (C4, SysML 2)
+  while agreeing closely on the aggregate structural-fidelity/hallucination-rate metrics —
+  see the paper's Section 5.2/6.3 for the comparison and the methodological lesson it
+  produced (per-family conclusions from a single, unpreserved-primer run are not reliable).
 
 All four models (Claude Sonnet 5, GPT-4o, Gemini 2.5 Flash, Gemini 2.5 Pro) are visually
 comparable per-task at https://kuml.dev/benchmark-gallery[kuml.dev/benchmark-gallery] via a
@@ -62,14 +83,22 @@ python3 build-manifest.py --model-key your-model --results your-results.json  # 
 
 == Limitations of the published runs
 
-One sample per cell for all four models — no variance measure, no significance testing.
-Hallucination Rate is an algorithmic fuzzy-name-match against the gold standard, not a
-semantic judge. The Sequence/C4/SysML2 prompt primers for GPT-4o and Gemini are
-reconstructed from `corpus.json`'s gold-standard code (same style/token budget as the
-handbook-documented Class-diagram primer) rather than byte-identical to the original
-Claude Sonnet 5 subagent prompts, which were never saved as a standalone artifact (the
-Gemini 2.5 Flash and Pro runs did share byte-identical primers with each other, though).
-Gemini 2.5 Flash is Google's fast/cheap tier, not a like-for-like peer of Claude Sonnet 5
-or GPT-4o — a Gemini 2.5 Pro run tested whether that tier gap explained Flash's weak kUML
-results and found it does not (Pro reproduces the same divergence). See the handbook page
-for the full caveat list and the Flash-vs-Pro comparison.
+All four models' primary datasets now have **3 independent samples per cell** (mean ±
+sample stdev; replication added 2026-07-10 for GPT-4o/Gemini, 2026-07-11 for Claude), each
+validated against an isolated, version-pinned `kuml` build so renderer/compiler drift does
+not leak into the sample-to-sample variance. This is a description, not a formal
+significance test — 3 samples yields no t-tests or confidence intervals in the classical
+sense, only mean/stdev; for cells with visibly non-overlapping bands this is sufficient to
+rule out single-draw noise, but not to claim significance at a chosen alpha. Hallucination
+Rate is an algorithmic fuzzy-name-match against the gold standard, not a semantic judge. All
+primers are byte-identical across the four *primary* datasets (Claude via `run-claude.py`,
+GPT-4o, Gemini 2.5 Flash, Gemini 2.5 Pro) — the Sequence/C4/SysML2 primers were reconstructed
+once from `corpus.json`'s gold-standard code and reused verbatim by every script. The
+residual primer-non-identity risk is confined to the retained `2026-07-06-claude-sonnet-5/`
+robustness-check dataset, whose Sequence/C4/SysML2 primers were authored interactively via
+Claude Code subagents and never saved as standalone artifacts — do not mix its numbers into
+cross-model comparisons that assume primer parity. Gemini 2.5 Flash is Google's fast/cheap
+tier, not a like-for-like peer of Claude Sonnet 5 or GPT-4o — a Gemini 2.5 Pro run tested
+whether that tier gap explained Flash's weak kUML results and found it does not (Pro
+reproduces the same divergence). See the handbook page for the full caveat list and the
+Flash-vs-Pro comparison.

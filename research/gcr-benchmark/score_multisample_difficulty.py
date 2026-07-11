@@ -10,6 +10,11 @@ from score import score, aggregate
 CORPUS_PATH = "corpus.json"
 
 MODELS = {
+    "Claude Sonnet 5": [
+        "results/claude-sonnet-5/raw-results.json",
+        "results/claude-sonnet-5/raw-results-sample2.json",
+        "results/claude-sonnet-5/raw-results-sample3.json",
+    ],
     "GPT-4o": [
         "results/gpt-4o/raw-results.json",
         "results/gpt-4o/raw-results-sample2.json",
