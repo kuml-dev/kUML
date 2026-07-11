@@ -91,7 +91,8 @@ entity ids (checked for dangling references, not parsed).
 Data types (`ErmDataType`, sealed): `Integer(bits)`, `Decimal(precision, scale)`,
 `Real(double)`, `Varchar(length)`, `Text`, `Boolean`, `Date`, `Time`,
 `Timestamp(withTimeZone)`, `Uuid`, `Blob`, `Json`, and `Custom(raw)` as an escape hatch
-for dialect-specific types with no logical equivalent (e.g. Postgres `tsvector`).
+for dialect-specific types with no logical equivalent (e.g. Postgres `tsvector`, or a
+PostGIS `geometry(…)` column — see <<postgis-timescale>>).
 
 == Relationships and cardinalities
 
@@ -327,6 +328,108 @@ runnable but are `@Deprecated` — `erm-to-exposed` (ERM input) and
 `uml-to-exposed-via-erm` (UML input, chained through ERM) are the recommended path
 going forward, since the ERM intermediate model makes the mapping decisions inspectable
 as a diagram instead of hidden inside the generator.
+
+[#postgis-timescale]
+== PostGIS geometry and TimescaleDB hypertables
+
+Since v0.30.0, the `sql` and `exposed` generators recognize two Postgres-ecosystem
+extensions straight from the ERM model — without a new `ErmDataType` variant or a runtime
+plugin (ADR-0016 §2.3). Both hooks are deliberately narrow: no general GIS type system, no
+ServiceLoader/plugin SPI, and no automatic hypertable inference.
+
+=== PostGIS geometry columns
+
+A column typed `ErmDataType.Custom("geometry(<kind>[,<SRID>])")` is recognized as a PostGIS
+geometry column. `<kind>` is one of `Point`, `LineString`, `Polygon`, or `Geometry`
+(case-insensitive); the SRID is an optional integer (e.g. `4326`).
+
+[source,kuml]
+----
+ermModel("Places") {
+    entity("places") {
+        id("id", ErmDataType.Integer(64))
+        attribute("location", ErmDataType.Custom("geometry(Point,4326)"), nullable = false)
+    }
+}
+----
+
+On the `sql` plugin with `sql-dialect=postgres`, the column is normalized to its canonical
+Postgres type; other SQL dialects pass the raw string through unchanged:
+
+[source,sql]
+----
+location geometry(Point,4326) NOT NULL
+----
+
+The `exposed` plugin renders a dependency-free `geometry(name, sqlType)` column call, backed by
+a generated `PostGisColumnTypes.kt` support file (emitted only when at least one geometry column
+is present) — no `exposed-spatial`/PostGIS runtime dependency:
+
+[source,kotlin]
+----
+public val location: Column<String> = geometry("location", "geometry(Point,4326)")
+----
+
+=== TimescaleDB hypertables
+
+`hypertable(timeColumn, chunkInterval?)` on an entity marks it as a TimescaleDB hypertable.
+`timeColumn` must name a column declared on the same entity (validated at emission time);
+`chunkInterval` is an optional free-text interval such as `"7 days"`.
+
+[source,kuml]
+----
+ermModel("Sensors") {
+    entity("readings") {
+        id("id", ErmDataType.Integer(64))
+        attribute("recorded_at", ErmDataType.Timestamp(), nullable = false)
+        hypertable("recorded_at", "7 days")
+    }
+}
+----
+
+On the `sql` plugin with `sql-dialect=postgres`, a `create_hypertable(...)` call is emitted
+right after `CREATE TABLE` (before foreign keys and indexes); every other dialect ignores the
+marker:
+
+[source,sql]
+----
+SELECT create_hypertable('readings', 'recorded_at', if_not_exists => TRUE, chunk_time_interval => INTERVAL '7 days');
+----
+
+Omitting `chunkInterval` drops the `chunk_time_interval` argument. The `exposed` plugin has no
+hypertable equivalent and emits only an explanatory comment.
+
+== Additive-only schema-diff migrations
+
+`kuml generate --sql-migration` computes the delta between two ERM model snapshots (`--from`
+old, `--to` new) and writes a single Flyway-named migration file containing only safe, additive
+DDL — `CREATE TABLE`, `ALTER TABLE … ADD COLUMN`, `CREATE INDEX`, `CREATE VIEW`, and
+`ALTER TABLE … ADD CONSTRAINT … CHECK`:
+
+[source,bash]
+----
+kuml generate --sql-migration \
+    --from schema-v1.kuml.kts \
+    --to schema-v2.kuml.kts \
+    --version 2 \
+    --description add_orders \
+    --output migrations/
+----
+
+This writes `migrations/V2__add_orders.sql` (Flyway `V<version>__<description>.sql` naming).
+Both `--from` and `--to` must be ERM scripts; the mode is mutually exclusive with `-i`/`--input`,
+and `--options sql-dialect=<dialect>` selects the dialect (default `postgres`).
+
+Any destructive or ambiguous change — a dropped or renamed entity or column, a type or
+primary-key change — makes generation refuse, reporting the complete list of blockers at once
+instead of a fix-one-rerun-repeat loop:
+
+[source]
+----
+Code generation error: kuml-gen-sql: refusing to generate an additive migration … — destructive
+or ambiguous changes detected:
+  - entity 'users' was removed — dropping a table is destructive
+----
 
 == Reverse: SQL→ERM
 

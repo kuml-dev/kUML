@@ -88,6 +88,12 @@ A model with no explicit `diagram(…)` call gets a default one synthesized (`na
 name, `notation` = MARTIN) so every `ermModel { … }` script stays renderable/extractable
 without mandatory boilerplate.
 
+`EntityBuilder.hypertable(timeColumn, chunkInterval?)` marks an entity as a TimescaleDB
+hypertable via `ErmMetadataKeys.HYPERTABLE` metadata; together with PostGIS geometry columns
+declared as `ErmDataType.Custom("geometry(Point,4326)")`, these Postgres-ecosystem hooks are
+honored by the SQL/Exposed code generators (see the handbook ERM DSL reference), not by this
+metamodel module itself.
+
 == Constraint Checker
 
 `ErmConstraintChecker` enforces 15 rules — see the KDoc on

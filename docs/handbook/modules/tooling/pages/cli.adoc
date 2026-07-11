@@ -55,13 +55,14 @@ Generate code from a script using a registered code generator.
 
 [source,bash]
 ----
-kuml generate [options] <script>
+kuml generate --input <script> [options]
 ----
 
 Options:
 
-* `--output <dir>` — output directory (created if missing)
-* `--plugin <name>` — generator name (`kotlin`, `java`, `sql`, or custom)
+* `-i, --input <script>` — path to the `*.kuml.kts` script (classic mode)
+* `-o, --output <dir>` — output directory (created if missing)
+* `--plugin <name>` — generator name (`kotlin`, `java`, `sql`, `exposed`, or custom)
 * `--package <fqn>` — target package (Java/Kotlin)
 * `--options key=value,key=value` — generator-specific options
 
@@ -69,9 +70,29 @@ Examples:
 
 [source,bash]
 ----
-kuml generate model.kuml.kts --plugin java --package com.example --options java-style=records
-kuml generate model.kuml.kts --plugin sql --options sql-dialect=mysql,sql-drop=true
+kuml generate --input model.kuml.kts --plugin java --package com.example --options java-style=records --output gen/
+kuml generate --input model.kuml.kts --plugin sql --options sql-dialect=mysql,sql-drop=true --output gen/
 ----
+
+=== `--sql-migration`: additive-only schema-diff migrations
+
+A second mode diffs two ERM model snapshots and writes a single additive-only Flyway
+migration file — mutually exclusive with `-i`/`--input`:
+
+[source,bash]
+----
+kuml generate --sql-migration \
+    --from schema-v1.kuml.kts \
+    --to schema-v2.kuml.kts \
+    --version 2 \
+    --description add_orders \
+    --output migrations/
+----
+
+Writes `migrations/V2__add_orders.sql`. Both scripts must be ERM models; any destructive
+or ambiguous change (dropped/renamed entity or column, type or primary-key change) makes
+generation refuse with the full list of blockers. See
+xref:reference:erm-dsl.adoc[ERM DSL] for details.
 
 == `kuml validate`
 
