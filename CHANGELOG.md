@@ -6,6 +6,64 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.30.0] — 2026-07-11
+
+### Added
+
+**ERM SQL/Exposed code generators: PostGIS geometry + TimescaleDB hypertable hooks (ADR-0016 §2.3)**
+
+The ERM SQL and Exposed code generators can now emit PostGIS geometry columns
+and TimescaleDB hypertables without a new `ErmDataType` variant or a runtime
+plugin SPI. A new `CustomTypeHooks` extension point recognizes
+`ErmDataType.Custom` raw strings shaped like
+`geometry(Point|LineString|Polygon|Geometry[,SRID])` through an anchored,
+keyword-whitelisted, SRID-length-capped regex; `ErmSqlTypeMapper` normalizes
+matching columns to their canonical Postgres type (other SQL dialects are
+unaffected), and `ErmExposedEmitter` renders a dependency-free
+`geometry(name, sqlType)` column call backed by a new `PostGisColumnTypes.kt`
+support file. Separately, a new `EntityBuilder.hypertable(timeColumn,
+chunkInterval?)` DSL method (backed by `ErmMetadataKeys.HYPERTABLE`) marks an
+entity as a TimescaleDB hypertable: `ErmSqlEmitter` emits a `SELECT
+create_hypertable(...)` call right after `CREATE TABLE` on Postgres, while the
+Exposed emitter adds an explanatory comment only, since Exposed has no native
+equivalent. The free-text `chunkInterval` value is whitelist-validated before
+being interpolated into SQL. Out of scope for this wave: a general GIS type
+system, a ServiceLoader/plugin SPI, automatic hypertable inference, and a
+UML «Hypertable» stereotype/profile authoring path.
+
+**ERM: additive-only schema-diff SQL migrations (ADR-0016 deferred item)**
+
+A new `kuml generate --sql-migration --from <old.kuml.kts> --to <new.kuml.kts>
+--version <v> --description <desc>` CLI mode computes the delta between two
+ERM model snapshots and writes a single Flyway-named migration file
+containing only safe, additive DDL (`CREATE TABLE`, `ALTER TABLE ... ADD
+COLUMN`, `CREATE INDEX`, `CREATE VIEW`, `ALTER TABLE ... ADD CONSTRAINT ...
+CHECK`). Any destructive or ambiguous change — dropped or renamed entities or
+columns, type or primary-key changes, and the like — makes generation refuse
+with the complete list of blockers reported at once, instead of a
+fix-one-rerun-repeat loop. The new `ErmSchemaDiffEmitter` reuses
+`ErmSqlEmitter`'s existing per-element DDL fragment renderers rather than
+duplicating identifier-safety or rendering logic.
+
+### Fixed
+
+**ERM: compartment divider position, self-loop routing, and per-notation SVG frame labels**
+
+Entity/view compartment dividers (Martin, Bachman, IDEF1X, and the view
+query-preview divider) were positioned at the midpoint of their gap and
+visually cut through the first row of the next compartment; dividers now sit
+at the top of the gap instead. ERM self-referencing relationships (e.g. a
+`Category` entity's "subcategory of" self-FK) now route through the same
+self-loop router already used by UML/C4 diagrams instead of ELK's cramped raw
+route, fixing role-label collisions in Martin/Bachman/IDEF1X notation. SVG
+frame labels also now report the specific notation (`erm/martin`,
+`erm/bachman`, `erm/chen`, `erm/idef1x`) instead of a shared, ambiguous `erm`.
+The widened FK-hub layout spacing used for dense ERM entities is now a single
+shared constant (`ErmLayoutBridge.WIDENED_SPACING_HINTS`) referenced by every
+production render path — CLI `render` and `dump-json`, the web playground, and
+Asciidoctor handbook rendering — closing a gap where `dump-json` used to
+diverge from `render` for Chen/IDEF1X scripts.
+
 ## [0.29.0] — 2026-07-10
 
 ### Added
