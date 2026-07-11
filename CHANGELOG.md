@@ -6,6 +6,21 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+
+**`kuml workspace init` scaffold + shared CLI scaffold engine (ADR-0011 FT-4, V3.6.2)**
+
+New `kuml workspace init --mode knowledge|engineering --name <name>` scaffolds a fresh OKF
+workspace: `knowledge` mode (the default) writes a 5-file starter set — `.kuml-workspace.toml`,
+`index.md` (`type: KumlWorkspace`), an `Article`, a `UmlClassDiagram` with a minimal example
+diagram, and a `Glossary` — that passes `kuml workspace validate` with zero findings and
+renders cleanly; `engineering` mode writes a bare `.kuml-workspace.toml`, a starter
+`<slug>.kuml.kts` script, and a `.gitignore`. The `{{var}}` template engine and file-writing
+loop previously private to `kuml plugin init` were extracted into a shared
+`dev.kuml.cli.scaffold.Scaffolder` engine so both commands render templates and enforce the
+non-empty-target-dir `--force` guard the same way; `PluginScaffolder` now delegates to it with
+no behavior change.
+
 ## [0.30.1] — 2026-07-11
 
 ### Fixed

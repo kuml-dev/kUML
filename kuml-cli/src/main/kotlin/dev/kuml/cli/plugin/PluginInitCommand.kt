@@ -14,6 +14,8 @@ import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.mordant.terminal.prompt
 import dev.kuml.cli.ExitCodes
 import dev.kuml.cli.KumlVersion
+import dev.kuml.cli.scaffold.Scaffolder
+import dev.kuml.cli.scaffold.TemplateFile
 import java.io.File
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -165,40 +167,6 @@ internal data class PluginInitSpec(
     }
 }
 
-// ── Template engine ───────────────────────────────────────────────────────────
-
-internal object TemplateEngine {
-    private val TOKEN_REGEX = Regex("""\{\{([^}]+)}}""")
-
-    /**
-     * Replaces `{{var}}` tokens with values from [vars].
-     * Throws [IllegalArgumentException] for unknown tokens.
-     */
-    fun render(
-        template: String,
-        vars: Map<String, String>,
-    ): String =
-        TOKEN_REGEX.replace(template) { match ->
-            val key = match.groupValues[1]
-            vars[key] ?: throw IllegalArgumentException(
-                "Unknown template variable '{{$key}}' — known: ${vars.keys.sorted()}",
-            )
-        }
-}
-
-// ── Template file descriptor ──────────────────────────────────────────────────
-
-/**
- * Maps a classpath resource path to an output path (both may contain `{{vars}}`).
- *
- * @param resourcePath Classpath path under `plugin-templates/`, e.g. `theme/build.gradle.kts.tmpl`
- * @param outputPath   Path relative to the target dir, e.g. `build.gradle.kts`; may contain `{{var}}`
- */
-internal data class TemplateFile(
-    val resourcePath: String,
-    val outputPath: String,
-)
-
 // ── Scaffolder ────────────────────────────────────────────────────────────────
 
 internal object PluginScaffolder {
@@ -224,6 +192,9 @@ internal object PluginScaffolder {
     /**
      * Renders and writes all template files for the given category and spec into [targetDir].
      *
+     * Delegates to the shared [Scaffolder] engine (V3.6.2) — this method is now a thin façade
+     * kept for its stable public signature, which [PluginInitCommandTest] calls directly.
+     *
      * @param force When `false`, aborts if [targetDir] already exists and is non-empty.
      */
     fun scaffold(
@@ -233,31 +204,7 @@ internal object PluginScaffolder {
         force: Boolean,
         echo: (String) -> Unit,
     ) {
-        if (targetDir.exists() && targetDir.isDirectory && targetDir.list()?.isNotEmpty() == true && !force) {
-            throw IllegalStateException(
-                "Target directory '${targetDir.absolutePath}' already exists and is non-empty. " +
-                    "Use --force to overwrite.",
-            )
-        }
-        val vars = spec.toVars()
-        for (tmpl in templateFiles(category)) {
-            val content = loadResource(tmpl.resourcePath)
-            val rendered = TemplateEngine.render(content, vars)
-            val outRelative = TemplateEngine.render(tmpl.outputPath, vars)
-            val outFile = File(targetDir, outRelative)
-            outFile.parentFile?.mkdirs()
-            outFile.writeText(rendered)
-            echo("  created: $outRelative")
-        }
-    }
-
-    private fun loadResource(path: String): String {
-        val stream =
-            PluginScaffolder::class.java.classLoader.getResourceAsStream(path)
-                ?: throw IllegalStateException(
-                    "Missing classpath resource: $path — this is a bug in kuml-cli",
-                )
-        return stream.use { it.bufferedReader().readText() }
+        Scaffolder.scaffold(templateFiles(category), spec.toVars(), targetDir, force, echo)
     }
 }
 

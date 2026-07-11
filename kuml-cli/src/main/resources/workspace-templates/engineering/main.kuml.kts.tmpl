@@ -1,0 +1,17 @@
+// {{slug}}.kuml.kts
+// Scaffolded by `kuml workspace init --mode engineering`.
+// Render with:
+//   kuml render {{slug}}.kuml.kts -o {{slug}}.svg
+
+classDiagram(name = "{{nameKotlinLiteral}}") {
+    val a = classOf(name = "Author") {
+        attribute(name = "id", type = "UUID")
+    }
+    val b = classOf(name = "Document") {
+        attribute(name = "title", type = "String")
+    }
+    association(source = a, target = b) {
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "0..*"); role = "documents" }
+    }
+}

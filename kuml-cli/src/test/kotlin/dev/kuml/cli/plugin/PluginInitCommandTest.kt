@@ -4,6 +4,7 @@ import com.github.ajalt.clikt.testing.test
 import dev.kuml.cli.ExitCodes
 import dev.kuml.cli.KumlCli
 import dev.kuml.cli.KumlVersion
+import dev.kuml.cli.scaffold.TemplateEngine
 import dev.kuml.plugin.loader.manifest.PluginManifestParser
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContainExactlyInAnyOrder

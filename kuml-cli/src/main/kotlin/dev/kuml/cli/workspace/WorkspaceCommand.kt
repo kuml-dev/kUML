@@ -30,6 +30,7 @@ private val okfPrettyJson = Json { prettyPrint = true }
  * knowledge workspaces (ADR-0011, FT-1 feasibility spike).
  *
  * Sub-subcommands:
+ * - `init`     — scaffold a new OKF knowledge workspace (V3.6.2, FT-4).
  * - `info`     — scan a workspace and print its mode + document inventory.
  * - `validate` — run [OkfValidator]'s structural conformance checks.
  * - `render`   — render every ```kuml block through the full [dev.kuml.cli.RenderPipeline].
@@ -37,6 +38,7 @@ private val okfPrettyJson = Json { prettyPrint = true }
 internal class WorkspaceCommand : CliktCommand(name = "workspace") {
     init {
         subcommands(
+            WorkspaceInitCommand(),
             WorkspaceInfoCommand(),
             WorkspaceValidateCommand(),
             WorkspaceRenderCommand(),

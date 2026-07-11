@@ -1,0 +1,25 @@
+---
+type: UmlClassDiagram
+title: Domain Classes
+---
+
+# Domain Classes
+
+An example class diagram to get you started — replace it with your own domain model.
+
+```kuml
+classDiagram(name = "{{nameKotlinLiteral}} Domain") {
+    val a = classOf(name = "Author") {
+        attribute(name = "id", type = "UUID")
+    }
+    val b = classOf(name = "Document") {
+        attribute(name = "title", type = "String")
+    }
+    association(source = a, target = b) {
+        source { multiplicity(spec = "1") }
+        target { multiplicity(spec = "0..*"); role = "documents" }
+    }
+}
+```
+
+Back to [Introduction](../articles/01-introduction.md).
