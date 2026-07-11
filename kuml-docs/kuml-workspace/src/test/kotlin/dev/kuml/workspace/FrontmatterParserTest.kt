@@ -1,4 +1,4 @@
-package dev.kuml.cli.workspace
+package dev.kuml.workspace
 
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe

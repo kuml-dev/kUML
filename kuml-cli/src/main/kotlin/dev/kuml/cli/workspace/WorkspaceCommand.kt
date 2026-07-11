@@ -12,6 +12,10 @@ import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.file
 import com.github.ajalt.clikt.parameters.types.int
 import dev.kuml.cli.ExitCodes
+import dev.kuml.workspace.OkfFinding
+import dev.kuml.workspace.OkfSeverity
+import dev.kuml.workspace.OkfValidator
+import dev.kuml.workspace.WorkspaceScanner
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -112,11 +116,16 @@ internal class WorkspaceValidateCommand : CliktCommand(name = "validate") {
         .choice("text", "json")
         .default("text")
 
+    private val strictVocabulary by option(
+        "--strict-vocabulary",
+        help = "Treat an unrecognised 'type:' value (OKF-W-002) as an ERROR instead of a WARNING",
+    ).flag(default = false)
+
     override fun help(context: Context): String = "Validate OKF conformance of a knowledge workspace (ADR-0011)."
 
     override fun run() {
         val ws = WorkspaceScanner.scan(dir)
-        val findings = OkfValidator.validate(ws)
+        val findings = OkfValidator.validate(ws, strictVocabulary = strictVocabulary)
         val errorCount = findings.count { it.severity == OkfSeverity.ERROR }
 
         when (outputFormat) {

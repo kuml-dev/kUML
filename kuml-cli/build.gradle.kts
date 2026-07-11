@@ -90,6 +90,7 @@ dependencies {
     implementation(project(path = ":kuml-metamodel:kuml-metamodel-erm")) // V3.4.9 — ErmModelDslPrinter (kuml reverse --format sql)
     implementation(project(path = ":kuml-docs:kuml-markdown"))
     implementation(project(path = ":kuml-docs:kuml-asciidoc")) // V3.2.19 — `kuml asciidoc` subcommand, Antora pre-render step
+    implementation(project(path = ":kuml-docs:kuml-workspace")) // V3.6.1 — OKF workspace core module + vocabulary (FT-2)
 
     // V3.0.9 — `kuml reverse` subcommand. API is needed at compile time,
     // engines are loaded via ServiceLoader at runtime.

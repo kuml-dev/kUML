@@ -3,6 +3,10 @@ package dev.kuml.cli.workspace
 import dev.kuml.cli.RenderPipeline
 import dev.kuml.cli.ScriptEvaluationException
 import dev.kuml.core.config.KumlConfig
+import dev.kuml.workspace.OkfDocument
+import dev.kuml.workspace.OkfFinding
+import dev.kuml.workspace.OkfSeverity
+import dev.kuml.workspace.OkfWorkspace
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files

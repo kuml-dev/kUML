@@ -1,4 +1,4 @@
-package dev.kuml.cli.workspace
+package dev.kuml.workspace
 
 import dev.kuml.markdown.CodeBlockExtractor
 import java.io.File
@@ -8,10 +8,10 @@ import java.nio.file.Files
  * Scans an OKF workspace directory tree into an [OkfWorkspace] (ADR-0011).
  *
  * Discovery order:
- * 1. Optional `.kuml-workspace.toml` at the root — a `mode = "knowledge"` (or
- *    `"engineering"`) line is picked up via a tolerant regex (no full TOML parser
- *    for this spike; see [WORKSPACE_TOML_MODE]).
- * 2. If no marker (or no `mode` line in it) is found, the mode is *inferred*:
+ * 1. Optional `.kuml-workspace.toml` at the root — parsed via [WorkspaceMarkerParser]
+ *    into a [WorkspaceMarker] (`[workspace] mode`, `name`, `kuml-version`; `[okf] version`,
+ *    `vocabulary`, `strict`).
+ * 2. If no marker (or no `mode` key in it) is found, the mode is *inferred*:
  *    any `*.kuml.kts` file anywhere in the tree → [WorkspaceMode.ENGINEERING];
  *    else an `index.md` plus other `*.md` files with frontmatter → [WorkspaceMode.KNOWLEDGE];
  *    else [WorkspaceMode.UNKNOWN].
@@ -22,8 +22,7 @@ import java.nio.file.Files
  * (typically the render output directory) are skipped so that a second
  * `workspace render` run over the same root does not re-scan its own mirrored output.
  */
-internal object WorkspaceScanner {
-    private val WORKSPACE_TOML_MODE = Regex("""mode\s*=\s*"(\w+)"""")
+public object WorkspaceScanner {
     private val MARKDOWN_LINK = Regex("""\[[^\]]*]\(([^)]+)\)""")
 
     /**
@@ -35,13 +34,14 @@ internal object WorkspaceScanner {
     private const val MAX_MD_FILE_COUNT = 20_000
     private const val MAX_MD_FILE_SIZE_BYTES = 20L * 1024 * 1024 // 20 MiB per document
 
-    fun scan(
+    public fun scan(
         root: File,
         excludeDirs: Set<File> = emptySet(),
     ): OkfWorkspace {
         val excludeCanonical = excludeDirs.map { it.absoluteFile.normalize() }.toSet()
         val markerFile = File(root, ".kuml-workspace.toml")
         val markerFound = markerFile.isFile
+        val marker = if (markerFound) WorkspaceMarkerParser.parse(markerFile.readText()) else null
 
         val allFiles =
             root
@@ -60,16 +60,7 @@ internal object WorkspaceScanner {
         }
         val hasKumlScripts = allFiles.any { it.name.endsWith(".kuml.kts") }
 
-        val declaredMode =
-            if (markerFound) {
-                WORKSPACE_TOML_MODE
-                    .find(markerFile.readText())
-                    ?.groupValues
-                    ?.get(1)
-                    ?.let { modeFromString(it) }
-            } else {
-                null
-            }
+        val declaredMode = marker?.mode?.takeIf { it != WorkspaceMode.UNKNOWN }
 
         val mode =
             declaredMode
@@ -84,15 +75,8 @@ internal object WorkspaceScanner {
                 .sortedBy { it.relativeTo(root).path }
                 .map { parseDocument(root, it) }
 
-        return OkfWorkspace(root = root, mode = mode, markerFound = markerFound, documents = documents)
+        return OkfWorkspace(root = root, mode = mode, markerFound = markerFound, documents = documents, marker = marker)
     }
-
-    private fun modeFromString(raw: String): WorkspaceMode =
-        when (raw.lowercase()) {
-            "knowledge" -> WorkspaceMode.KNOWLEDGE
-            "engineering" -> WorkspaceMode.ENGINEERING
-            else -> WorkspaceMode.UNKNOWN
-        }
 
     private fun parseDocument(
         root: File,

@@ -317,6 +317,23 @@ can query and drive a kUML model the same way they query a database. See
 xref:reference:authoring-mcp.adoc[Authoring MCP] and
 xref:reference:runtime-mcp.adoc[Behaviour-Runtime MCP] for the full tool reference.
 
+== `kuml workspace`
+
+Inspect, validate and render *OKF knowledge workspaces* — directory trees of Markdown
+documents with `type:` frontmatter and ` ```kuml ` diagram blocks:
+
+[source,bash]
+----
+kuml workspace info <dir>
+kuml workspace validate <dir> [--strict-vocabulary]
+kuml workspace render <dir> [-f svg|png] [--strict] [--no-mirror]
+----
+
+This is the canonical subcommand group for workspace-level operations — there are no
+top-level `kuml validate`/`kuml render` aliases for it. See
+xref:knowledge-workspaces.adoc[Knowledge Workspaces] for the `.kuml-workspace.toml`
+marker format, the full `type:` vocabulary, and the `OKF-*` finding codes.
+
 == Exit codes
 
 [cols="1,2"]

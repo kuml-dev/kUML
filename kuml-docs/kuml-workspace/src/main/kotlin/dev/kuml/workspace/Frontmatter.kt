@@ -1,4 +1,4 @@
-package dev.kuml.cli.workspace
+package dev.kuml.workspace
 
 /**
  * Parsed YAML frontmatter of an OKF Markdown document (ADR-0011).
@@ -16,17 +16,17 @@ package dev.kuml.cli.workspace
  * @property bodyStartLine 1-based line number where the document body begins
  *  (the line after the closing `---`). Equals `1` when [present] is `false`.
  */
-internal data class Frontmatter(
-    val fields: Map<String, String>,
-    val tags: List<String>,
-    val present: Boolean,
-    val bodyStartLine: Int,
+public data class Frontmatter(
+    public val fields: Map<String, String>,
+    public val tags: List<String>,
+    public val present: Boolean,
+    public val bodyStartLine: Int,
 ) {
     /** Convenience accessor for the `type:` field — the OKF-vocabulary key (see [OkfType]). */
-    val type: String? get() = fields["type"]
+    public val type: String? get() = fields["type"]
 
     /** Convenience accessor for the `title:` field. */
-    val title: String? get() = fields["title"]
+    public val title: String? get() = fields["title"]
 }
 
 /**
@@ -45,10 +45,10 @@ internal data class Frontmatter(
  * - The block ends at the next line that is exactly `---`. If no closing `---` is found,
  *   the entire input is treated as having no frontmatter ([Frontmatter.present] = `false`).
  */
-internal object FrontmatterParser {
+public object FrontmatterParser {
     private const val FENCE = "---"
 
-    fun parse(markdown: String): Frontmatter {
+    public fun parse(markdown: String): Frontmatter {
         val lines = markdown.split('\n')
         if (lines.isEmpty() || lines[0].trim() != FENCE) {
             return Frontmatter(fields = emptyMap(), tags = emptyList(), present = false, bodyStartLine = 1)

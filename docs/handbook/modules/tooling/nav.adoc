@@ -4,3 +4,4 @@
 * xref:vscode.adoc[VS Code extension]
 * xref:asciidoc.adoc[AsciiDoc & Antora]
 * xref:markdown.adoc[Markdown]
+* xref:knowledge-workspaces.adoc[Knowledge Workspaces]

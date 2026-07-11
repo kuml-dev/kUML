@@ -1,12 +1,12 @@
-package dev.kuml.cli.workspace
+package dev.kuml.workspace
 
 import dev.kuml.markdown.KumlCodeBlock
 import java.io.File
 
 /** A Markdown link target found in an [OkfDocument]'s body, with its 1-based source line. */
-internal data class MarkdownLink(
-    val target: String,
-    val line: Int,
+public data class MarkdownLink(
+    public val target: String,
+    public val line: Int,
 )
 
 /**
@@ -22,26 +22,33 @@ internal data class MarkdownLink(
  * @property kumlBlocks All ` ```kuml ` fenced code blocks in the document, in source order.
  * @property links All Markdown links (`[text](target)`) found in the document body.
  */
-internal data class OkfDocument(
-    val file: File,
-    val relativePath: String,
-    val frontmatter: Frontmatter,
-    val type: OkfType?,
-    val rawType: String?,
-    val kumlBlocks: List<KumlCodeBlock>,
-    val links: List<MarkdownLink>,
+public data class OkfDocument(
+    public val file: File,
+    public val relativePath: String,
+    public val frontmatter: Frontmatter,
+    public val type: OkfType?,
+    public val rawType: String?,
+    public val kumlBlocks: List<KumlCodeBlock>,
+    public val links: List<MarkdownLink>,
 )
 
 /** The declared or inferred mode of an [OkfWorkspace] (ADR-0011). */
-internal enum class WorkspaceMode { KNOWLEDGE, ENGINEERING, UNKNOWN }
+public enum class WorkspaceMode { KNOWLEDGE, ENGINEERING, UNKNOWN }
 
 /**
  * A scanned OKF workspace: its root directory, resolved [mode], whether a
  * `.kuml-workspace.toml` marker was found, and every Markdown document discovered.
+ *
+ * @property marker The parsed `.kuml-workspace.toml` marker file, or `null` when
+ *  [markerFound] is `false` (no marker file at the workspace root at all). Additive
+ *  field — carries the [WorkspaceMarker] parsed by [WorkspaceMarkerParser] so callers
+ *  (e.g. `workspace init`, a future Desktop viewer) can read `name`/`strict` without
+ *  re-parsing the marker file themselves.
  */
-internal data class OkfWorkspace(
-    val root: File,
-    val mode: WorkspaceMode,
-    val markerFound: Boolean,
-    val documents: List<OkfDocument>,
+public data class OkfWorkspace(
+    public val root: File,
+    public val mode: WorkspaceMode,
+    public val markerFound: Boolean,
+    public val documents: List<OkfDocument>,
+    public val marker: WorkspaceMarker? = null,
 )

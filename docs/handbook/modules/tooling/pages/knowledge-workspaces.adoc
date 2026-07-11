@@ -1,0 +1,214 @@
+= Knowledge Workspaces
+:description: OKF knowledge workspaces — the `kuml workspace` subcommand group, the `.kuml-workspace.toml` marker, and the `type:` frontmatter vocabulary.
+
+An *OKF knowledge workspace* is a directory tree of Markdown documents, each carrying a
+small YAML frontmatter block with a `type:` field drawn from a fixed vocabulary
+(`UmlClassDiagram`, `Concept`, `BpmnProcess`, ...) and — for diagram types — exactly one
+` ```kuml ` fenced code block. `kuml workspace` inspects, validates and renders such
+workspaces.
+
+The canonical entry point is the `kuml workspace` subcommand group:
+
+[source,bash]
+----
+kuml workspace info <dir>                    # mode + document inventory
+kuml workspace validate <dir>                 # structural OKF conformance checks
+kuml workspace render <dir>                   # render every ```kuml block to SVG/PNG
+kuml workspace init <dir>                     # scaffold a new workspace (see below)
+----
+
+There are no top-level `kuml validate`/`kuml render` aliases for workspace operations —
+`kuml validate`/`kuml render` operate on a single `*.kuml.kts` script, `kuml workspace
+validate`/`render` operate on a whole document tree. Keep the two mental models separate.
+
+NOTE: `kuml workspace init` scaffolds a new workspace (marker file, `index.md`, starter
+documents). It is introduced in a later wave — this page will grow a dedicated section
+once it lands.
+
+== The `.kuml-workspace.toml` marker
+
+An optional marker file at the workspace root declares its mode and OKF metadata instead
+of leaving `kuml workspace info` to infer it:
+
+[source,toml]
+----
+[workspace]
+mode = "knowledge"
+name = "PZB Domain Model"
+kuml-version = ">=0.30.0"
+
+[okf]
+version = "0.1"
+vocabulary = "dev.kuml.okf@1.0"
+strict = false
+----
+
+[cols="1,3"]
+|===
+| Key | Meaning
+
+| `[workspace] mode`
+| `"knowledge"` or `"engineering"`. When absent, the mode is *inferred*: any `*.kuml.kts`
+  file anywhere in the tree → `engineering`; else an `index.md` plus other `*.md` files →
+  `knowledge`; else `unknown`.
+
+| `[workspace] name`
+| Free-form workspace display name.
+
+| `[workspace] kuml-version`
+| Declared kUML CLI version constraint (informational; not currently enforced).
+
+| `[okf] version`
+| Declared OKF spec version the workspace was authored against.
+
+| `[okf] vocabulary`
+| Declared `type:` vocabulary identifier (see below).
+
+| `[okf] strict`
+| Declared default for `--strict-vocabulary` (informational; the CLI flag always wins).
+|===
+
+The parser is a small hand-rolled subset of TOML — comments (`#`), `[section]` headers,
+and `key = value` lines with quoted or bare scalar values. It never throws: a malformed
+or partial marker degrades to "field absent", falling back to the inference heuristic
+above rather than aborting the scan.
+
+== The `type:` vocabulary
+
+Every document's frontmatter `type:` field is resolved against a fixed vocabulary
+(current version: `1.0`, `29` entries). Types with `requiresKumlBlock = true` must
+contain exactly one ` ```kuml ` fenced code block; the others are prose/collection types.
+
+=== UML
+
+[cols="2,1"]
+|===
+| `type:` | Requires a ```kuml block
+
+| `UmlClassDiagram` | yes
+| `UmlStateMachine` | yes
+| `UmlSequenceDiagram` | yes
+| `UmlActivityDiagram` | yes
+| `UmlComponentDiagram` | yes
+| `UmlUseCaseDiagram` | yes
+|===
+
+=== C4
+
+[cols="2,1"]
+|===
+| `type:` | Requires a ```kuml block
+
+| `C4ContextDiagram` | yes
+| `C4ContainerDiagram` | yes
+| `C4ComponentDiagram` | yes
+| `C4CodeDiagram` | yes
+|===
+
+=== ERM
+
+[cols="2,1"]
+|===
+| `type:` | Requires a ```kuml block
+
+| `ErmDiagram` | yes
+|===
+
+=== SysML 2
+
+[cols="2,1"]
+|===
+| `type:` | Requires a ```kuml block
+
+| `Sysml2BlockDefinition` | yes
+| `Sysml2InternalBlock` | yes
+| `Sysml2StateMachine` | yes
+| `Sysml2Activity` | yes
+| `Sysml2Sequence` | yes
+| `Sysml2UseCase` | yes
+| `Sysml2Requirement` | yes
+| `Sysml2Parametric` | yes
+|===
+
+=== BPMN
+
+[cols="2,1"]
+|===
+| `type:` | Requires a ```kuml block
+
+| `BpmnProcess` | yes
+| `BpmnCollaboration` | yes
+| `BpmnChoreography` | yes
+| `BpmnConversation` | yes
+|===
+
+=== Blueprint
+
+[cols="2,1"]
+|===
+| `type:` | Requires a ```kuml block
+
+| `ServiceBlueprint` | yes
+|===
+
+=== Knowledge (non-diagram)
+
+[cols="2,1"]
+|===
+| `type:` | Requires a ```kuml block
+
+| `KumlWorkspace` | no
+| `ConceptCollection` | no
+| `Concept` | no
+| `Article` | no
+| `Glossary` | no
+|===
+
+The vocabulary is checked into the codebase as a machine-readable contract at
+`kuml-docs/kuml-workspace/src/main/resources/okf/kuml-okf-vocabulary.json` (`id`,
+`requiresKumlBlock`, `since`, `description` per entry) and is kept in lockstep with the
+`OkfType` enum by a dedicated contract test. An unrecognised `type:` value is not an
+error by default — custom types are allowed — but see `--strict-vocabulary` below.
+
+== OKF finding codes
+
+`kuml workspace validate` runs a fixed structural rule set:
+
+[cols="1,1,3"]
+|===
+| Code | Severity | Meaning
+
+| `OKF-E-001` | ERROR | Frontmatter missing or has no `type:` field.
+| `OKF-W-002` | WARNING (or ERROR under `--strict-vocabulary`) | Unrecognised `type:` value.
+| `OKF-E-003` | ERROR | A diagram type has no ```kuml block.
+| `OKF-W-004` | WARNING | A document has more than one ```kuml block ("one file = one diagram").
+| `OKF-E-005` | ERROR | A relative Markdown link to a `.md` target that does not exist.
+| `OKF-W-006` | WARNING | The workspace root has no `index.md` with `type: KumlWorkspace`.
+| `OKF-E-007` | ERROR | A ```kuml block failed to render (`kuml workspace render` only).
+|===
+
+`OKF-W-002` findings include a *did-you-mean* suggestion (Levenshtein distance ≤ 3
+against the vocabulary) when a close match exists, e.g. `type: UmlClassDigram` suggests
+`Did you mean 'UmlClassDiagram'?`.
+
+== `--strict-vocabulary`
+
+By default an unrecognised `type:` is a warning — custom, workspace-local vocabulary is
+allowed. Pass `--strict-vocabulary` to `kuml workspace validate` to treat it as an error
+instead (exit code `5`, same as any other validation failure):
+
+[source,bash]
+----
+kuml workspace validate ./docs --strict-vocabulary
+----
+
+The finding code stays `OKF-W-002` in both modes — only the severity changes — so a JSON
+consumer parsing `kuml workspace validate -o json` output keys on a stable code space
+regardless of strictness.
+
+== Trust model
+
+`kuml workspace render` executes every ` ```kuml ` block's Kotlin script source through
+the same pipeline as `kuml render` — this is arbitrary code execution by design, not
+something introduced by workspace rendering. Only run it over workspaces you already
+trust, exactly like `kuml render` itself.

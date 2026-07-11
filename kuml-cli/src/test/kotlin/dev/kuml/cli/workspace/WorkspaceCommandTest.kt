@@ -212,4 +212,61 @@ class WorkspaceCommandTest :
 
             root.deleteRecursively()
         }
+
+        test("workspace validate reports an unknown type as WARN and exits 0 by default") {
+            val root = tempWorkspace()
+            File(root, "typo.md").writeText(
+                """
+                |---
+                |type: UmlClassDigram
+                |---
+                |Body.
+                """.trimMargin(),
+            )
+
+            val result = KumlCli().test(listOf("workspace", "validate", root.absolutePath))
+            result.statusCode shouldBe 0
+            result.output shouldContain "WARN"
+            result.output shouldContain "OKF-W-002"
+
+            root.deleteRecursively()
+        }
+
+        test("workspace validate --strict-vocabulary escalates an unknown type to ERROR and exits 5") {
+            val root = tempWorkspace()
+            File(root, "typo.md").writeText(
+                """
+                |---
+                |type: UmlClassDigram
+                |---
+                |Body.
+                """.trimMargin(),
+            )
+
+            val result =
+                KumlCli().test(listOf("workspace", "validate", root.absolutePath, "--strict-vocabulary"))
+            result.statusCode shouldBe ExitCodes.VALIDATION_VIOLATIONS
+            result.output shouldContain "ERROR"
+            result.output shouldContain "OKF-W-002"
+
+            root.deleteRecursively()
+        }
+
+        test("workspace validate suggests a close vocabulary match for a near-miss type") {
+            val root = tempWorkspace()
+            File(root, "typo.md").writeText(
+                """
+                |---
+                |type: UmlClassDigram
+                |---
+                |Body.
+                """.trimMargin(),
+            )
+
+            val result = KumlCli().test(listOf("workspace", "validate", root.absolutePath))
+            result.statusCode shouldBe 0
+            result.output shouldContain "Did you mean 'UmlClassDiagram'?"
+
+            root.deleteRecursively()
+        }
     })

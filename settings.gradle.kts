@@ -166,6 +166,7 @@ include("kuml-renderer:kuml-layout-grid")  // V1.1.12 — pure-Kotlin grid layou
 include(
     "kuml-docs:kuml-markdown",      // Phase 2 — Markdown kuml-Codeblock → SVG
     "kuml-docs:kuml-asciidoc",      // V1.1.8 — AsciiDoc + Antora preprocessor
+    "kuml-docs:kuml-workspace",     // V3.6.1 — OKF workspace core module + vocabulary (FT-2)
 )
 
 // ── Packaging ────────────────────────────────────────── Phase 2 ──
