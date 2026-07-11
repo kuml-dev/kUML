@@ -9,11 +9,8 @@ import androidx.compose.ui.awt.SwingPanel
 import dev.kuml.desktop.AppState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.apache.batik.anim.dom.SAXSVGDocumentFactory
 import org.apache.batik.swing.JSVGCanvas
-import org.apache.batik.util.XMLResourceDescriptor
 import org.w3c.dom.svg.SVGDocument
-import java.io.StringReader
 import javax.swing.SwingUtilities
 
 /**
@@ -46,12 +43,3 @@ fun PreviewPane(
         modifier = modifier.fillMaxSize(),
     )
 }
-
-private fun parseSvg(svgString: String): SVGDocument? =
-    try {
-        val parser = XMLResourceDescriptor.getXMLParserClassName()
-        val factory = SAXSVGDocumentFactory(parser)
-        factory.createSVGDocument("https://kuml.dev/desktop", StringReader(svgString))
-    } catch (_: Exception) {
-        null
-    }

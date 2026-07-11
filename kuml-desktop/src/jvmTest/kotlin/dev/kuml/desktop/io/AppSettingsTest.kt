@@ -24,6 +24,7 @@ class AppSettingsTest : FunSpec({
         s.windowHeight shouldBe 800
         s.windowX shouldBe -1
         s.windowY shouldBe -1
+        s.trustedWorkspaces shouldBe emptyList()
     }
 
     test("JSON round-trip preserves all fields") {
@@ -77,5 +78,31 @@ class AppSettingsTest : FunSpec({
         """.trimIndent()
         val decoded = json.decodeFromString<AppSettings>(jsonWithoutVersion)
         decoded.schemaVersion shouldBe 1
+    }
+
+    // --- V3.6.4 — trustedWorkspaces (additive field) ---
+    test("JSON round-trip preserves trustedWorkspaces") {
+        val original = AppSettings.DEFAULT.copy(trustedWorkspaces = listOf("/home/user/workspace-a", "/home/user/workspace-b"))
+        val encoded = json.encodeToString(original)
+        val decoded = json.decodeFromString<AppSettings>(encoded)
+        decoded shouldBe original
+    }
+
+    test("JSON without trustedWorkspaces field decodes to emptyList (old settings file)") {
+        val jsonWithoutTrustedWorkspaces = """
+            {
+                "schemaVersion": 1,
+                "theme": "kuml",
+                "language": "en",
+                "recentFiles": [],
+                "lastDir": null,
+                "windowWidth": 1200,
+                "windowHeight": 800,
+                "windowX": -1,
+                "windowY": -1
+            }
+        """.trimIndent()
+        val decoded = json.decodeFromString<AppSettings>(jsonWithoutTrustedWorkspaces)
+        decoded.trustedWorkspaces shouldBe emptyList()
     }
 })

@@ -37,7 +37,21 @@ import dev.kuml.desktop.io.UnsavedChoice
 import dev.kuml.desktop.preview.PreviewPane
 import dev.kuml.desktop.render.DesktopRenderController
 import dev.kuml.desktop.state.rememberAppSettingsBinding
+import dev.kuml.desktop.workspace.EngineeringFileScanner
+import dev.kuml.desktop.workspace.EngineeringWorkspaceScreen
+import dev.kuml.desktop.workspace.KnowledgeWorkspaceScreen
+import dev.kuml.desktop.workspace.OpenWorkspace
+import dev.kuml.desktop.workspace.TrustDialog
+import dev.kuml.desktop.workspace.WorkspaceModeChooserDialog
+import dev.kuml.desktop.workspace.WorkspaceState
+import dev.kuml.desktop.workspace.WorkspaceTrust
 import dev.kuml.renderer.theme.core.ThemeRegistry
+import dev.kuml.workspace.OkfWorkspace
+import dev.kuml.workspace.WorkspaceMode
+import dev.kuml.workspace.WorkspaceScanner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -57,6 +71,10 @@ fun FrameWindowScope.MainWindow(
     val aiState = remember { AiPanelState(appState = state, scope = scope, vault = vault) }
     var showPluginManager by remember { mutableStateOf(false) }
 
+    // V3.6.4 — Knowledge Workspace viewer: pending dialogs gate opening a workspace.
+    var pendingTrustWorkspace by remember { mutableStateOf<OkfWorkspace?>(null) }
+    var pendingUnknownWorkspace by remember { mutableStateOf<OkfWorkspace?>(null) }
+
     rememberAppSettingsBinding(state = state, store = store)
 
     DisposableEffect(controller) {
@@ -64,6 +82,34 @@ fun FrameWindowScope.MainWindow(
     }
 
     val windowHandle: java.awt.Window? = window
+
+    // V3.6.4 — Knowledge Workspace viewer: mode dispatch + trust gate.
+    //
+    // WorkspaceScanner only reads/parses Markdown (no script evaluation), so scanning
+    // ahead of the trust decision is safe — it's needed to know KNOWLEDGE/ENGINEERING/
+    // UNKNOWN before deciding what to show. The trust gate itself runs strictly before
+    // any document is selected/rendered, i.e. before any `kuml` block is evaluated.
+    fun dispatchWorkspace(workspace: OkfWorkspace) {
+        when (workspace.mode) {
+            WorkspaceMode.KNOWLEDGE -> state.openWorkspace = OpenWorkspace.Knowledge(WorkspaceState(workspace))
+            WorkspaceMode.ENGINEERING -> {
+                val files = EngineeringFileScanner.scan(workspace.root)
+                state.openWorkspace = OpenWorkspace.Engineering(workspace.root, files)
+            }
+            WorkspaceMode.UNKNOWN -> pendingUnknownWorkspace = workspace
+        }
+    }
+
+    fun openWorkspaceDirectory(dir: File) {
+        scope.launch {
+            val workspace = withContext(Dispatchers.IO) { WorkspaceScanner.scan(dir) }
+            if (WorkspaceTrust.isTrusted(state.trustedWorkspaces, dir)) {
+                dispatchWorkspace(workspace)
+            } else {
+                pendingTrustWorkspace = workspace
+            }
+        }
+    }
 
     fun saveCurrentFile(): Boolean {
         val file = state.currentFile
@@ -123,6 +169,19 @@ fun FrameWindowScope.MainWindow(
                     }
                 }
             })
+            Item(strings.menuFileOpenWorkspace, onClick = {
+                confirmUnsavedAndThen {
+                    val dir = FileMenu.chooseOpenDirectory(
+                        parent = windowHandle,
+                        initialDir = state.lastDir?.let { File(it) },
+                        strings = strings,
+                    )
+                    if (dir != null) openWorkspaceDirectory(dir)
+                }
+            })
+            if (state.openWorkspace != null) {
+                Item(strings.menuFileCloseWorkspace, onClick = { state.openWorkspace = null })
+            }
             Item(strings.menuFileSave, onClick = { saveCurrentFile() })
             Item(strings.menuFileSaveAs, onClick = {
                 val chosen = FileMenu.chooseSave(
@@ -202,18 +261,36 @@ fun FrameWindowScope.MainWindow(
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Hauptbereich: Editor | Vorschau | AI-Panel (optional)
+                // Hauptbereich: (Editor | Vorschau) ODER Workspace-Ansicht | AI-Panel (optional)
                 Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    EditorPane(
-                        state = state,
-                        controller = controller,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                    )
-                    HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
-                    PreviewPane(
-                        state = state,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                    )
+                    when (val ws = state.openWorkspace) {
+                        is OpenWorkspace.Knowledge ->
+                            KnowledgeWorkspaceScreen(
+                                state = ws.state,
+                                themeName = state.theme,
+                                strings = strings,
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            )
+                        is OpenWorkspace.Engineering ->
+                            EngineeringWorkspaceScreen(
+                                state = state,
+                                controller = controller,
+                                scriptFiles = ws.scriptFiles,
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            )
+                        null -> {
+                            EditorPane(
+                                state = state,
+                                controller = controller,
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            )
+                            HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
+                            PreviewPane(
+                                state = state,
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            )
+                        }
+                    }
                     // V3.0.24 — AI panel (conditionally visible)
                     if (state.aiPanelOpen) {
                         HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
@@ -232,6 +309,39 @@ fun FrameWindowScope.MainWindow(
     // V3.0.13 — Plugin Manager Dialog (conditionally visible)
     if (showPluginManager) {
         PluginManagerPane(onClose = { showPluginManager = false })
+    }
+
+    // V3.6.4 — Knowledge Workspace viewer: trust gate, shown BEFORE any document
+    // in the workspace is selected/rendered (i.e. before any kuml-block eval).
+    pendingTrustWorkspace?.let { workspace ->
+        TrustDialog(
+            root = workspace.root,
+            strings = strings,
+            onTrust = {
+                state.trustedWorkspaces.add(WorkspaceTrust.canonicalPath(workspace.root))
+                scope.launch(Dispatchers.IO) { store.save(state.toSettings()) }
+                pendingTrustWorkspace = null
+                dispatchWorkspace(workspace)
+            },
+            onDecline = { pendingTrustWorkspace = null },
+        )
+    }
+
+    // V3.6.4 — WorkspaceMode.UNKNOWN fallback: let the user force a mode, or cancel.
+    pendingUnknownWorkspace?.let { workspace ->
+        WorkspaceModeChooserDialog(
+            strings = strings,
+            onChooseKnowledge = {
+                pendingUnknownWorkspace = null
+                state.openWorkspace = OpenWorkspace.Knowledge(WorkspaceState(workspace))
+            },
+            onChooseEngineering = {
+                pendingUnknownWorkspace = null
+                val files = EngineeringFileScanner.scan(workspace.root)
+                state.openWorkspace = OpenWorkspace.Engineering(workspace.root, files)
+            },
+            onCancel = { pendingUnknownWorkspace = null },
+        )
     }
 }
 

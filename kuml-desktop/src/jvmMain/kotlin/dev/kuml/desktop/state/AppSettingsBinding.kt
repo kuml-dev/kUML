@@ -24,6 +24,7 @@ fun rememberAppSettingsBinding(state: AppState, store: AppSettingsStore) {
         state.recentFiles.toList(),
         state.lastDir,
         state.windowWidth, state.windowHeight, state.windowX, state.windowY,
+        state.trustedWorkspaces.toList(),
     ) {
         saveJob?.cancel()
         saveJob = scope.launch {

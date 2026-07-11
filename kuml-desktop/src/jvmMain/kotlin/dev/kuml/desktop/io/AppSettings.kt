@@ -16,6 +16,10 @@ data class AppSettings(
     // V3.0.24 — AI panel state
     val aiPanelOpen: Boolean = false,
     val aiPanelWidthPx: Int = 420,
+    // V3.6.4 — Knowledge Workspace viewer: canonical absolute paths of workspace
+    // roots the user has explicitly trusted (see WorkspaceTrust). Additive field —
+    // absent in old settings files, decodes to emptyList() via ignoreUnknownKeys.
+    val trustedWorkspaces: List<String> = emptyList(),
 ) {
     companion object {
         val DEFAULT = AppSettings()

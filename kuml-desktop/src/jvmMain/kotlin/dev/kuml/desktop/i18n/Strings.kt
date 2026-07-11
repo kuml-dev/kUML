@@ -52,6 +52,22 @@ data class Strings(
     val menuTools: String,
     val menuToolsPluginManager: String,
     val pluginManagerTitle: String,
+    // V3.6.4 — Knowledge Workspace viewer
+    val menuFileOpenWorkspace: String,
+    val menuFileCloseWorkspace: String,
+    val dialogOpenWorkspaceTitle: String,
+    val workspaceTrustTitle: String,
+    val workspaceTrustMessage: String,
+    val workspaceTrustAccept: String,
+    val workspaceTrustDecline: String,
+    val workspaceUnknownTitle: String,
+    val workspaceUnknownMessage: String,
+    val workspaceOpenAsKnowledge: String,
+    val workspaceOpenAsEngineering: String,
+    val workspaceOpenCancel: String,
+    val previewProseEmpty: String,
+    val previewErmUnsupported: String,
+    val previewNotTrusted: String,
 ) {
     companion object {
         val DE = Strings(
@@ -100,6 +116,26 @@ data class Strings(
             menuTools = "Tools",
             menuToolsPluginManager = "Plugin Manager…",
             pluginManagerTitle = "Plugin Manager",
+            menuFileOpenWorkspace = "Workspace öffnen…",
+            menuFileCloseWorkspace = "Workspace schließen",
+            dialogOpenWorkspaceTitle = "OKF-Workspace öffnen",
+            workspaceTrustTitle = "Workspace vertrauen?",
+            workspaceTrustMessage =
+                "Dieser Workspace enthält kUML-Skripte, die beim Öffnen von Diagrammen " +
+                    "ausgeführt werden. Öffnen Sie ihn nur, wenn Sie der Quelle vertrauen.\n\nPfad: %s",
+            workspaceTrustAccept = "Vertrauen",
+            workspaceTrustDecline = "Nicht vertrauen",
+            workspaceUnknownTitle = "Workspace-Modus unbekannt",
+            workspaceUnknownMessage =
+                "Es konnte weder ein Knowledge- noch ein Engineering-Workspace erkannt werden. " +
+                    "Wie soll das Verzeichnis geöffnet werden?",
+            workspaceOpenAsKnowledge = "Als Knowledge-Workspace öffnen",
+            workspaceOpenAsEngineering = "Als Engineering-Workspace öffnen",
+            workspaceOpenCancel = "Abbrechen",
+            previewProseEmpty = "Kein Diagramm in diesem Dokument",
+            previewErmUnsupported =
+                "ERM-Rendering wird noch nicht unterstützt — geplant für kUML V3.4.2.",
+            previewNotTrusted = "Workspace nicht vertraut — Rendering deaktiviert",
         )
 
         val EN = Strings(
@@ -148,6 +184,26 @@ data class Strings(
             menuTools = "Tools",
             menuToolsPluginManager = "Plugin Manager…",
             pluginManagerTitle = "Plugin Manager",
+            menuFileOpenWorkspace = "Open Workspace…",
+            menuFileCloseWorkspace = "Close Workspace",
+            dialogOpenWorkspaceTitle = "Open OKF Workspace",
+            workspaceTrustTitle = "Trust this workspace?",
+            workspaceTrustMessage =
+                "This workspace contains kUML scripts that get executed when opening " +
+                    "diagrams. Only open it if you trust the source.\n\nPath: %s",
+            workspaceTrustAccept = "Trust",
+            workspaceTrustDecline = "Don't Trust",
+            workspaceUnknownTitle = "Unknown workspace mode",
+            workspaceUnknownMessage =
+                "Neither a Knowledge nor an Engineering workspace could be detected. " +
+                    "How should the directory be opened?",
+            workspaceOpenAsKnowledge = "Open as Knowledge Workspace",
+            workspaceOpenAsEngineering = "Open as Engineering Workspace",
+            workspaceOpenCancel = "Cancel",
+            previewProseEmpty = "No diagram in this document",
+            previewErmUnsupported =
+                "ERM rendering is not yet supported — planned for kUML V3.4.2.",
+            previewNotTrusted = "Workspace not trusted — rendering disabled",
         )
 
         fun forLanguage(lang: String): Strings = if (lang == "de") DE else EN

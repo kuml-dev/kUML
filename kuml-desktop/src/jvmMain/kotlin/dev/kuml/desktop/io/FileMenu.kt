@@ -19,6 +19,16 @@ object FileMenu {
             if (chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
         }
 
+    /** V3.6.4 — directory picker for File → Open Workspace…. */
+    fun chooseOpenDirectory(parent: java.awt.Window?, initialDir: File?, strings: Strings): File? =
+        runOnEdtBlocking {
+            val chooser = JFileChooser(initialDir).apply {
+                dialogTitle = strings.dialogOpenWorkspaceTitle
+                fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+            }
+            if (chooser.showOpenDialog(parent) == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
+        }
+
     fun chooseSave(parent: java.awt.Window?, initialDir: File?, suggestedName: String, strings: Strings): File? =
         runOnEdtBlocking {
             val chooser = JFileChooser(initialDir).apply {

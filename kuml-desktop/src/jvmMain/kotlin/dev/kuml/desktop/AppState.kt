@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import dev.kuml.desktop.io.AppSettings
 import dev.kuml.desktop.io.RecentFiles
+import dev.kuml.desktop.workspace.OpenWorkspace
 import java.io.File
 
 /**
@@ -65,6 +66,14 @@ class AppState(initialSettings: AppSettings = AppSettings.DEFAULT) {
     /** Breite des AI-Panels in Pixeln. */
     var aiPanelWidthPx by mutableStateOf(initialSettings.aiPanelWidthPx)
 
+    // V3.6.4 — Knowledge Workspace viewer
+    /** Kanonische Pfade der vom Nutzer explizit vertrauten Workspace-Wurzeln. */
+    val trustedWorkspaces: SnapshotStateList<String> =
+        mutableStateListOf(*initialSettings.trustedWorkspaces.toTypedArray())
+
+    /** Aktuell geöffneter Workspace (Knowledge oder Engineering); null = Single-File-Modus. */
+    var openWorkspace by mutableStateOf<OpenWorkspace?>(null)
+
     /**
      * Lädt Dateiinhalt in den Editor und aktualisiert Metadaten.
      * Setzt isDirty=false, aktualisiert currentFile, lastDir und recentFiles.
@@ -104,6 +113,7 @@ class AppState(initialSettings: AppSettings = AppSettings.DEFAULT) {
         windowY = windowY,
         aiPanelOpen = aiPanelOpen,
         aiPanelWidthPx = aiPanelWidthPx,
+        trustedWorkspaces = trustedWorkspaces.toList(),
     )
 
     companion object {

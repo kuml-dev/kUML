@@ -3,6 +3,7 @@ package dev.kuml.desktop.i18n
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.shouldNotBe
+import io.kotest.matchers.string.shouldContain
 
 class StringsTest : FunSpec({
 
@@ -39,4 +40,30 @@ class StringsTest : FunSpec({
     test("DE dialogUnsavedTitle is non-empty") { Strings.DE.dialogUnsavedTitle.isNotEmpty() shouldBe true }
     test("EN aboutTitle is non-empty") { Strings.EN.aboutTitle.isNotEmpty() shouldBe true }
     test("DE aboutTitle is non-empty") { Strings.DE.aboutTitle.isNotEmpty() shouldBe true }
+
+    // --- V3.6.4 — Knowledge Workspace viewer keys (both languages non-empty, EN ≠ DE) ---
+    test("EN menuFileOpenWorkspace is non-empty") { Strings.EN.menuFileOpenWorkspace.isNotEmpty() shouldBe true }
+    test("DE menuFileOpenWorkspace is non-empty") { Strings.DE.menuFileOpenWorkspace.isNotEmpty() shouldBe true }
+    test("EN and DE differ on menuFileOpenWorkspace") { Strings.EN.menuFileOpenWorkspace shouldNotBe Strings.DE.menuFileOpenWorkspace }
+
+    test("EN workspaceTrustTitle is non-empty") { Strings.EN.workspaceTrustTitle.isNotEmpty() shouldBe true }
+    test("DE workspaceTrustTitle is non-empty") { Strings.DE.workspaceTrustTitle.isNotEmpty() shouldBe true }
+    test("EN and DE differ on workspaceTrustTitle") { Strings.EN.workspaceTrustTitle shouldNotBe Strings.DE.workspaceTrustTitle }
+
+    test("EN workspaceTrustMessage contains a %s placeholder for the root path") {
+        Strings.EN.workspaceTrustMessage shouldContain "%s"
+    }
+    test("DE workspaceTrustMessage contains a %s placeholder for the root path") {
+        Strings.DE.workspaceTrustMessage shouldContain "%s"
+    }
+
+    test("EN previewErmUnsupported is non-empty") { Strings.EN.previewErmUnsupported.isNotEmpty() shouldBe true }
+    test("DE previewErmUnsupported is non-empty") { Strings.DE.previewErmUnsupported.isNotEmpty() shouldBe true }
+    test("EN and DE differ on previewErmUnsupported") { Strings.EN.previewErmUnsupported shouldNotBe Strings.DE.previewErmUnsupported }
+
+    test("EN previewNotTrusted is non-empty") { Strings.EN.previewNotTrusted.isNotEmpty() shouldBe true }
+    test("DE previewNotTrusted is non-empty") { Strings.DE.previewNotTrusted.isNotEmpty() shouldBe true }
+
+    test("EN workspaceUnknownMessage is non-empty") { Strings.EN.workspaceUnknownMessage.isNotEmpty() shouldBe true }
+    test("DE workspaceUnknownMessage is non-empty") { Strings.DE.workspaceUnknownMessage.isNotEmpty() shouldBe true }
 })

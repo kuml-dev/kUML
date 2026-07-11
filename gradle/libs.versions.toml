@@ -34,6 +34,7 @@ eclipse-uml2-common    = "2.0.1.v20140910-1354"
 sqlite-jdbc            = "3.53.2.0"
 atomicfu               = "0.33.0"
 lsp4j                  = "0.24.0"
+markdown-renderer      = "0.43.0"
 
 [libraries]
 # ── Compose / Kuiver ─────────────────────────────────────────────────────────
@@ -146,6 +147,12 @@ kotlinx-atomicfu                 = { module = "org.jetbrains.kotlinx:atomicfu", 
 
 # ── Eclipse LSP4J (kuml-language-server — Wave 2) ────────────────────────────
 lsp4j                            = { module = "org.eclipse.lsp4j:org.eclipse.lsp4j",                    version.ref = "lsp4j" }
+
+# ── Markdown renderer (Desktop Knowledge Workspace viewer — V3.6.4) ──────────
+# Compose-version-agnostic: the jvm variant declares no Compose coordinate of
+# its own, it compiles against whatever Compose/material3 the app supplies
+# (verified against this repo's compose-multiplatform 1.11.1 / material3 1.9.0).
+markdown-renderer-m3             = { module = "com.mikepenz:multiplatform-markdown-renderer-m3",         version.ref = "markdown-renderer" }
 
 [plugins]
 kotlin-jvm              = { id = "org.jetbrains.kotlin.jvm",                      version.ref = "kotlin" }

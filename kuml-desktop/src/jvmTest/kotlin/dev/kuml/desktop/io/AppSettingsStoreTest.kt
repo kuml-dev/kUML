@@ -60,4 +60,18 @@ class AppSettingsStoreTest : FunSpec({
             tempDir.toFile().deleteRecursively()
         }
     }
+
+    test("save() + load() round-trip preserves trustedWorkspaces (V3.6.4)") {
+        val tempDir = Files.createTempDirectory("kuml-store-test")
+        val store = AppSettingsStore(tempDir.resolve("settings.json"))
+        val original = AppSettings.DEFAULT.copy(
+            trustedWorkspaces = listOf("/home/user/workspace-a", "/home/user/workspace-b"),
+        )
+        try {
+            store.save(original)
+            store.load() shouldBe original
+        } finally {
+            tempDir.toFile().deleteRecursively()
+        }
+    }
 })
