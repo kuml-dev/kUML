@@ -13,6 +13,7 @@ import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
+import dev.kuml.layout.Rect
 import dev.kuml.renderer.theme.core.KumlTheme
 
 /**
@@ -176,6 +177,9 @@ private fun diamondPoints(
     return "$top $right $bottom $left"
 }
 
+/** Caps [renderChenConnector]'s [stackIndex] parameter so a dense FK hub doesn't fling labels far from their entity. */
+internal const val CHEN_CARDINALITY_MAX_STACK_INDEX: Int = 2
+
 /**
  * Renders a plain diamond↔entity or entity↔attribute connector line.
  *
@@ -191,51 +195,105 @@ private fun diamondPoints(
  * bridge's KDoc for why. [entitySide] tells this function which end of
  * [route] the entity actually sits on, so it can anchor the label there
  * instead of assuming "entity = target" for every connector.
+ *
+ * Bug-fix (ERM/Chen cardinality-label collision, fix/erm-chen-label-
+ * collisions, V3.4.7): this used to be the only ERM label path with its own
+ * ad-hoc inline math instead of a shared `ErmEdgeLabels.kt` helper — see
+ * `renderErmCardinalityLabel`'s KDoc for the two defects that caused (a)
+ * every SOURCE-side label to land *inside* the entity box, on top of its
+ * title (the offset direction was inverted — negating a tangent that
+ * already pointed away from the box) and (b) every label, TARGET included,
+ * to straddle the connector line (no perpendicular offset component at
+ * all). Both are fixed by routing through [renderErmCardinalityLabel].
+ *
+ * [stackIndex] (0-based, capped at [CHEN_CARDINALITY_MAX_STACK_INDEX]) adds
+ * `ErmChenSizing.CARDINALITY_LABEL_STACK_PX` per step to the along-edge
+ * offset, so sibling relationships converging on the same entity endpoint
+ * (e.g. a hub entity with several FKs) fan their labels apart instead of
+ * piling into the same spot. [entityBounds] is an optional belt-and-
+ * suspenders guard (already-padding-shifted, see `KumlSvgRenderer.renderErmChen`):
+ * if the computed label point still falls inside it (expanded by
+ * `ErmChenSizing.CARDINALITY_TITLE_CLEARANCE_PX`), the along-edge offset is
+ * grown until the point clears.
  */
 internal fun renderChenConnector(
     route: EdgeRoute,
     cardinality: Cardinality?,
     b: SvgBuilder,
     entitySide: ConnectorEntitySide = ConnectorEntitySide.TARGET,
+    stackIndex: Int = 0,
+    entityBounds: Rect? = null,
 ) {
     val (tagName, attrs) = EdgePathBuilder.build(route)
     b.tag(tagName, attrs + mapOf("class" to "kuml-edge"))
 
     if (cardinality != null) {
         val entityPoint: Point
-        val awayFromDiamond: Pair<Float, Float>
+        val outward: Pair<Float, Float>
         when (entitySide) {
             ConnectorEntitySide.TARGET -> {
                 // Tangent pointing INTO the target node; negate to point away from
-                // it, back along the edge — the direction the label should offset in.
+                // it, back along the edge, toward the diamond — the direction the
+                // label should offset in.
                 val intoTarget = EdgeLabelGeometry.targetSegmentTangent(route)
-                awayFromDiamond = -intoTarget.first to -intoTarget.second
+                outward = -intoTarget.first to -intoTarget.second
                 entityPoint = route.target
             }
             ConnectorEntitySide.SOURCE -> {
-                // Tangent of the first segment points FROM the source node
-                // TOWARD the first kink — i.e. from the entity toward the
-                // diamond. Negate it to get the direction away from the
-                // diamond, back along the edge, same as the TARGET branch.
-                val towardDiamond = EdgeLabelGeometry.sourceSegmentTangent(route)
-                awayFromDiamond = -towardDiamond.first to -towardDiamond.second
+                // Tangent of the first segment already points FROM the entity
+                // TOWARD the first kink — i.e. away from the entity, toward the
+                // diamond. That IS the direction the label should offset in, so
+                // (unlike the pre-fix code) it is used as-is, not negated.
+                outward = EdgeLabelGeometry.sourceSegmentTangent(route)
                 entityPoint = route.source
             }
         }
         val label = chenCardinalityLabel(cardinality)
-        val x = entityPoint.x + awayFromDiamond.first * ErmChenSizing.CARDINALITY_LABEL_OFFSET_PX
-        val y = entityPoint.y + awayFromDiamond.second * ErmChenSizing.CARDINALITY_LABEL_OFFSET_PX
-        b.tag(
-            "text",
-            mapOf(
-                "class" to "kuml-erm-chen-cardinality",
-                "x" to fmt(x),
-                "y" to fmt(y),
-                "text-anchor" to "middle",
-            ),
-        ) { text(label) }
+        val clampedStack = stackIndex.coerceIn(0, CHEN_CARDINALITY_MAX_STACK_INDEX)
+        val baseOffset = ErmChenSizing.CARDINALITY_LABEL_OFFSET_PX + clampedStack * ErmChenSizing.CARDINALITY_LABEL_STACK_PX
+        val alongOffset = clearedAlongOffset(entityPoint, outward, entityBounds, baseOffset)
+        b.renderErmCardinalityLabel(entityPoint, outward, label, alongOffset)
     }
 }
+
+/**
+ * Grows [baseOffsetPx] in small steps until `entityPoint + outward *
+ * offset` clears [bounds] (expanded by [ErmChenSizing.CARDINALITY_TITLE_CLEARANCE_PX]) —
+ * see [renderChenConnector]'s KDoc. Returns [baseOffsetPx] unchanged when
+ * [bounds] is `null` or already cleared, which is the common case: the
+ * SOURCE/TARGET direction fix already guarantees clearance for well-formed,
+ * border-anchored connector endpoints.
+ */
+private fun clearedAlongOffset(
+    entityPoint: Point,
+    outward: Pair<Float, Float>,
+    bounds: Rect?,
+    baseOffsetPx: Float,
+): Float {
+    if (bounds == null) return baseOffsetPx
+    val margin = ErmChenSizing.CARDINALITY_TITLE_CLEARANCE_PX
+    val minX = bounds.origin.x - margin
+    val minY = bounds.origin.y - margin
+    val maxX = bounds.origin.x + bounds.size.width + margin
+    val maxY = bounds.origin.y + bounds.size.height + margin
+    var offset = baseOffsetPx
+    var guard = 0
+    while (guard < CLEARANCE_GUARD_MAX_STEPS) {
+        val x = entityPoint.x + outward.first * offset
+        val y = entityPoint.y + outward.second * offset
+        val outside = x < minX || x > maxX || y < minY || y > maxY
+        if (outside) return offset
+        offset += CLEARANCE_GUARD_STEP_PX
+        guard++
+    }
+    return offset
+}
+
+/** Step size for [clearedAlongOffset]'s push-until-clear loop. */
+private const val CLEARANCE_GUARD_STEP_PX: Float = 4f
+
+/** Safety cap on [clearedAlongOffset]'s loop — bounds unbounded growth for adversarial/degenerate models. */
+private const val CLEARANCE_GUARD_MAX_STEPS: Int = 20
 
 /**
  * Which end of a diamond↔entity [EdgeRoute] the entity sits on — see

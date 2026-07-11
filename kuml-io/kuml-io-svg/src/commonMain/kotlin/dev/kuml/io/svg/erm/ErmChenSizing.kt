@@ -64,4 +64,34 @@ internal object ErmChenSizing {
 
     /** Distance a cardinality label sits back from the entity-side end of a diamond↔entity connector. */
     const val CARDINALITY_LABEL_OFFSET_PX: Float = 14f
+
+    /**
+     * Perpendicular lift of a cardinality label off the connector line —
+     * mirrors `ERM_ROLE_LABEL_PERP_PX` in `ErmEdgeLabels.kt`. Bug-fix
+     * (fix/erm-chen-label-collisions, V3.4.7): before this constant existed,
+     * `renderChenConnector` offset the label purely along the edge tangent
+     * with `text-anchor="middle"`, so the glyph straddled the polyline for
+     * any near-vertical/-horizontal connector.
+     */
+    const val CARDINALITY_LABEL_PERP_PX: Float = 9f
+
+    /**
+     * Per-sibling along-edge step for cardinality labels that share the same
+     * entity endpoint (e.g. three foreign keys converging on one hub entity)
+     * — mirrors `ERM_LABEL_STACK_OFFSET_PX`. Applied on top of
+     * [CARDINALITY_LABEL_OFFSET_PX], capped at
+     * [dev.kuml.io.svg.erm.CHEN_CARDINALITY_MAX_STACK_INDEX] steps so a
+     * dense hub doesn't fling labels far from their entity.
+     */
+    const val CARDINALITY_LABEL_STACK_PX: Float = 14f
+
+    /**
+     * Belt-and-suspenders margin: if a computed cardinality-label point still
+     * falls inside the owning entity's box (expanded by this margin), the
+     * label is pushed further out along the edge until it clears. Guards
+     * against ELK emitting a port slightly inset from the entity face or a
+     * near-degenerate first/last polyline segment — by construction the
+     * SOURCE/TARGET offset direction fix already clears well-formed layouts.
+     */
+    const val CARDINALITY_TITLE_CLEARANCE_PX: Float = 6f
 }

@@ -24,6 +24,7 @@ import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
 import dev.kuml.renderer.theme.core.PlainTheme
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
@@ -227,10 +228,122 @@ class ErmChenSvgTest :
             // check on the rendered text unreliable.
             val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
 
-            svg shouldContain "kuml-erm-chen-cardinality"
+            // Bug-fix (fix/erm-chen-label-collisions, V3.4.7): cardinality
+            // labels now route through the shared `renderEdgeLabelWithHalo`
+            // helper (like every other ERM edge label) instead of a bespoke
+            // `kuml-erm-chen-cardinality`-classed <text> with no halo.
+            svg shouldContain "kuml-edge-label"
             svg shouldContain ">1<"
             svg shouldContain ">N<"
             SampleOutput.write("erm/chen-cardinality-labels.svg", svg)
+        }
+
+        "cardinality labels on a converging hub clear the entity box, come off the line, and fan apart" {
+            val address = ErmEntity(id = "address", name = "Address", attributes = listOf(pk("id")))
+            val supplierA = ErmEntity(id = "supplierA", name = "SupplierA", attributes = listOf(pk("id")))
+            val supplierB = ErmEntity(id = "supplierB", name = "SupplierB", attributes = listOf(pk("id")))
+            val supplierC = ErmEntity(id = "supplierC", name = "SupplierC", attributes = listOf(pk("id")))
+            val shipment = ErmEntity(id = "shipment", name = "Shipment", attributes = listOf(pk("id")))
+
+            fun hubRel(
+                id: String,
+                sourceEntityId: String,
+                targetEntityId: String,
+            ) = ErmRelationship(
+                id = id,
+                name = null,
+                sourceEntityId = sourceEntityId,
+                targetEntityId = targetEntityId,
+                sourceCardinality = Cardinality.ONE,
+                targetCardinality = Cardinality.ZERO_MANY,
+            )
+
+            // Three relationships converge on Address as TARGET (diamonds sit
+            // above, near-vertical connectors into the top border) and one
+            // has Address as SOURCE (diamond sits below, near-vertical
+            // connector leaving the bottom border) — reproducing both the
+            // pre-fix source-into-box case and the target-on-line case in one
+            // fixture.
+            val relA = hubRel("relA", "supplierA", "address")
+            val relB = hubRel("relB", "supplierB", "address")
+            val relC = hubRel("relC", "supplierC", "address")
+            val relD = hubRel("relD", "address", "shipment")
+
+            val model =
+                ErmModel(
+                    name = "Shop",
+                    entities = listOf(address, supplierA, supplierB, supplierC, shipment),
+                    relationships = listOf(relA, relB, relC, relD),
+                )
+            val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.CHEN)
+
+            val addressBounds = Rect(Point(300f, 400f), Size(160f, 44f))
+            val layout =
+                layoutOf(
+                    nodes = listOf(NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "address") to addressBounds),
+                    edges =
+                        listOf(
+                            EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "relA") to
+                                EdgeRoute.Direct(Point(330f, 250f), Point(340f, 400f)),
+                            EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "relB") to
+                                EdgeRoute.Direct(Point(380f, 250f), Point(380f, 400f)),
+                            EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "relC") to
+                                EdgeRoute.Direct(Point(430f, 250f), Point(420f, 400f)),
+                            EdgeId(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX + "relD") to
+                                EdgeRoute.Direct(Point(380f, 444f), Point(380f, 550f)),
+                        ),
+                )
+
+            // paddingPx = 0f so the rendered coordinates match the layout's
+            // raw coordinates 1:1 (SvgDocument otherwise shifts every node/
+            // route by +paddingPx, which would have to be re-added to every
+            // pixel comparison below).
+            val renderOptions = SvgRenderOptions(prettyPrint = false, paddingPx = 0f)
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), renderOptions)
+            val labels = edgeLabels(svg).filter { it.text == "1" || it.text == "N" }
+            labels shouldHaveSize 4
+
+            // Assertion 1 — title clearance: no label falls inside the Address
+            // box, expanded by the clearance margin. Fails on pre-fix master:
+            // the SOURCE-side "1" label (relD) sits ~14px inside the box, on
+            // the title.
+            val margin = ErmChenSizing.CARDINALITY_TITLE_CLEARANCE_PX
+            val minX = addressBounds.origin.x - margin
+            val minY = addressBounds.origin.y - margin
+            val maxX = addressBounds.origin.x + addressBounds.size.width + margin
+            val maxY = addressBounds.origin.y + addressBounds.size.height + margin
+            for (l in labels) {
+                val inside = l.x in minX..maxX && l.y in minY..maxY
+                inside shouldBe false
+            }
+
+            // Assertion 2 — perpendicular offset off the line: relD's
+            // connector is exactly vertical (x=380 at both ends), so its
+            // label must be pushed sideways, off the edge-x, with a
+            // non-"middle" anchor. Fails on pre-fix master: the label sits
+            // exactly on x=380 with text-anchor="middle".
+            val relDLabel = labels.single { it.text == "1" }
+            (kotlin.math.abs(relDLabel.x - 380f) >= ErmChenSizing.CARDINALITY_LABEL_PERP_PX) shouldBe true
+            (relDLabel.textAnchor != "middle") shouldBe true
+
+            // Assertion 3 — hub separation: the three converging TARGET
+            // labels ("N") must not land on top of each other.
+            val hubLabels = labels.filter { it.text == "N" }
+            hubLabels shouldHaveSize 3
+            for (i in hubLabels.indices) {
+                for (j in i + 1 until hubLabels.size) {
+                    val dx = hubLabels[i].x - hubLabels[j].x
+                    val dy = hubLabels[i].y - hubLabels[j].y
+                    val dist = kotlin.math.sqrt(dx * dx + dy * dy)
+                    (dist >= ErmChenSizing.CARDINALITY_LABEL_STACK_PX) shouldBe true
+                }
+            }
+
+            // Assertion 4 — determinism.
+            val again = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), renderOptions)
+            svg shouldBe again
+
+            SampleOutput.write("erm/chen-hub-cardinality-labels.svg", svg)
         }
 
         "no raw XML entities leak into rendered text" {

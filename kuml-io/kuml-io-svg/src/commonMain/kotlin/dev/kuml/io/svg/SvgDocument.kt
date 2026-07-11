@@ -323,8 +323,12 @@ internal object SvgDocument {
                 append(" stroke-width: ${bo.regularPx}; }\n")
                 append(".kuml-erm-chen-relationship-inner { fill: none; stroke: ${c.border.toHex()};")
                 append(" stroke-width: ${bo.thinPx}; }\n")
-                append(".kuml-erm-chen-cardinality { font-family: ${ty.small.family};")
-                append(" font-size: ${ty.small.sizePt}px; fill: ${c.foreground.toHex()}; }\n")
+                // Bug-fix (fix/erm-chen-label-collisions, V3.4.7): cardinality
+                // labels used to have their own `.kuml-erm-chen-cardinality`
+                // class with no halo pass. They now route through
+                // `ErmEdgeLabels.renderErmCardinalityLabel` -> `renderEdgeLabelWithHalo`,
+                // reusing the `.kuml-edge-label` / `.kuml-edge-label-halo` rules
+                // above (same styling every other ERM edge label uses).
                 // V3.4.5 — ERM/IDEF1X renderer. Entities reuse `.kuml-erm-entity`
                 // (now optionally rounded via `rx`/`ry`) and the plain
                 // `.kuml-edge` / `.kuml-edge-dashed` lines from above; the

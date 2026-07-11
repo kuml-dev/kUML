@@ -111,6 +111,53 @@ internal fun SvgBuilder.renderErmRoleLabel(
     }
 }
 
+/**
+ * Places an ERM/Chen-notation cardinality label (`1`/`N`) near an entity
+ * border. Structurally identical to [renderErmRoleLabel]'s perpendicular/
+ * anchor logic — vertical-leaving edges push the label sideways ("start"/
+ * "end", growing away from the box), horizontal-leaving edges lift it above
+ * the line ("middle") — but takes the along-edge offset as a parameter
+ * instead of a fixed constant, since callers fold a per-hub stacking step
+ * (`ErmChenSizing.CARDINALITY_LABEL_STACK_PX`) into it.
+ *
+ * Bug-fix (ERM/Chen cardinality-label collision, fix/erm-chen-label-
+ * collisions, V3.4.7): `renderChenConnector` used to place this label with
+ * its own ad-hoc, purely along-edge math and `text-anchor="middle"` — the
+ * only ERM label path that didn't go through a shared perpendicular-offset
+ * helper. That left two independent defects: the SOURCE-side offset
+ * direction was inverted (label landed *inside* the entity box, on top of
+ * its title) and there was no perpendicular component at all (the glyph
+ * straddled the connector line). Routing through this helper fixes both and
+ * gets the [renderEdgeLabelWithHalo] two-pass halo for free — Chen
+ * cardinality text previously had no halo, so it was unreadable wherever it
+ * crossed a line.
+ *
+ * [anchor] is the entity-side border point of the connector (`route.source`
+ * or `route.target`), [outward] the unit vector pointing away from the
+ * entity, along the edge, toward the relationship diamond.
+ */
+internal fun SvgBuilder.renderErmCardinalityLabel(
+    anchor: Point,
+    outward: Pair<Float, Float>,
+    label: String,
+    alongOffsetPx: Float,
+) {
+    val (dx, dy) = outward
+    val px = -dy // perpendicular unit
+    if (abs(dy) > abs(dx)) {
+        // vertical edge -> push sideways, grow away from the line
+        val side = if (px >= 0f) 1f else -1f
+        val x = anchor.x + dx * alongOffsetPx + side * ErmChenSizing.CARDINALITY_LABEL_PERP_PX
+        val y = anchor.y + dy * alongOffsetPx + 4f
+        renderEdgeLabelWithHalo(label, x, y, if (side < 0f) "end" else "start")
+    } else {
+        // horizontal edge -> lift above the line
+        val x = anchor.x + dx * alongOffsetPx
+        val y = anchor.y + dy * alongOffsetPx - ErmChenSizing.CARDINALITY_LABEL_PERP_PX
+        renderEdgeLabelWithHalo(label, x, y, "middle")
+    }
+}
+
 private fun normalize(
     x: Float,
     y: Float,

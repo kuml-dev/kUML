@@ -2057,6 +2057,52 @@ public object KumlSvgRenderer {
         val viewsById = model.views.associateBy { it.id }
         val padding = options.paddingPx
 
+        // Padding-shifted entity bounds, keyed by entity id — used as the
+        // belt-and-suspenders title-clearance guard in renderChenConnector
+        // (see its KDoc). Computed up front so it's available in the edge
+        // loop below without re-deriving the node shift there.
+        val chenEntityBoundsById: Map<String, Rect> =
+            layoutResult.nodes.entries
+                .filter { it.key.value.startsWith(ErmChenLayoutBridge.ENTITY_PREFIX) }
+                .associate { (nodeId, nodeLayout) ->
+                    val entityId = nodeId.value.removePrefix(ErmChenLayoutBridge.ENTITY_PREFIX)
+                    entityId to
+                        nodeLayout.bounds.copy(
+                            origin =
+                                nodeLayout.bounds.origin.copy(
+                                    x = nodeLayout.bounds.origin.x + padding,
+                                    y = nodeLayout.bounds.origin.y + padding,
+                                ),
+                        )
+                }
+
+        // Per-hub fan-out: deterministically (by relationship id) assign each
+        // diamond<->entity cardinality label a 0-based stack index among the
+        // siblings sharing the same (entity, side) endpoint, so labels
+        // converging on a hub entity (e.g. several FKs into one table) fan
+        // apart along the edge instead of piling into the same spot — see
+        // renderChenConnector's KDoc.
+        val chenCardinalityStackIndex: Map<String, Int> =
+            run {
+                val perEndpoint = mutableMapOf<Pair<String, ConnectorEntitySide>, MutableList<String>>()
+                for (edgeId in layoutResult.edges.keys) {
+                    val id = edgeId.value
+                    when {
+                        id.startsWith(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX) -> {
+                            val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX)] ?: continue
+                            perEndpoint.getOrPut(rel.sourceEntityId to ConnectorEntitySide.SOURCE) { mutableListOf() }.add(id)
+                        }
+                        id.startsWith(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX) -> {
+                            val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX)] ?: continue
+                            perEndpoint.getOrPut(rel.targetEntityId to ConnectorEntitySide.TARGET) { mutableListOf() }.add(id)
+                        }
+                    }
+                }
+                perEndpoint.values
+                    .flatMap { edgeIds -> edgeIds.sorted().mapIndexed { index, id -> id to index } }
+                    .toMap()
+            }
+
         return SvgDocument.render(
             layoutResult,
             theme,
@@ -2107,11 +2153,25 @@ public object KumlSvgRenderer {
                         val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX)] ?: continue
                         // ErmChenLayoutBridge points this edge sourceEntity -> diamond,
                         // so the entity sits at the route's source, not its target.
-                        renderChenConnector(shiftedRoute, rel.sourceCardinality, edgesBuilder, ConnectorEntitySide.SOURCE)
+                        renderChenConnector(
+                            shiftedRoute,
+                            rel.sourceCardinality,
+                            edgesBuilder,
+                            ConnectorEntitySide.SOURCE,
+                            stackIndex = chenCardinalityStackIndex[id] ?: 0,
+                            entityBounds = chenEntityBoundsById[rel.sourceEntityId],
+                        )
                     }
                     id.startsWith(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX) -> {
                         val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX)] ?: continue
-                        renderChenConnector(shiftedRoute, rel.targetCardinality, edgesBuilder, ConnectorEntitySide.TARGET)
+                        renderChenConnector(
+                            shiftedRoute,
+                            rel.targetCardinality,
+                            edgesBuilder,
+                            ConnectorEntitySide.TARGET,
+                            stackIndex = chenCardinalityStackIndex[id] ?: 0,
+                            entityBounds = chenEntityBoundsById[rel.targetEntityId],
+                        )
                     }
                 }
             }
