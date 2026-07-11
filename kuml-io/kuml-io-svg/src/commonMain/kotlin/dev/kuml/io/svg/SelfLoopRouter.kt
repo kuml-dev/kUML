@@ -2,6 +2,7 @@ package dev.kuml.io.svg
 
 import dev.kuml.c4.model.C4Relationship
 import dev.kuml.core.model.KumlElement
+import dev.kuml.erm.model.ErmRelationship
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
@@ -80,6 +81,17 @@ internal object SelfLoopRouter {
                 if (element.sourceId == element.targetId) element.sourceId else null
             is C4Relationship ->
                 if (element.source == element.target) element.source else null
+            // V3.4.x — ERM self-references (e.g. `Category.parent_id` "subcategory
+            // of" self) previously bypassed this router entirely: `renderErm` /
+            // `renderErmIdef1x` shift ELK's raw route straight to the SVG without
+            // ever calling `adjust`. ELK's cramped ~10px U-shape then collided with
+            // the `ERM_ROLE_LABEL_*` offsets in `ErmEdgeLabels`, which were tuned
+            // assuming the wide, purely-horizontal C-loop tangent this router
+            // produces for every other diagram type. Recognizing the relationship
+            // here is the first half of the fix — callers still need to invoke
+            // [adjust].
+            is ErmRelationship ->
+                if (element.sourceEntityId == element.targetEntityId) element.sourceEntityId else null
             else -> null
         }
 

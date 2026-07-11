@@ -1923,7 +1923,7 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme,
         options: SvgRenderOptions,
-    ): String = renderErm(model, diagram, layoutResult, theme, options, ::renderErmMartinRelationship)
+    ): String = renderErm(model, diagram, layoutResult, theme, options, "erm/martin", ::renderErmMartinRelationship)
 
     /** [toSvg] path for [ErmNotation.BACHMAN] (V3.4.3) — shares layout, entity/view rendering, and label stacking with [renderErmMartin]; only the edge-glyph renderer differs. */
     private fun renderErmBachman(
@@ -1932,7 +1932,7 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme,
         options: SvgRenderOptions,
-    ): String = renderErm(model, diagram, layoutResult, theme, options, ::renderErmBachmanRelationship)
+    ): String = renderErm(model, diagram, layoutResult, theme, options, "erm/bachman", ::renderErmBachmanRelationship)
 
     /**
      * Shared ERM render body for [renderErmMartin] and [renderErmBachman] —
@@ -1947,6 +1947,7 @@ public object KumlSvgRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme,
         options: SvgRenderOptions,
+        frameTypeLabel: String,
         renderRelationship: (ErmRelationship, EdgeRoute, KumlTheme, SvgBuilder, Int) -> Unit,
     ): String {
         val entitiesById = model.entities.associateBy { it.id }
@@ -1969,7 +1970,7 @@ public object KumlSvgRenderer {
             theme,
             options,
             frameName = diagram.name,
-            frameTypeLabel = "erm",
+            frameTypeLabel = frameTypeLabel,
         ) { nodesBuilder, edgesBuilder ->
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
                 val shifted =
@@ -1994,9 +1995,17 @@ public object KumlSvgRenderer {
                 }
             }
 
+            val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id ->
+                layoutResult.nodes[NodeId(id)]
+            }
             for ((edgeId, route) in layoutResult.edges) {
                 val rel = relationshipsById[edgeId.value] ?: continue
-                val shiftedRoute = shiftRoute(route, padding)
+                // V3.4.x — self-references (e.g. `Category "subcategory of"
+                // Category`) get the same wide C-loop treatment as UML/C4 self-
+                // loops instead of ELK's cramped raw route (see SelfLoopRouter's
+                // KDoc on the ErmRelationship branch).
+                val routed = SelfLoopRouter.adjust(rel, route, nodeLookup)
+                val shiftedRoute = shiftRoute(routed, padding)
                 renderRelationship(
                     rel,
                     shiftedRoute,
@@ -2021,6 +2030,19 @@ public object KumlSvgRenderer {
      * happens to succeed first, since those are independent id spaces that
      * could otherwise collide (see this wave's plan, "bekannte
      * Stolperfallen" #1).
+     *
+     * V3.4.x — deliberately NOT wired to [SelfLoopRouter], unlike
+     * [renderErm] (Martin/Bachman) / [renderErmIdef1x]. Chen notation expands
+     * every [dev.kuml.erm.model.ErmRelationship] into its own diamond
+     * [LayoutNode] (see [ErmChenLayoutBridge]'s KDoc above), so a
+     * self-reference like `Category "subcategory of" Category` becomes two
+     * ordinary entity-to-diamond edges (`REL_EDGE_SRC`/`REL_EDGE_TGT`,
+     * rendered by [renderChenConnector]) — `source == target` on the same
+     * node never occurs in the Chen layout graph. It therefore can't hit the
+     * cramped-U self-loop pathology [SelfLoopRouter] exists to fix, and there
+     * is no self-loop geometry for it to adjust. Confirmed visually against
+     * the Chen-notation projection of vault example 39 ("ERM Martin –
+     * E-Commerce Schema", `Category.parent_id` "subcategory of").
      */
     private fun renderErmChen(
         model: ErmModel,
@@ -2040,7 +2062,7 @@ public object KumlSvgRenderer {
             theme,
             options,
             frameName = diagram.name,
-            frameTypeLabel = "erm",
+            frameTypeLabel = "erm/chen",
         ) { nodesBuilder, edgesBuilder ->
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
                 val shifted =
@@ -2149,7 +2171,7 @@ public object KumlSvgRenderer {
             theme,
             options,
             frameName = diagram.name,
-            frameTypeLabel = "erm",
+            frameTypeLabel = "erm/idef1x",
         ) { nodesBuilder, edgesBuilder ->
             for ((nodeId, nodeLayout) in layoutResult.nodes) {
                 val shifted =
@@ -2183,17 +2205,23 @@ public object KumlSvgRenderer {
                 }
             }
 
+            val nodeLookup: (String) -> dev.kuml.layout.NodeLayout? = { id ->
+                layoutResult.nodes[NodeId(id)]
+            }
             for ((edgeId, route) in layoutResult.edges) {
-                val shiftedRoute = shiftRoute(route, padding)
                 val id = edgeId.value
                 when {
                     id.startsWith(ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUP_PREFIX) ||
                         id.startsWith(ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUB_PREFIX) -> {
+                        val shiftedRoute = shiftRoute(route, padding)
                         val (tagName, attrs) = EdgePathBuilder.build(shiftedRoute)
                         edgesBuilder.tag(tagName, attrs + mapOf("class" to "kuml-edge"))
                     }
                     else -> {
                         val rel = relationshipsById[id] ?: continue
+                        // V3.4.x — see the matching self-loop wiring in [renderErm].
+                        val routed = SelfLoopRouter.adjust(rel, route, nodeLookup)
+                        val shiftedRoute = shiftRoute(routed, padding)
                         renderErmIdef1xRelationship(rel, shiftedRoute, theme, edgesBuilder, stackIndices[edgeId] ?: 0)
                     }
                 }

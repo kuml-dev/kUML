@@ -665,7 +665,9 @@ internal object WebRenderPipeline {
                 )
             }
 
-        val hints = LayoutHints.DEFAULT
+        // V3.4.x — shared spacing constant (see ErmLayoutBridge.WIDENED_SPACING_HINTS's
+        // KDoc); keeps the kuml.dev playground's rendering in sync with the CLI's.
+        val hints = ErmLayoutBridge.WIDENED_SPACING_HINTS
         val graph =
             when (notation) {
                 ErmNotation.CHEN ->

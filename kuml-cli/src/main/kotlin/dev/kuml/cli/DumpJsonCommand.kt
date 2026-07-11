@@ -23,6 +23,7 @@ import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
 import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmModel
+import dev.kuml.erm.model.ErmNotation
 import dev.kuml.layout.DiagramKind
 import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
@@ -35,7 +36,10 @@ import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
+import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
+import dev.kuml.layout.bridge.erm.ErmChenSizeProvider
 import dev.kuml.layout.bridge.erm.ErmContentSizeProvider
+import dev.kuml.layout.bridge.erm.ErmIdef1xLayoutBridge
 import dev.kuml.layout.bridge.erm.ErmLayoutBridge
 import dev.kuml.layout.elk.ElkLayoutEngineProvider
 import dev.kuml.layout.grid.GridLayoutEngineProvider
@@ -220,12 +224,27 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
         ensureEnginesRegistered()
         val model = extracted.model
         val diagram = extracted.diagram
-        val sizes = ErmContentSizeProvider(model, diagram, LayoutHints.DEFAULT.direction)
-        val graph = ErmLayoutBridge.toLayoutGraph(model, diagram, sizes)
+        // V3.4.x — shared spacing constant (see ErmLayoutBridge.WIDENED_SPACING_HINTS's
+        // KDoc); keeps `--format json` and `--format svg/png` in lock-step so they
+        // report/produce the same coordinates for the same script.
+        val hints = ErmLayoutBridge.WIDENED_SPACING_HINTS
+        // Mirrors the notation dispatch in RenderPipeline.renderErm: Chen expands
+        // attributes/relationships into their own layout nodes and IDEF1X injects
+        // a synthetic category-circle node, so both need their own bridge + size
+        // provider instead of the generic ErmLayoutBridge — otherwise dump-json's
+        // coordinates would diverge from the notation actually rendered by
+        // `--format svg/png` for the same script.
+        val graph =
+            when (diagram.notation) {
+                ErmNotation.CHEN -> ErmChenLayoutBridge.toChenLayoutGraph(model, diagram, ErmChenSizeProvider(model, diagram))
+                ErmNotation.IDEF1X ->
+                    ErmIdef1xLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
+                else -> ErmLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
+            }
         val engine =
             LayoutEngineRegistry.get("elk.layered")
                 ?: error("ELK layout engine not available for ERM diagrams.")
-        return engine.layout(graph, LayoutHints.DEFAULT)
+        return engine.layout(graph, hints)
     }
 
     // ── BPMN ─────────────────────────────────────────────────────────────

@@ -256,8 +256,11 @@ class ErmBachmanSvgTest :
             val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
 
             val nameLabel = edgeLabels(svg).single { it.text == "subcategory of" }
-            nameLabel.textAnchor shouldBe "end"
-            (nameLabel.x <= 200f) shouldBe true
+            // V3.4.x — see ErmMartinSvgTest's matching test for the rationale:
+            // ERM self-loops now route through SelfLoopRouter, which bulges
+            // outward from the node's RIGHT edge (x=380 = origin.x=200 + width=180).
+            nameLabel.textAnchor shouldBe "start"
+            (nameLabel.x >= 380f) shouldBe true
             SampleOutput.write("erm/bachman-self-loop-name-label-no-overflow.svg", svg)
         }
     })

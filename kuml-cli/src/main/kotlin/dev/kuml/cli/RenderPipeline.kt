@@ -1028,7 +1028,10 @@ internal object RenderPipeline {
         val notation = notationOverride?.let { ErmNotation.valueOf(it.uppercase()) } ?: diagram.notation
 
         ensureEnginesRegistered()
-        val hints = LayoutHints.DEFAULT
+        // V3.4.x — widened FK-hub spacing; single source of truth lives in
+        // ErmLayoutBridge.WIDENED_SPACING_HINTS (see its KDoc for the
+        // rationale), shared by every ERM render path.
+        val hints = ErmLayoutBridge.WIDENED_SPACING_HINTS
         // Chen expands attributes/relationships into their own layout nodes
         // (see ErmChenLayoutBridge's KDoc) — a structurally different graph
         // from the Martin/Bachman one entity-box-per-entity graph. IDEF1X

@@ -42,13 +42,16 @@ internal fun renderErmView(
         ) { text("«view» ${view.name ?: view.id}") }
         cy = ErmSizing.TITLE_ROW_H
 
+        // V3.4.x — line at the TOP of the gap (cy, not cy + DIVIDER_GAP / 2f), same
+        // fix as ErmMartinSvg.renderDivider: gives the full DIVIDER_GAP as
+        // clearance to the query-preview baseline below instead of half of it.
         tag(
             "line",
             mapOf(
                 "x1" to "0",
-                "y1" to fmt(cy + ErmSizing.DIVIDER_GAP / 2f),
+                "y1" to fmt(cy),
                 "x2" to fmt(w),
-                "y2" to fmt(cy + ErmSizing.DIVIDER_GAP / 2f),
+                "y2" to fmt(cy),
                 "class" to "kuml-divider",
             ),
         )

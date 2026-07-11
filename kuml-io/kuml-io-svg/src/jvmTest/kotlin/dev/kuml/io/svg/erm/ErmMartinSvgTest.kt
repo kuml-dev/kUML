@@ -9,6 +9,7 @@ import dev.kuml.erm.model.ErmForeignKey
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmNotation
 import dev.kuml.erm.model.ErmRelationship
+import dev.kuml.erm.model.ErmView
 import dev.kuml.erm.model.RelationshipKind
 import dev.kuml.io.svg.KumlSvgRenderer
 import dev.kuml.io.svg.SampleOutput
@@ -233,6 +234,55 @@ class ErmMartinSvgTest :
             SampleOutput.write("erm/xml-escape-guard.svg", svg)
         }
 
+        // ── Divider-position regression guards (fix/erm-martin-spacing) ──
+
+        "entity compartment divider sits at the top of the gap, not the midpoint" {
+            // Reported 2026-07-11 against the ERM/Martin E-Commerce Schema sample:
+            // renderDivider used to draw the line at `cy + DIVIDER_GAP / 2f` (the
+            // gap's midpoint), leaving only ~7px clearance to the next
+            // compartment's first row — less than a row's ascent — so the line
+            // visually cut through the first attribute row's glyphs. It must now
+            // sit at the TOP of the gap (`cy`), giving the full 14px DIVIDER_GAP
+            // as clearance.
+            val order =
+                ErmEntity(
+                    id = "order",
+                    name = "Order",
+                    attributes =
+                        listOf(
+                            pk("id"),
+                            ErmAttribute(id = "status", name = "status", type = ErmDataType.Varchar(20)),
+                        ),
+                )
+            val model = ErmModel(name = "Shop", entities = listOf(order))
+            val diagram = ErmDiagram(name = "Overview")
+            val layout = layoutOf("order" to Rect(Point(20f, 20f), Size(180f, 120f)))
+
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
+            val dividerYs = dividerLineYs(svg)
+
+            // First divider (title -> PK compartment) sits right after the title row.
+            dividerYs[0] shouldBe ErmSizing.TITLE_ROW_H
+            // Second divider (PK -> non-PK compartment) sits right after the PK row,
+            // i.e. TITLE_ROW_H + DIVIDER_GAP + one PK row, not + DIVIDER_GAP/2f extra.
+            dividerYs[1] shouldBe ErmSizing.TITLE_ROW_H + ErmSizing.DIVIDER_GAP + ErmSizing.ROW_H
+            SampleOutput.write("erm/divider-position-entity.svg", svg)
+        }
+
+        "view query-preview divider sits at the top of the gap, not the midpoint" {
+            // Same fix, applied to ErmViewSvg.renderErmView's query-preview divider.
+            val view = ErmView(id = "active_customers", name = "ActiveCustomers", query = "SELECT * FROM customer WHERE active = true")
+            val model = ErmModel(name = "Shop", views = listOf(view))
+            val diagram = ErmDiagram(name = "Overview")
+            val layout = layoutOf("active_customers" to Rect(Point(20f, 20f), Size(200f, 80f)))
+
+            val svg = KumlSvgRenderer.toSvg(model, diagram, layout, PlainTheme(), SvgRenderOptions(prettyPrint = false))
+            val dividerYs = dividerLineYs(svg)
+
+            dividerYs shouldBe listOf(ErmSizing.TITLE_ROW_H)
+            SampleOutput.write("erm/divider-position-view.svg", svg)
+        }
+
         "notation override IDEF1X no longer throws (regression guard, V3.4.5)" {
             val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(pk("id")))
             val model = ErmModel(name = "Shop", entities = listOf(customer))
@@ -261,12 +311,16 @@ class ErmMartinSvgTest :
             val svg = selfLoopSvg()
 
             val nameLabel = edgeLabels(svg).single { it.text == "subcategory of" }
-            // Box left edge sits at x=200 (see selfLoopSvg()); the label must grow
-            // AWAY from the box (text-anchor="end") and its anchor x must not be
-            // to the right of the border — before the fix this was
-            // text-anchor="middle" at x≈180, painting glyphs across x=200..223.
-            nameLabel.textAnchor shouldBe "end"
-            (nameLabel.x <= 200f) shouldBe true
+            // V3.4.x — ERM self-loops are now routed through SelfLoopRouter (the
+            // same wide C-loop UML/C4 self-associations get), which always bulges
+            // OUTWARD from the node's RIGHT edge — the hand-crafted route this
+            // fixture used to pass in (bulging left, past x=180) is discarded and
+            // replaced. Box right edge sits at x=380 (origin.x=200 + width=180,
+            // see selfLoopSvg()); the label must grow AWAY from the box
+            // (text-anchor="start") and its anchor x must not be to the left of
+            // the border.
+            nameLabel.textAnchor shouldBe "start"
+            (nameLabel.x >= 380f) shouldBe true
             SampleOutput.write("erm/self-loop-name-label-no-overflow.svg", svg)
         }
 
@@ -389,6 +443,17 @@ internal fun edgeLabels(svg: String): List<EdgeLabelInfo> {
         val (x, y, anchor, text) = m.destructured
         EdgeLabelInfo(x.toFloat(), y.toFloat(), anchor, text)
     }.toList()
+}
+
+/**
+ * Extracts the `y` coordinate of every compartment-divider `<line>` (in
+ * document order) from [svg] — used by the divider-position regression
+ * guards to assert the line sits at the TOP of `ErmSizing.DIVIDER_GAP`
+ * (`cy`), not its midpoint (`cy + DIVIDER_GAP / 2f`).
+ */
+private fun dividerLineYs(svg: String): List<Float> {
+    val regex = Regex("""<line x1="0" y1="([^"]+)" x2="[^"]+" y2="[^"]+" class="kuml-divider"/>""")
+    return regex.findAll(svg).map { it.groupValues[1].toFloat() }.toList()
 }
 
 private fun pk(name: String): ErmAttribute = ErmAttribute(id = name, name = name, type = ErmDataType.Uuid, primaryKey = true)

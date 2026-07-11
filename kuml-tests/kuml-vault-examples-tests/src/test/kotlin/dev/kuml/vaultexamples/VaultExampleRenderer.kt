@@ -308,22 +308,15 @@ object VaultExampleRenderer {
                 is ExtractedDiagram.Erm -> {
                     // V3.4.x — widened FK-hub spacing (nodeToNode/edgeToEdge/layerToLayer)
                     // so dense entities (e.g. Order/Review with 3 FKs each) don't crowd.
-                    // NOTE (2026-07-11): kuml-cli's RenderPipeline.renderErm does NOT
-                    // (yet) apply this same tuning — it currently uses plain
-                    // LayoutHints.DEFAULT for ERM. That parity is being worked on
-                    // separately on the fix/erm-martin-spacing branch; once merged,
-                    // update this comment and re-verify vault-example PNGs still match
-                    // CLI output 1:1. Until then, vault-example ERM renders intentionally
-                    // use the wider spacing regardless of what the CLI currently does.
-                    val ermHints =
-                        LayoutHints.DEFAULT.copy(
-                            spacing =
-                                LayoutHints.DEFAULT.spacing.copy(
-                                    nodeToNode = 70f,
-                                    edgeToEdge = 20f,
-                                    layerToLayer = 110f,
-                                ),
-                        )
+                    // Parity achieved (fix/erm-martin-spacing, 2026-07-11): kuml-cli's
+                    // RenderPipeline.renderErm/DumpJsonCommand.ermLayout, kuml-web's
+                    // WebRenderPipeline, and kuml-docs/kuml-asciidoc's
+                    // AsciidocRenderPipeline all now reference the same
+                    // ErmLayoutBridge.WIDENED_SPACING_HINTS constant this vault renderer
+                    // uses below, instead of the previously CLI-only-missing tuning.
+                    // Re-verified visually: vault-example PNGs for example 39 (all four
+                    // notations) match `kuml render` CLI output 1:1.
+                    val ermHints = ErmLayoutBridge.WIDENED_SPACING_HINTS
                     val notation = extracted.diagram.notation
                     val graph =
                         when (notation) {

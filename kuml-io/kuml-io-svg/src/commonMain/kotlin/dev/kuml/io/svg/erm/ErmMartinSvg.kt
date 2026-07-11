@@ -140,13 +140,23 @@ internal fun renderErmEntity(
     }
 }
 
-/** Draws a compartment divider and returns the `cy` advanced past [ErmSizing.DIVIDER_GAP]. */
+/**
+ * Draws a compartment divider and returns the `cy` advanced past [ErmSizing.DIVIDER_GAP].
+ *
+ * The line is drawn at the TOP of the gap (`cy`, not `cy + DIVIDER_GAP / 2f`) so the
+ * full [ErmSizing.DIVIDER_GAP] (14px) becomes clearance to the next compartment's
+ * first row baseline — mirrors `UmlClassSvg`'s divider placement. Drawing it at the
+ * gap's midpoint left only ~7px of clearance to the baseline, less than a typical
+ * 11px row's ascent (~8-9px), so the line visually crossed through the first
+ * attribute row's glyphs. Reported 2026-07-11 against the ERM/Martin E-Commerce
+ * Schema sample.
+ */
 private fun renderDivider(
     w: Float,
     cy: Float,
     b: SvgBuilder,
 ): Float {
-    val dividerY = cy + ErmSizing.DIVIDER_GAP / 2f
+    val dividerY = cy
     b.tag(
         "line",
         mapOf(

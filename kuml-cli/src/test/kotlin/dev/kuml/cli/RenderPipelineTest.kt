@@ -287,7 +287,11 @@ class RenderPipelineTest :
 
             val content = outputFile.toFile().readText()
             content shouldStartWith "<?xml"
-            content shouldContain "erm: Overview"
+            // V3.4.x — frame label now includes the notation (see
+            // KumlSvgRenderer.renderErmMartin/renderErmBachman/renderErmChen/
+            // renderErmIdef1x), so ERM/Martin diagrams show "erm/martin", not
+            // the notation-agnostic "erm" every ERM notation used to share.
+            content shouldContain "erm/martin: Overview"
             content shouldContain "Customer"
             content shouldContain "Order"
             content shouldContain "OrderItem"

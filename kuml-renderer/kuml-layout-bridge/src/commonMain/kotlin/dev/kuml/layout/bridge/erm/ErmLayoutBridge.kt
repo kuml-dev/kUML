@@ -6,6 +6,7 @@ import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EndpointRef
 import dev.kuml.layout.LayoutEdge
 import dev.kuml.layout.LayoutGraph
+import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.LayoutNode
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.bridge.SizeProvider
@@ -37,6 +38,41 @@ import dev.kuml.layout.bridge.SizeProvider
  *    "bekannte Stolperfallen").
  */
 public object ErmLayoutBridge {
+    /**
+     * Widened FK-hub spacing shared by every ERM render path (V3.4.x).
+     *
+     * ERM diagrams previously used the bare `40/12/90` ELK defaults, unlike
+     * every other dense/label-heavy diagram type (STM, ACT, C4, Requirements),
+     * even though ERM entities routinely carry many FK edges docking on the
+     * same hub table (e.g. a `Review` entity with three FKs) plus PK/index/
+     * check compartments that need room to breathe. Widened analogously:
+     *  - `nodeToNode = 70f` (was 40f) — more horizontal/vertical gap between
+     *    adjacent entity boxes.
+     *  - `edgeToEdge = 20f` (was 12f) — keeps parallel FK edges between the
+     *    same entity pair (e.g. an `Order`'s billing/shipping `Address` FKs)
+     *    apart.
+     *  - `layerToLayer = 110f` (was 90f engine default) — more vertical room
+     *    between layers for relationship-name/role labels.
+     *
+     * This constant is the single source of truth for that tuning — every
+     * production ERM render path (`kuml-cli`'s `RenderPipeline.renderErm` and
+     * `DumpJsonCommand.ermLayout`, `kuml-web`'s `WebRenderPipeline`,
+     * `kuml-docs/kuml-asciidoc`'s `AsciidocRenderPipeline`) plus the vault
+     * example renderer (`kuml-tests/kuml-vault-examples-tests`'s
+     * `VaultExampleRenderer`) reference it instead of duplicating the
+     * literals, which previously had to be kept in lock-step by hand across
+     * five call sites.
+     */
+    public val WIDENED_SPACING_HINTS: LayoutHints =
+        LayoutHints.DEFAULT.copy(
+            spacing =
+                LayoutHints.DEFAULT.spacing.copy(
+                    nodeToNode = 70f,
+                    edgeToEdge = 20f,
+                    layerToLayer = 110f,
+                ),
+        )
+
     /**
      * Builds a [LayoutGraph] from the entities/relationships/views visible in
      * [diagram].

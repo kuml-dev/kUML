@@ -194,6 +194,9 @@ internal object AsciidocRenderPipeline {
         }
 
         val notation = diagram.notation
+        // V3.4.x — shared spacing constant (see ErmLayoutBridge.WIDENED_SPACING_HINTS's
+        // KDoc); keeps Antora/handbook diagrams in sync with the CLI's rendering.
+        val hints = ErmLayoutBridge.WIDENED_SPACING_HINTS
         val graph =
             when (notation) {
                 ErmNotation.CHEN -> ErmChenLayoutBridge.toChenLayoutGraph(model, diagram, ErmChenSizeProvider(model, diagram))
@@ -201,11 +204,11 @@ internal object AsciidocRenderPipeline {
                     ErmIdef1xLayoutBridge.toLayoutGraph(
                         model,
                         diagram,
-                        ErmContentSizeProvider(model, diagram, LayoutHints.DEFAULT.direction),
+                        ErmContentSizeProvider(model, diagram, hints.direction),
                     )
-                else -> ErmLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, LayoutHints.DEFAULT.direction))
+                else -> ErmLayoutBridge.toLayoutGraph(model, diagram, ErmContentSizeProvider(model, diagram, hints.direction))
             }
-        val layoutResult = layoutEngine.layout(graph, LayoutHints.DEFAULT)
+        val layoutResult = layoutEngine.layout(graph, hints)
         return try {
             KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, notation = notation)
         } catch (e: IllegalArgumentException) {
