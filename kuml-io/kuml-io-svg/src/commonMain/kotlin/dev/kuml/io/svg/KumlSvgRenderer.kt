@@ -45,6 +45,7 @@ import dev.kuml.io.svg.bpmn.renderConversationParticipant
 import dev.kuml.io.svg.c4.c4RelationshipLabel
 import dev.kuml.io.svg.c4.renderC4Interaction
 import dev.kuml.io.svg.c4.renderC4Relationship
+import dev.kuml.io.svg.erm.ConnectorEntitySide
 import dev.kuml.io.svg.erm.idef1xDiscriminatorName
 import dev.kuml.io.svg.erm.renderChenAttribute
 import dev.kuml.io.svg.erm.renderChenConnector
@@ -2082,11 +2083,13 @@ public object KumlSvgRenderer {
                         renderChenConnector(shiftedRoute, cardinality = null, edgesBuilder)
                     id.startsWith(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX) -> {
                         val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX)] ?: continue
-                        renderChenConnector(shiftedRoute, rel.sourceCardinality, edgesBuilder)
+                        // ErmChenLayoutBridge points this edge sourceEntity -> diamond,
+                        // so the entity sits at the route's source, not its target.
+                        renderChenConnector(shiftedRoute, rel.sourceCardinality, edgesBuilder, ConnectorEntitySide.SOURCE)
                     }
                     id.startsWith(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX) -> {
                         val rel = relsById[id.removePrefix(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX)] ?: continue
-                        renderChenConnector(shiftedRoute, rel.targetCardinality, edgesBuilder)
+                        renderChenConnector(shiftedRoute, rel.targetCardinality, edgesBuilder, ConnectorEntitySide.TARGET)
                     }
                 }
             }

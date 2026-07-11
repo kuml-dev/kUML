@@ -16,6 +16,8 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.floats.shouldBeGreaterThan
+import io.kotest.matchers.floats.shouldBeLessThan
+import io.kotest.matchers.ints.shouldBeGreaterThanOrEqual
 import io.kotest.matchers.shouldBe
 
 class ErmChenLayoutBridgeTest :
@@ -76,13 +78,17 @@ class ErmChenLayoutBridgeTest :
             customerIdEdge.target.nodeId shouldBe NodeId(ErmChenLayoutBridge.ATTR_PREFIX + "customer_id")
         }
 
-        test("relationship gets a diamond node plus one edge to each entity end") {
+        test("relationship gets a diamond node plus one edge to each entity end, chained sourceEntity -> diamond -> targetEntity") {
             val diagram = ErmDiagram(name = "Overview")
             val graph = ErmChenLayoutBridge.toChenLayoutGraph(model, diagram)
 
+            // Bug-fix V3.4.6: the source-entity edge points sourceEntity -> diamond
+            // (not diamond -> sourceEntity), so the layout graph preserves the real
+            // relationship direction as a proper 2-hop chain instead of two edges
+            // radiating away from the diamond.
             val srcEdge = graph.edges.first { it.id == EdgeId(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX + "rel_places") }
-            srcEdge.source.nodeId shouldBe NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel_places")
-            srcEdge.target.nodeId shouldBe NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer")
+            srcEdge.source.nodeId shouldBe NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "customer")
+            srcEdge.target.nodeId shouldBe NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel_places")
 
             val tgtEdge = graph.edges.first { it.id == EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "rel_places") }
             tgtEdge.source.nodeId shouldBe NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel_places")
@@ -123,7 +129,7 @@ class ErmChenLayoutBridgeTest :
                 )
         }
 
-        test("self-referencing relationship produces a diamond with both edges landing on the same entity") {
+        test("self-referencing relationship produces a diamond with one incoming and one outgoing edge, both touching the same entity") {
             val employee =
                 ErmEntity(
                     id = "employee",
@@ -146,7 +152,17 @@ class ErmChenLayoutBridgeTest :
             graph.nodes shouldHaveSize 3
             val relEdges = graph.edges.filter { it.id.value.startsWith("chen-reledge") }
             relEdges shouldHaveSize 2
-            relEdges.forEach { it.target.nodeId shouldBe NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "employee") }
+
+            // Bug-fix V3.4.6: one edge is entity -> diamond (the src edge), the other
+            // is diamond -> entity (the tgt edge) — not two edges both landing on the
+            // entity. Both still touch the same "employee" entity on their entity end.
+            val srcEdge = relEdges.first { it.id.value.startsWith(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX) }
+            srcEdge.source.nodeId shouldBe NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "employee")
+            srcEdge.target.nodeId shouldBe NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel_manages")
+
+            val tgtEdge = relEdges.first { it.id.value.startsWith(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX) }
+            tgtEdge.source.nodeId shouldBe NodeId(ErmChenLayoutBridge.REL_PREFIX + "rel_manages")
+            tgtEdge.target.nodeId shouldBe NodeId(ErmChenLayoutBridge.ENTITY_PREFIX + "employee")
         }
 
         test("groups is always empty") {
@@ -175,5 +191,87 @@ class ErmChenLayoutBridgeTest :
                     .first { it.key == NodeId(ErmChenLayoutBridge.ATTR_PREFIX + "descriptive_col") }
                     .value.bounds
             ovalBounds.size.width shouldBeGreaterThan ErmChenSizeProvider.OVAL_MIN_W
+        }
+
+        test(
+            "real ELK run on a dense model spreads entities across multiple layers instead of one wide row (Bug-fix V3.4.6 regression guard)",
+        ) {
+            // Regression guard for the degenerate-single-row bug: with both
+            // diamond<->entity edges pointing AWAY from the diamond, ELK sees
+            // only two edge "classes" (diamond->entity, entity->attribute), so
+            // the longest directed path is always exactly 2 regardless of model
+            // size -> exactly 3 layers, and a model with many attributes then
+            // collapses into one extremely wide row (~5100x512px was observed
+            // for the 8-entity/12-relationship E-Commerce Schema vault example).
+            //
+            // This fixture mirrors that shape: 6 entities, 8 relationships
+            // (including a self-reference on "category"), enough to produce a
+            // real multi-hop chain once sourceEntity -> diamond -> targetEntity
+            // is preserved. Before the fix this test is RED (aspect ratio blows
+            // past the threshold and/or entities collapse onto <3 distinct rows);
+            // after the fix it is GREEN.
+            fun entityWithId(id: String): ErmEntity =
+                ErmEntity(
+                    id = id,
+                    name = id.replaceFirstChar { it.uppercase() },
+                    attributes = listOf(ErmAttribute(id = "${id}_id", name = "id", type = ErmDataType.Uuid, primaryKey = true)),
+                )
+
+            val customerE = entityWithId("customer")
+            val addressE = entityWithId("address")
+            val categoryE = entityWithId("category")
+            val productE = entityWithId("product")
+            val orderE = entityWithId("order")
+            val orderItemE = entityWithId("order_item")
+
+            val denseEntities = listOf(customerE, addressE, categoryE, productE, orderE, orderItemE)
+
+            fun rel(
+                id: String,
+                from: ErmEntity,
+                to: ErmEntity,
+            ) = ErmRelationship(
+                id = id,
+                name = id,
+                sourceEntityId = from.id,
+                targetEntityId = to.id,
+                sourceCardinality = Cardinality.ONE,
+                targetCardinality = Cardinality.ZERO_MANY,
+            )
+
+            val denseRelationships =
+                listOf(
+                    rel("rel_customer_address", customerE, addressE),
+                    rel("rel_customer_order_1", customerE, orderE),
+                    rel("rel_customer_order_2", customerE, orderE),
+                    rel("rel_category_product", categoryE, productE),
+                    rel("rel_category_parent", categoryE, categoryE), // self-reference
+                    rel("rel_order_address_ship", orderE, addressE),
+                    rel("rel_order_address_bill", orderE, addressE),
+                    rel("rel_order_orderitem", orderE, orderItemE),
+                    rel("rel_product_orderitem", productE, orderItemE),
+                )
+            denseRelationships shouldHaveSize 9 // >= 8 relationships required by the regression scenario
+
+            val denseModel = ErmModel(name = "Dense", entities = denseEntities, relationships = denseRelationships)
+            val denseDiagram = ErmDiagram(name = "Dense")
+
+            val engine = ElkLayoutEngineProvider().engine()
+            val sizeProvider = ErmChenSizeProvider(denseModel, denseDiagram)
+            val graph = ErmChenLayoutBridge.toChenLayoutGraph(denseModel, denseDiagram, sizeProvider)
+            val layout = engine.layout(graph, LayoutHints.DEFAULT)
+
+            // 1) Global aspect ratio must not degenerate into one extremely wide row.
+            val aspectRatio = layout.canvas.width / layout.canvas.height
+            aspectRatio shouldBeLessThan 4.0f
+
+            // 2) Entities must actually be distributed across at least 3 distinct
+            //    layers (y-coordinates), not all crammed onto a single row.
+            val entityYCoordinates =
+                layout.nodes.entries
+                    .filter { it.key.value.startsWith(ErmChenLayoutBridge.ENTITY_PREFIX) }
+                    .map { it.value.bounds.origin.y }
+                    .distinct()
+            entityYCoordinates.size shouldBeGreaterThanOrEqual 3
         }
     })

@@ -25,7 +25,20 @@ import dev.kuml.layout.bridge.SizeProvider
  * - Each [dev.kuml.erm.model.ErmRelationship] → its own diamond
  *   [LayoutNode], connected to both its source and target entity by two
  *   plain [LayoutEdge]s (no cardinality glyphs on the entity border — the
- *   cardinality is a **label** on the diamond↔entity edge instead).
+ *   cardinality is a **label** on the diamond↔entity edge instead). The two
+ *   edges are **not** symmetric: the source-entity edge points
+ *   `sourceEntity → diamond` and the target-entity edge points
+ *   `diamond → targetEntity`, so the chain `sourceEntity → diamond →
+ *   targetEntity` preserves the relationship's directionality in the layout
+ *   graph — mirroring [ErmIdef1xLayoutBridge]'s `supertype → circle →
+ *   subtype` chaining for its synthetic category node. Bug-fix V3.4.6: making
+ *   both edges point away from the diamond (`diamond → sourceEntity` and
+ *   `diamond → targetEntity`) collapses every relationship into the same
+ *   2-hop shape regardless of model size, capping ELK's layered layout at
+ *   exactly 3 layers (diamonds / entities / attributes) no matter how many
+ *   entities or relationships exist — denser models (e.g. 8 entities, 12
+ *   relationships) then degenerate into one extremely wide row instead of
+ *   spreading across layers.
  * - Each [dev.kuml.erm.model.ErmView] (when `diagram.showViews`) → a
  *   free-standing [LayoutNode] with no edges (Chen has no first-class "view
  *   references entity" notation).
@@ -64,10 +77,20 @@ public object ErmChenLayoutBridge {
     /** Prefix for the synthetic edge id connecting an entity to one of its attribute ovals. */
     public const val ATTR_EDGE_PREFIX: String = "chen-attredge::"
 
-    /** Prefix for the synthetic edge id connecting a relationship diamond to its source entity. */
+    /**
+     * Prefix for the synthetic edge id connecting a relationship's source entity to its
+     * diamond. Points `sourceEntity → diamond` (note the direction: unlike
+     * [REL_EDGE_TGT_PREFIX], the diamond is this edge's *target*, not its source) so that
+     * the diamond preserves a real `sourceEntity → diamond → targetEntity` chain in the
+     * layout graph instead of two edges radiating away from the diamond.
+     */
     public const val REL_EDGE_SRC_PREFIX: String = "chen-reledge-src::"
 
-    /** Prefix for the synthetic edge id connecting a relationship diamond to its target entity. */
+    /**
+     * Prefix for the synthetic edge id connecting a relationship diamond to its target
+     * entity. Points `diamond → targetEntity`, completing the `sourceEntity → diamond →
+     * targetEntity` chain together with [REL_EDGE_SRC_PREFIX].
+     */
     public const val REL_EDGE_TGT_PREFIX: String = "chen-reledge-tgt::"
 
     /**
@@ -136,8 +159,8 @@ public object ErmChenLayoutBridge {
             edges.add(
                 LayoutEdge(
                     id = EdgeId(REL_EDGE_SRC_PREFIX + rel.id),
-                    source = EndpointRef(nodeId = NodeId(REL_PREFIX + rel.id)),
-                    target = EndpointRef(nodeId = NodeId(ENTITY_PREFIX + rel.sourceEntityId)),
+                    source = EndpointRef(nodeId = NodeId(ENTITY_PREFIX + rel.sourceEntityId)),
+                    target = EndpointRef(nodeId = NodeId(REL_PREFIX + rel.id)),
                 ),
             )
             edges.add(

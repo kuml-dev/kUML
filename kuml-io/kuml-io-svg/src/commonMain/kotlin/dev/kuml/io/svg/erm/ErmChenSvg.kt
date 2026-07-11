@@ -12,6 +12,7 @@ import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.NodeLayout
+import dev.kuml.layout.Point
 import dev.kuml.renderer.theme.core.KumlTheme
 
 /**
@@ -179,28 +180,51 @@ private fun diamondPoints(
  * Renders a plain diamond↔entity or entity↔attribute connector line.
  *
  * [cardinality] is `null` for entity↔attribute connectors (attributes carry
- * no cardinality). For diamond↔entity connectors, the label is placed near
- * the **entity end** of the line (the route's `target`, by
- * `ErmChenLayoutBridge`'s convention of `source = diamond, target = entity`)
- * so the two ends of a relationship (e.g. `1` and `N`) don't collide at the
- * diamond.
+ * no cardinality). For diamond↔entity connectors, the label is always placed
+ * near the **entity end** of the line, never the diamond end, so the two
+ * ends of a relationship (e.g. `1` and `N`) don't collide at the diamond.
+ *
+ * Since Bug-fix V3.4.6, `ErmChenLayoutBridge`'s two diamond↔entity edges are
+ * **not** symmetric: the source-entity edge points `sourceEntity → diamond`
+ * (entity is the route's `source`) while the target-entity edge points
+ * `diamond → targetEntity` (entity is the route's `target`) — see that
+ * bridge's KDoc for why. [entitySide] tells this function which end of
+ * [route] the entity actually sits on, so it can anchor the label there
+ * instead of assuming "entity = target" for every connector.
  */
 internal fun renderChenConnector(
     route: EdgeRoute,
     cardinality: Cardinality?,
     b: SvgBuilder,
+    entitySide: ConnectorEntitySide = ConnectorEntitySide.TARGET,
 ) {
     val (tagName, attrs) = EdgePathBuilder.build(route)
     b.tag(tagName, attrs + mapOf("class" to "kuml-edge"))
 
     if (cardinality != null) {
-        // Tangent pointing INTO the target node; negate to point away from it,
-        // back along the edge — the direction the label should be offset in.
-        val intoTarget = EdgeLabelGeometry.targetSegmentTangent(route)
-        val awayFromTarget = -intoTarget.first to -intoTarget.second
+        val entityPoint: Point
+        val awayFromDiamond: Pair<Float, Float>
+        when (entitySide) {
+            ConnectorEntitySide.TARGET -> {
+                // Tangent pointing INTO the target node; negate to point away from
+                // it, back along the edge — the direction the label should offset in.
+                val intoTarget = EdgeLabelGeometry.targetSegmentTangent(route)
+                awayFromDiamond = -intoTarget.first to -intoTarget.second
+                entityPoint = route.target
+            }
+            ConnectorEntitySide.SOURCE -> {
+                // Tangent of the first segment points FROM the source node
+                // TOWARD the first kink — i.e. from the entity toward the
+                // diamond. Negate it to get the direction away from the
+                // diamond, back along the edge, same as the TARGET branch.
+                val towardDiamond = EdgeLabelGeometry.sourceSegmentTangent(route)
+                awayFromDiamond = -towardDiamond.first to -towardDiamond.second
+                entityPoint = route.source
+            }
+        }
         val label = chenCardinalityLabel(cardinality)
-        val x = route.target.x + awayFromTarget.first * ErmChenSizing.CARDINALITY_LABEL_OFFSET_PX
-        val y = route.target.y + awayFromTarget.second * ErmChenSizing.CARDINALITY_LABEL_OFFSET_PX
+        val x = entityPoint.x + awayFromDiamond.first * ErmChenSizing.CARDINALITY_LABEL_OFFSET_PX
+        val y = entityPoint.y + awayFromDiamond.second * ErmChenSizing.CARDINALITY_LABEL_OFFSET_PX
         b.tag(
             "text",
             mapOf(
@@ -212,6 +236,12 @@ internal fun renderChenConnector(
         ) { text(label) }
     }
 }
+
+/**
+ * Which end of a diamond↔entity [EdgeRoute] the entity sits on — see
+ * [renderChenConnector]'s KDoc. The diamond sits on the other end.
+ */
+internal enum class ConnectorEntitySide { SOURCE, TARGET }
 
 /**
  * Maps a [Cardinality] to the classic Chen `1`/`N` label vocabulary.

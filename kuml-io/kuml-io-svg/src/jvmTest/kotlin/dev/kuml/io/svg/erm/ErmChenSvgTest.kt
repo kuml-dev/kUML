@@ -111,8 +111,10 @@ class ErmChenSvgTest :
                         ),
                     edges =
                         listOf(
+                            // Bug-fix V3.4.6: sourceEntity -> diamond (entity is this
+                            // route's source, diamond is its target).
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX + "rel1") to
-                                EdgeRoute.Direct(Point(215f, 150f), Point(100f, 64f)),
+                                EdgeRoute.Direct(Point(100f, 64f), Point(215f, 150f)),
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "rel1") to
                                 EdgeRoute.Direct(Point(215f, 150f), Point(380f, 64f)),
                         ),
@@ -151,8 +153,10 @@ class ErmChenSvgTest :
                         ),
                     edges =
                         listOf(
+                            // Bug-fix V3.4.6: sourceEntity -> diamond (entity is this
+                            // route's source, diamond is its target).
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX + "rel2") to
-                                EdgeRoute.Direct(Point(215f, 150f), Point(100f, 64f)),
+                                EdgeRoute.Direct(Point(100f, 64f), Point(215f, 150f)),
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "rel2") to
                                 EdgeRoute.Direct(Point(215f, 150f), Point(380f, 64f)),
                         ),
@@ -208,8 +212,10 @@ class ErmChenSvgTest :
                         ),
                     edges =
                         listOf(
+                            // Bug-fix V3.4.6: sourceEntity -> diamond (entity is this
+                            // route's source, diamond is its target).
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_SRC_PREFIX + "rel1") to
-                                EdgeRoute.Direct(Point(215f, 150f), Point(100f, 64f)),
+                                EdgeRoute.Direct(Point(100f, 64f), Point(215f, 150f)),
                             EdgeId(ErmChenLayoutBridge.REL_EDGE_TGT_PREFIX + "rel1") to
                                 EdgeRoute.Direct(Point(215f, 150f), Point(380f, 64f)),
                         ),
