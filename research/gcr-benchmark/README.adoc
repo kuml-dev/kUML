@@ -32,6 +32,10 @@ https://docs.kuml.dev/kuml/reference/llm-benchmark.html[Handbook: LLM Benchmark 
   (`raw-results.json` + `raw-results-sample2.json` + `raw-results-sample3.json`), at the
   DSL-aggregate, per-family, and per-difficulty granularities respectively. Write
   `results/multisample*-summary.json`.
+* `score_significance.py` — paired significance testing (t-test + Wilcoxon signed-rank,
+  requires `pip install scipy`) between kUML and each baseline on SF/HR, at (task, sample)
+  granularity (up to 150 paired observations per model per comparison, more power than the
+  n=3 sample-level comparison). Writes `results/significance-summary.json`.
 * `results/claude-sonnet-5/`, `results/gpt-4o/`, `results/gemini-2.5-flash/`,
   `results/gemini-2.5-pro/` — the paper's **primary** dataset for all four models: 3
   independent samples per cell (`raw-results.json` = sample 1, `raw-results-sample{2,3}.json`
