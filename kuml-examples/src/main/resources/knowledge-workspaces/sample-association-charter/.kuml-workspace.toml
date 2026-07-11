@@ -1,0 +1,9 @@
+[workspace]
+mode = "knowledge"
+name = "Muster-Verein für Offene Zusammenarbeit e.V. (Muster-Satzung)"
+kuml-version = "0.30.1"
+
+[okf]
+version = "0.1"
+vocabulary = "1.0"
+strict = true

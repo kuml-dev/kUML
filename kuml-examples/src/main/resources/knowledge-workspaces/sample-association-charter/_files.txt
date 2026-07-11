@@ -1,0 +1,26 @@
+# Rot-guard manifest for the "sample-association-charter" OKF demo workspace (V3.6.3, FT-3).
+#
+# Every path below is a committed file inside this directory tree. The
+# SampleAssociationWorkspaceTest test suite (kuml-examples module) reads this
+# manifest at test time and asserts:
+#   - every entry resolves to an existing classpath resource (guards deletion)
+#   - the set of ".md" entries here matches the set of ".md" files the
+#     WorkspaceScanner actually discovers under this root (guards drift)
+#
+# When adding/removing/renaming a file in this workspace, update this file too.
+
+.kuml-workspace.toml
+index.md
+articles/01-praeambel.md
+articles/02-mitgliedschaft.md
+articles/03-organe.md
+articles/04-schlussbestimmungen.md
+concepts/index.md
+concepts/Mitglied.md
+concepts/Vorstand.md
+concepts/Mitgliederversammlung.md
+concepts/Schlichtungsausschuss.md
+models/organe-struktur.md
+models/mitgliedschaft-lebenszyklus.md
+models/aufnahme-prozess.md
+glossary/index.md
