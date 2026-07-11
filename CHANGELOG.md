@@ -6,6 +6,25 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.30.1] — 2026-07-11
+
+### Fixed
+
+**ERM Chen notation: cardinality label collisions at hub entities**
+
+Chen-notation `1`/`N` cardinality labels rendered incorrectly in the SVG
+renderer: the source-side along-edge offset direction was inverted, landing
+labels inside the entity box on top of its title; labels had no perpendicular
+offset, so they straddled the connector line; and they lacked the halo pass
+already used by every other ERM edge label, making them unreadable wherever
+they crossed a line. Cardinality labels now route through a new shared
+`renderErmCardinalityLabel` helper with deterministic per-hub stacking, so
+labels converging on the same hub entity (multiple relationships meeting at
+one entity) fan apart instead of overlapping, plus a bounded clearance guard
+against residual title overlap. A new regression test covers title clearance,
+off-line perpendicular offset, hub fan-out separation, and render
+determinism.
+
 ## [0.30.0] — 2026-07-11
 
 ### Added
