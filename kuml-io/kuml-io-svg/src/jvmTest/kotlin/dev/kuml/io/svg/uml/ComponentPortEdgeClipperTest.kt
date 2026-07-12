@@ -170,6 +170,117 @@ class ComponentPortEdgeClipperTest :
             rounded.waypoints[2].x shouldBe (midX plusOrMinus 0.01f)
         }
 
+        test("routes edges around intervening sibling components (Plugin-API topology)") {
+            // Reproduziert [[03 Bereiche/kUML/Beispiele/38 UML Component – Plugin API]]
+            // (Präsentations-Quelle `35_UML_Component_Plugin_API.kuml.kts`):
+            // `kUML Core` oben mit drei Ports (`theme`, `renderer`, `codegen`),
+            // drei Geschwister-Komponenten nebeneinander darunter (`PdV Theme
+            // Plugin`, `TypeScript Codegen Plugin`, `PDF Renderer Plugin`), je
+            // mit einem `spi`-Port. Vor dem Fix liefen zwei Kanten quer durch
+            // eine dazwischenliegende Sibling-Box:
+            //  - `kUML Core::theme → PdV Theme Plugin::spi` durch
+            //    `TypeScript Codegen Plugin` (U-Form-Fall, gleiche Portseite).
+            //  - `kUML Core::renderer → PDF Renderer Plugin::spi` durch
+            //    `PdV Theme Plugin` (Z-Form-Fall, gegenüberliegende Portseiten,
+            //    Boxen nebeneinander in derselben Zeile).
+            //
+            // Die Bounding-Boxen unten sind 1:1 aus einem echten
+            // `kuml render`-Lauf dieses Beispiels übernommen (SVG-`<g
+            // transform="translate(...)">`- und `<rect width/height>`-Werte),
+            // damit der Test die reale ELK-Layout-Geometrie trifft und nicht
+            // nur eine synthetische Konstellation.
+            val core =
+                UmlComponent(
+                    id = "kUML Core",
+                    name = "kUML Core",
+                    ports =
+                        listOf(
+                            UmlPort(id = "kUML Core::theme", name = "theme"), // index 0 → left
+                            UmlPort(id = "kUML Core::renderer", name = "renderer"), // index 1 → right
+                            UmlPort(id = "kUML Core::codegen", name = "codegen"), // index 2 → left (2nd on side)
+                        ),
+                )
+            val pdvTheme =
+                UmlComponent(
+                    id = "PdV Theme Plugin",
+                    name = "PdV Theme Plugin",
+                    ports = listOf(UmlPort(id = "PdV Theme Plugin::spi", name = "spi")),
+                )
+            val tsCodegen =
+                UmlComponent(
+                    id = "TypeScript Codegen Plugin",
+                    name = "TypeScript Codegen Plugin",
+                    ports = listOf(UmlPort(id = "TypeScript Codegen Plugin::spi", name = "spi")),
+                )
+            val pdfRenderer =
+                UmlComponent(
+                    id = "PDF Renderer Plugin",
+                    name = "PDF Renderer Plugin",
+                    ports = listOf(UmlPort(id = "PDF Renderer Plugin::spi", name = "spi")),
+                )
+
+            val coreBounds = Rect(Point(155.79f, 56f), Size(306f, 80f))
+            val pdvThemeBounds = Rect(Point(404f, 236f), Size(214f, 80f))
+            val tsCodegenBounds = Rect(Point(56f, 236f), Size(287f, 80f))
+            val pdfRendererBounds = Rect(Point(679f, 236f), Size(237f, 80f))
+
+            val original: EdgeRoute = EdgeRoute.Direct(Point(0f, 0f), Point(0f, 0f))
+
+            val componentLookup: (String) -> UmlComponent? = { id ->
+                when (id) {
+                    "kUML Core" -> core
+                    "PdV Theme Plugin" -> pdvTheme
+                    "TypeScript Codegen Plugin" -> tsCodegen
+                    "PDF Renderer Plugin" -> pdfRenderer
+                    else -> null
+                }
+            }
+            val boundsLookup: (String) -> Rect? = { id ->
+                when (id) {
+                    "kUML Core" -> coreBounds
+                    "PdV Theme Plugin" -> pdvThemeBounds
+                    "TypeScript Codegen Plugin" -> tsCodegenBounds
+                    "PDF Renderer Plugin" -> pdfRendererBounds
+                    else -> null
+                }
+            }
+            val allBounds = listOf(coreBounds, pdvThemeBounds, tsCodegenBounds, pdfRendererBounds)
+
+            val clippedTheme =
+                ComponentPortEdgeClipper.clip(
+                    route = original,
+                    end1Id = "kUML Core::theme",
+                    end2Id = "PdV Theme Plugin::spi",
+                    componentLookup = componentLookup,
+                    boundsLookup = boundsLookup,
+                    siblingBounds = allBounds,
+                )
+            val roundedTheme = clippedTheme.shouldBeInstanceOf<EdgeRoute.OrthogonalRounded>()
+            val pathTheme = listOf(roundedTheme.source) + roundedTheme.waypoints + roundedTheme.target
+            for (box in allBounds) {
+                for (i in 0 until pathTheme.size - 1) {
+                    segmentIntersectsRectInterior(pathTheme[i], pathTheme[i + 1], box) shouldBe false
+                }
+            }
+
+            val clippedRenderer =
+                ComponentPortEdgeClipper.clip(
+                    route = original,
+                    end1Id = "kUML Core::renderer",
+                    end2Id = "PDF Renderer Plugin::spi",
+                    componentLookup = componentLookup,
+                    boundsLookup = boundsLookup,
+                    siblingBounds = allBounds,
+                )
+            val roundedRenderer = clippedRenderer.shouldBeInstanceOf<EdgeRoute.OrthogonalRounded>()
+            val pathRenderer = listOf(roundedRenderer.source) + roundedRenderer.waypoints + roundedRenderer.target
+            for (box in allBounds) {
+                for (i in 0 until pathRenderer.size - 1) {
+                    segmentIntersectsRectInterior(pathRenderer[i], pathRenderer[i + 1], box) shouldBe false
+                }
+            }
+        }
+
         test("leaves route untouched for non-port endpoint ids") {
             val comp = UmlComponent(id = "C", name = "C")
             val original = EdgeRoute.Direct(Point(1f, 2f), Point(3f, 4f))
@@ -198,3 +309,40 @@ class ComponentPortEdgeClipperTest :
             clipped shouldBe original
         }
     })
+
+/**
+ * Schnitt-Test für ein achsenparalleles Segment gegen das **Innere** eines
+ * Rechtecks — analog zum Liang-Barsky-Muster aus `KumlSvgRendererTest`. Nur
+ * ein echtes Durchqueren der Fläche zählt als Treffer; Berührung am Rand
+ * (z.B. weil eine Route exakt an einer Box-Kante entlangläuft) zählt nicht.
+ */
+private fun segmentIntersectsRectInterior(
+    a: Point,
+    b: Point,
+    r: Rect,
+): Boolean {
+    val left = r.origin.x
+    val right = r.origin.x + r.size.width
+    val top = r.origin.y
+    val bottom = r.origin.y + r.size.height
+    val eps = 0.01f
+    return if (a.x == b.x) {
+        // Vertikales Segment.
+        val x = a.x
+        val y1 = minOf(a.y, b.y)
+        val y2 = maxOf(a.y, b.y)
+        x > left + eps && x < right - eps && maxOf(y1, top) < minOf(y2, bottom) - eps
+    } else if (a.y == b.y) {
+        // Horizontales Segment.
+        val y = a.y
+        val x1 = minOf(a.x, b.x)
+        val x2 = maxOf(a.x, b.x)
+        y > top + eps && y < bottom - eps && maxOf(x1, left) < minOf(x2, right) - eps
+    } else {
+        // Diagonales Segment sollte in dieser Routing-Klasse nicht vorkommen
+        // (alle Routen sind achsenparallel) — konservativ als "kein Treffer"
+        // behandeln, statt eine generische Liang-Barsky-Implementierung zu
+        // duplizieren, die hier nicht gebraucht wird.
+        false
+    }
+}

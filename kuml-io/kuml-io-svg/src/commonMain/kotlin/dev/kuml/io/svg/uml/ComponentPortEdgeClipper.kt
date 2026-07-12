@@ -145,23 +145,231 @@ internal object ComponentPortEdgeClipper {
     }
 
     /**
+     * `true` when the axis-aligned segment `a→b` (horizontal or vertical —
+     * every segment in this clipper's routes is one or the other) passes
+     * through the **interior** of [box]. Touching an edge/corner does not
+     * count.
+     */
+    private fun axisSegmentCrossesBox(
+        a: Point,
+        b: Point,
+        box: Rect,
+    ): Boolean {
+        val boxLeft = box.origin.x
+        val boxRight = box.origin.x + box.size.width
+        val boxTop = box.origin.y
+        val boxBottom = box.origin.y + box.size.height
+        return if (a.x == b.x) {
+            val x = a.x
+            val y0 = minOf(a.y, b.y)
+            val y1 = maxOf(a.y, b.y)
+            x > boxLeft && x < boxRight && maxOf(y0, boxTop) < minOf(y1, boxBottom)
+        } else {
+            val y = a.y
+            val x0 = minOf(a.x, b.x)
+            val x1 = maxOf(a.x, b.x)
+            y > boxTop && y < boxBottom && maxOf(x0, boxLeft) < minOf(x1, boxRight)
+        }
+    }
+
+    /**
+     * Detour-Gasse-Abstand um eine Hindernis-Box: groß genug, um sicher
+     * außerhalb der Box zu liegen, ohne unnötig weit auszuholen.
+     */
+    private const val OBSTACLE_GUTTER_PX = 12f
+
+    /**
+     * `true` wenn irgendein Segment der Wegpunkt-Kette `points` (inklusive
+     * Quell- und Zielpunkt) das Innere von [box] durchquert.
+     */
+    private fun pathCrossesBox(
+        points: List<Point>,
+        box: Rect,
+    ): Boolean {
+        for (i in 0 until points.size - 1) {
+            if (axisSegmentCrossesBox(points[i], points[i + 1], box)) return true
+        }
+        return false
+    }
+
+    /**
+     * Läuft die fertig gebaute Wegpunkt-Kette einer Port-Route (`points`,
+     * inklusive Quell- und Zielpunkt) ab und ersetzt sie — solange irgendein
+     * Segment eine der [siblingBounds] (außer [srcBounds]/[tgtBounds] selbst)
+     * durchquert — durch eine Route, die um genau diese Box **vollständig**
+     * herumführt.
+     *
+     * Generalisiert die U-Form-/Z-Form-Korridorwahl in [buildOrthogonalRoute]:
+     * die Korridor-Positionierung dort vermeidet die *typischen* Kollisionen
+     * (Korridor fällt in eine Box), deckt aber nicht jede Konstellation ab —
+     * insbesondere nicht das horizontale Einlaufsegment auf Höhe des
+     * Zielports, das bei drei nebeneinanderliegenden Komponenten mit
+     * identischer Port-Höhe mitten durch die mittlere Box laufen kann
+     * (Vault-Beispiel [[35 UML Component – Plugin API]]:
+     * `kUML Core::theme → PdV Theme Plugin::spi` — das letzte horizontale
+     * Segment auf `y = tgt.y` kreuzte die dazwischenliegende
+     * `TypeScript Codegen Plugin`-Box, obwohl der vertikale Korridor bereits
+     * links daran vorbeigeschoben war). Dieser generische Nachbearbeitungs-
+     * schritt fängt genau solche Restfälle ab, unabhängig davon welche
+     * Korridor-Form vorher gewählt wurde.
+     *
+     * **Wichtige Invariante, die die vorherige (fehlerhafte) Fassung verletzt
+     * hat**: ein lokaler "Huckel"-Umweg um ein einzelnes Segment funktioniert
+     * nur, wenn weder `a` noch `b` selbst auf der blockierten Achse liegen.
+     * Bei einer U-Form-Route liegen aber BEIDE Korridor-Wegpunkte
+     * (`(cornerX, src.y)` und `(cornerX, tgt.y)`) auf derselben `x` — ein
+     * Huckel, der zu `b` auf genau dieser `x` zurückkehrt, kreuzt die Box
+     * erneut, sobald `b.y` selbst in der Box-Höhenspanne liegt (endet nie,
+     * bis zum Iterationslimit). Der Fix ersetzt deshalb **den gesamten
+     * Streckenabschnitt zwischen dem letzten unkritischen Punkt vor der Box
+     * und dem ersten unkritischen Punkt danach** durch einen Umweg über eine
+     * der vier Box-Ecken, der komplett außerhalb der Box liegt und exakt bei
+     * den (unveränderten) Nachbarpunkten andockt.
+     */
+    private fun avoidObstacles(
+        points: List<Point>,
+        siblingBounds: List<Rect>,
+        srcBounds: Rect,
+        tgtBounds: Rect,
+    ): List<Point> {
+        if (siblingBounds.isEmpty()) return points
+        val obstacles = siblingBounds.filter { it != srcBounds && it != tgtBounds }
+        if (obstacles.isEmpty()) return points
+
+        var result = points
+        // Deckelt die Gesamtzahl der Umweg-Einfügungen — mehr als ein paar
+        // dutzend dazwischenliegende Geschwister-Komponenten sind praktisch
+        // nicht zu erwarten; verhindert eine Endlosschleife bei
+        // pathologischen/degenerierten Layouts.
+        repeat(obstacles.size + 8) {
+            val box = obstacles.firstOrNull { pathCrossesBox(result, it) } ?: return result
+            val boxLeft = box.origin.x
+            val boxRight = box.origin.x + box.size.width
+            val boxTop = box.origin.y
+            val boxBottom = box.origin.y + box.size.height
+            val leftGutter = boxLeft - OBSTACLE_GUTTER_PX
+            val rightGutter = boxRight + OBSTACLE_GUTTER_PX
+            val topGutter = boxTop - OBSTACLE_GUTTER_PX
+            val bottomGutter = boxBottom + OBSTACLE_GUTTER_PX
+
+            // Umweg über die Box-Ecke, die am nächsten an der geraden Linie
+            // vom ersten zum letzten Punkt der Route liegt — probiert alle
+            // vier Ecken der Reihe nach (nächste zuerst) und übernimmt die
+            // erste, deren kompletter Ersatzabschnitt (Start → Ecke-Umweg →
+            // Ende) KEINE der `obstacles` mehr kreuzt. Fällt keine Ecke
+            // kollisionsfrei aus, wird die naheliegendste trotzdem
+            // übernommen (nie schlechter als vorher, da mindestens diese eine
+            // Box umgangen wird) — die äußere `repeat`-Schleife behandelt
+            // etwaige verbleibende Kollisionen in der nächsten Runde.
+            val first = result.first()
+            val last = result.last()
+            val corners =
+                listOf(
+                    Point(leftGutter, topGutter),
+                    Point(rightGutter, topGutter),
+                    Point(leftGutter, bottomGutter),
+                    Point(rightGutter, bottomGutter),
+                ).sortedBy { corner ->
+                    distanceToSegment(corner, first, last)
+                }
+
+            // Der Ersatz-Abschnitt darf weder eine der `obstacles` noch die
+            // Quell-/Ziel-Box selbst erneut kreuzen — sonst kann der Umweg
+            // rückwärts durch die eigene Quellkomponente laufen, bevor er
+            // nach außen zur Ziel-Ecke abbiegt (beobachtet beim same-row
+            // Fall: der Umweg um `TypeScript Codegen Plugin` wählte zunächst
+            // eine Ecke rechts davon, der Weg dorthin führte aber mitten
+            // durch `kUML Core` selbst, weil der Startpunkt links von Core
+            // lag). `srcBounds`/`tgtBounds` sind hier reine
+            // Validierungs-Hindernisse — sie werden nicht selbst umfahren
+            // (das würde bei anliegenden Ports keinen Sinn ergeben), aber ein
+            // Kandidat, der durch sie hindurchläuft, wird verworfen.
+            val validationBoxes = obstacles + srcBounds + tgtBounds
+            var replacement: List<Point>? = null
+            for (corner in corners) {
+                // Rechtwinkliger Umweg: Start → (corner.x auf Start-Y ODER
+                // Start-X auf corner.y, je nachdem was näher ist) → Ecke →
+                // (symmetrisch für Ende) → Ende. Um die Konstruktion einfach
+                // und immer achsenparallel zu halten, wird ein L-Zug über die
+                // Ecke selbst verwendet: Start → (corner.x, first.y) →
+                // (corner.x, corner.y) → (last.x, corner.y) → Ende.
+                val candidate =
+                    listOf(
+                        first,
+                        Point(corner.x, first.y),
+                        Point(corner.x, corner.y),
+                        Point(last.x, corner.y),
+                        last,
+                    )
+                if (validationBoxes.none { pathCrossesBox(candidate, it) }) {
+                    replacement = candidate
+                    break
+                }
+                if (replacement == null || obstacles.none { pathCrossesBox(candidate, it) }) {
+                    // Fallback-Präferenz: ein Kandidat, der wenigstens keine
+                    // `obstacles` mehr kreuzt (auch wenn er src/tgt streift),
+                    // ist besser als gar keiner.
+                    if (replacement == null) replacement = candidate
+                }
+            }
+            result = replacement ?: result
+        }
+        return result
+    }
+
+    /** Kürzester Abstand von [p] zur Strecke `a→b` (nicht zur unendlichen Gerade). */
+    private fun distanceToSegment(
+        p: Point,
+        a: Point,
+        b: Point,
+    ): Float {
+        val dx = b.x - a.x
+        val dy = b.y - a.y
+        val lengthSq = dx * dx + dy * dy
+        if (lengthSq == 0f) {
+            val ddx = p.x - a.x
+            val ddy = p.y - a.y
+            return kotlin.math.sqrt(ddx * ddx + ddy * ddy)
+        }
+        val t = (((p.x - a.x) * dx + (p.y - a.y) * dy) / lengthSq).coerceIn(0f, 1f)
+        val projX = a.x + t * dx
+        val projY = a.y + t * dy
+        val ddx = p.x - projX
+        val ddy = p.y - projY
+        return kotlin.math.sqrt(ddx * ddx + ddy * ddy)
+    }
+
+    /**
      * Baut eine orthogonale Route zwischen zwei [PortAnchor]s. Die Form
      * hängt von den Port-Seiten ab — siehe Klassen-KDoc.
      *
-     * Für die **Z-Form** (gegenüberliegende Seiten) wird der Korridor
-     * obstacle-aware gewählt: liegen die beiden Komponentenboxen vertikal
-     * getrennt (eine über der anderen) und überlappen sich horizontal, läuft
-     * der Mittelkorridor **horizontal durch die vertikale Lücke** zwischen den
-     * Boxen statt vertikal — sonst stürzt die senkrechte Mittelstrecke mitten
-     * durch die Zielbox (Vault-Beispiel [[35 AUTOSAR Classic – SW-Komponenten]]:
-     * `BrakeControllerSwc::DiagOut → DiagActuatorSwc::DiagIn`). In allen anderen
-     * Fällen (Boxen nebeneinander) bleibt der vertikale Mittelkorridor.
+     *  - **U-Form** (gleiche Seite): gemeinsamer vertikaler Korridor außerhalb
+     *    beider Komponenten.
+     *  - **Z-Form** (gegenüberliegende Seiten): liegen die beiden
+     *    Komponentenboxen vertikal getrennt (eine über der anderen) und
+     *    überlappen sich horizontal, läuft der Mittelkorridor **horizontal
+     *    durch die vertikale Lücke** zwischen den Boxen statt vertikal —
+     *    sonst stürzt die senkrechte Mittelstrecke mitten durch die Zielbox
+     *    (Vault-Beispiel [[35 AUTOSAR Classic – SW-Komponenten]]:
+     *    `BrakeControllerSwc::DiagOut → DiagActuatorSwc::DiagIn`). Liegen die
+     *    Boxen nebeneinander, bleibt der vertikale Mittelkorridor.
+     *
+     * Nach der Grundform-Konstruktion läuft [avoidObstacles] als generischer
+     * Nachbearbeitungsschritt über die komplette Wegpunkt-Kette und fügt für
+     * jedes Segment, das eine dritte, dazwischenliegende Geschwister-
+     * Komponente aus [siblingBounds] durchquert, einen rechteckigen Umweg um
+     * diese Box ein (Vault-Beispiel [[35 UML Component – Plugin API]]:
+     * `kUML Core::theme → PdV Theme Plugin::spi` bzw.
+     * `kUML Core::renderer → PDF Renderer Plugin::spi` liefen ohne diesen
+     * Schritt durch die dazwischenliegende `TypeScript Codegen Plugin`- bzw.
+     * `PdV Theme Plugin`-Box).
      */
     private fun buildOrthogonalRoute(
         src: PortAnchor,
         tgt: PortAnchor,
         srcBounds: Rect,
         tgtBounds: Rect,
+        siblingBounds: List<Rect> = emptyList(),
     ): EdgeRoute {
         val sStub = if (src.side == Side.LEFT) -STUB_PX else STUB_PX
         val tStub = if (tgt.side == Side.LEFT) -STUB_PX else STUB_PX
@@ -220,10 +428,18 @@ internal object ComponentPortEdgeClipper {
                 waypoints.add(Point(tx, tgt.y))
             }
         }
+
+        val fullPath =
+            avoidObstacles(
+                points = listOf(Point(src.x, src.y)) + waypoints + Point(tgt.x, tgt.y),
+                siblingBounds = siblingBounds,
+                srcBounds = srcBounds,
+                tgtBounds = tgtBounds,
+            )
         return EdgeRoute.OrthogonalRounded(
-            source = Point(src.x, src.y),
-            target = Point(tgt.x, tgt.y),
-            waypoints = waypoints,
+            source = fullPath.first(),
+            target = fullPath.last(),
+            waypoints = fullPath.subList(1, fullPath.size - 1),
             cornerRadiusPx = 0f,
         )
     }
@@ -241,6 +457,11 @@ internal object ComponentPortEdgeClipper {
      * @param boundsLookup liefert die in Canvas-Koordinaten verschobene
      *        Bounding-Box einer Komponente — die gleiche [Rect], die der
      *        NodeRenderer für diese Komponente zeichnet (inkl. Padding).
+     * @param siblingBounds Bounding-Boxen aller anderen sichtbaren
+     *        Komponenten im Diagramm (ohne Quelle/Ziel), zur Hindernis-
+     *        Erkennung beim same-row Z-Form-Korridor — siehe
+     *        [buildOrthogonalRoute]-KDoc. Optional; leer bedeutet "keine
+     *        Hindernis-Prüfung" (Verhalten vor diesem Parameter unverändert).
      */
     fun clip(
         route: EdgeRoute,
@@ -248,6 +469,7 @@ internal object ComponentPortEdgeClipper {
         end2Id: String,
         componentLookup: (String) -> UmlComponent?,
         boundsLookup: (String) -> Rect?,
+        siblingBounds: List<Rect> = emptyList(),
     ): EdgeRoute {
         val (s1Id, s1Port) = splitEndpoint(end1Id) ?: return route
         val (s2Id, s2Port) = splitEndpoint(end2Id) ?: return route
@@ -257,6 +479,6 @@ internal object ComponentPortEdgeClipper {
         val tgtBounds = boundsLookup(s2Id) ?: return route
         val srcAnchor = portAnchor(srcComp, srcBounds, s1Port) ?: return route
         val tgtAnchor = portAnchor(tgtComp, tgtBounds, s2Port) ?: return route
-        return buildOrthogonalRoute(srcAnchor, tgtAnchor, srcBounds, tgtBounds)
+        return buildOrthogonalRoute(srcAnchor, tgtAnchor, srcBounds, tgtBounds, siblingBounds)
     }
 }

@@ -478,6 +478,19 @@ public object KumlSvgRenderer {
                 }
             }
             val isComponentDiagram = diagram.type == DiagramType.COMPONENT
+            // V2.x — Bounding-Boxen aller sichtbaren Komponenten im Diagramm,
+            // für die Hindernis-Erkennung im [ComponentPortEdgeClipper]: eine
+            // Port-zu-Port-Kante darf nicht geradlinig durch eine dritte,
+            // dazwischenliegende Geschwister-Komponente laufen (Vault-Beispiel
+            // [[35 UML Component – Plugin API]]: `kUML Core::theme →
+            // PdV Theme Plugin::spi` kreuzte die mittlere
+            // `TypeScript Codegen Plugin`-Box).
+            val allComponentBounds: List<Rect> =
+                if (isComponentDiagram) {
+                    flatElementIndex.keys.mapNotNull { componentBoundsLookup(it) }
+                } else {
+                    emptyList()
+                }
             for ((edgeId, route) in effectiveLayoutResult.edges) {
                 val element = flatElementIndex[edgeId.value]
                 if (element != null) {
@@ -520,6 +533,7 @@ public object KumlSvgRenderer {
                                 end2Id = element.end2Id,
                                 componentLookup = { id -> flatElementIndex[id] as? UmlComponent },
                                 boundsLookup = componentBoundsLookup,
+                                siblingBounds = allComponentBounds,
                             )
                         } else {
                             activityClippedRoute
