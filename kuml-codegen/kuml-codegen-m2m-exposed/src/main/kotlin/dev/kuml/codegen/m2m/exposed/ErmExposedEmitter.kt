@@ -18,8 +18,10 @@ import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ReferentialAction
 
 /**
- * V3.4.8 — the single source of truth for Kotlin Exposed `Table` object generation
- * from an [ErmModel]. All three entry points in this module
+ * V3.4.8 (V3.4.10: retargeted at Exposed 1.3.1's `org.jetbrains.exposed.v1.*`
+ * package layout, see ADR-0016 retrofit notes) — the single source of truth
+ * for Kotlin Exposed `Table` object generation from an [ErmModel]. All three
+ * entry points in this module
  * ([ErmToExposedTransformer]'s ERM-direct M2M step, [ErmExposedGenerator]'s
  * ERM-first CLI/plugin path, and [UmlToExposedViaErmScriptTransformer]'s chained
  * UML→ERM→Exposed path) delegate here; none of them contains any Exposed-rendering
@@ -69,7 +71,15 @@ import dev.kuml.erm.model.ReferentialAction
  * - **Foreign keys**: a non-self-referential [ErmForeignKey] becomes
  *   `reference(...)` (not-null) or `optReference(...)` (nullable), with
  *   `onDelete`/`onUpdate` named arguments when the referential action is not
- *   [ReferentialAction.NO_ACTION]. **Self-referential** foreign keys
+ *   [ReferentialAction.NO_ACTION]. Exposed 1.3.1's `Table.reference()`/
+ *   `optReference()` overloads that apply to a plain (non-`IdTable`)
+ *   `Table` object — which is what this emitter always generates — take the
+ *   *target column* (`Column<T>`), not the target `Table`, as their second
+ *   argument: the emitted call therefore reads `reference("author_id",
+ *   Authors.id, ...)`, resolving [ErmForeignKey.targetAttributeId] when set,
+ *   or falling back to the target entity's single-column primary key
+ *   otherwise (failing generation if the target has no such single column).
+ *   **Self-referential** foreign keys
  *   (`fk.targetEntityId == entity.id`) are *not* rendered as `reference()` —
  *   referencing the enclosing `object` from inside its own initializer body
  *   does not compile — instead a plain typed column (using the attribute's own
@@ -97,8 +107,15 @@ import dev.kuml.erm.model.ReferentialAction
  * - IDEF1X categories ([ErmModel.categories]) are not represented — Exposed's
  *   `Table` DSL has no supertype/subtype construct to map them onto.
  * - `Timestamp.withTimeZone` is not distinguished — always rendered via
- *   `datetime(...)`, matching the `java.time`-based `org.jetbrains.exposed.sql.javatime`
+ *   `datetime(...)`, matching the `java.time`-based `org.jetbrains.exposed.v1.javatime`
  *   module (no `timestampWithTimeZone()` call is emitted).
+ * - [ErmDataType.Uuid] renders via `javaUUID(...)` (`org.jetbrains.exposed.v1.core.java.javaUUID`),
+ *   yielding `Column<java.util.UUID>` — the direct Exposed-1.x continuation of the
+ *   pre-1.0 `uuid(...)` contract (which returned `Column<java.util.UUID>` too).
+ *   Exposed 1.x's own `Table.uuid(...)` member now returns `Column<kotlin.uuid.Uuid>`
+ *   instead and is intentionally not used here, to keep this emitter's documented
+ *   "Type mapping" contract (and existing consumers' `java.util.UUID`-typed code)
+ *   stable across the Exposed-version retarget.
  * - Two attributes whose camelCase-converted names collide (e.g. `user_id` and
  *   `userId` on the same entity) produce two Kotlin `val`s with the same
  *   property name — a non-compiling collision. Not defended against, mirroring
@@ -136,9 +153,12 @@ internal class ErmExposedEmitter(
             )
         }
 
-        // Pass 1: derive + validate every entity's Kotlin object name up front — needed so
-        // foreign-key columns in *other* entities can resolve their reference() target name.
+        // Pass 1: derive + validate every entity's Kotlin object name, and every attribute's
+        // Kotlin property name, up front — needed so foreign-key columns in *other* entities
+        // can resolve both their reference() target object name and target column property
+        // name, even for entities rendered later in Pass 2.
         val objectNameById = mutableMapOf<String, String>()
+        val attrPropertyNameById = mutableMapOf<String, String>()
         val nameErrors = mutableListOf<TransformError>()
         for (entity in model.entities) {
             val raw = entity.name ?: entity.id
@@ -151,6 +171,18 @@ internal class ErmExposedEmitter(
                 continue
             }
             objectNameById[entity.id] = objectName
+
+            for (attr in entity.attributes) {
+                val rawAttrName = attr.name ?: attr.id
+                val propName = toCamelCase(rawAttrName)
+                try {
+                    requireValidKotlinIdentifier(propName, "attribute name", attr.id)
+                } catch (e: InvalidIdentifierException) {
+                    nameErrors += TransformError(e.message ?: "invalid attribute name", attr.id)
+                    continue
+                }
+                attrPropertyNameById[attr.id] = propName
+            }
         }
         if (nameErrors.isNotEmpty()) return TransformResult.Failure(nameErrors)
 
@@ -177,7 +209,7 @@ internal class ErmExposedEmitter(
         var trace = TransformTrace()
 
         for (entity in model.entities) {
-            when (val result = renderEntity(entity, model, objectNameById)) {
+            when (val result = renderEntity(entity, model, objectNameById, attrPropertyNameById)) {
                 is EntityResult.Ok -> {
                     files += result.file
                     trace = trace.plus(TraceabilityLink(entity.id, result.file.relativePath, RULE_ENTITY_TO_TABLE))
@@ -226,9 +258,9 @@ internal class ErmExposedEmitter(
         sb.appendLine()
         sb.appendLine("package $packageName")
         sb.appendLine()
-        sb.appendLine("import org.jetbrains.exposed.sql.Column")
-        sb.appendLine("import org.jetbrains.exposed.sql.ColumnType")
-        sb.appendLine("import org.jetbrains.exposed.sql.Table")
+        sb.appendLine("import org.jetbrains.exposed.v1.core.Column")
+        sb.appendLine("import org.jetbrains.exposed.v1.core.ColumnType")
+        sb.appendLine("import org.jetbrains.exposed.v1.core.Table")
         sb.appendLine()
         sb.appendLine("private class GeometryColumnType(private val sql: String) : ColumnType<String>() {")
         sb.appendLine("    override fun sqlType(): String = sql")
@@ -256,6 +288,7 @@ internal class ErmExposedEmitter(
         entity: ErmEntity,
         model: ErmModel,
         objectNameById: Map<String, String>,
+        attrPropertyNameById: Map<String, String>,
     ): EntityResult {
         val objectName = objectNameById.getValue(entity.id)
         val tableNameLiteral =
@@ -265,19 +298,12 @@ internal class ErmExposedEmitter(
                 return EntityResult.Error(TransformError(e.message ?: "invalid table name", entity.id))
             }
 
-        val imports = sortedSetOf("org.jetbrains.exposed.sql.Column", "org.jetbrains.exposed.sql.Table")
+        val imports = sortedSetOf("org.jetbrains.exposed.v1.core.Column", "org.jetbrains.exposed.v1.core.Table")
         val columnLines = mutableListOf<String>()
-        val propertyNameByAttrId = mutableMapOf<String, String>()
 
         for (attr in entity.attributes) {
             val rawName = attr.name ?: attr.id
-            val propName = toCamelCase(rawName)
-            try {
-                requireValidKotlinIdentifier(propName, "attribute name", attr.id)
-            } catch (e: InvalidIdentifierException) {
-                return EntityResult.Error(TransformError(e.message ?: "invalid attribute name", attr.id))
-            }
-            propertyNameByAttrId[attr.id] = propName
+            val propName = attrPropertyNameById.getValue(attr.id)
 
             val colLiteral = kotlinStringLiteral(rawName)
             val fk = attr.foreignKey
@@ -291,8 +317,8 @@ internal class ErmExposedEmitter(
                         "$base // self-referential FK (target: this entity) — reference() omitted, see KDoc"
                     }
                     else -> {
-                        val targetObjectName =
-                            objectNameById[fk.targetEntityId]
+                        val targetEntity =
+                            model.entityById(fk.targetEntityId)
                                 ?: return EntityResult.Error(
                                     TransformError(
                                         "erm-to-exposed: foreign key on attribute '$rawName' targets unknown " +
@@ -300,7 +326,40 @@ internal class ErmExposedEmitter(
                                         attr.id,
                                     ),
                                 )
-                        renderReferenceColumnLine(propName, attr, colLiteral, targetObjectName, fk, imports)
+                        val targetObjectName = objectNameById.getValue(targetEntity.id)
+                        val targetAttr =
+                            if (fk.targetAttributeId != null) {
+                                targetEntity.attributes.firstOrNull { it.id == fk.targetAttributeId }
+                                    ?: return EntityResult.Error(
+                                        TransformError(
+                                            "erm-to-exposed: foreign key on attribute '$rawName' targets unknown " +
+                                                "attribute '${fk.targetAttributeId}' on entity " +
+                                                "'${targetEntity.name ?: targetEntity.id}'",
+                                            attr.id,
+                                        ),
+                                    )
+                            } else {
+                                targetEntity.primaryKey.singleOrNull()
+                                    ?: return EntityResult.Error(
+                                        TransformError(
+                                            "erm-to-exposed: foreign key on attribute '$rawName' targets entity " +
+                                                "'${targetEntity.name ?: targetEntity.id}' whose primary key is " +
+                                                "not a single column (composite or empty) — reference()/" +
+                                                "optReference() require an explicit targetAttributeId.",
+                                            attr.id,
+                                        ),
+                                    )
+                            }
+                        val targetPropName = attrPropertyNameById.getValue(targetAttr.id)
+                        renderReferenceColumnLine(
+                            propName,
+                            attr,
+                            colLiteral,
+                            targetObjectName,
+                            targetPropName,
+                            fk,
+                            imports,
+                        )
                     }
                 }
             columnLines += line
@@ -313,7 +372,7 @@ internal class ErmExposedEmitter(
                 pkAttrs.isEmpty() -> null
                 else ->
                     "    override val primaryKey: PrimaryKey = PrimaryKey(" +
-                        pkAttrs.joinToString(", ") { propertyNameByAttrId.getValue(it.id) } +
+                        pkAttrs.joinToString(", ") { attrPropertyNameById.getValue(it.id) } +
                         ")"
             }
 
@@ -393,6 +452,7 @@ internal class ErmExposedEmitter(
         attr: ErmAttribute,
         colLiteral: String,
         targetObjectName: String,
+        targetPropName: String,
         fk: ErmForeignKey,
         imports: MutableSet<String>,
     ): String {
@@ -406,9 +466,12 @@ internal class ErmExposedEmitter(
                 referenceOptionName(fk.onDelete)?.let { add("onDelete = ReferenceOption.$it") }
                 referenceOptionName(fk.onUpdate)?.let { add("onUpdate = ReferenceOption.$it") }
             }
-        if (optionArgs.isNotEmpty()) imports += "org.jetbrains.exposed.sql.ReferenceOption"
+        if (optionArgs.isNotEmpty()) imports += "org.jetbrains.exposed.v1.core.ReferenceOption"
 
-        val args = (listOf("\"$colLiteral\"", targetObjectName) + optionArgs).joinToString(", ")
+        // Exposed 1.3.1's Table.reference()/optReference() overloads that accept a plain
+        // (non-IdTable) Table — which is what this emitter always generates — take the
+        // *target column*, not the target Table, as their second argument.
+        val args = (listOf("\"$colLiteral\"", "$targetObjectName.$targetPropName") + optionArgs).joinToString(", ")
         val call = if (attr.nullable) "optReference($args)" else "reference($args)"
         val ktType = if (attr.nullable) "${rendered.ktType}?" else rendered.ktType
         return "    public val $propName: Column<$ktType> = $call"
@@ -463,26 +526,31 @@ internal class ErmExposedEmitter(
                 ColumnCallRendering(
                     "date(\"$colLiteral\")",
                     "LocalDate",
-                    setOf("org.jetbrains.exposed.sql.javatime.date", "java.time.LocalDate"),
+                    setOf("org.jetbrains.exposed.v1.javatime.date", "java.time.LocalDate"),
                 )
             ErmDataType.Time ->
                 ColumnCallRendering(
                     "time(\"$colLiteral\")",
                     "LocalTime",
-                    setOf("org.jetbrains.exposed.sql.javatime.time", "java.time.LocalTime"),
+                    setOf("org.jetbrains.exposed.v1.javatime.time", "java.time.LocalTime"),
                 )
             is ErmDataType.Timestamp ->
                 ColumnCallRendering(
                     "datetime(\"$colLiteral\")",
                     "LocalDateTime",
-                    setOf("org.jetbrains.exposed.sql.javatime.datetime", "java.time.LocalDateTime"),
+                    setOf("org.jetbrains.exposed.v1.javatime.datetime", "java.time.LocalDateTime"),
                 )
-            ErmDataType.Uuid -> ColumnCallRendering("uuid(\"$colLiteral\")", "UUID", setOf("java.util.UUID"))
+            ErmDataType.Uuid ->
+                ColumnCallRendering(
+                    "javaUUID(\"$colLiteral\")",
+                    "UUID",
+                    setOf("java.util.UUID", "org.jetbrains.exposed.v1.core.java.javaUUID"),
+                )
             ErmDataType.Blob ->
                 ColumnCallRendering(
                     "blob(\"$colLiteral\")",
                     "ExposedBlob",
-                    setOf("org.jetbrains.exposed.sql.statements.api.ExposedBlob"),
+                    setOf("org.jetbrains.exposed.v1.core.statements.api.ExposedBlob"),
                 )
             ErmDataType.Json ->
                 ColumnCallRendering(

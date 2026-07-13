@@ -121,19 +121,20 @@ class ErmToExposedTransformerTest :
             content shouldContain "val releasedOn: Column<LocalDate?> = date(\"released_on\").nullable()"
             content shouldContain "val dailyAt: Column<LocalTime?> = time(\"daily_at\").nullable()"
             content shouldContain "val createdAt: Column<LocalDateTime?> = datetime(\"created_at\").nullable()"
-            content shouldContain "val externalRef: Column<UUID?> = uuid(\"external_ref\").nullable()"
+            content shouldContain "val externalRef: Column<UUID?> = javaUUID(\"external_ref\").nullable()"
             content shouldContain "val blobData: Column<ExposedBlob?> = blob(\"blob_data\").nullable()"
             content shouldContain "val payload: Column<String?> = text(\"payload\").nullable() // ErmDataType.Json fallback"
             content shouldContain "val geom: Column<String?> = text(\"geom\").nullable() // Custom(tsvector) fallback"
 
-            content shouldContain "import org.jetbrains.exposed.sql.javatime.date"
-            content shouldContain "import org.jetbrains.exposed.sql.javatime.time"
-            content shouldContain "import org.jetbrains.exposed.sql.javatime.datetime"
+            content shouldContain "import org.jetbrains.exposed.v1.javatime.date"
+            content shouldContain "import org.jetbrains.exposed.v1.javatime.time"
+            content shouldContain "import org.jetbrains.exposed.v1.javatime.datetime"
             content shouldContain "import java.time.LocalDate"
             content shouldContain "import java.time.LocalTime"
             content shouldContain "import java.time.LocalDateTime"
             content shouldContain "import java.util.UUID"
-            content shouldContain "import org.jetbrains.exposed.sql.statements.api.ExposedBlob"
+            content shouldContain "import org.jetbrains.exposed.v1.core.java.javaUUID"
+            content shouldContain "import org.jetbrains.exposed.v1.core.statements.api.ExposedBlob"
         }
 
         // ── Modifiers ────────────────────────────────────────────────────────
@@ -161,7 +162,7 @@ class ErmToExposedTransformerTest :
                     }
                 }
             val content = successFiles(model)[0].content
-            content shouldContain "val id: Column<UUID> = uuid(\"id\")"
+            content shouldContain "val id: Column<UUID> = javaUUID(\"id\")"
             content shouldNotContain "autoIncrement()"
         }
 
@@ -190,7 +191,7 @@ class ErmToExposedTransformerTest :
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
-            content shouldContain "val authorId: Column<Long> = reference(\"author_id\", Authors)"
+            content shouldContain "val authorId: Column<Long> = reference(\"author_id\", Authors.id)"
         }
 
         test("nullable FK attribute becomes optReference()") {
@@ -203,7 +204,7 @@ class ErmToExposedTransformerTest :
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
-            content shouldContain "val authorId: Column<Long?> = optReference(\"author_id\", Authors)"
+            content shouldContain "val authorId: Column<Long?> = optReference(\"author_id\", Authors.id)"
         }
 
         test("onDelete/onUpdate referential actions render as ReferenceOption named arguments") {
@@ -221,8 +222,8 @@ class ErmToExposedTransformerTest :
                     }
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
-            content shouldContain "reference(\"author_id\", Authors, onDelete = ReferenceOption.CASCADE)"
-            content shouldContain "import org.jetbrains.exposed.sql.ReferenceOption"
+            content shouldContain "reference(\"author_id\", Authors.id, onDelete = ReferenceOption.CASCADE)"
+            content shouldContain "import org.jetbrains.exposed.v1.core.ReferenceOption"
         }
 
         test("NO_ACTION referential action omits ReferenceOption arguments entirely") {
@@ -236,7 +237,93 @@ class ErmToExposedTransformerTest :
                 }
             val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
             content shouldNotContain "ReferenceOption"
-            content shouldContain "reference(\"author_id\", Authors)"
+            content shouldContain "reference(\"author_id\", Authors.id)"
+        }
+
+        // ── FK target-column resolution (targetAttributeId) ─────────────────
+
+        test("FK with explicit targetAttributeId references that column instead of the primary key") {
+            lateinit var isbnAttrId: String
+            val model =
+                ermModel("M") {
+                    val authors =
+                        entity("authors") {
+                            id("id", ErmDataType.Integer(64))
+                            isbnAttrId = attribute("isbn", ErmDataType.Varchar(20), nullable = false, unique = true)
+                        }
+                    entity("books") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "author_isbn_ref",
+                            ErmDataType.Varchar(20),
+                            nullable = false,
+                            foreignKey = ErmForeignKey(targetEntityId = authors, targetAttributeId = isbnAttrId),
+                        )
+                    }
+                }
+            val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
+            content shouldContain "val authorIsbnRef: Column<String> = reference(\"author_isbn_ref\", Authors.isbn)"
+        }
+
+        test("FK without targetAttributeId targeting an entity with a composite primary key fails the transform") {
+            val model =
+                ermModel("M") {
+                    val students = entity("students") { id("id", ErmDataType.Uuid) }
+                    val courses = entity("courses") { id("id", ErmDataType.Uuid) }
+                    val studentsCourses =
+                        entity("students_courses", weak = true) {
+                            attribute(
+                                "student_id",
+                                ErmDataType.Uuid,
+                                primaryKey = true,
+                                nullable = false,
+                                foreignKey = ErmForeignKey(targetEntityId = students),
+                            )
+                            attribute(
+                                "course_id",
+                                ErmDataType.Uuid,
+                                primaryKey = true,
+                                nullable = false,
+                                foreignKey = ErmForeignKey(targetEntityId = courses),
+                            )
+                        }
+                    entity("enrollment_notes") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "link_id",
+                            ErmDataType.Uuid,
+                            nullable = false,
+                            // No targetAttributeId — studentsCourses has a composite PK, so there is
+                            // no unambiguous single target column to fall back to.
+                            foreignKey = ErmForeignKey(targetEntityId = studentsCourses),
+                        )
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
+        }
+
+        test("FK without targetAttributeId targeting a weak entity with no primary key fails the transform") {
+            val model =
+                ermModel("M") {
+                    val users = entity("users") { id("id", ErmDataType.Integer(64)) }
+                    val auditLog =
+                        entity("audit_log", weak = true) {
+                            attribute("message", ErmDataType.Text)
+                        }
+                    // Required so audit_log's empty primary key itself passes ErmConstraintChecker.
+                    relationship(from = users, to = auditLog, kind = RelationshipKind.IDENTIFYING)
+                    entity("audit_log_comments") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "audit_log_ref",
+                            ErmDataType.Integer(64),
+                            nullable = false,
+                            // No targetAttributeId — audit_log has no primary key of its own at all.
+                            foreignKey = ErmForeignKey(targetEntityId = auditLog),
+                        )
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
         }
 
         test("self-referential FK emits a plain typed column, not reference()") {
@@ -287,8 +374,8 @@ class ErmToExposedTransformerTest :
             val content = successFiles(model).first { it.relativePath == "StudentsCourses.kt" }.content
             content shouldContain "public object StudentsCourses : Table(\"students_courses\")"
             content shouldContain "override val primaryKey: PrimaryKey = PrimaryKey(studentId, courseId)"
-            content shouldContain "reference(\"student_id\", Students)"
-            content shouldContain "reference(\"course_id\", Courses)"
+            content shouldContain "reference(\"student_id\", Students.id)"
+            content shouldContain "reference(\"course_id\", Courses.id)"
         }
 
         test("weak entity with no primary key omits the primaryKey override") {
