@@ -222,7 +222,15 @@ synchrones Update der kuml.dev-Webseite:
    werden um neue Features ergänzt, sodass kuml.dev nie hinter dem aktuellen Code zurück
    bleibt.
 4. **Build-Smoke-Test**: `npm run build` muss clean durchlaufen.
-5. **Maven-Central-Badge-Verifikation**: Direkt nach dem Maven-Central-Sync (sobald
+5. **Webseite-Review (nach `git tag v…`, vor `git push --tags`)**: Bevor der Tag gepusht
+   und das Release damit öffentlich wird, die kuml.dev-Änderungen für dieses Release
+   tatsächlich ansehen (lokal `npm run dev` oder Staging-Deploy) — nicht nur die
+   Datei-Diffs lesen. Konkret prüfen: Whats-New-Eintrag ist vorhanden und stimmt inhaltlich
+   (EN + DE), `features.astro`/`comparison.astro` sind in beiden Sprachen konsistent, und
+   der Playground rendert noch fehlerfrei (`npm run build:with-render` mit lokalem
+   `kuml-cli/build/install/kuml/bin` vorangestelltem PATH — siehe Stille-Fallback-Falle-
+   Warnhinweis weiter unten). Erst nach diesem Review den Tag pushen.
+6. **Maven-Central-Badge-Verifikation**: Direkt nach dem Maven-Central-Sync (sobald
    die JARs im Sync-Cache sind) den Badge-Endpoint **live** prüfen, statt sich auf
    das CDN-cachende `<img>` zu verlassen:
    ```bash
@@ -238,14 +246,30 @@ synchrones Update der kuml.dev-Webseite:
    2026-06-18: Der vorherige Badge zeigte auf `dev.kuml:kuml-core` (Single-Artefakt
    vor dem Modulsplit) — existierte auf Maven Central nie und produzierte einen
    roten „not found"-Badge auf GitHub.
-6. **Commit-Format auf kuml.dev**:
+7. **Commit-Format auf kuml.dev**:
    `Sync site with kUML vX.Y.Z (<kurzbeschreibung der hauptneuerung>)`
-7. **Social-Media-Ankündigungen** (automatisch, kein expliziter Prompt nötig): Sofort
+8. **Social-Media-Ankündigungen** (automatisch, kein expliziter Prompt nötig): Sofort
    nach dem Tag-Push erstellt Claudian im Obsidian-Vault einen vollständigen Satz
    Ankündigungsdateien in `03 Bereiche/kUML/Ankündigungen/` — LinkedIn, X (Thread),
    Reddit und Facebook. Grundlage: die CHANGELOG-Sektion der neuen Version und die
    Marketing-Leitplanken aus `03 Bereiche/kUML/AUTOSAR Marketing-Priorität.md`.
    Die Übersicht `03 Bereiche/kUML/Ankündigungen/Übersicht.md` wird ebenfalls aktualisiert.
+
+> [!warning] Stille-Fallback-Falle beim Playground-Render (2026-07-09 gelernt)
+> `npm run build:with-render` (kuml.dev-Repo) ruft die `kuml`-CLI über den `PATH` auf.
+> Existiert daneben ein global installiertes `kuml` (z. B. via Homebrew), fällt ein
+> lokaler `PATH`-Prepend **lautlos** darauf zurück, sobald das lokale installDist-Bundle
+> unter `kuml-cli/build/install/kuml/bin/kuml` fehlt — etwa weil ein vorausgegangenes
+> `./gradlew clean …` es weggeräumt hat. Das Render-Skript meldet trotzdem
+> „✓ rendered 41/41", produziert aber **veraltete SVGs** mit dem zuletzt veröffentlichten
+> Release-Renderer statt dem aktuellen `master`-Stand. Deshalb vor jedem `build:with-render`:
+> 1. **Unmittelbar davor** `./gradlew :kuml-cli:installDist` laufen lassen (nach jedem
+>    `clean` neu!).
+> 2. Verifizieren, dass der lokale Build genutzt wird:
+>    `PATH="<pfad-zum-kuml-repo>/kuml-cli/build/install/kuml/bin:$PATH" which kuml`
+>    muss auf das lokale Repo zeigen, **nicht** auf ein global installiertes `kuml`
+>    (z. B. `/opt/homebrew/bin/kuml` auf macOS). Im Zweifel eine bekannte Änderung im
+>    gerenderten SVG gegenprüfen (z. B. eine gefixte Kanten-Route).
 
 Die Webseite **muss vor dem nächsten Release wieder aktuell sein** — kein Drift
 zwischen Code und Marketing-Surface.
