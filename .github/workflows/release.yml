@@ -1158,3 +1158,72 @@ jobs:
               echo "Review dauert ca. 3–4 Werktage. Status: https://plugins.jetbrains.com/plugin/dev.kuml.ide"
             fi
           } >> $GITHUB_STEP_SUMMARY
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Job 8: Publish the dev.kuml Gradle plugin to the Gradle Plugin Portal.
+  # Läuft bei jedem Tag-Push, gated auf GRADLE_PUBLISH_KEY. Der Maven-Central-
+  # Teil des Gradle-Plugins (Implementierungs-JAR + Marker-POM) braucht keinen
+  # eigenen Job — er läuft automatisch im "Publish libraries to Maven Central"
+  # Step von Job 1 mit, seit kuml-gradle-plugin aus nonPublishedModules
+  # entfernt wurde.
+  # ─────────────────────────────────────────────────────────────────────────
+  publish-gradle-plugin:
+    name: Publish Gradle plugin to Plugin Portal
+    needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect token presence
+        id: gate
+        env:
+          HAS_KEY: ${{ secrets.GRADLE_PUBLISH_KEY != '' }}
+        run: |
+          echo "has_token=$HAS_KEY" >> $GITHUB_OUTPUT
+          if [ "$HAS_KEY" != "true" ]; then
+            echo "::notice::GRADLE_PUBLISH_KEY not set — skipping Gradle Plugin Portal publish."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.gate.outputs.has_token == 'true'
+
+      - name: Set up JDK 21
+        if: steps.gate.outputs.has_token == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        if: steps.gate.outputs.has_token == 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Publish to Gradle Plugin Portal
+        if: steps.gate.outputs.has_token == 'true'
+        env:
+          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
+        run: ./gradlew clean :kuml-gradle:kuml-gradle-plugin:publishPlugins
+
+      - name: Summary
+        if: ${{ always() }}
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+          HAS_TOKEN: ${{ steps.gate.outputs.has_token }}
+        run: |
+          {
+            echo "### Gradle Plugin Portal publish"
+            echo ""
+            if [ "$HAS_TOKEN" != "true" ]; then
+              echo "⏭  Skipped — \`GRADLE_PUBLISH_KEY\`/\`GRADLE_PUBLISH_SECRET\` nicht gesetzt."
+              echo ""
+              echo "API-Key generieren unter https://plugins.gradle.org (Account → API Keys), dann:"
+              echo '```bash'
+              echo "gh secret set GRADLE_PUBLISH_KEY -R kuml-dev/kUML"
+              echo "gh secret set GRADLE_PUBLISH_SECRET -R kuml-dev/kUML"
+              echo '```'
+            else
+              echo "✅ kUML Gradle plugin \`dev.kuml\` \`$VERSION\` an den Gradle Plugin Portal übermittelt."
+              echo ""
+              echo "Sichtbar unter https://plugins.gradle.org/plugin/dev.kuml"
+            fi
+          } >> $GITHUB_STEP_SUMMARY

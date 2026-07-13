@@ -1,7 +1,19 @@
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    // `java-gradle-plugin` is applied explicitly and FIRST, before
+    // `kotlin.jvm`, so that the root build.gradle.kts's
+    // `pluginManager.withPlugin("java-gradle-plugin")` publication branch
+    // fires before the `pluginManager.withPlugin("org.jetbrains.kotlin.jvm")`
+    // branch's `hasPlugin("java-gradle-plugin")` guard is evaluated — the
+    // guard only sees a correct answer if java-gradle-plugin is already
+    // applied by the time kotlin.jvm applies. Getting this order wrong makes
+    // `configureKumlPublishing()` run twice for this module (once from each
+    // branch), which fails with "The value for this property is final and
+    // cannot be changed any further" on the second `publishToMavenCentral()`
+    // call.
     `java-gradle-plugin`
+    alias(libs.plugins.kotlin.jvm)
     `maven-publish`
+    alias(libs.plugins.gradle.plugin.publish)
 }
 
 kotlin {
@@ -52,8 +64,8 @@ gradlePlugin {
             implementationClass = "dev.kuml.gradle.KumlPlugin"
             displayName = "kUML Gradle Plugin"
             description =
-                "Rendert *.kuml.kts-Diagramme (UML & C4) zu SVG/PNG, generiert Code (Kotlin/Java/SQL) " +
-                "und validiert OCL-Constraints aus dem Gradle-Build heraus."
+                "Renders *.kuml.kts diagrams (UML & C4) to SVG/PNG, generates code " +
+                "(Kotlin/Java/SQL) and validates OCL constraints from the Gradle build."
             tags = listOf("kuml", "uml", "c4", "documentation", "diagram", "codegen", "ocl")
         }
     }

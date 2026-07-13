@@ -102,6 +102,15 @@ cd kUML
 
 == Gradle plugin
 
+[WARNING]
+====
+The `dev.kuml` Gradle plugin is **not yet published** to the Gradle Plugin Portal or
+Maven Central. The example below is the target usage once it ships — until then, use a
+local `publishToMavenLocal` build; see the
+xref:tooling:gradle.adoc#_publishing_the_plugin_from_your_own_fork[Gradle plugin page]
+for the exact workaround steps.
+====
+
 Add the plugin to any Gradle build. The plugin contributes three tasks: `kumlRender`,
 `kumlGenerate`, and `kumlValidate`.
 

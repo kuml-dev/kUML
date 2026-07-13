@@ -1,3 +1,4 @@
+import com.vanniktech.maven.publish.GradlePlugin
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
 import com.vanniktech.maven.publish.KotlinMultiplatform
@@ -70,9 +71,15 @@ val nonPublishedModules =
         "kuml-ocl-tests",
         "kuml-renderer-tests",
         "kuml-vault-examples-tests",  // V3.0.x — CI render smoke tests (not published)
-        // V1.1+ tooling-side artefacts published through other channels
-        // (Gradle Plugin Portal, JetBrains Marketplace, VS Code Marketplace).
-        "kuml-gradle-plugin",
+        // V1.1+ tooling-side artefacts published through additional channels
+        // beyond Maven Central. kuml-gradle-plugin is published to BOTH Maven
+        // Central (via the GradlePlugin(...) branch below, reusing
+        // java-gradle-plugin's pluginMaven + marker publications) AND the
+        // Gradle Plugin Portal (via com.gradle.plugin-publish, see
+        // kuml-gradle-plugin/build.gradle.kts) — so it is intentionally NOT
+        // listed here. kuml-jetbrains-plugin is published ONLY via JetBrains
+        // Marketplace, never to Maven Central (IntelliJ platform deps aren't
+        // meaningful outside a plugin.xml-driven classloader).
         "kuml-jetbrains-plugin",
         // Wave 1 — shared editor brain (completion/rename/diagnostics/CLI locator),
         // rides the monorepo version but has no independent release cadence yet.
@@ -96,6 +103,10 @@ val nonPublishedModules =
         "kuml-plugin-api",     // V3.0.27 — Plugin API aggregator parent (sub-modules are published separately)
     )
 
+// Marker extra-property used by the idempotency guard in
+// configureKumlPublishing() below.
+val kumlPublishingConfiguredMarker = "kuml.publishingConfigured"
+
 // Shared publication config (coordinates, POM, signing, Central Portal
 // upload) applied to every published module regardless of whether it's a
 // plain Kotlin/JVM module or a Kotlin Multiplatform (KMP) module. The
@@ -103,6 +114,27 @@ val nonPublishedModules =
 // separately by each `pluginManager.withPlugin` branch below, because
 // vanniktech's `configure(...)` call differs by module shape.
 fun Project.configureKumlPublishing() {
+    // Structural safeguard: this function must run at most once per project.
+    // The java-gradle-plugin vs org.jetbrains.kotlin.jvm dispatch below is
+    // order-dependent on the subproject's own `plugins {}` block —
+    // `pluginManager.hasPlugin("java-gradle-plugin")` only sees the correct
+    // answer inside the kotlin.jvm branch's guard if java-gradle-plugin was
+    // declared FIRST (see the ordering comment in
+    // kuml-gradle/kuml-gradle-plugin/build.gradle.kts). Get that order wrong
+    // in a future module and both branches fire, which — without this check —
+    // fails downstream with vanniktech's opaque "The value for this property
+    // is final and cannot be changed any further". Fail fast here instead,
+    // with a message that points at the actual root cause.
+    check(!extra.has(kumlPublishingConfiguredMarker)) {
+        "configureKumlPublishing() was called twice for project '$path'. This usually means " +
+            "the subproject applies both `java-gradle-plugin` and `org.jetbrains.kotlin.jvm` " +
+            "but declares `java-gradle-plugin` AFTER `kotlin.jvm` in its plugins {} block — " +
+            "java-gradle-plugin must come first so the root build.gradle.kts dispatch guard " +
+            "sees it in time. See the ordering comment in " +
+            "kuml-gradle/kuml-gradle-plugin/build.gradle.kts for the reference example."
+    }
+    extra[kumlPublishingConfiguredMarker] = true
+
     apply(plugin = "com.vanniktech.maven.publish")
 
     configure<MavenPublishBaseExtension> {
@@ -114,7 +146,20 @@ fun Project.configureKumlPublishing() {
         // v0.3.0's JARs never reached Maven Central even though the
         // release workflow reported success.
         publishToMavenCentral(automaticRelease = true)
-        signAllPublications()
+
+        // Only wire up GPG signing when a signing key is actually configured
+        // (CI secrets, see docs/release.md, or a maintainer's own
+        // ~/.gradle/gradle.properties). Without this guard,
+        // signAllPublications() unconditionally registers a `sign*` task with
+        // no signatory for every publication, which makes the
+        // "Dry-runs (no credentials needed)" `./gradlew publishToMavenLocal`
+        // workflow documented in docs/release.md fail for every published
+        // module — including kuml-gradle-plugin, whose local
+        // publishToMavenLocal verification this repo's release workflow
+        // relies on before wiring up Gradle Plugin Portal publishing.
+        if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+            signAllPublications()
+        }
 
         coordinates(
             groupId = "dev.kuml",
@@ -157,12 +202,44 @@ subprojects {
     // Plain Kotlin/JVM modules (the majority — kuml-io-*, kuml-metamodel-*
     // aggregators' leaf modules, codegen, etc.).
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+        // kuml-gradle-plugin applies BOTH org.jetbrains.kotlin.jvm AND
+        // java-gradle-plugin — it gets its own GradlePlugin(...) publication
+        // branch below, so skip the generic KotlinJvm(...) branch here to
+        // avoid two competing "maven"-style publications in the same project.
+        if (pluginManager.hasPlugin("java-gradle-plugin")) return@withPlugin
         configureKumlPublishing()
         configure<MavenPublishBaseExtension> {
             configure(
                 KotlinJvm(
                     javadocJar = JavadocJar.Empty(),
                     sourcesJar = SourcesJar.Sources(),
+                ),
+            )
+        }
+    }
+
+    // Gradle-plugin modules (currently only kuml-gradle-plugin): reuse the
+    // pluginMaven + marker publications that java-gradle-plugin + maven-publish
+    // already create, instead of creating a duplicate "maven" publication.
+    pluginManager.withPlugin("java-gradle-plugin") {
+        configureKumlPublishing()
+        configure<MavenPublishBaseExtension> {
+            configure(
+                GradlePlugin(
+                    // None(), not Empty()/Sources(): com.gradle.plugin-publish
+                    // (applied in kuml-gradle-plugin/build.gradle.kts) already
+                    // calls java.withJavadocJar()/withSourcesJar() and wires
+                    // those real jars into the "pluginMaven" publication that
+                    // java-gradle-plugin creates. Asking vanniktech to attach
+                    // its own javadoc/sources jars on top produced two
+                    // conflicting artifacts with the same ('jar', 'javadoc')
+                    // classifier and broke `publishToMavenLocal` /
+                    // `publishToMavenCentral` outright ("Invalid publication
+                    // 'pluginMaven': multiple artifacts with the identical
+                    // extension and classifier") — which in turn broke the
+                    // local dry-run documented in docs/release.md.
+                    javadocJar = JavadocJar.None(),
+                    sourcesJar = SourcesJar.None(),
                 ),
             )
         }
