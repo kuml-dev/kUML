@@ -57,6 +57,30 @@ import dev.kuml.erm.model.ReferentialAction
  *   (ADR-0016 §2.3) — recognized geometry columns render as `geometry(name, sqlType)`,
  *   a dependency-free custom `ColumnType<String>` extension emitted once per
  *   generation into a `PostGisColumnTypes.kt` support file (see [emit]).
+ * - **Enums** ([ErmDataType.Enum], ADR-0016 retrofit): unlike every other
+ *   variant, an enum column is backed by a *second generated file* — collected,
+ *   deduped, and validated in a Pass 0/1 step before entity rendering starts
+ *   (see [emit] and [EnumRenderInfo]). Every literal is sanitized into a
+ *   Kotlin-safe PascalCase constant name via [sanitizeEnumConstantName]
+ *   (splitting on any run of non-alphanumeric characters, not just `_`) rather
+ *   than requiring the raw literal to already be a valid identifier — so a
+ *   human-readable literal like `"In Progress"` no longer hard-fails
+ *   generation. When every literal is already a valid identifier verbatim
+ *   (the common case), the generated file is the simple
+ *   `public enum class <Name> { Literal1, Literal2, ... }` shape, referenced
+ *   from the column call as `enumerationByName<Name>(colName, length)`
+ *   (`Table.enumerationByName`, `org.jetbrains.exposed.v1.core`, member — no
+ *   import needed, mirrors `varchar`/`integer`). When at least one literal
+ *   needed sanitizing, the enum instead carries a `dbValue` constructor field
+ *   + `fromDb` companion lookup, and the column call becomes
+ *   `Table.customEnumeration(...)` with explicit `fromDb`/`toDb` lambdas —
+ *   so the physical column keeps storing/matching the *original* literal
+ *   (what a `CHECK` constraint enforces) while the Kotlin constant name stays
+ *   a valid identifier. SQL DDL for the same [ErmDataType.Enum] stays
+ *   `VARCHAR(length)` + `CHECK (... IN (...))`, using the *original* literals
+ *   unconditionally — see [dev.kuml.codegen.sql.ErmSqlTypeMapper] and
+ *   [dev.kuml.codegen.sql.ErmSqlEmitter], which auto-derives that `CHECK` for
+ *   every [ErmDataType.Enum] column regardless of entry point.
  * - **TimescaleDB hypertables** ([ErmMetadataKeys.HYPERTABLE] metadata marker):
  *   Exposed has no matching construct, so a marked entity only gets an
  *   explanatory `// Note:` comment in its generated `object` body — the actual
@@ -153,10 +177,36 @@ internal class ErmExposedEmitter(
             )
         }
 
-        // Pass 1: derive + validate every entity's Kotlin object name, and every attribute's
-        // Kotlin property name, up front — needed so foreign-key columns in *other* entities
-        // can resolve both their reference() target object name and target column property
-        // name, even for entities rendered later in Pass 2.
+        // Pass 0: collect distinct ErmDataType.Enum instances referenced anywhere in the model,
+        // deduped by name. Two attributes may legitimately share the same enum name with an
+        // identical literal set (e.g. the same UML enumeration used on several classes) — that
+        // collapses to a single generated enum class. Two *different* literal sets under the
+        // same name would emit conflicting Kotlin enum classes, so that fails generation.
+        val enumTypesByName = mutableMapOf<String, ErmDataType.Enum>()
+        val enumConflictErrors = mutableListOf<TransformError>()
+        for (entity in model.entities) {
+            for (attr in entity.attributes) {
+                val enumType = attr.type as? ErmDataType.Enum ?: continue
+                val existing = enumTypesByName[enumType.name]
+                if (existing != null && existing.values != enumType.values) {
+                    enumConflictErrors +=
+                        TransformError(
+                            "erm-to-exposed: multiple ErmDataType.Enum instances named '${enumType.name}' declare " +
+                                "different literal sets — refusing to emit conflicting enum classes.",
+                            attr.id,
+                        )
+                    continue
+                }
+                enumTypesByName[enumType.name] = enumType
+            }
+        }
+        if (enumConflictErrors.isNotEmpty()) return TransformResult.Failure(enumConflictErrors)
+
+        // Pass 1: derive + validate every entity's Kotlin object name, every attribute's Kotlin
+        // property name, and every enum type's Kotlin object name (+ its literals' validity as
+        // Kotlin enum-constant identifiers) up front — needed so foreign-key/enum columns in
+        // *other* entities can resolve their target names, even for entities rendered later in
+        // Pass 2.
         val objectNameById = mutableMapOf<String, String>()
         val attrPropertyNameById = mutableMapOf<String, String>()
         val nameErrors = mutableListOf<TransformError>()
@@ -184,10 +234,64 @@ internal class ErmExposedEmitter(
                 attrPropertyNameById[attr.id] = propName
             }
         }
+
+        val enumInfoByEnumName = mutableMapOf<String, EnumRenderInfo>()
+        for ((enumName, enumType) in enumTypesByName) {
+            val elementId = "enum:$enumName"
+            val objectName = toPascalCase(enumName)
+            try {
+                requireValidKotlinIdentifier(objectName, "enum name", elementId)
+                requireSafeRelativePath("$objectName.kt", elementId)
+            } catch (e: InvalidIdentifierException) {
+                nameErrors += TransformError(e.message ?: "invalid enum name", elementId)
+                continue
+            }
+
+            // Sanitize every literal into a Kotlin-safe constant name (see
+            // sanitizeEnumConstantName KDoc) instead of hard-requiring the raw literal to
+            // already be a valid identifier — then guard against two distinct literals
+            // colliding on the same sanitized name (e.g. "In Progress" / "In-Progress").
+            val constantNameByLiteral = mutableMapOf<String, String>()
+            val literalBySanitizedName = mutableMapOf<String, String>()
+            for (value in enumType.values) {
+                val constantName = sanitizeEnumConstantName(value)
+                if (constantName.isEmpty()) {
+                    nameErrors +=
+                        TransformError(
+                            "erm-to-exposed: enum literal '$value' (element $elementId) has no alphanumeric " +
+                                "characters — cannot derive a Kotlin enum-constant name, refusing to emit " +
+                                "generated code.",
+                            elementId,
+                        )
+                    continue
+                }
+                try {
+                    requireValidKotlinIdentifier(constantName, "enum literal", elementId)
+                } catch (e: InvalidIdentifierException) {
+                    nameErrors += TransformError(e.message ?: "invalid enum literal", elementId)
+                    continue
+                }
+                val priorLiteral = literalBySanitizedName[constantName]
+                if (priorLiteral != null) {
+                    nameErrors +=
+                        TransformError(
+                            "erm-to-exposed: enum literals '$priorLiteral' and '$value' (element $elementId) " +
+                                "both sanitize to the Kotlin constant name '$constantName' — rename one to " +
+                                "disambiguate.",
+                            elementId,
+                        )
+                    continue
+                }
+                literalBySanitizedName[constantName] = value
+                constantNameByLiteral[value] = constantName
+            }
+
+            enumInfoByEnumName[enumName] = EnumRenderInfo(objectName, constantNameByLiteral)
+        }
         if (nameErrors.isNotEmpty()) return TransformResult.Failure(nameErrors)
 
         val duplicateNames =
-            objectNameById.values
+            (objectNameById.values + enumInfoByEnumName.values.map { it.objectName })
                 .groupingBy { it }
                 .eachCount()
                 .filter { it.value > 1 }
@@ -196,7 +300,7 @@ internal class ErmExposedEmitter(
             return TransformResult.Failure(
                 listOf(
                     TransformError(
-                        "erm-to-exposed: multiple entities map to the same Kotlin object name(s) " +
+                        "erm-to-exposed: multiple entities/enums map to the same Kotlin object name(s) " +
                             "${duplicateNames.joinToString(", ")} — refusing to emit colliding files.",
                     ),
                 ),
@@ -209,7 +313,10 @@ internal class ErmExposedEmitter(
         var trace = TransformTrace()
 
         for (entity in model.entities) {
-            when (val result = renderEntity(entity, model, objectNameById, attrPropertyNameById)) {
+            when (
+                val result =
+                    renderEntity(entity, model, objectNameById, attrPropertyNameById, enumInfoByEnumName)
+            ) {
                 is EntityResult.Ok -> {
                     files += result.file
                     trace = trace.plus(TraceabilityLink(entity.id, result.file.relativePath, RULE_ENTITY_TO_TABLE))
@@ -224,6 +331,11 @@ internal class ErmExposedEmitter(
 
         if (errors.isNotEmpty()) return TransformResult.Failure(errors)
 
+        for ((enumName, enumType) in enumTypesByName) {
+            val info = enumInfoByEnumName.getValue(enumName)
+            files += renderEnumFile(enumType, info)
+        }
+
         // ADR-0016 §2.3 — one shared support file, emitted only when at least one entity
         // has a Custom column recognized as a PostGIS geometry type by CustomTypeHooks.
         val hasGeometryColumn =
@@ -233,12 +345,14 @@ internal class ErmExposedEmitter(
                 }
             }
         if (hasGeometryColumn) {
-            if (POSTGIS_SUPPORT_FILE_OBJECT_NAME in objectNameById.values) {
+            if (POSTGIS_SUPPORT_FILE_OBJECT_NAME in objectNameById.values ||
+                POSTGIS_SUPPORT_FILE_OBJECT_NAME in enumInfoByEnumName.values.map { it.objectName }
+            ) {
                 return TransformResult.Failure(
                     listOf(
                         TransformError(
-                            "erm-to-exposed: entity name '$POSTGIS_SUPPORT_FILE_OBJECT_NAME' collides with the " +
-                                "generated PostGIS geometry support file — rename the entity.",
+                            "erm-to-exposed: entity/enum name '$POSTGIS_SUPPORT_FILE_OBJECT_NAME' collides with the " +
+                                "generated PostGIS geometry support file — rename it.",
                         ),
                     ),
                 )
@@ -247,6 +361,44 @@ internal class ErmExposedEmitter(
         }
 
         return TransformResult.Success(files, trace)
+    }
+
+    private fun renderEnumFile(
+        enumType: ErmDataType.Enum,
+        info: EnumRenderInfo,
+    ): GeneratedFile {
+        val sb = StringBuilder()
+        sb.appendLine("// Generated by kuml-codegen-m2m-exposed (erm-to-exposed) — do not edit manually.")
+        sb.appendLine()
+        sb.appendLine("package $packageName")
+        sb.appendLine()
+        if (!info.needsCustomMapping) {
+            // Every literal already is a valid Kotlin identifier verbatim — the simple,
+            // pre-existing no-arg shape, referenced via Table.enumerationByName<T>(...).
+            sb.appendLine("public enum class ${info.objectName} {")
+            enumType.values.forEach { literal -> sb.appendLine("    ${info.constantNameByLiteral.getValue(literal)},") }
+            sb.appendLine("}")
+        } else {
+            // At least one literal needed sanitizing (e.g. "In Progress" -> InProgress). Keep
+            // the *original* literal reachable via a `dbValue` field + `fromDb` lookup, so the
+            // physical column (Table.customEnumeration(...), see renderBaseColumnCall) keeps
+            // storing/matching exactly what a `CHECK (col IN (...))` constraint enforces,
+            // instead of silently drifting to the sanitized constant name.
+            sb.appendLine("public enum class ${info.objectName}(public val dbValue: String) {")
+            val entries = enumType.values.map { literal -> info.constantNameByLiteral.getValue(literal) to literal }
+            entries.forEachIndexed { index, (constantName, literal) ->
+                val terminator = if (index == entries.lastIndex) ";" else ","
+                sb.appendLine("    $constantName(\"${kotlinStringLiteral(literal)}\")$terminator")
+            }
+            sb.appendLine()
+            sb.appendLine("    public companion object {")
+            sb.appendLine(
+                "        public fun fromDb(value: String): ${info.objectName} = entries.first { it.dbValue == value }",
+            )
+            sb.appendLine("    }")
+            sb.appendLine("}")
+        }
+        return GeneratedFile("${info.objectName}.kt", sb.toString())
     }
 
     private fun renderPostGisSupportFile(): String {
@@ -289,6 +441,7 @@ internal class ErmExposedEmitter(
         model: ErmModel,
         objectNameById: Map<String, String>,
         attrPropertyNameById: Map<String, String>,
+        enumInfoByEnumName: Map<String, EnumRenderInfo>,
     ): EntityResult {
         val objectName = objectNameById.getValue(entity.id)
         val tableNameLiteral =
@@ -309,11 +462,11 @@ internal class ErmExposedEmitter(
             val fk = attr.foreignKey
             val line =
                 when {
-                    fk == null -> renderBaseColumnLine(propName, attr, colLiteral, imports)
+                    fk == null -> renderBaseColumnLine(propName, attr, colLiteral, imports, enumInfoByEnumName)
                     fk.targetEntityId == entity.id -> {
                         // Self-referential FK — reference() cannot target the enclosing object
                         // from inside its own initializer body. Emit a plain typed column instead.
-                        val base = renderBaseColumnLine(propName, attr, colLiteral, imports)
+                        val base = renderBaseColumnLine(propName, attr, colLiteral, imports, enumInfoByEnumName)
                         "$base // self-referential FK (target: this entity) — reference() omitted, see KDoc"
                     }
                     else -> {
@@ -359,6 +512,7 @@ internal class ErmExposedEmitter(
                             targetPropName,
                             fk,
                             imports,
+                            enumInfoByEnumName,
                         )
                     }
                 }
@@ -429,8 +583,9 @@ internal class ErmExposedEmitter(
         attr: ErmAttribute,
         colLiteral: String,
         imports: MutableSet<String>,
+        enumInfoByEnumName: Map<String, EnumRenderInfo>,
     ): String {
-        val rendered = renderBaseColumnCall(attr.type, colLiteral)
+        val rendered = renderBaseColumnCall(attr.type, colLiteral, enumInfoByEnumName)
         imports += rendered.imports
 
         var call = rendered.call
@@ -455,8 +610,9 @@ internal class ErmExposedEmitter(
         targetPropName: String,
         fk: ErmForeignKey,
         imports: MutableSet<String>,
+        enumInfoByEnumName: Map<String, EnumRenderInfo>,
     ): String {
-        val rendered = renderBaseColumnCall(attr.type, colLiteral)
+        val rendered = renderBaseColumnCall(attr.type, colLiteral, enumInfoByEnumName)
         // The Kotlin type of a reference()/optReference() column always matches the FK
         // attribute's own declared type (its underlying storage type), same as a plain column.
         imports += rendered.imports
@@ -498,6 +654,7 @@ internal class ErmExposedEmitter(
     private fun renderBaseColumnCall(
         type: ErmDataType,
         colLiteral: String,
+        enumInfoByEnumName: Map<String, EnumRenderInfo>,
     ): ColumnCallRendering =
         when (type) {
             is ErmDataType.Integer ->
@@ -520,6 +677,17 @@ internal class ErmExposedEmitter(
                 }
             is ErmDataType.Varchar ->
                 ColumnCallRendering("varchar(\"$colLiteral\", ${type.length})", "String", emptySet())
+            is ErmDataType.Enum -> {
+                val info = enumInfoByEnumName.getValue(type.name)
+                val call =
+                    if (info.needsCustomMapping) {
+                        "customEnumeration<${info.objectName}>(\"$colLiteral\", \"VARCHAR(${type.length})\", " +
+                            "{ ${info.objectName}.fromDb(it as String) }, { it.dbValue })"
+                    } else {
+                        "enumerationByName<${info.objectName}>(\"$colLiteral\", ${type.length})"
+                    }
+                ColumnCallRendering(call, info.objectName, emptySet())
+            }
             ErmDataType.Text -> ColumnCallRendering("text(\"$colLiteral\")", "String", emptySet())
             ErmDataType.Boolean -> ColumnCallRendering("bool(\"$colLiteral\")", "Boolean", emptySet())
             ErmDataType.Date ->
@@ -597,6 +765,51 @@ internal class ErmExposedEmitter(
         return pascal.replaceFirstChar { it.lowercaseChar() }
     }
 
+    /**
+     * Sanitizes an arbitrary [ErmDataType.Enum] literal into a Kotlin-safe PascalCase enum
+     * constant name — splitting on *any* run of non-alphanumeric characters, unlike
+     * [toPascalCase] (entity/attribute/enum *names*), which only splits on `_` and therefore
+     * leaves e.g. a space untouched. Without this, a valid, human-readable ERM literal like
+     * `"In Progress"` (fine for a SQL `CHECK (col IN (...))`, common in real UML models) would
+     * hard-fail generation with no way to fix it short of renaming the source enum literal.
+     *
+     * Prefixes with `_` when the result would otherwise start with a digit (Kotlin identifiers
+     * cannot). Returns `""` when the literal has no alphanumeric characters at all (e.g. `"---"`)
+     * — callers treat that as unsanitizable and fail generation instead of emitting an empty or
+     * synthetic identifier that would silently lose the literal's meaning.
+     */
+    private fun sanitizeEnumConstantName(raw: String): String {
+        val cleaned =
+            raw
+                .split(NON_ALPHANUMERIC_REGEX)
+                .filter { it.isNotEmpty() }
+                .joinToString("") { part -> part.replaceFirstChar { it.uppercaseChar() } }
+        if (cleaned.isEmpty()) return ""
+        return if (cleaned[0].isDigit()) "_$cleaned" else cleaned
+    }
+
+    /**
+     * Per-enum rendering info derived in [emit]'s Pass 1: the Kotlin object name, plus every
+     * literal's sanitized Kotlin constant name (via [sanitizeEnumConstantName]).
+     *
+     * [needsCustomMapping] is true when at least one literal differs from its sanitized constant
+     * name — e.g. `"In Progress"` -> `InProgress`. In that case [renderEnumFile] emits a
+     * constructor-backed `enum class` carrying the original literal as a `dbValue` field plus a
+     * `fromDb` companion lookup, and [renderBaseColumnCall] emits `Table.customEnumeration(...)`
+     * instead of `Table.enumerationByName<T>(...)` — so the column keeps storing/matching the
+     * *original* literal (e.g. what a `CHECK (col IN (...))` constraint enforces), while the
+     * generated Kotlin constant name stays a valid identifier. When every literal is already a
+     * valid identifier (the common case), this stays false and the simpler, pre-existing
+     * no-arg `enum class` / `enumerationByName<T>(...)` shape is unchanged.
+     */
+    private data class EnumRenderInfo(
+        val objectName: String,
+        val constantNameByLiteral: Map<String, String>,
+    ) {
+        val needsCustomMapping: Boolean
+            get() = constantNameByLiteral.any { (literal, constantName) -> literal != constantName }
+    }
+
     // ── Generated-code-injection / path-traversal defenses (V3.4.8) ────────────
     // Intentionally duplicated from UmlToExposedTransformer — see this file's KDoc.
 
@@ -669,6 +882,9 @@ internal class ErmExposedEmitter(
         const val RULE_FK_TO_REFERENCE = "erm-fk-to-exposed-reference"
 
         private val KOTLIN_IDENTIFIER_REGEX = Regex("^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+        /** Splitter for [sanitizeEnumConstantName] — any run of non-alphanumeric characters. */
+        private val NON_ALPHANUMERIC_REGEX = Regex("[^A-Za-z0-9]+")
 
         // Split to avoid an accidental block-comment-terminator sequence inside this source file's own KDoc.
         private const val STAR = "*"

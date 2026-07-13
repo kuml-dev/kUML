@@ -74,6 +74,7 @@ internal object ErmSqlTypeMapper {
                     }
                 }
             is ErmDataType.Varchar -> "VARCHAR(${type.length})"
+            is ErmDataType.Enum -> "VARCHAR(${type.length})"
             is ErmDataType.Text -> "TEXT"
             is ErmDataType.Boolean ->
                 when (dialect) {

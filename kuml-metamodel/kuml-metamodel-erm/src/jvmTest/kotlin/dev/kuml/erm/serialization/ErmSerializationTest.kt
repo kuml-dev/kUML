@@ -55,6 +55,7 @@ class ErmSerializationTest :
                             ErmAttribute("attr_0_10", "avatar", ErmDataType.Blob),
                             ErmAttribute("attr_0_11", "prefs", ErmDataType.Json),
                             ErmAttribute("attr_0_12", "vector", ErmDataType.Custom("TSVECTOR")),
+                            ErmAttribute("attr_0_13", "status", ErmDataType.Enum("Status", listOf("Active", "Inactive"))),
                         ),
                     indexes = listOf(ErmIndex("idx_0_0", "idx_email", listOf("attr_0_1"), unique = true)),
                     checks = listOf(ErmCheckConstraint("check_0_0", "positive_age", "age > 0")),
@@ -145,6 +146,7 @@ class ErmSerializationTest :
                     ErmDataType.Blob,
                     ErmDataType.Json,
                     ErmDataType.Custom("TSVECTOR"),
+                    ErmDataType.Enum("Status", listOf("Active", "Inactive")),
                 )
             types.forEach { type ->
                 val encoded = json.encodeToString(ErmDataType.serializer(), type)

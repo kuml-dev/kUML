@@ -163,5 +163,17 @@ class ErmModelTest :
             ErmDataType.Blob.render() shouldBe "BLOB"
             ErmDataType.Json.render() shouldBe "JSON"
             ErmDataType.Custom("TSVECTOR").render() shouldBe "TSVECTOR"
+            ErmDataType.Enum("Status", listOf("Active", "Inactive")).render() shouldBe "ENUM(Status)"
+        }
+
+        "ErmDataType.Enum.length is the longest literal, floored at 1" {
+            ErmDataType.Enum("Status", listOf("Active", "Inactive")).length shouldBe 8
+            ErmDataType.Enum("Single", listOf("A")).length shouldBe 1
+            ErmDataType.Enum("Mixed", listOf("A", "BB", "CCC")).length shouldBe 3
+            // Duplicates don't affect the length calculation.
+            ErmDataType.Enum("Dup", listOf("Same", "Same")).length shouldBe 4
+            // Empty literal list floors to 1 (structurally invalid — caught separately by
+            // ErmConstraintChecker rule 20 — but length itself must never be 0/negative).
+            ErmDataType.Enum("Empty", emptyList()).length shouldBe 1
         }
     })

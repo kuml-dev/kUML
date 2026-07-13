@@ -191,6 +191,56 @@ class ErmSqlEmitterTest :
             sql shouldNotContain "CONSTRAINT null"
         }
 
+        test("ErmDataType.Enum attribute auto-derives a CHECK (col IN (...)) constraint (ERM-first path)") {
+            // Regression test: an ERM-first model built directly via the `ermModel { }` DSL never
+            // goes through `UmlToErmTransformer`, which is the only place that used to add a
+            // matching `ErmCheckConstraint` as a side effect. Without emitter-level derivation,
+            // this column was silently unconstrained VARCHAR.
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                    }
+                }
+            val sql = emit(model)
+            sql shouldContain "status VARCHAR(8) NOT NULL"
+            sql shouldContain "CHECK (status IN ('Active', 'Inactive'))"
+        }
+
+        test("ErmDataType.Enum attribute does not duplicate an already-present matching CHECK") {
+            // Mirrors what `UmlToErmTransformer` already does for a UML-direct enum property —
+            // an explicit ErmCheckConstraint with the exact same expression shape should dedupe
+            // against the auto-derived one instead of rendering the CHECK twice.
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                        check("status IN ('Active', 'Inactive')")
+                    }
+                }
+            val sql = emit(model)
+            val occurrences = Regex(Regex.escape("CHECK (status IN ('Active', 'Inactive'))")).findAll(sql).count()
+            occurrences shouldBe 1
+        }
+
+        test("ErmDataType.Enum literal single quotes are escaped in the derived CHECK expression") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "status",
+                            ErmDataType.Enum("Status", listOf("O'Brien", "Active")),
+                            nullable = false,
+                        )
+                    }
+                }
+            val sql = emit(model)
+            sql shouldContain "CHECK (status IN ('O''Brien', 'Active'))"
+        }
+
         test("topological sort places the FK target entity before the owning entity") {
             // `orders` is declared (and thus assigned `entity_0`) before `users` (`entity_1`) —
             // deliberately the opposite of the FK dependency direction, so this only passes if

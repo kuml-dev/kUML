@@ -60,6 +60,12 @@ public enum class ViolationSeverity {
  *     (no self-categorisation cycle).
  * 19. `ErmCategory.discriminatorAttributeId`, if set, belongs to the
  *     category's supertype entity — ERROR.
+ * 20. `ErmDataType.Enum.values` is non-empty — ERROR (an empty literal set
+ *     would render an invalid `CHECK (col IN ())` and a useless Kotlin
+ *     `enum class` with no constants).
+ * 21. `ErmDataType.Enum.values` contains no duplicate literals — ERROR
+ *     (duplicates would render duplicate Kotlin enum constants, a compile
+ *     error in the generated code).
  *
  * Category subtypes are exempt from rule 3's primary-key requirement — by
  * IDEF1X convention they inherit the supertype's key and legitimately have no
@@ -68,7 +74,7 @@ public enum class ViolationSeverity {
  *
  * An empty result means the model passes all checks.
  *
- * V3.4.1, category rules (16-19) V3.4.5
+ * V3.4.1, category rules (16-19) V3.4.5, enum rules (20-21) ADR-0016 retrofit
  */
 public class ErmConstraintChecker {
     public fun check(model: ErmModel): List<ConstraintViolation> =
@@ -208,6 +214,37 @@ public class ErmConstraintChecker {
                                 ViolationSeverity.WARNING,
                             ),
                         )
+                    }
+
+                    // 20 & 21. enum literal set is non-empty and duplicate-free
+                    val enumType = attribute.type
+                    if (enumType is ErmDataType.Enum) {
+                        if (enumType.values.isEmpty()) {
+                            add(
+                                ConstraintViolation(
+                                    attribute.id,
+                                    "Attribute '${attribute.name ?: attribute.id}' has enum type '${enumType.name}' " +
+                                        "with no literal values",
+                                    ViolationSeverity.ERROR,
+                                ),
+                            )
+                        }
+                        val duplicateValues =
+                            enumType.values
+                                .groupingBy { it }
+                                .eachCount()
+                                .filter { it.value > 1 }
+                                .keys
+                        if (duplicateValues.isNotEmpty()) {
+                            add(
+                                ConstraintViolation(
+                                    attribute.id,
+                                    "Attribute '${attribute.name ?: attribute.id}' has enum type '${enumType.name}' " +
+                                        "with duplicate literal values: ${duplicateValues.joinToString(", ")}",
+                                    ViolationSeverity.ERROR,
+                                ),
+                            )
+                        }
                     }
                 }
 

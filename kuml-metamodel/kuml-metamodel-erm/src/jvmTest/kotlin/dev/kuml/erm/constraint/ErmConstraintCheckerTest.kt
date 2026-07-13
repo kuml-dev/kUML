@@ -424,6 +424,44 @@ class ErmConstraintCheckerTest :
             errors(m).none { it.message.contains("discriminatorAttributeId") }.shouldBeTrue()
         }
 
+        // ── 20. enum type must have at least one literal value ──
+        "enum type with no literal values → error" {
+            val m =
+                ermModel("x") {
+                    entity("A") { attribute(name = "status", type = ErmDataType.Enum("Status", emptyList())) }
+                }
+            errors(m).any { it.message.contains("no literal values") }.shouldBeTrue()
+        }
+        "enum type with literal values → no rule-20 error" {
+            val m =
+                ermModel("x") {
+                    entity("A") {
+                        attribute(name = "status", type = ErmDataType.Enum("Status", listOf("Active", "Inactive")))
+                    }
+                }
+            errors(m).none { it.message.contains("no literal values") }.shouldBeTrue()
+        }
+
+        // ── 21. enum type must not have duplicate literal values ──
+        "enum type with duplicate literal values → error" {
+            val m =
+                ermModel("x") {
+                    entity("A") {
+                        attribute(name = "status", type = ErmDataType.Enum("Status", listOf("Active", "Active")))
+                    }
+                }
+            errors(m).any { it.message.contains("duplicate literal values") }.shouldBeTrue()
+        }
+        "enum type without duplicate literal values → no rule-21 error" {
+            val m =
+                ermModel("x") {
+                    entity("A") {
+                        attribute(name = "status", type = ErmDataType.Enum("Status", listOf("Active", "Inactive")))
+                    }
+                }
+            errors(m).none { it.message.contains("duplicate literal values") }.shouldBeTrue()
+        }
+
         // ── category subtypes are exempt from rule 3's primary-key requirement ──
         "category subtype without its own primary key → no rule-3 error" {
             val m =

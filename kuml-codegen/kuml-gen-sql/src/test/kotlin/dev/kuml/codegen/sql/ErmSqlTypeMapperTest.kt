@@ -43,6 +43,15 @@ class ErmSqlTypeMapperTest :
             }
         }
 
+        test("Enum renders as VARCHAR(longest literal) for every dialect (no CREATE TYPE)") {
+            SqlDialect.entries.forEach { dialect ->
+                ErmSqlTypeMapper.baseType(
+                    ErmDataType.Enum("Status", listOf("Active", "Inactive")),
+                    dialect,
+                ) shouldBe "VARCHAR(8)"
+            }
+        }
+
         test("Boolean is dialect-specific") {
             ErmSqlTypeMapper.baseType(ErmDataType.Boolean, SqlDialect.POSTGRES) shouldBe "BOOLEAN"
             ErmSqlTypeMapper.baseType(ErmDataType.Boolean, SqlDialect.H2) shouldBe "BOOLEAN"

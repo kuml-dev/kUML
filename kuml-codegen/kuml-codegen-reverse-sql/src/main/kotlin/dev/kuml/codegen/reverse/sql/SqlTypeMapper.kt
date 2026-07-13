@@ -12,6 +12,18 @@ import net.sf.jsqlparser.statement.create.table.ColDataType
  * into [ColDataType.getDataType] as a single string (e.g. `"VARCHAR (255)"`,
  * `"NUMERIC (10, 2)"`) rather than populating `argumentsStringList` — [map]
  * splits that back apart on the first `(`.
+ *
+ * ### Known limitation: native Postgres `CREATE TYPE ... AS ENUM` (ADR-0016 retrofit)
+ * This reverse engine only parses `CreateTable`/`Alter`/`CreateIndex`/`CreateView`
+ * statements (see `PostgresErmReverseEngine`) — a `CREATE TYPE ... AS ENUM`
+ * statement is never seen, so a column declared against such a native Postgres
+ * enum type falls through to the `else` branch below and becomes
+ * [ErmDataType.Custom] holding the raw type name (`REV-SQL-010` diagnostic),
+ * not [ErmDataType.Enum]. This is an accepted, unchanged blind spot: the
+ * forward direction ([dev.kuml.codegen.sql.ErmSqlTypeMapper]) never emits
+ * `CREATE TYPE` in the first place (V3.4.7 deliberate VARCHAR+CHECK decision),
+ * so round-tripping a kUML-generated schema is unaffected — only a *pre-existing*,
+ * externally authored Postgres enum type hits this limitation.
  */
 internal object SqlTypeMapper {
     /**

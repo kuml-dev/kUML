@@ -6,6 +6,7 @@ import dev.kuml.erm.constraint.ErmConstraintChecker
 import dev.kuml.erm.constraint.ViolationSeverity
 import dev.kuml.erm.model.ErmAttribute
 import dev.kuml.erm.model.ErmCheckConstraint
+import dev.kuml.erm.model.ErmDataType
 import dev.kuml.erm.model.ErmEntity
 import dev.kuml.erm.model.ErmIndex
 import dev.kuml.erm.model.ErmMetadataKeys
@@ -29,6 +30,12 @@ import dev.kuml.erm.model.ReferentialAction
  *  2. Header comment.
  *  3. Optional `DROP VIEW`/`DROP TABLE` block (reverse dependency order).
  *  4. `CREATE TABLE` per entity, in topological (dependency-respecting) order.
+ *     Every [dev.kuml.erm.model.ErmDataType.Enum] attribute gets an anonymous
+ *     `CHECK (<col> IN (...))` table constraint auto-derived here (see
+ *     [renderDerivedEnumCheckLines]) — the physical enforcement
+ *     [dev.kuml.erm.model.ErmDataType.Enum]'s KDoc promises on every SQL
+ *     dialect, guaranteed regardless of whether the [ErmModel] came from the
+ *     UML-direct chain or was hand-built for the ERM-first path.
  *  5. `ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY …` block.
  *  6. `CREATE [UNIQUE] INDEX` block.
  *  7. `CREATE VIEW` block.
@@ -164,7 +171,48 @@ internal class ErmSqlEmitter(
         entity.checks.forEach { check ->
             lines += "    ${checkConstraintPrefix(check)}CHECK (${check.expression})"
         }
+        lines += renderDerivedEnumCheckLines(entity)
         return lines
+    }
+
+    /**
+     * Auto-derives an anonymous `CHECK (<col> IN (...))` for every [ErmDataType.Enum] attribute
+     * on [entity] — the physical enforcement [ErmDataType.Enum]'s KDoc promises on every SQL
+     * dialect. [ErmSqlEmitter] is the single DDL-rendering source of truth for *both* entry
+     * points ([SqlDdlGenerator]'s UML-direct chain and [ErmSqlDdlGenerator]'s ERM-first path,
+     * see class KDoc); deriving the CHECK here — rather than relying on an upstream transformer
+     * to have already materialized an equivalent [ErmCheckConstraint] — is what makes that
+     * promise hold for a hand-built ERM-first [ErmModel] too, not just for models produced by
+     * [dev.kuml.transform.umlerm.UmlToErmTransformer].
+     *
+     * [UmlToErmTransformer] happens to already add a matching, identically-formatted
+     * [ErmCheckConstraint] to `entity.checks` as a side effect of resolving a UML enumeration
+     * (see that class's KDoc) — deduped here via exact expression-string equality against
+     * [ErmEntity.checks] so that UML-direct entities never get the same CHECK rendered twice.
+     */
+    private fun renderDerivedEnumCheckLines(entity: ErmEntity): List<String> {
+        val existingExpressions = entity.checks.map { it.expression }.toSet()
+        return entity.attributes.mapNotNull { attr ->
+            val enumType = attr.type as? ErmDataType.Enum ?: return@mapNotNull null
+            val expression = enumCheckExpression(attr, enumType)
+            if (expression in existingExpressions) return@mapNotNull null
+            "    CHECK ($expression)"
+        }
+    }
+
+    /**
+     * `<col> IN ('Lit1', 'Lit2', ...)` — deliberately the same shape
+     * [dev.kuml.transform.umlerm.UmlToErmTransformer] already produces for a UML enumeration
+     * property, so [renderDerivedEnumCheckLines]'s dedup-by-string-equality actually matches for
+     * the UML-direct path instead of emitting a redundant second CHECK.
+     */
+    private fun enumCheckExpression(
+        attr: ErmAttribute,
+        enumType: ErmDataType.Enum,
+    ): String {
+        val colName = columnNameOf(attr)
+        val literals = enumType.values.joinToString(", ") { "'${it.replace("'", "''")}'" }
+        return "$colName IN ($literals)"
     }
 
     private fun checkConstraintPrefix(check: ErmCheckConstraint): String =

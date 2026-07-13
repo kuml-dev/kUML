@@ -64,6 +64,25 @@ sealed interface ErmDataType {
         override fun render(): String = "VARCHAR($length)"
     }
 
+    /**
+     * Enumeration with a fixed literal set. Physically stored as `VARCHAR` +
+     * `CHECK (col IN (...))` on every SQL dialect (V3.4.7 deliberate decision —
+     * no native Postgres `CREATE TYPE ... AS ENUM`, see CHANGELOG). [name] is the
+     * Kotlin-facing type name used by the Exposed emitter to generate a matching
+     * `enum class` and reference it via `enumerationByName<T>(...)`.
+     */
+    @Serializable
+    @SerialName("enum")
+    data class Enum(
+        val name: String,
+        val values: List<String>,
+    ) : ErmDataType {
+        /** Longest literal, floor 1 — used as the physical VARCHAR/varchar() length. */
+        val length: Int get() = values.maxOfOrNull { it.length }?.coerceAtLeast(1) ?: 1
+
+        override fun render(): String = "ENUM($name)"
+    }
+
     /** Unbounded text type. */
     @Serializable
     @SerialName("text")

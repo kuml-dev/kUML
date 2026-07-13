@@ -75,6 +75,12 @@ import dev.kuml.uml.UmlProperty
  *   taken on the owning entity (two associations from the same class to the
  *   same target, e.g. `Order.createdBy` / `Order.assignedTo` → `User`), it is
  *   re-derived from the association-end role name instead (see Known limitations).
+ * - A `UmlProperty` whose declared type resolves to a `UmlEnumeration` maps to
+ *   [dev.kuml.erm.model.ErmDataType.Enum] (name + ordered literal list), plus an
+ *   `ErmCheckConstraint` of the form `col IN ('Lit1', 'Lit2', ...)` on the owning
+ *   entity — physically a `VARCHAR` + `CHECK` on every SQL dialect (V3.4.7,
+ *   deliberately no Postgres `CREATE TYPE ... AS ENUM`), with the Exposed emitter
+ *   additionally generating a matching Kotlin `enum class` (ADR-0016 retrofit).
  * - The resulting model is validated with [ErmConstraintChecker] before being
  *   returned; any `ERROR`-severity violation fails the transform instead of
  *   producing a structurally broken [ErmModel] (`WARNING`s are non-blocking).
@@ -305,10 +311,10 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                 when {
                     sqlTypeOverride != null -> UmlErmTypeMapper.mapOverride(sqlTypeOverride)
                     enumDef != null -> {
-                        val maxLen = (enumDef.literals.maxOfOrNull { it.name.length } ?: 20).coerceAtLeast(1)
+                        val literalNames = enumDef.literals.map { it.name }
                         checkExpression =
-                            "$columnName IN (${enumDef.literals.joinToString(", ") { "'${it.name.replace("'", "''")}'" }})"
-                        ErmDataType.Varchar(maxLen)
+                            "$columnName IN (${literalNames.joinToString(", ") { "'${it.replace("'", "''")}'" }})"
+                        ErmDataType.Enum(name = enumDef.name, values = literalNames)
                     }
                     else -> UmlErmTypeMapper.map(attr.type.name)
                 }

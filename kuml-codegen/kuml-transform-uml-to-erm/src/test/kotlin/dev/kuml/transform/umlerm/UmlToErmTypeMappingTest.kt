@@ -1,6 +1,13 @@
 package dev.kuml.transform.umlerm
 
+import dev.kuml.codegen.m2m.TransformContext
+import dev.kuml.codegen.m2m.TransformResult
+import dev.kuml.core.dsl.classDiagram
 import dev.kuml.erm.model.ErmDataType
+import dev.kuml.uml.dsl.attribute
+import dev.kuml.uml.dsl.classOf
+import dev.kuml.uml.dsl.enumOf
+import dev.kuml.uml.dsl.literal
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -98,5 +105,30 @@ class UmlToErmTypeMappingTest :
 
         test("mapOverride of a blank string falls back to Custom holding the blank string") {
             UmlErmTypeMapper.mapOverride("") shouldBe ErmDataType.Custom("")
+        }
+
+        test("UML enum attribute maps to ErmDataType.Enum plus a matching CHECK constraint") {
+            val transformer = UmlToErmTransformer()
+            val diagram =
+                classDiagram("D") {
+                    val status =
+                        enumOf("Status") {
+                            literal("Active")
+                            literal("Inactive")
+                        }
+                    classOf("User") {
+                        attribute("id", "UUID")
+                        attribute("status", status)
+                    }
+                }
+            val result = transformer.transform(diagram, TransformContext())
+            val model = (result as TransformResult.Success).output
+            val entity = model.entities.first()
+            val statusCol = entity.attributeByName("status")!!
+
+            statusCol.type shouldBe ErmDataType.Enum(name = "Status", values = listOf("Active", "Inactive"))
+
+            val check = entity.checks.single()
+            check.expression shouldBe "status IN ('Active', 'Inactive')"
         }
     })

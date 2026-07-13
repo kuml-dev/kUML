@@ -137,6 +137,8 @@ internal object ErmModelDslPrinter {
             is ErmDataType.Decimal -> "ErmDataType.Decimal(${type.precision}, ${type.scale})"
             is ErmDataType.Real -> "ErmDataType.Real(double = ${type.double})"
             is ErmDataType.Varchar -> "ErmDataType.Varchar(${type.length})"
+            is ErmDataType.Enum ->
+                "ErmDataType.Enum(\"${escape(type.name)}\", listOf(${type.values.joinToString(", ") { "\"${escape(it)}\"" }}))"
             ErmDataType.Text -> "ErmDataType.Text"
             ErmDataType.Boolean -> "ErmDataType.Boolean"
             ErmDataType.Date -> "ErmDataType.Date"

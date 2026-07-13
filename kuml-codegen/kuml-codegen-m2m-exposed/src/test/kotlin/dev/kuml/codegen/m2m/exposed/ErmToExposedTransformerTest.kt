@@ -593,4 +593,137 @@ class ErmToExposedTransformerTest :
                 }
             successFiles(model)[0].content shouldNotContain "TimescaleDB hypertable"
         }
+
+        // ── Enum columns (ADR-0016 retrofit) ─────────────────────────────────
+
+        test("enum attribute generates a second enum class file and an enumerationByName column") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                    }
+                }
+            val files = successFiles(model)
+            files.map { it.relativePath } shouldContain "Status.kt"
+            files.map { it.relativePath } shouldContain "Users.kt"
+
+            val statusContent = files.first { it.relativePath == "Status.kt" }.content
+            statusContent shouldContain "public enum class Status {"
+            statusContent shouldContain "    Active,"
+            statusContent shouldContain "    Inactive,"
+
+            val usersContent = files.first { it.relativePath == "Users.kt" }.content
+            usersContent shouldContain "val status: Column<Status> = enumerationByName<Status>(\"status\", 8)"
+        }
+
+        test("two entities referencing the same enum name/values dedupe to a single enum file") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                    }
+                    entity("accounts") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                    }
+                }
+            val files = successFiles(model)
+            files.count { it.relativePath == "Status.kt" } shouldBe 1
+        }
+
+        test("two ErmDataType.Enum instances with the same name but different values fail the transform") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                    }
+                    entity("accounts") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("status", ErmDataType.Enum("Status", listOf("Open", "Closed")), nullable = false)
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
+        }
+
+        test("enum name colliding with an entity's Kotlin object name fails the transform") {
+            val model =
+                ermModel("M") {
+                    entity("status") { id("id", ErmDataType.Integer(64)) }
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
+        }
+
+        test("enum literal with spaces is sanitized to a PascalCase constant and uses customEnumeration") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "status",
+                            ErmDataType.Enum("Status", listOf("in progress", "done")),
+                            nullable = false,
+                        )
+                    }
+                }
+            val files = successFiles(model)
+            val statusContent = files.first { it.relativePath == "Status.kt" }.content
+            statusContent shouldContain "public enum class Status(public val dbValue: String) {"
+            statusContent shouldContain "InProgress(\"in progress\"),"
+            statusContent shouldContain "Done(\"done\");"
+            statusContent shouldContain "public fun fromDb(value: String): Status = entries.first { it.dbValue == value }"
+
+            val usersContent = files.first { it.relativePath == "Users.kt" }.content
+            usersContent shouldContain
+                "val status: Column<Status> = customEnumeration<Status>(\"status\", \"VARCHAR(11)\", " +
+                "{ Status.fromDb(it as String) }, { it.dbValue })"
+        }
+
+        test("enum literal with no alphanumeric characters fails the transform") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "status",
+                            ErmDataType.Enum("Status", listOf("---", "done")),
+                            nullable = false,
+                        )
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
+        }
+
+        test("two enum literals sanitizing to the same Kotlin constant name fail the transform") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "status",
+                            ErmDataType.Enum("Status", listOf("In Progress", "In-Progress")),
+                            nullable = false,
+                        )
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
+        }
+
+        test("nullable enum column renders Column<Status?> with .nullable()") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = true)
+                    }
+                }
+            val content = successFiles(model).first { it.relativePath == "Users.kt" }.content
+            content shouldContain "val status: Column<Status?> = enumerationByName<Status>(\"status\", 8).nullable()"
+        }
     })
