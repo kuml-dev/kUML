@@ -8,6 +8,7 @@ import dev.kuml.codegen.m2m.TransformError
 import dev.kuml.codegen.m2m.TransformResult
 import dev.kuml.codegen.m2m.TransformTrace
 import dev.kuml.core.model.KumlDiagram
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.erm.constraint.ErmConstraintChecker
 import dev.kuml.erm.constraint.ViolationSeverity
 import dev.kuml.erm.model.Cardinality
@@ -17,6 +18,7 @@ import dev.kuml.erm.model.ErmCheckConstraint
 import dev.kuml.erm.model.ErmDataType
 import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmForeignKey
+import dev.kuml.erm.model.ErmMetadataKeys
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmNotation
 import dev.kuml.erm.model.ErmRelationship
@@ -61,9 +63,13 @@ import dev.kuml.uml.UmlProperty
  *
  * Mapping summary:
  * - `UmlClass` → `ErmEntity` (table name from `«Entity».tableName` or
- *   `snake_case(name).plural()`); `UmlProperty` → `ErmAttribute` (column name from
- *   `«Column».columnName` or `snake_case(name)`); `«Transient»` skips a property;
- *   `«Id»` / an attribute literally named `id` becomes the primary key.
+ *   `snake_case(name).plural()`; `«Entity».kotlinObjectName` overrides the Kotlin
+ *   `object` name a later `erm-to-exposed` emitter would otherwise derive from the
+ *   table name — stored as [ErmMetadataKeys.KOTLIN_OBJECT_NAME] entity metadata,
+ *   read origin-agnostically by `ErmExposedEmitter`); `UmlProperty` → `ErmAttribute`
+ *   (column name from `«Column».columnName` or `snake_case(name)`); `«Transient»`
+ *   skips a property; `«Id»` / an attribute literally named `id` becomes the
+ *   primary key.
  * - `UmlGeneralization` hierarchies are materialised per
  *   [InheritanceStrategy] (`«Inheritance».strategy`, default [InheritanceStrategy.JOINED]).
  * - `UmlAssociation` with both ends many-valued resolves to a junction
@@ -213,6 +219,10 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             entities[entity.id] = entity
             entityIdByClassId[cls.id] = entity.id
             trace = trace.plus(TraceabilityLink(cls.id, entity.id, RULE_CLASS_TO_ENTITY))
+
+            deriveKotlinObjectNameOverride(cls)?.let { override ->
+                entity.metadata = entity.metadata + (ErmMetadataKeys.KOTLIN_OBJECT_NAME to KumlMetaValue.Text(override))
+            }
 
             val ownTemplates = cls.attributes.mapNotNull { mapAttributeToColumn(it, enumsByName) }
             val ancestorTemplates =
@@ -370,6 +380,18 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             val name = override ?: SqlIdentifiers.toSnakeCase(cls.name).toPlural()
             return SqlIdentifiers.requireSafe(name, "table name", cls.id)
         }
+
+        /**
+         * `«Entity».kotlinObjectName` override, if present and non-blank. Not
+         * validated as a Kotlin identifier here — [dev.kuml.erm.model.ErmMetadataKeys.KOTLIN_OBJECT_NAME]
+         * is read origin-agnostically by `ErmExposedEmitter`, which already validates
+         * every value from this key (DSL or UML-profile origin) before use.
+         */
+        private fun deriveKotlinObjectNameOverride(cls: UmlClass): String? =
+            cls.appliedStereotypes
+                .ermStereotype(ErmProfileNames.ENTITY)
+                ?.stringTag(ErmProfileNames.TAG_KOTLIN_OBJECT_NAME)
+                ?.takeIf { it.isNotBlank() }
 
         // ── Inheritance materialisation ──────────────────────────────────────
 

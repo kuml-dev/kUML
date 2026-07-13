@@ -37,6 +37,7 @@ public val ermMappingProfile: KumlProfile =
             extends(UmlMetaclass.Class)
             property<String>(ErmProfileNames.TAG_TABLE_NAME) // required — no default
             property<String>(ErmProfileNames.TAG_SCHEMA) { default = "public" }
+            property<String>(ErmProfileNames.TAG_KOTLIN_OBJECT_NAME) { required = false } // optional override — no default
         }
 
         stereotype(ErmProfileNames.INHERITANCE) {

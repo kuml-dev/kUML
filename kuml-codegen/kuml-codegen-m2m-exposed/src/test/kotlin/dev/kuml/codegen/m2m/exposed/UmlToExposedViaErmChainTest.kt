@@ -4,9 +4,12 @@ import dev.kuml.codegen.m2m.GeneratedFile
 import dev.kuml.codegen.m2m.TransformContext
 import dev.kuml.codegen.m2m.TransformResult
 import dev.kuml.core.dsl.classDiagram
+import dev.kuml.profile.erm.ermMappingProfile
+import dev.kuml.uml.dsl.applyProfile
 import dev.kuml.uml.dsl.association
 import dev.kuml.uml.dsl.attribute
 import dev.kuml.uml.dsl.classOf
+import dev.kuml.uml.dsl.stereotype
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldHaveSize
@@ -52,6 +55,46 @@ class UmlToExposedViaErmChainTest :
             files[0].relativePath shouldBe "Customers.kt"
             content shouldContain "public object Customers : Table(\"customers\")"
             content shouldContain "override val primaryKey: PrimaryKey = PrimaryKey(id)"
+        }
+
+        test("«Entity».kotlinObjectName overrides the generated Exposed object name end-to-end") {
+            val diagram =
+                classDiagram("Simple") {
+                    applyProfile(ermMappingProfile)
+                    classOf("Member") {
+                        stereotype("Entity") {
+                            "tableName" to "members"
+                            "kotlinObjectName" to "MemberTable"
+                        }
+                        attribute("id", "UUID")
+                        attribute("name", "String")
+                    }
+                }
+            val result = transformer.transform(diagram, TransformContext())
+            val files = result.shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>().output
+
+            files shouldHaveSize 1
+            files[0].relativePath shouldBe "MemberTable.kt"
+            files[0].content shouldContain "public object MemberTable : Table(\"members\")"
+        }
+
+        test("«Entity».kotlinObjectName that is not a valid Kotlin identifier fails the chain end-to-end") {
+            // Confirms that ErmExposedEmitter's origin-agnostic identifier validation
+            // (already exercised for the ERM-DSL origin in ErmToExposedTransformerTest)
+            // also covers a UML-profile-supplied override, not just the DSL one.
+            val diagram =
+                classDiagram("Simple") {
+                    applyProfile(ermMappingProfile)
+                    classOf("Member") {
+                        stereotype("Entity") {
+                            "tableName" to "members"
+                            "kotlinObjectName" to "123Invalid"
+                        }
+                        attribute("id", "UUID")
+                    }
+                }
+            val result = transformer.transform(diagram, TransformContext())
+            result.shouldBeInstanceOf<TransformResult.Failure>()
         }
 
         test("many-to-many association becomes a real junction Table object with composite PK") {

@@ -3,7 +3,9 @@ package dev.kuml.transform.umlerm
 import dev.kuml.codegen.m2m.TransformContext
 import dev.kuml.codegen.m2m.TransformResult
 import dev.kuml.core.dsl.classDiagram
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.erm.model.ErmDataType
+import dev.kuml.erm.model.ErmMetadataKeys
 import dev.kuml.profile.erm.ermMappingProfile
 import dev.kuml.uml.Multiplicity
 import dev.kuml.uml.dsl.applyProfile
@@ -109,6 +111,36 @@ class UmlToErmBasicTest :
             result.output.entities
                 .first()
                 .name shouldBe "crm_customers"
+        }
+
+        test("«Entity».kotlinObjectName sets the KOTLIN_OBJECT_NAME entity metadata") {
+            val diagram =
+                classDiagram("Simple") {
+                    applyProfile(ermMappingProfile)
+                    classOf("Member") {
+                        stereotype("Entity") {
+                            "tableName" to "members"
+                            "kotlinObjectName" to "MemberTable"
+                        }
+                        attribute("id", "UUID")
+                    }
+                }
+            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val entity = result.output.entities.first()
+            val override = entity.metadata[ErmMetadataKeys.KOTLIN_OBJECT_NAME]
+            override.shouldBeInstanceOf<KumlMetaValue.Text>()
+            (override as KumlMetaValue.Text).value shouldBe "MemberTable"
+        }
+
+        test("Entity without kotlinObjectName override has no KOTLIN_OBJECT_NAME metadata") {
+            val diagram =
+                classDiagram("Simple") {
+                    classOf("Product") { attribute("id", "UUID") }
+                }
+            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            result.output.entities
+                .first()
+                .metadata shouldBe emptyMap()
         }
 
         test("«Column».columnName overrides the derived column name") {

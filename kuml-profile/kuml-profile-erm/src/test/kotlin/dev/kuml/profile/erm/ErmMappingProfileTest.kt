@@ -70,15 +70,18 @@ class ErmMappingProfileTest :
 
         // ── Test 3: Properties ───────────────────────────────────────────────────
 
-        test("Entity has tableName (required) and schema (default 'public')") {
+        test("Entity has tableName (required), schema (default 'public') and kotlinObjectName (optional)") {
             val entity = ermMappingProfile.stereotype("Entity")!!
-            entity.properties.size shouldBe 2
+            entity.properties.size shouldBe 3
             val tableName = entity.properties.first { it.name == "tableName" }
             tableName.required shouldBe true
             tableName.default shouldBe null
             val schema = entity.properties.first { it.name == "schema" }
             schema.required shouldBe false
             schema.default shouldBe "public"
+            val kotlinObjectName = entity.properties.first { it.name == "kotlinObjectName" }
+            kotlinObjectName.required shouldBe false
+            kotlinObjectName.default shouldBe null
         }
 
         test("Inheritance has strategy (default JOINED) and discriminatorColumn (default dtype)") {

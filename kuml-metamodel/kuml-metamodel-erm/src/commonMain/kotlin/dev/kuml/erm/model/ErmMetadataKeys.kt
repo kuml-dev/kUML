@@ -22,6 +22,12 @@ public object ErmMetadataKeys {
      * Exposed `Table` objects (ErmExposedEmitter). Value is a single
      * `KumlMetaValue.Text`. When absent, the emitter falls back to
      * PascalCase(entity.name) — unchanged, existing behaviour.
+     *
+     * Populated from two origins that both write the same key, so
+     * `ErmExposedEmitter` reads and validates it origin-agnostically:
+     * the ERM DSL (`EntityBuilder.kotlinObjectName`) and the UML mapping
+     * profile (`ermMappingProfile`, `«Entity».kotlinObjectName`, applied by
+     * `dev.kuml.transform.umlerm.UmlToErmTransformer`).
      */
     public const val KOTLIN_OBJECT_NAME: String = "dev.kuml.erm.exposed.kotlinObjectName"
 }

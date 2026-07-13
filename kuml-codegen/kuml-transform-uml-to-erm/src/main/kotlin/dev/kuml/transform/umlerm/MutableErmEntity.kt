@@ -1,5 +1,6 @@
 package dev.kuml.transform.umlerm
 
+import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.erm.model.ErmAttribute
 import dev.kuml.erm.model.ErmCheckConstraint
 import dev.kuml.erm.model.ErmEntity
@@ -23,6 +24,7 @@ internal class MutableErmEntity(
     var name: String?,
 ) {
     var weak: Boolean = false
+    var metadata: Map<String, KumlMetaValue> = emptyMap()
     val attributes: MutableList<ErmAttribute> = mutableListOf()
     val checks: MutableList<ErmCheckConstraint> = mutableListOf()
 
@@ -45,5 +47,6 @@ internal class MutableErmEntity(
             attributes = attributes.toList(),
             weak = weak,
             checks = checks.toList(),
+            metadata = metadata,
         )
 }

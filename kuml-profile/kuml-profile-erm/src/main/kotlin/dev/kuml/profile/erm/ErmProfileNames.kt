@@ -27,6 +27,7 @@ public object ErmProfileNames {
     // ── Tag keys ──────────────────────────────────────────────────────────────
     public const val TAG_TABLE_NAME: String = "tableName"
     public const val TAG_SCHEMA: String = "schema"
+    public const val TAG_KOTLIN_OBJECT_NAME: String = "kotlinObjectName"
     public const val TAG_STRATEGY: String = "strategy"
     public const val TAG_DISCRIMINATOR_COLUMN: String = "discriminatorColumn"
     public const val TAG_COLUMN_NAME: String = "columnName"
