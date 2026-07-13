@@ -35,10 +35,19 @@ internal object UmlErmTypeMapper {
             else -> ErmDataType.Custom(umlTypeName)
         }
 
+    /** Matches a `VARCHAR(n)` / `varchar( n )`-shaped override, case-insensitive. */
+    private val VARCHAR_N_REGEX = Regex("""varchar\s*\(\s*(\d+)\s*\)""", RegexOption.IGNORE_CASE)
+
     /**
      * Parses a `«Column».sqlType` override string into an [ErmDataType].
      *
-     * Reuses [map]'s vocabulary; anything unrecognised (including dialect-specific
+     * A `VARCHAR(n)`-shaped override (explicit length) is recognised first and mapped to
+     * [ErmDataType.Varchar] with that length — without this, [map] only matches the bare
+     * `"varchar"` keyword and any explicit length falls through to [ErmDataType.Custom],
+     * which the Exposed emitter renders as a generic `text(...)` fallback instead of
+     * `varchar(col, n)`.
+     *
+     * Otherwise reuses [map]'s vocabulary; anything unrecognised (including dialect-specific
      * types such as Postgres `tsvector`) becomes [ErmDataType.Custom] holding the
      * raw override string verbatim, so the override is never lost even if it can't
      * be interpreted structurally.
@@ -46,6 +55,11 @@ internal object UmlErmTypeMapper {
     fun mapOverride(sqlType: String): ErmDataType {
         val trimmed = sqlType.trim()
         if (trimmed.isEmpty()) return ErmDataType.Custom(sqlType)
+        VARCHAR_N_REGEX.matchEntire(trimmed)?.let { match ->
+            match.groupValues[1].toIntOrNull()?.takeIf { it > 0 }?.let { length ->
+                return ErmDataType.Varchar(length)
+            }
+        }
         val mapped = map(trimmed)
         return if (mapped is ErmDataType.Custom) ErmDataType.Custom(trimmed) else mapped
     }

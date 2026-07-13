@@ -70,12 +70,21 @@ sealed interface ErmDataType {
      * no native Postgres `CREATE TYPE ... AS ENUM`, see CHANGELOG). [name] is the
      * Kotlin-facing type name used by the Exposed emitter to generate a matching
      * `enum class` and reference it via `enumerationByName<T>(...)`.
+     *
+     * [externalFqName], when set, is the fully-qualified name of an already
+     * existing Kotlin enum type (e.g. a type shared across an RPC boundary in
+     * the consuming project). The Exposed emitter then imports and references
+     * this external type instead of generating its own `enum class` — the
+     * retrofit escape hatch for projects that already own a shared enum. `null`
+     * (the default) preserves the original behaviour of a locally generated
+     * `enum class`.
      */
     @Serializable
     @SerialName("enum")
     data class Enum(
         val name: String,
         val values: List<String>,
+        val externalFqName: String? = null,
     ) : ErmDataType {
         /** Longest literal, floor 1 — used as the physical VARCHAR/varchar() length. */
         val length: Int get() = values.maxOfOrNull { it.length }?.coerceAtLeast(1) ?: 1

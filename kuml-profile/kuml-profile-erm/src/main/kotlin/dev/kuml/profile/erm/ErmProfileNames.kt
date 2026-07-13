@@ -32,6 +32,7 @@ public object ErmProfileNames {
     public const val TAG_DISCRIMINATOR_COLUMN: String = "discriminatorColumn"
     public const val TAG_COLUMN_NAME: String = "columnName"
     public const val TAG_SQL_TYPE: String = "sqlType"
+    public const val TAG_ENUM_TYPE: String = "enumType"
     public const val TAG_NULLABLE: String = "nullable"
     public const val TAG_UNIQUE: String = "unique"
     public const val TAG_AUTO_INCREMENT: String = "autoIncrement"

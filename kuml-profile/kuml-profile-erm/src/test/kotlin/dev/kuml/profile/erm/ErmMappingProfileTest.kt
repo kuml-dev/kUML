@@ -94,14 +94,17 @@ class ErmMappingProfileTest :
             discriminator.default shouldBe "dtype"
         }
 
-        test("Column has columnName (required), sqlType/nullable/unique with defaults") {
+        test("Column has columnName (required), sqlType/enumType/nullable/unique with defaults") {
             val column = ermMappingProfile.stereotype("Column")!!
-            column.properties.size shouldBe 4
+            column.properties.size shouldBe 5
             val columnName = column.properties.first { it.name == "columnName" }
             columnName.required shouldBe true
             columnName.default shouldBe null
             val sqlType = column.properties.first { it.name == "sqlType" }
             sqlType.default shouldBe ""
+            val enumType = column.properties.first { it.name == "enumType" }
+            enumType.required shouldBe false
+            enumType.default shouldBe null
             val nullable = column.properties.first { it.name == "nullable" }
             nullable.default shouldBe true
             val unique = column.properties.first { it.name == "unique" }

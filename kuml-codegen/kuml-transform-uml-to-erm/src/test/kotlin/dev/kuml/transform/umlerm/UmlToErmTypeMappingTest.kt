@@ -4,10 +4,13 @@ import dev.kuml.codegen.m2m.TransformContext
 import dev.kuml.codegen.m2m.TransformResult
 import dev.kuml.core.dsl.classDiagram
 import dev.kuml.erm.model.ErmDataType
+import dev.kuml.profile.erm.ermMappingProfile
+import dev.kuml.uml.dsl.applyProfile
 import dev.kuml.uml.dsl.attribute
 import dev.kuml.uml.dsl.classOf
 import dev.kuml.uml.dsl.enumOf
 import dev.kuml.uml.dsl.literal
+import dev.kuml.uml.dsl.stereotype
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
 
@@ -130,5 +133,69 @@ class UmlToErmTypeMappingTest :
 
             val check = entity.checks.single()
             check.expression shouldBe "status IN ('Active', 'Inactive')"
+        }
+
+        test("«Column».enumType sets ErmDataType.Enum.externalFqName") {
+            val transformer = UmlToErmTransformer()
+            val diagram =
+                classDiagram("D") {
+                    applyProfile(ermMappingProfile)
+                    val status =
+                        enumOf("MemberStatus") {
+                            literal("Active")
+                            literal("Inactive")
+                        }
+                    classOf("Member") {
+                        attribute("id", "UUID")
+                        attribute("status", status) {
+                            stereotype("Column") {
+                                "columnName" to "status"
+                                "enumType" to "network.lapis.cloud.shared.domain.MemberStatus"
+                            }
+                        }
+                    }
+                }
+            val result = transformer.transform(diagram, TransformContext())
+            val model = (result as TransformResult.Success).output
+            val entity = model.entities.first()
+            val statusCol = entity.attributeByName("status")!!
+
+            statusCol.type shouldBe
+                ErmDataType.Enum(
+                    name = "MemberStatus",
+                    values = listOf("Active", "Inactive"),
+                    externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                )
+
+            // The CHECK constraint is still derived — externalFqName is a Kotlin/Exposed-only concern.
+            val check = entity.checks.single()
+            check.expression shouldBe "status IN ('Active', 'Inactive')"
+        }
+
+        test("mapOverride recognises VARCHAR(n) and maps to ErmDataType.Varchar(n)") {
+            UmlErmTypeMapper.mapOverride("VARCHAR(120)") shouldBe ErmDataType.Varchar(120)
+            UmlErmTypeMapper.mapOverride("varchar( 64 )") shouldBe ErmDataType.Varchar(64)
+            UmlErmTypeMapper.mapOverride("varchar") shouldBe ErmDataType.Varchar(255)
+        }
+
+        test("«Column».sqlType = VARCHAR(n) maps the column to ErmDataType.Varchar(n)") {
+            val transformer = UmlToErmTransformer()
+            val diagram =
+                classDiagram("D") {
+                    applyProfile(ermMappingProfile)
+                    classOf("Customer") {
+                        attribute("id", "UUID")
+                        attribute("nickname", "String") {
+                            stereotype("Column") {
+                                "columnName" to "nickname"
+                                "sqlType" to "VARCHAR(120)"
+                            }
+                        }
+                    }
+                }
+            val result = transformer.transform(diagram, TransformContext())
+            val model = (result as TransformResult.Success).output
+            val col = model.entities.first().attributeByName("nickname")!!
+            col.type shouldBe ErmDataType.Varchar(120)
         }
     })

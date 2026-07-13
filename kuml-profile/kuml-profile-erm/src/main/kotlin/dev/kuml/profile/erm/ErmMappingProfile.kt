@@ -53,6 +53,7 @@ public val ermMappingProfile: KumlProfile =
             extends(UmlMetaclass.Property)
             property<String>(ErmProfileNames.TAG_COLUMN_NAME) // required — no default
             property<String>(ErmProfileNames.TAG_SQL_TYPE) { default = "" }
+            property<String>(ErmProfileNames.TAG_ENUM_TYPE) { required = false } // optional override — no default
             property<Boolean>(ErmProfileNames.TAG_NULLABLE) { default = true }
             property<Boolean>(ErmProfileNames.TAG_UNIQUE) { default = false }
         }

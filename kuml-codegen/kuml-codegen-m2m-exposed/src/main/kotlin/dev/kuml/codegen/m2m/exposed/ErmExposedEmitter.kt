@@ -85,6 +85,16 @@ import dev.kuml.erm.model.ReferentialAction
  *   unconditionally — see [dev.kuml.codegen.sql.ErmSqlTypeMapper] and
  *   [dev.kuml.codegen.sql.ErmSqlEmitter], which auto-derives that `CHECK` for
  *   every [ErmDataType.Enum] column regardless of entry point.
+ *   When [ErmDataType.Enum.externalFqName] is set (ADR-0016 retrofit escape hatch
+ *   for a project that already owns a shared Kotlin enum, e.g. one serialized
+ *   across an RPC boundary), *no* `enum class` file is generated for that enum
+ *   at all: the column call becomes `enumerationByName<SimpleName>(col, length)`
+ *   unconditionally (never `customEnumeration` — the external type's constant
+ *   names are already fixed and cannot be sanitized), and the entity file gets
+ *   an `import <externalFqName>` instead. kUML cannot verify at generation time
+ *   that the external type's enum-constant names actually match the ERM
+ *   literals — that is the caller's responsibility, exactly the same trust
+ *   boundary as any other retrofit onto pre-existing code.
  * - **TimescaleDB hypertables** ([ErmMetadataKeys.HYPERTABLE] metadata marker):
  *   Exposed has no matching construct, so a marked entity only gets an
  *   explanatory `// Note:` comment in its generated `object` body — the actual
@@ -192,11 +202,12 @@ internal class ErmExposedEmitter(
             for (attr in entity.attributes) {
                 val enumType = attr.type as? ErmDataType.Enum ?: continue
                 val existing = enumTypesByName[enumType.name]
-                if (existing != null && existing.values != enumType.values) {
+                if (existing != null && existing != enumType) {
                     enumConflictErrors +=
                         TransformError(
                             "erm-to-exposed: multiple ErmDataType.Enum instances named '${enumType.name}' declare " +
-                                "different literal sets — refusing to emit conflicting enum classes.",
+                                "different literal sets and/or external types — refusing to emit conflicting " +
+                                "enum classes.",
                             attr.id,
                         )
                     continue
@@ -244,6 +255,25 @@ internal class ErmExposedEmitter(
         val enumInfoByEnumName = mutableMapOf<String, EnumRenderInfo>()
         for ((enumName, enumType) in enumTypesByName) {
             val elementId = "enum:$enumName"
+            val externalFqName = enumType.externalFqName
+            if (externalFqName != null) {
+                // External enum type (ADR-0016 retrofit escape hatch): no `enum class` file is
+                // generated — the simple name is referenced verbatim, imported from
+                // externalFqName. Every FQ segment (+ the simple name) is validated as a Kotlin
+                // identifier to prevent generated-code injection via a crafted import line.
+                val simpleName = externalFqName.substringAfterLast('.')
+                try {
+                    requireValidKotlinIdentifier(simpleName, "external enum type name", elementId)
+                    externalFqName.split('.').forEach { segment ->
+                        requireValidKotlinIdentifier(segment, "external enum type package segment", elementId)
+                    }
+                } catch (e: InvalidIdentifierException) {
+                    nameErrors += TransformError(e.message ?: "invalid external enum type", elementId)
+                    continue
+                }
+                enumInfoByEnumName[enumName] = EnumRenderInfo(simpleName, emptyMap(), externalFqName = externalFqName)
+                continue
+            }
             val objectName = toPascalCase(enumName)
             try {
                 requireValidKotlinIdentifier(objectName, "enum name", elementId)
@@ -296,8 +326,11 @@ internal class ErmExposedEmitter(
         }
         if (nameErrors.isNotEmpty()) return TransformResult.Failure(nameErrors)
 
+        val allObjectNames =
+            objectNameById.values +
+                enumInfoByEnumName.values.filter { it.externalFqName == null }.map { it.objectName }
         val duplicateNames =
-            (objectNameById.values + enumInfoByEnumName.values.map { it.objectName })
+            allObjectNames
                 .groupingBy { it }
                 .eachCount()
                 .filter { it.value > 1 }
@@ -338,6 +371,7 @@ internal class ErmExposedEmitter(
         if (errors.isNotEmpty()) return TransformResult.Failure(errors)
 
         for ((enumName, enumType) in enumTypesByName) {
+            if (enumType.externalFqName != null) continue
             val info = enumInfoByEnumName.getValue(enumName)
             files += renderEnumFile(enumType, info)
         }
@@ -352,7 +386,8 @@ internal class ErmExposedEmitter(
             }
         if (hasGeometryColumn) {
             if (POSTGIS_SUPPORT_FILE_OBJECT_NAME in objectNameById.values ||
-                POSTGIS_SUPPORT_FILE_OBJECT_NAME in enumInfoByEnumName.values.map { it.objectName }
+                POSTGIS_SUPPORT_FILE_OBJECT_NAME in
+                enumInfoByEnumName.values.filter { it.externalFqName == null }.map { it.objectName }
             ) {
                 return TransformResult.Failure(
                     listOf(
@@ -692,7 +727,8 @@ internal class ErmExposedEmitter(
                     } else {
                         "enumerationByName<${info.objectName}>(\"$colLiteral\", ${type.length})"
                     }
-                ColumnCallRendering(call, info.objectName, emptySet())
+                val imports = info.externalFqName?.let { setOf(it) } ?: emptySet()
+                ColumnCallRendering(call, info.objectName, imports)
             }
             ErmDataType.Text -> ColumnCallRendering("text(\"$colLiteral\")", "String", emptySet())
             ErmDataType.Boolean -> ColumnCallRendering("bool(\"$colLiteral\")", "Boolean", emptySet())
@@ -811,6 +847,14 @@ internal class ErmExposedEmitter(
     private data class EnumRenderInfo(
         val objectName: String,
         val constantNameByLiteral: Map<String, String>,
+        /**
+         * Set when [ErmDataType.Enum.externalFqName] was non-null: [objectName] is then the
+         * *simple* name of an already existing external Kotlin enum type (imported via this
+         * FQ name), not a name for a to-be-generated `enum class`. [renderEnumFile] and the
+         * duplicate-name/PostGIS-collision checks in [emit] skip entries with a non-null
+         * [externalFqName] — they emit no file of their own.
+         */
+        val externalFqName: String? = null,
     ) {
         val needsCustomMapping: Boolean
             get() = constantNameByLiteral.any { (literal, constantName) -> literal != constantName }

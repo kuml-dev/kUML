@@ -831,4 +831,136 @@ class ErmToExposedTransformerTest :
             val content = successFiles(model).first { it.relativePath == "Users.kt" }.content
             content shouldContain "val status: Column<Status?> = enumerationByName<Status>(\"status\", 8).nullable()"
         }
+
+        // ── External enum types (enumType retrofit) ─────────────────────────────
+
+        test("externalFqName enum column imports and references the external type, no enum class file") {
+            val model =
+                ermModel("M") {
+                    entity("members") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "status",
+                            ErmDataType.Enum(
+                                "MemberStatus",
+                                listOf("Active", "Inactive"),
+                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                            ),
+                            nullable = false,
+                        )
+                    }
+                }
+            val files = successFiles(model)
+            files.map { it.relativePath } shouldNotContain "MemberStatus.kt"
+            files.map { it.relativePath } shouldContain "Members.kt"
+
+            val content = files.first { it.relativePath == "Members.kt" }.content
+            content shouldContain "import network.lapis.cloud.shared.domain.MemberStatus"
+            content shouldContain
+                "val status: Column<MemberStatus> = enumerationByName<MemberStatus>(\"status\", 8)"
+            // Never customEnumeration for an external type — its constant names are already fixed.
+            content shouldNotContain "customEnumeration"
+        }
+
+        test("nullable externalFqName enum column renders Column<T?> with .nullable()") {
+            val model =
+                ermModel("M") {
+                    entity("members") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "status",
+                            ErmDataType.Enum(
+                                "MemberStatus",
+                                listOf("Active", "Inactive"),
+                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                            ),
+                            nullable = true,
+                        )
+                    }
+                }
+            val content = successFiles(model).first { it.relativePath == "Members.kt" }.content
+            content shouldContain
+                "val status: Column<MemberStatus?> = enumerationByName<MemberStatus>(\"status\", 8).nullable()"
+        }
+
+        test("two entities referencing the same externalFqName enum dedupe to zero enum files") {
+            val model =
+                ermModel("M") {
+                    entity("members") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "status",
+                            ErmDataType.Enum(
+                                "MemberStatus",
+                                listOf("Active", "Inactive"),
+                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                            ),
+                            nullable = false,
+                        )
+                    }
+                    entity("accounts") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "status",
+                            ErmDataType.Enum(
+                                "MemberStatus",
+                                listOf("Active", "Inactive"),
+                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                            ),
+                            nullable = false,
+                        )
+                    }
+                }
+            val files = successFiles(model)
+            files.count { it.relativePath == "MemberStatus.kt" } shouldBe 0
+        }
+
+        test("same enum name with externalFqName set on one attribute and null on another fails the transform") {
+            val model =
+                ermModel("M") {
+                    entity("members") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "status",
+                            ErmDataType.Enum(
+                                "MemberStatus",
+                                listOf("Active", "Inactive"),
+                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                            ),
+                            nullable = false,
+                        )
+                    }
+                    entity("accounts") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "status",
+                            ErmDataType.Enum("MemberStatus", listOf("Active", "Inactive")),
+                            nullable = false,
+                        )
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
+        }
+
+        test("externalFqName enum column does not collide with an entity of the same simple name") {
+            // MemberStatus is only referenced as an import target, never as a generated file —
+            // an entity named "member_status" must not trip the duplicate-object-name guard.
+            val model =
+                ermModel("M") {
+                    entity("member_status") { id("id", ErmDataType.Integer(64)) }
+                    entity("members") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute(
+                            "status",
+                            ErmDataType.Enum(
+                                "MemberStatus",
+                                listOf("Active", "Inactive"),
+                                externalFqName = "network.lapis.cloud.shared.domain.MemberStatus",
+                            ),
+                            nullable = false,
+                        )
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
+        }
     })

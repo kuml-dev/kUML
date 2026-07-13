@@ -87,6 +87,10 @@ import dev.kuml.uml.UmlProperty
  *   entity — physically a `VARCHAR` + `CHECK` on every SQL dialect (V3.4.7,
  *   deliberately no Postgres `CREATE TYPE ... AS ENUM`), with the Exposed emitter
  *   additionally generating a matching Kotlin `enum class` (ADR-0016 retrofit).
+ *   `«Column».enumType` (fully-qualified name of an already existing Kotlin enum)
+ *   sets [dev.kuml.erm.model.ErmDataType.Enum.externalFqName] instead — the Exposed
+ *   emitter then imports and references that external type rather than generating
+ *   its own `enum class` (retrofit escape hatch for projects with a shared enum).
  * - The resulting model is validated with [ErmConstraintChecker] before being
  *   returned; any `ERROR`-severity violation fails the transform instead of
  *   producing a structurally broken [ErmModel] (`WARNING`s are non-blocking).
@@ -324,7 +328,9 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                         val literalNames = enumDef.literals.map { it.name }
                         checkExpression =
                             "$columnName IN (${literalNames.joinToString(", ") { "'${it.replace("'", "''")}'" }})"
-                        ErmDataType.Enum(name = enumDef.name, values = literalNames)
+                        val externalEnumType =
+                            columnStereo?.stringTag(ErmProfileNames.TAG_ENUM_TYPE)?.takeIf { it.isNotBlank() }
+                        ErmDataType.Enum(name = enumDef.name, values = literalNames, externalFqName = externalEnumType)
                     }
                     else -> UmlErmTypeMapper.map(attr.type.name)
                 }
