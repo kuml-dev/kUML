@@ -4,6 +4,28 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.33.0] — 2026-07-13
+
+### Added
+
+**ERM mapping profile: `kotlinObjectName` tag for the UML `«Entity»` stereotype**
+
+The ERM Kotlin DSL already let a model override the generated Kotlin identifier for
+an Exposed `Table` object (`EntityBuilder.kotlinObjectName(name)`, shipped in v0.32.0)
+— but the UML mapping profile (`ermMappingProfile`, used by every class-diagram author
+who annotates entities with `«Entity»(tableName = ..., schema = ...)`) had no
+equivalent tag, so the override was unreachable from the DSL surface most models
+actually use. Closes that DSL-completeness gap (ADR-0017): `«Entity»` now accepts an
+optional `kotlinObjectName` tag, and `UmlToErmTransformer` reads it and propagates it
+through `ErmMetadataKeys`/`MutableErmEntity` into the generated Exposed artifacts —
+identical effect to the ERM-DSL path, just reachable from UML class diagrams too.
+
+Found and closed during a real second MDA retrofit attempt against Lapis Cloud
+(2026-07-13): every one of its 34 hand-written Exposed `Table` objects uses an
+`XxxTable` naming convention that the mechanical PascalCase default can't produce,
+and the project's models are authored in UML via `ermMappingProfile`, not the ERM DSL
+directly.
+
 ## [0.32.0] — 2026-07-13
 
 ### Added
