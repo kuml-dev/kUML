@@ -141,6 +141,19 @@ class EntityBuilder internal constructor(
         metadata = metadata + (ErmMetadataKeys.HYPERTABLE to KumlMetaValue.Entries(entries))
     }
 
+    /**
+     * Overrides the mechanically-derived Kotlin `object` name that
+     * `ErmExposedEmitter` would otherwise derive via `PascalCase(entity.name)`
+     * for this entity's generated Exposed `Table` object. Purely a naming
+     * override — the physical table name (`Table("...")` string literal,
+     * still `entity.name`) is unaffected. [name] is validated as a Kotlin
+     * identifier at emission time, not here (mirrors [hypertable]'s
+     * time-column validation deferral).
+     */
+    fun kotlinObjectName(name: String) {
+        metadata = metadata + (ErmMetadataKeys.KOTLIN_OBJECT_NAME to KumlMetaValue.Text(name))
+    }
+
     internal fun build(
         name: String,
         weak: Boolean,

@@ -43,7 +43,11 @@ import dev.kuml.erm.model.ReferentialAction
  *
  * - **Object name**: PascalCase of `entity.name` (already snake_case/plural —
  *   the standard shape produced by `UmlToErmTransformer` — but works for any
- *   ERM-first name too), e.g. `order_items` → `OrderItems`.
+ *   ERM-first name too), e.g. `order_items` → `OrderItems` — unless the entity
+ *   carries an [ErmMetadataKeys.KOTLIN_OBJECT_NAME] metadata override, which
+ *   takes precedence verbatim (still validated as a Kotlin identifier). The
+ *   physical table name (the `Table("...")` string literal) always stays
+ *   `entity.name`, regardless of the override.
  * - **Columns**: Kotlin property = camelCase(`attr.name`); the Exposed column
  *   string literal is `attr.name` verbatim (already the intended DB column
  *   name — unlike the UML-direct [UmlToExposedTransformer], which still has to
@@ -212,9 +216,11 @@ internal class ErmExposedEmitter(
         val nameErrors = mutableListOf<TransformError>()
         for (entity in model.entities) {
             val raw = entity.name ?: entity.id
-            val objectName = toPascalCase(raw)
+            val override = (entity.metadata[ErmMetadataKeys.KOTLIN_OBJECT_NAME] as? KumlMetaValue.Text)?.value
+            val objectName = override ?: toPascalCase(raw)
+            val whatLabel = if (override != null) "kotlinObjectName override" else "entity name"
             try {
-                requireValidKotlinIdentifier(objectName, "entity name", entity.id)
+                requireValidKotlinIdentifier(objectName, whatLabel, entity.id)
                 requireSafeRelativePath("$objectName.kt", entity.id)
             } catch (e: InvalidIdentifierException) {
                 nameErrors += TransformError(e.message ?: "invalid entity name", entity.id)

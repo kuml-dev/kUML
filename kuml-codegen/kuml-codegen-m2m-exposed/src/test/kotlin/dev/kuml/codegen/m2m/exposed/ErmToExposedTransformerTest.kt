@@ -594,6 +594,111 @@ class ErmToExposedTransformerTest :
             successFiles(model)[0].content shouldNotContain "TimescaleDB hypertable"
         }
 
+        // ── kotlinObjectName() override (ERM Metadata Retrofit) ──────────────
+
+        test("kotlinObjectName() override replaces the mechanically-derived Kotlin object name") {
+            val model =
+                ermModel("M") {
+                    entity("member") {
+                        kotlinObjectName("MemberTable")
+                        id()
+                    }
+                }
+            val files = successFiles(model)
+            files[0].relativePath shouldBe "MemberTable.kt"
+            files[0].content shouldContain "public object MemberTable : Table(\"member\")"
+        }
+
+        test("no kotlinObjectName() override falls back to PascalCase derivation (unchanged behaviour)") {
+            val model =
+                ermModel("M") {
+                    entity("member") { id() }
+                }
+            val files = successFiles(model)
+            files[0].relativePath shouldBe "Member.kt"
+            files[0].content shouldContain "public object Member : Table(\"member\")"
+        }
+
+        test("kotlinObjectName() override propagates to foreign-key reference() calls on other entities") {
+            val model =
+                ermModel("M") {
+                    val authors =
+                        entity("authors") {
+                            kotlinObjectName("AuthorsTable")
+                            id("id", ErmDataType.Integer(64))
+                        }
+                    entity("books") {
+                        id("id", ErmDataType.Integer(64))
+                        foreignKey("author_id", references = authors, nullable = false)
+                    }
+                }
+            val content = successFiles(model).first { it.relativePath == "Books.kt" }.content
+            content shouldContain "AuthorsTable.id"
+        }
+
+        test("kotlinObjectName() override that is not a valid Kotlin identifier fails the transform") {
+            val model =
+                ermModel("M") {
+                    entity("member") {
+                        kotlinObjectName("123-bad")
+                        id()
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
+        }
+
+        test("kotlinObjectName() override that is a Kotlin hard keyword fails the transform") {
+            val model =
+                ermModel("M") {
+                    entity("member") {
+                        kotlinObjectName("object")
+                        id()
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
+        }
+
+        test("two entities overriding to the same kotlinObjectName collide and fail the transform") {
+            val model =
+                ermModel("M") {
+                    entity("member") {
+                        kotlinObjectName("SharedName")
+                        id()
+                    }
+                    entity("account") {
+                        kotlinObjectName("SharedName")
+                        id()
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
+        }
+
+        test("kotlinObjectName() override colliding with an existing enum's Kotlin object name fails the transform") {
+            val model =
+                ermModel("M") {
+                    entity("member") {
+                        kotlinObjectName("Status")
+                        id()
+                    }
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("status", ErmDataType.Enum("Status", listOf("Active", "Inactive")), nullable = false)
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
+        }
+
+        test("kotlinObjectName() override with path-traversal characters fails the transform") {
+            val model =
+                ermModel("M") {
+                    entity("member") {
+                        kotlinObjectName("../evil")
+                        id()
+                    }
+                }
+            transform(model).shouldBeInstanceOf<TransformResult.Failure>()
+        }
+
         // ── Enum columns (ADR-0016 retrofit) ─────────────────────────────────
 
         test("enum attribute generates a second enum class file and an enumerationByName column") {

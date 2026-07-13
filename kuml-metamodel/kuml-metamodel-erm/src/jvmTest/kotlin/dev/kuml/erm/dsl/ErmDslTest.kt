@@ -226,4 +226,23 @@ class ErmDslTest :
             val model = ermModel("Plain") { entity("A") { id() } }
             model.entityById("entity_0")!!.metadata shouldBe emptyMap()
         }
+
+        // ── kotlinObjectName() (ADR-0016 retrofit) ──────────────────────────────
+
+        "kotlinObjectName() sets the KOTLIN_OBJECT_NAME metadata entry" {
+            val model =
+                ermModel("Lapis") {
+                    entity("member") {
+                        kotlinObjectName("MemberTable")
+                        id()
+                    }
+                }
+            model.entityById("entity_0")!!.metadata[ErmMetadataKeys.KOTLIN_OBJECT_NAME] shouldBe
+                KumlMetaValue.Text("MemberTable")
+        }
+
+        "an entity without kotlinObjectName() has no KOTLIN_OBJECT_NAME metadata entry" {
+            val model = ermModel("Plain") { entity("A") { id() } }
+            model.entityById("entity_0")!!.metadata shouldBe emptyMap()
+        }
     })

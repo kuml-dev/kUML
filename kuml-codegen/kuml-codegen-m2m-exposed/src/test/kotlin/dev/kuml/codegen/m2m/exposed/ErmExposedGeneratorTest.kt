@@ -78,6 +78,24 @@ class ErmExposedGeneratorTest :
             }
         }
 
+        test("kotlinObjectName override is honored through this entry point") {
+            val model =
+                ermModel("M") {
+                    entity("member") {
+                        kotlinObjectName("MemberTable")
+                        id("id", ErmDataType.Integer(64))
+                    }
+                }
+            val out = Files.createTempDirectory("kuml-erm-exposed-test").toFile()
+            try {
+                val files = generator.generate(model, out, emptyMap())
+                files.map { it.name } shouldBe listOf("MemberTable.kt")
+                files.single().readText() shouldContain "public object MemberTable : Table(\"member\")"
+            } finally {
+                out.deleteRecursively()
+            }
+        }
+
         test("provider is exposed as 'exposed' generator id in the ErmCodeGenRegistry") {
             ErmExposedGeneratorProvider().generator().id shouldBe "exposed"
         }

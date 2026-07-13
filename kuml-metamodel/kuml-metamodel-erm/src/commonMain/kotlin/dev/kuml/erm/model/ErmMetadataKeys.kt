@@ -16,4 +16,12 @@ public object ErmMetadataKeys {
     public const val HYPERTABLE: String = "dev.kuml.erm.timescale.hypertable"
     public const val HT_TIME_COLUMN: String = "timeColumn"
     public const val HT_CHUNK_INTERVAL: String = "chunkInterval"
+
+    /**
+     * Overrides the mechanically-derived Kotlin `object` name for generated
+     * Exposed `Table` objects (ErmExposedEmitter). Value is a single
+     * `KumlMetaValue.Text`. When absent, the emitter falls back to
+     * PascalCase(entity.name) — unchanged, existing behaviour.
+     */
+    public const val KOTLIN_OBJECT_NAME: String = "dev.kuml.erm.exposed.kotlinObjectName"
 }

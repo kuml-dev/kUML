@@ -177,6 +177,22 @@ class ErmSerializationTest :
             decoded shouldBe entity
         }
 
+        "ErmEntity.metadata (KOTLIN_OBJECT_NAME marker) round-trips through the IPC codec's Json config" {
+            val entity =
+                ErmEntity(
+                    id = "entity_0",
+                    name = "member",
+                    attributes = listOf(ErmAttribute("attr_0_0", "id", ErmDataType.Uuid, primaryKey = true, nullable = false)),
+                    metadata =
+                        mapOf(
+                            ErmMetadataKeys.KOTLIN_OBJECT_NAME to KumlMetaValue.Text("MemberTable"),
+                        ),
+                )
+            val encoded = json.encodeToString(ErmEntity.serializer(), entity)
+            val decoded = json.decodeFromString(ErmEntity.serializer(), encoded)
+            decoded shouldBe entity
+        }
+
         "every ErmElement variant round-trips through the sealed ErmElement serializer" {
             val elements =
                 listOf(
