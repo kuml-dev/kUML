@@ -4,6 +4,66 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.32.0] — 2026-07-13
+
+### Added
+
+**Gradle plugin publishing: `dev.kuml` wired for the Gradle Plugin Portal + Maven Central (ADR-0016 retrofit gap)**
+
+The `dev.kuml` Gradle plugin (`kuml-gradle-plugin`) is now wired for publication to both
+the Gradle Plugin Portal and Maven Central instead of remaining local-build-only.
+`com.gradle.plugin-publish` reuses the `pluginMaven` + marker publications that
+`java-gradle-plugin`/`maven-publish` already create, `signAllPublications()` is now gated
+on a configured signing key so `publishToMavenLocal` keeps working without GPG credentials,
+and a new gated `publish-gradle-plugin` CI job follows the same
+detect-token/skip-gracefully pattern as the JetBrains plugin publish step. **The actual
+Gradle Plugin Portal publish still requires `GRADLE_PUBLISH_KEY`/`GRADLE_PUBLISH_SECRET`
+repository secrets, which are not yet configured** — the CI job skips gracefully until
+they are set. `install.adoc`/`tooling/gradle.adoc` were corrected to stop claiming an
+existing publication and now document the `publishToMavenLocal` workaround.
+
+**ERM: enum column support across the UML→ERM→Exposed/SQL pipeline (ADR-0016 retrofit gap)**
+
+`UmlToErmTransformer` now maps a UML enumeration-typed property to a new
+`ErmDataType.Enum`, closing a gap where every enum attribute silently degraded to
+`Varchar` with a comment. `ErmSqlEmitter`/`ErmSqlTypeMapper` render it as
+`VARCHAR(longest literal)` plus a `CHECK (col IN (...))` constraint on every SQL dialect,
+and `ErmExposedEmitter` generates a companion Kotlin enum class referenced via
+`enumerationByName<T>(...)`. Human-readable literals (e.g. `"In Progress"`) that aren't
+valid Kotlin identifiers are sanitized into PascalCase constant names, backed by a
+constructor `dbValue` field + `Table.customEnumeration(...)` so the physical column keeps
+storing the original literal.
+
+**ERM: overridable Kotlin object names for generated Exposed tables (ADR-0016 retrofit gap)**
+
+Generated Exposed `Table` objects were named by mechanically PascalCasing the entity name
+(`member` → `Member`), breaking retrofits whose existing code expects a different
+identifier (e.g. `MemberTable`). A new `EntityBuilder.kotlinObjectName(name)` DSL method
+(backed by `ErmMetadataKeys.KOTLIN_OBJECT_NAME`) lets a model override just the generated
+Kotlin identifier — the physical `Table("...")` string literal still always follows the
+entity name. The override is validated as a Kotlin identifier and propagates correctly
+into generated foreign-key `reference()` calls; collision detection still fires against
+other overrides and generated enum object names.
+
+### Fixed
+
+**`ErmExposedEmitter` retargeted at the Exposed 1.x package layout (ADR-0016 retrofit gap)**
+
+Generated Exposed code emitted imports and `reference()`/`optReference()` calls against
+Exposed's pre-1.0 package paths (`org.jetbrains.exposed.sql.*`), which no longer resolve
+against Exposed 1.3.1's `org.jetbrains.exposed.v1.*` layout — generated code failed to
+compile against the current Exposed stack. Imports now target
+`org.jetbrains.exposed.v1.core.*`, and `reference()`/`optReference()` pass the target
+*column* rather than the target table, matching Exposed 1.3.1's `Table.reference()`
+overload for plain (non-`IdTable`) tables. UUID columns keep rendering via `javaUUID(...)`
+rather than Exposed 1.x's own `uuid()`, preserving the emitter's documented type-mapping
+contract.
+
+_Context: all four items above close the concrete gaps found during a real MDA retrofit
+attempt against the Lapis Cloud project on 2026-07-12/13 (ADR-0016, UML-to-Exposed
+pipeline). A second real retrofit attempt against Lapis Cloud with these fixes has not
+yet been run._
+
 ## [0.31.0] — 2026-07-11
 
 ### Added
