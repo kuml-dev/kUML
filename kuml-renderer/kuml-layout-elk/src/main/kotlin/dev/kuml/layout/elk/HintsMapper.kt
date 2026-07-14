@@ -116,6 +116,33 @@ internal object HintsMapper {
             },
         )
 
+        // V3.0.x — [LayoutHints.preserveNodeOrder]: keep ELK from reordering nodes that
+        // have no edges connecting them (e.g. UML sequence-diagram lifelines, which are
+        // laid out as bare, edge-less nodes — see UmlLayoutBridge's UmlInteraction branch).
+        //
+        // Root cause (confirmed empirically): with zero edges, every node is its own
+        // disconnected "component". ELK's default `separateConnectedComponents = true`
+        // lays each component out independently and then PACKS the components back
+        // together using `ComponentOrderingStrategy.NONE` ("ordered by priority or
+        // size") — NOT input order. That's why uniform-width lifelines stayed stable
+        // (order-by-size ≈ order-by-input when all sizes are equal) but a single wider
+        // lifeline (content-aware width, V3.0.x) got sorted to the end. Setting
+        // `CONSIDER_MODEL_ORDER_STRATEGY` alone (which only affects in-layer crossing-
+        // minimization ordering of a single connected component) did NOT fix this —
+        // disabling component separation is what actually keeps the nodes as one graph
+        // so model-order ordering applies.
+        //
+        // Opt-in only (via LayoutHints.preserveNodeOrder), so diagram types that
+        // benefit from ELK's free reordering/packing (class, activity, …) are
+        // unaffected.
+        if (hints.preserveNodeOrder) {
+            root.setProperty(CoreOptions.SEPARATE_CONNECTED_COMPONENTS, false)
+            root.setProperty(
+                LayeredOptions.CONSIDER_MODEL_ORDER_STRATEGY,
+                org.eclipse.elk.alg.layered.options.OrderingStrategy.NODES_AND_EDGES,
+            )
+        }
+
         // V2.x — Merge edges that share a target/source port to consolidate
         // visual "fan-in" / "fan-out" bundles (z.B. 18 Generalisierungen, die
         // alle auf `AbstractTable` zeigen, oder N Foreign-Keys, die ein

@@ -360,10 +360,18 @@ public object UmlLayoutBridge {
                             operandBandCount * Sysml2LayoutBridge.SEQ_FRAGMENT_HEADER_BAND +
                             Sysml2LayoutBridge.SEQ_LIFELINE_TAIL_PADDING
                     for (lifeline in element.lifelines) {
+                        // Content-aware width: the header box must be at least wide enough
+                        // for the lifeline's own name (single-line, no wrapping) — otherwise
+                        // long names (e.g. "Hostsprachen-Compiler") overflow the box. Falls
+                        // back to the SEQ_LIFELINE_WIDTH default for short names.
+                        val nameWidth =
+                            lifeline.name.length * UmlContentSizeProvider.TITLE_CHAR_PX +
+                                UmlContentSizeProvider.BOX_H_PADDING
+                        val lifelineWidth = maxOf(Sysml2LayoutBridge.SEQ_LIFELINE_WIDTH, nameWidth)
                         nodes.add(
                             LayoutNode(
                                 id = NodeId(lifeline.id),
-                                intrinsicSize = Size(Sysml2LayoutBridge.SEQ_LIFELINE_WIDTH, nodeH),
+                                intrinsicSize = Size(lifelineWidth, nodeH),
                             ),
                         )
                     }

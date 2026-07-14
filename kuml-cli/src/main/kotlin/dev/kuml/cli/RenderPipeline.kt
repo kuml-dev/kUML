@@ -324,11 +324,18 @@ internal object RenderPipeline {
             } else {
                 LayoutHints.DEFAULT.spacing
             }
+        // V3.0.x — sequence-diagram lifelines are laid out as edge-less ELK nodes (see
+        // UmlLayoutBridge's UmlInteraction branch), so ELK's crossing minimization has no
+        // cost signal to keep them in declaration order once their widths differ. UML
+        // sequence diagrams are the one diagram type where left-to-right order is
+        // semantically meaningful (standard UML convention) — pin it via
+        // LayoutHints.preserveNodeOrder. Other diagram types keep free reordering.
         val hints =
             LayoutHints.DEFAULT.copy(
                 mergeEdges = diagramMergeEdges ?: LayoutHints.DEFAULT.mergeEdges,
                 spacing = baseSpacing,
                 direction = diagramDirection ?: LayoutHints.DEFAULT.direction,
+                preserveNodeOrder = diagram.type == DiagramType.SEQUENCE,
             )
         val layoutGraph =
             UmlLayoutBridge.toLayoutGraph(diagram, UmlContentSizeProvider(diagram, hints.direction))

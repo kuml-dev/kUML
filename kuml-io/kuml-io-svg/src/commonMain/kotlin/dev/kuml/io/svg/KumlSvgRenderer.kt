@@ -804,15 +804,18 @@ public object KumlSvgRenderer {
             //    in the top-left corner paints opaque, and that corner sits
             //    OUTSIDE the leftmost lifeline's centre-line (frame starts at
             //    minLifelineX - FRAGMENT_PADDING).
+            val canvasBackgroundFill = theme.colors.background.toHex()
             val visibleLifelineLayouts =
                 interaction.lifelines
                     .mapNotNull { shiftedLayouts[dev.kuml.layout.NodeId(it.id)] }
-            dev.kuml.io.svg.uml.renderUmlCombinedFragments(
-                interaction.fragments,
-                interaction,
-                visibleLifelineLayouts,
-                nodesBuilder,
-            )
+            val fragmentRenderResult =
+                dev.kuml.io.svg.uml.renderUmlCombinedFragments(
+                    interaction.fragments,
+                    interaction,
+                    visibleLifelineLayouts,
+                    nodesBuilder,
+                    canvasBackgroundFill,
+                )
 
             // 3. NOW render the lifeline heads + dashed time axes on top of the
             //    fragment background. The dashed verticals stay visible inside
@@ -821,6 +824,13 @@ public object KumlSvgRenderer {
                 val lifeline = interaction.lifelines.find { it.id == nodeId.value } ?: continue
                 NodeRendererDispatcher.dispatch(lifeline, shifted, theme, nodesBuilder)
             }
+
+            // 3b. Guard labels (`[k ≤ 3]`, `[kompiliert]` …) paint AFTER the lifelines,
+            //     still into the nodes layer — otherwise a lifeline's dashed vertical
+            //     would paint over the guard's own background rect + text (the guard
+            //     sits inside the fragment, not just on its border). See
+            //     renderUmlCombinedFragments doc comment.
+            dev.kuml.io.svg.uml.renderUmlGuardLabels(fragmentRenderResult.guardLabels, nodesBuilder)
 
             // 4. Render messages directly into the edges layer — they paint
             //    last (after the entire nodes layer), so arrows always sit on
@@ -834,6 +844,8 @@ public object KumlSvgRenderer {
                     interaction.fragments,
                     interaction.messages.associateBy { it.id },
                 ),
+                fragmentRenderResult.messageBackdrops,
+                canvasBackgroundFill,
             )
 
             // 5. V0.23.1 — UML Comments. Sequence diagrams route lifelines

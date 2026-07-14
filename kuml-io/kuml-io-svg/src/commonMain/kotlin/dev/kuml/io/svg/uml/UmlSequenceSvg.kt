@@ -127,8 +127,18 @@ internal fun umlSeqRowOffset(
  */
 private const val BODY_CHAR_WIDTH = 6.5f
 
-/** Horizontaler Polster links und rechts des Text-Hintergrund-Rechtecks. */
-private const val LABEL_BG_HPAD = 3f
+/**
+ * Horizontaler Polster links und rechts des Text-Hintergrund-Rechtecks.
+ *
+ * War vormals 3f — das reichte nicht: bei Nachrichten, die exakt von einer
+ * Lifeline-Mittellinie zur nächsten reichen (z. B. Reply-Pfeile über die volle
+ * Diagrammbreite), landeten die Rechteck-Kanten fast exakt auf den gestrichelten
+ * Lifeline-Achsen, sodass Antialiasing/Dash-Phase den ersten bzw. letzten
+ * Buchstaben sichtbar anschnitt (siehe "Diagnosen (Reparatur-Prompt)"-Bug,
+ * 2026-07-14). 6f schafft spürbaren Abstand zur Lifeline, ohne benachbarte
+ * Labels zu kollidieren.
+ */
+private const val LABEL_BG_HPAD = 6f
 
 /**
  * Approximierte Pixel-Aufwärts-Höhe des `kuml-body`-Textes über der Baseline
@@ -181,6 +191,12 @@ internal fun renderUmlLifelineHead(
  * Render all UML messages from an interaction. Called after the node loop.
  * Filters for messages where both endpoints are in visibleLifelineIds.
  * Messages are sorted by sequence number.
+ *
+ * @param messageBackdrops Per-message-id background fill for the label rect, e.g. the
+ *   enclosing combined fragment's own fill (`#eef6ff` for BREAK). Messages not present in
+ *   this map (i.e. not inside any fragment) fall back to [canvasBackgroundFill].
+ * @param canvasBackgroundFill Theme background colour to use for messages outside any
+ *   combined fragment. Defaults to `"white"` for backward compatibility.
  */
 internal fun renderUmlSeqMessages(
     messages: List<UmlMessage>,
@@ -188,6 +204,8 @@ internal fun renderUmlSeqMessages(
     nodeLayouts: Map<NodeId, NodeLayout>,
     builder: SvgBuilder,
     operandFirstSeqs: List<Int> = emptyList(),
+    messageBackdrops: Map<String, String> = emptyMap(),
+    canvasBackgroundFill: String = "white",
 ) {
     val visible =
         messages
@@ -197,7 +215,8 @@ internal fun renderUmlSeqMessages(
         val srcLayout = nodeLayouts[NodeId(msg.fromLifelineId)] ?: continue
         val tgtLayout = nodeLayouts[NodeId(msg.toLifelineId)] ?: continue
         val rowOffset = umlSeqRowOffset(msg.sequence, operandFirstSeqs)
-        renderUmlMessage(msg, srcLayout, tgtLayout, builder, rowOffset)
+        val backdropFill = messageBackdrops[msg.id] ?: canvasBackgroundFill
+        renderUmlMessage(msg, srcLayout, tgtLayout, builder, rowOffset, backdropFill)
     }
 }
 
@@ -207,6 +226,7 @@ private fun renderUmlMessage(
     tgtLayout: NodeLayout,
     builder: SvgBuilder,
     rowOffset: Float,
+    backdropFill: String,
 ) {
     val srcCx = srcLayout.bounds.origin.x + srcLayout.bounds.size.width / 2f
     val tgtCx = tgtLayout.bounds.origin.x + tgtLayout.bounds.size.width / 2f
@@ -215,7 +235,7 @@ private fun renderUmlMessage(
     val y = srcHeadBottom + msg.sequence * SEQ_ROW_HEIGHT + rowOffset
 
     if (msg.fromLifelineId == msg.toLifelineId) {
-        renderUmlSelfCall(msg, srcCx, y, builder)
+        renderUmlSelfCall(msg, srcCx, y, builder, backdropFill)
         return
     }
 
@@ -238,7 +258,11 @@ private fun renderUmlMessage(
         // white background rect and is never obscured by it.
         val labelX = (srcCx + tgtCx) / 2f
         val labelY = y - 4f
-        val availableWidth = (abs(tgtCx - srcCx) - 8f).coerceAtLeast(20f)
+        // 20f (not 8f): messages spanning the full distance between two lifeline
+        // centerlines (e.g. a reply arrow back across several columns) need clear
+        // margin so the label background rect's edges don't land almost exactly on
+        // the lifelines' own dashed strokes — see LABEL_BG_HPAD doc comment.
+        val availableWidth = (abs(tgtCx - srcCx) - 20f).coerceAtLeast(20f)
         drawLabelWithWhiteBackground(
             label = msg.label,
             x = labelX,
@@ -246,6 +270,7 @@ private fun renderUmlMessage(
             anchor = "middle",
             builder = this,
             maxWidth = availableWidth,
+            fill = backdropFill,
         )
         when (msg.sort) {
             MessageSort.SYNC_CALL, MessageSort.CREATE ->
@@ -278,8 +303,12 @@ private fun renderUmlMessage(
  *   white background rect is also capped to this width. Used by [renderUmlMessage] to
  *   prevent message labels from overflowing beyond the two lifeline columns.
  * @param hPad Horizontal padding added to each side of the text estimate when sizing the
- *   white background rect. Defaults to [LABEL_BG_HPAD]. Pass `0f` for self-call labels
+ *   background rect. Defaults to [LABEL_BG_HPAD]. Pass `0f` for self-call labels
  *   so the background matches the text width and does not spill into adjacent lifelines.
+ * @param fill Background rect fill colour. Defaults to `"white"`, but callers should pass
+ *   the actual local backdrop (page/canvas background, or the enclosing combined-fragment's
+ *   own fill, e.g. `#eef6ff` for BREAK) so the rect blends in instead of standing out as a
+ *   visibly different white patch against a tinted fragment background.
  */
 private fun drawLabelWithWhiteBackground(
     label: String,
@@ -290,6 +319,7 @@ private fun drawLabelWithWhiteBackground(
     cssClass: String = "kuml-body",
     maxWidth: Float? = null,
     hPad: Float = LABEL_BG_HPAD,
+    fill: String = "white",
 ) {
     val textW = label.length * BODY_CHAR_WIDTH
     val constrainedW = if (maxWidth != null && textW > maxWidth) maxWidth else textW
@@ -313,7 +343,7 @@ private fun drawLabelWithWhiteBackground(
             "y" to fmt(bgY),
             "width" to fmt(bgW),
             "height" to fmt(bgH),
-            "fill" to "white",
+            "fill" to fill,
             "stroke" to "none",
         ),
     )
@@ -339,6 +369,7 @@ private fun renderUmlSelfCall(
     cx: Float,
     y: Float,
     builder: SvgBuilder,
+    backdropFill: String,
 ) {
     val isReply = msg.sort == MessageSort.REPLY
     val strokeClass = if (isReply) "kuml-edge-dashed" else "kuml-edge"
@@ -366,21 +397,66 @@ private fun renderUmlSelfCall(
             anchor = "start",
             builder = this,
             hPad = 0f,
+            fill = backdropFill,
         )
     }
 }
 
 /**
+ * A guard label (e.g. `[k ≤ 3]`, `[kompiliert]`) queued for later rendering.
+ *
+ * Guard labels are collected instead of drawn immediately by [renderUmlFragment]
+ * so the caller can paint them in a later pass — see [renderUmlCombinedFragments].
+ *
+ * @param backdropFill The enclosing fragment's own fill (e.g. `#eef6ff` for BREAK, or the
+ *   page/canvas background for fragments with `fill="none"`) so the label's background rect
+ *   blends into its surroundings instead of standing out as plain white.
+ */
+internal data class SeqGuardLabel(
+    val label: String,
+    val x: Float,
+    val y: Float,
+    val anchor: String,
+    val maxWidth: Float,
+    val backdropFill: String,
+)
+
+/**
+ * Result of [renderUmlCombinedFragments]: guard labels queued for a later render pass, plus
+ * the per-message backdrop fill (keyed by message id) for messages that live inside a
+ * fragment, so [renderUmlSeqMessages] can match its label background to the same fragment
+ * tint instead of always using the page background.
+ */
+internal data class SeqFragmentRenderResult(
+    val guardLabels: List<SeqGuardLabel>,
+    val messageBackdrops: Map<String, String>,
+)
+
+/**
  * Render all combined fragments (ALT, OPT, etc.) for an interaction.
  * Called before messages so frames appear behind arrows.
+ *
+ * The frame border, operator-tag pentagon and operand separators are drawn
+ * directly into [builder] here (kept behind the lifelines' dashed time axes —
+ * see call site in `KumlSvgRenderer`). Guard labels (`[k ≤ 3]`, `[kompiliert]`
+ * …) are NOT drawn here: they are returned as [SeqGuardLabel]s so the caller
+ * can render them via [renderUmlGuardLabels] in a later pass, after the
+ * lifelines are painted. Without this split, a lifeline's dashed vertical can
+ * paint directly through a guard's own background rect + text (the guard sits
+ * inside the fragment, not just on its border).
+ *
+ * @param canvasBackgroundFill Theme background colour used for guard/message labels
+ *   belonging to a fragment whose own fill is `"none"` (i.e. everything except BREAK).
+ *   Defaults to `"white"` for backward compatibility.
  */
 internal fun renderUmlCombinedFragments(
     fragments: List<UmlCombinedFragment>,
     interaction: UmlInteraction,
     visibleLifelineLayouts: List<NodeLayout>,
     builder: SvgBuilder,
-) {
-    if (visibleLifelineLayouts.isEmpty()) return
+    canvasBackgroundFill: String = "white",
+): SeqFragmentRenderResult {
+    if (visibleLifelineLayouts.isEmpty()) return SeqFragmentRenderResult(emptyList(), emptyMap())
     val msgById: Map<String, UmlMessage> = interaction.messages.associateBy { it.id }
     val operandFirstSeqs = umlOperandFirstSeqs(fragments, msgById)
     // Nested fragments (those referenced by any operand's fragmentIds) must be
@@ -390,6 +466,12 @@ internal fun renderUmlCombinedFragments(
     // overwrite the inner BREAK frame visually.
     val nestedIds = fragments.flatMap { f -> f.operands.flatMap { o -> o.fragmentIds } }.toSet()
     val renderOrder = fragments.sortedBy { if (it.id in nestedIds) 1 else 0 }
+    val guardLabels = mutableListOf<SeqGuardLabel>()
+    // A nested fragment (e.g. BREAK inside LOOP) is processed AFTER its enclosing
+    // fragment in renderOrder, so simply overwriting entries here means a message
+    // shared by both ends up tagged with the innermost fragment's own fill — no
+    // explicit nesting-depth tracking needed.
+    val messageBackdrops = mutableMapOf<String, String>()
     for (fragment in renderOrder) {
         renderUmlFragment(
             fragment,
@@ -397,7 +479,29 @@ internal fun renderUmlCombinedFragments(
             visibleLifelineLayouts,
             builder,
             operandFirstSeqs,
+            guardLabels,
+            messageBackdrops,
+            canvasBackgroundFill,
             isNested = fragment.id in nestedIds,
+        )
+    }
+    return SeqFragmentRenderResult(guardLabels, messageBackdrops)
+}
+
+/** Draws guard labels queued by [renderUmlCombinedFragments], on top of whatever is already in [builder]. */
+internal fun renderUmlGuardLabels(
+    guards: List<SeqGuardLabel>,
+    builder: SvgBuilder,
+) {
+    for (guard in guards) {
+        drawLabelWithWhiteBackground(
+            label = guard.label,
+            x = guard.x,
+            y = guard.y,
+            anchor = guard.anchor,
+            builder = builder,
+            maxWidth = guard.maxWidth,
+            fill = guard.backdropFill,
         )
     }
 }
@@ -408,6 +512,9 @@ private fun renderUmlFragment(
     visibleLifelineLayouts: List<NodeLayout>,
     builder: SvgBuilder,
     operandFirstSeqs: List<Int>,
+    guardLabels: MutableList<SeqGuardLabel>,
+    messageBackdrops: MutableMap<String, String>,
+    canvasBackgroundFill: String,
     isNested: Boolean = false,
 ) {
     if (fragment.operands.isEmpty()) return
@@ -447,6 +554,16 @@ private fun renderUmlFragment(
     // an enclosing loop/alt frame that uses a dashed border.  All other operators
     // keep the standard dashed-border / transparent style.
     val isBreak = fragment.operator == InteractionOperator.BREAK
+    // Same fill the frame rect itself uses (line below): messages/guards that live
+    // inside this fragment should use it as their label backdrop too, so the label
+    // background blends in instead of standing out as a plain white patch against
+    // a tinted (e.g. BREAK's #eef6ff) fragment background.
+    val fragmentFill = if (isBreak) "#eef6ff" else canvasBackgroundFill
+    for (operand in fragment.operands) {
+        for (msgId in operand.messageIds) {
+            messageBackdrops[msgId] = fragmentFill
+        }
+    }
     builder.tag("g", mapOf("id" to xmlEscapeAttr(fragment.id))) {
         val rectAttrs =
             buildMap {
@@ -550,13 +667,15 @@ private fun renderUmlFragment(
                     } else {
                         (frameW - 8f).coerceAtLeast(20f)
                     }
-                drawLabelWithWhiteBackground(
-                    label = displayGuard,
-                    x = guardX,
-                    y = guardY,
-                    anchor = "start",
-                    builder = this,
-                    maxWidth = guardMaxWidth,
+                guardLabels.add(
+                    SeqGuardLabel(
+                        label = displayGuard,
+                        x = guardX,
+                        y = guardY,
+                        anchor = "start",
+                        maxWidth = guardMaxWidth,
+                        backdropFill = fragmentFill,
+                    ),
                 )
             }
         }

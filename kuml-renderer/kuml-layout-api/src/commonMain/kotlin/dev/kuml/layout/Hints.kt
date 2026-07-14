@@ -19,6 +19,17 @@ import kotlinx.serialization.Serializable
  *     gemeinsamen Stamm-Segment. Sinnvoll für Klassendiagramme mit großen
  *     Vererbungs-Fan-Ins; kann andere Diagramme schwieriger lesbar machen.
  *     **Default: `false`** — explizit opt-in.
+ * @property preserveNodeOrder Wenn `true`: die Engine soll die Eingabe-Reihenfolge der
+ *     Knoten beibehalten, sofern das nicht zu zusätzlichen Kantenkreuzungen führt (ELK:
+ *     `considerModelOrder.strategy = NODES_AND_EDGES`). Für die meisten Box-und-Kante-
+ *     Diagramme (Klassen, Aktivitäten, …) ist freies Umordnen durch die
+ *     Crossing-Minimization erwünscht/harmlos — dort bleibt der Default `false`. Für
+ *     UML-Sequenzdiagramme ist die deklarierte Lifeline-Reihenfolge dagegen semantisch
+ *     bedeutsam (Standard-UML-Konvention: links-nach-rechts = Deklarationsreihenfolge);
+ *     ohne diesen Hint kann ELK Lifelines vertauschen, sobald sie unterschiedlich breit
+ *     sind (Crossing-Minimization hat bei kantenlosen Sequenzdiagramm-Graphen keinen
+ *     Kreuzungs-Kostenanreiz, die Original-Reihenfolge beizubehalten). **Default: `false`**
+ *     — explizit opt-in, damit andere Diagrammtypen unverändert bleiben.
  * @property engineOptions Engine-spezifische Escape-Hatch-Parameter als String-Map.
  */
 @Serializable
@@ -29,6 +40,7 @@ public data class LayoutHints(
     val direction: LayoutDirection = LayoutDirection.TopToBottom,
     val spacing: Spacing = Spacing.DEFAULT,
     val mergeEdges: Boolean = false,
+    val preserveNodeOrder: Boolean = false,
     val engineOptions: Map<String, String> = emptyMap(),
 ) {
     public companion object {
