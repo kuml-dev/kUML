@@ -345,6 +345,14 @@ jobs:
         # genuinely missing. A bare re-run of that one job succeeded
         # immediately, so retry a few times with backoff before failing
         # the leg outright.
+        #
+        # `shell: bash` is mandatory here: windows-latest's default shell
+        # for `run:` steps is PowerShell, which chokes on this script's
+        # bash `for`/`if [ ]` syntax with a ParserError (observed on
+        # v0.36.0's windows-x86_64 leg, run 29354771723 / job
+        # 87167561337 — the retry loop itself never ran, so this broke
+        # every OS, not just a transient case, until this fix).
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -519,6 +527,12 @@ jobs:
         # Same transient-failure retry as the package-runtime job's
         # "Upload runtime zip" step — see that step's comment for the
         # observed v0.35.0 failure this guards against.
+        #
+        # `shell: bash` explicit here for consistency/defensiveness, even
+        # though macos-latest's default shell is already bash — see the
+        # "Upload runtime zip" step's comment for why this matters on
+        # windows-latest.
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -1045,6 +1059,12 @@ jobs:
         # Same transient-failure retry as the package-runtime job's
         # "Upload runtime zip" step — see that step's comment for the
         # observed v0.35.0 failure this guards against.
+        #
+        # `shell: bash` is mandatory here — this job runs on windows-latest,
+        # whose default shell for `run:` steps is PowerShell. See the
+        # "Upload runtime zip" step's comment for the v0.36.0 breakage
+        # this caused before the fix.
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
