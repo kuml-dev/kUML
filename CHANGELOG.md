@@ -4,6 +4,66 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.34.0] — 2026-07-14
+
+### Added
+
+**ERM: external enum type — `«Column».enumType` (ADR-0016 retrofit gap)**
+
+Every UML enum-typed attribute previously always generated its own local Kotlin `enum
+class` in the Exposed output — no way to point a column at an already-existing enum
+shared across an RPC boundary (the common case for a KMP client/server split). The new
+`«Column».enumType` tag (fully-qualified name) sets `ErmDataType.Enum.externalFqName`;
+`ErmExposedEmitter` then imports and references that external type instead of emitting
+its own enum class (`null` preserves the original locally-generated behaviour). Also
+lands in the same commit: `UmlErmTypeMapper.mapOverride` now recognises an explicit
+`VARCHAR(n)`-shaped `sqlType` override (case-insensitive), mapping it to
+`ErmDataType.Varchar(n)` instead of falling through to `ErmDataType.Custom`.
+
+**ERM: column-level FK override — `«Column».fkEntity`/`fkAttribute` (ADR-0016 retrofit gap)**
+
+`UmlToErmTransformer`'s association-to-FK derivation always names the generated column
+`snake_case(singular(targetClass.name)) + "_id"` (e.g. `member_id`), with no way to
+produce a differently-named real column (e.g. a real `created_by` referencing
+`member.id`) short of a role-name collision. The new `«Column».fkEntity` (target class
+name) and optional `«Column».fkAttribute` (target column name, defaults to the target's
+primary key) tags let a plain attribute pin an explicit FK target directly, bypassing
+association derivation entirely — resolved in a new post-entity-construction pass so the
+target class may be declared anywhere in the diagram, including forward references. An
+unresolvable `fkEntity`/`fkAttribute` fails the transform loudly instead of silently
+leaving the column unreferenced. Flows through `ErmExposedEmitter`/`kuml-gen-sql`
+unchanged, since both key off `ErmAttribute.foreignKey` regardless of its origin.
+
+Found during the Lapis Cloud MDA production swap: dozens of real FK columns across seven
+domains (`document.created_by`, `communication.sent_by`/`sender_id`/`recipient_id`,
+`governance.recorded_by`/`target_gremium_id`/…, and more) had no `ErmForeignKey` at the
+model level — harmless while the model was verification-only, but breaking every
+generated-code `innerJoin()` that relied on implicit FK resolution once the swap made the
+generated code the actual runtime table.
+
+**`erm-to-exposed`: `uuidRepresentation` / `dateTimeRepresentation` transform options**
+
+Two new, independent, freely-mixable opt-in `TransformContext.options` for
+`ErmToExposedTransformer`/`ErmExposedEmitter`: `uuidRepresentation` (`"java"` default,
+`"kotlin"`) renders `Uuid` columns via `kotlin.uuid.Uuid` + Exposed's `uuid(...)` instead
+of `java.util.UUID` + `javaUUID(...)`; `dateTimeRepresentation` (`"java"` default,
+`"kotlin"`) renders `Date`/`Timestamp` columns via `kotlinx.datetime.LocalDate`/
+`LocalDateTime` + `org.jetbrains.exposed.v1.datetime.*` instead of `java.time.*` +
+`org.jetbrains.exposed.v1.javatime.*`. Needed by any Kotlin Multiplatform (JVM+JS)
+project, since `java.util.UUID`/`java.time.*` don't exist on Kotlin/JS — found during the
+Lapis Cloud (KMP Ktor/Exposed) production swap.
+
+### Fixed
+
+**`UmlErmTypeMapper`: `DECIMAL(p,s)` sqlType override now maps to `ErmDataType.Decimal(p, s)`**
+
+A `«Column».sqlType = "DECIMAL(p,s)"` override with an explicit precision/scale fell
+through to `ErmDataType.Custom` (rendered as a generic `text(...)` fallback by the Exposed
+emitter) — only the bare `"decimal"`/`"bigdecimal"`/`"money"` keywords (fixed default
+`Decimal(19, 2)`) were recognised. Mirrors the existing `VARCHAR(n)` override handling.
+Found retrofitting Lapis Cloud's monetary columns, each pinned to a project-specific
+precision/scale the bare keyword's fixed default couldn't reproduce.
+
 ## [0.33.0] — 2026-07-13
 
 ### Added
