@@ -486,6 +486,29 @@ public object UmlLayoutBridge {
                     //     bar (renderer draws the 8-px-thick rect centred
                     //     vertically inside these bounds).
                     //   - ACTION / OBJECT — regular content-bearing box.
+                    //
+                    // Follow-up fix: ACTION/OBJECT boxes used to get the
+                    // hardcoded ACTIVITY_ACTION_WIDTH × ACTIVITY_ACTION_HEIGHT
+                    // (160×60) regardless of label length — long action names
+                    // ran past the box edge because `renderUmlActivityNode`
+                    // draws a single-line, non-wrapping `<text>`. ACTION/OBJECT
+                    // now delegate to `sizeProvider.sizeOf(...)` so a
+                    // content-aware provider (see `UmlContentSizeProvider`,
+                    // which measures `element.name` analogous to its
+                    // classifier-box heuristic) can grow the width to fit the
+                    // label. PSEUDO/BAR kinds stay hardcoded — they're shape-
+                    // constrained, not text-constrained.
+                    //
+                    // Caveat: callers that pass the plain `SizeProvider.constant()`
+                    // (no activity-aware provider — e.g. `McpRenderPipeline`,
+                    // `RenderingTools`, `RenderSmokeCheck`, the asciidoc/markdown
+                    // doc pipelines) now get its generic 160×80 default for
+                    // ACTION/OBJECT instead of the previous hardcoded 160×60 —
+                    // a minor, intentional trade-off for routing all activity
+                    // sizing through one seam. The primary render path (CLI,
+                    // web, desktop, wasm playground) always passes
+                    // `UmlContentSizeProvider`, so it gets accurate content-aware
+                    // sizing rather than either fallback.
                     val size =
                         when (element.kind) {
                             UmlActivityNodeKind.INITIAL,
@@ -499,7 +522,7 @@ public object UmlLayoutBridge {
                             -> Size(ACTIVITY_BAR_WIDTH, ACTIVITY_BAR_HEIGHT)
                             UmlActivityNodeKind.ACTION,
                             UmlActivityNodeKind.OBJECT,
-                            -> Size(ACTIVITY_ACTION_WIDTH, ACTIVITY_ACTION_HEIGHT)
+                            -> sizeProvider.sizeOf(element.id, "UmlActivityNode")
                         }
                     nodes.add(
                         LayoutNode(

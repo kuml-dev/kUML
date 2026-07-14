@@ -103,6 +103,45 @@ class RenderPipelineTest :
             outputDir.toFile().delete()
         }
 
+        test("RenderPipeline honours ActivityDiagramConfig.orientation=LEFT_RIGHT (V?.?.? wiring fix)") {
+            // Regression guard: ActivityDiagramConfig.orientation used to be a
+            // dead DSL setting — it was stored on the config but never folded
+            // into LayoutHints.direction, so LEFT_RIGHT and TOP_DOWN produced
+            // an identical (portrait) layout. With the fix, the LEFT_RIGHT
+            // fixture's overall canvas should be landscape (wider than tall),
+            // while the structurally identical TOP_DOWN fixture stays portrait
+            // (taller than wide).
+            fun renderAndReadCanvasSize(fixtureName: String): Pair<Double, Double> {
+                val fixture = File("src/test/resources/$fixtureName")
+                val outputDir = Files.createTempDirectory("kuml-activity-orientation-test")
+                val outputFile = outputDir.resolve(fixtureName.removeSuffix(".kuml.kts") + ".svg")
+                RenderPipeline.run(
+                    input = fixture,
+                    output = outputFile,
+                    format = "svg",
+                    width = 1024,
+                    themeName = "kuml",
+                )
+                val content = outputFile.toFile().readText()
+                val widthMatch = Regex("""<svg[^>]*\bwidth="([0-9.]+)"""").find(content)
+                val heightMatch = Regex("""<svg[^>]*\bheight="([0-9.]+)"""").find(content)
+                check(widthMatch != null && heightMatch != null) {
+                    "Could not find <svg width=.. height=..> in output for $fixtureName"
+                }
+                outputFile.toFile().delete()
+                outputDir.toFile().delete()
+                return widthMatch.groupValues[1].toDouble() to heightMatch.groupValues[1].toDouble()
+            }
+
+            val (tdWidth, tdHeight) = renderAndReadCanvasSize("minimal-activity-td.kuml.kts")
+            val (lrWidth, lrHeight) = renderAndReadCanvasSize("minimal-activity-lr.kuml.kts")
+
+            // TOP_DOWN baseline: portrait (taller than wide) for a straight chain.
+            (tdHeight > tdWidth) shouldBe true
+            // LEFT_RIGHT: landscape (wider than tall) — this is the actual bug fix.
+            (lrWidth > lrHeight) shouldBe true
+        }
+
         test("RenderPipeline renders V1.1 deployment-diagram script") {
             val fixture = File("src/test/resources/minimal-deployment.kuml.kts")
             val outputDir = Files.createTempDirectory("kuml-deploy-test")

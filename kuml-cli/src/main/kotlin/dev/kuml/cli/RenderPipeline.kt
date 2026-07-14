@@ -10,9 +10,13 @@ import dev.kuml.bpmn.model.ConversationDiagram
 import dev.kuml.bpmn.model.ProcessDiagram
 import dev.kuml.core.config.KumlConfig
 import dev.kuml.core.dsl.layout.LayoutMetadataKeys
+import dev.kuml.core.model.ActivityDiagramConfig
+import dev.kuml.core.model.ActivityOrientation
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlMetaValue
+import dev.kuml.core.model.StateDiagramConfig
+import dev.kuml.core.model.StateDiagramOrientation
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.ExtractedDiagram
 import dev.kuml.core.script.KumlScriptHost
@@ -40,6 +44,7 @@ import dev.kuml.io.svg.toSvgFile
 import dev.kuml.io.svg.uml.smil.SequenceAnimationContext
 import dev.kuml.io.svg.uml.smil.SequenceSmilRenderer
 import dev.kuml.layout.DiagramKind
+import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.LayoutEngineId
 import dev.kuml.layout.LayoutEngineRegistry
 import dev.kuml.layout.LayoutHints
@@ -282,6 +287,19 @@ internal object RenderPipeline {
         // Tree-Trunk-Routing bei großen Fan-Ins).
         val diagramMergeEdges =
             (diagram.metadata[LayoutMetadataKeys.MERGE_EDGES] as? KumlMetaValue.Flag)?.value
+        // V2.x — `ActivityDiagramConfig.orientation` / `StateDiagramConfig.orientation`
+        // are DSL-level layout hints (LEFT_RIGHT vs. TOP_DOWN) that were previously
+        // never consumed anywhere in the pipeline. Fold them into the actual
+        // `LayoutHints.direction` so the DSL setting has a real effect on the
+        // rendered layout instead of being silently ignored.
+        val diagramDirection =
+            when (val config = diagram.config) {
+                is ActivityDiagramConfig ->
+                    if (config.orientation == ActivityOrientation.LEFT_RIGHT) LayoutDirection.LeftToRight else null
+                is StateDiagramConfig ->
+                    if (config.orientation == StateDiagramOrientation.LEFT_RIGHT) LayoutDirection.LeftToRight else null
+                else -> null
+            }
         // UML STATE diagrams pack many transition labels around shared states
         // (guard conditions, action labels, composite state entry/exit transitions).
         // The default spacing crowds the states so the transition arrows and their
@@ -310,6 +328,7 @@ internal object RenderPipeline {
             LayoutHints.DEFAULT.copy(
                 mergeEdges = diagramMergeEdges ?: LayoutHints.DEFAULT.mergeEdges,
                 spacing = baseSpacing,
+                direction = diagramDirection ?: LayoutHints.DEFAULT.direction,
             )
         val layoutGraph =
             UmlLayoutBridge.toLayoutGraph(diagram, UmlContentSizeProvider(diagram, hints.direction))

@@ -5,6 +5,8 @@ import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.Size
 import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlActivityEdge
+import dev.kuml.uml.UmlActivityNode
+import dev.kuml.uml.UmlActivityNodeKind
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComment
@@ -107,6 +109,15 @@ public class UmlContentSizeProvider
                         out[e.id] = componentSize(e)
                         collect(e.nestedComponents, out)
                     }
+                    is UmlActivityNode ->
+                        when (e.kind) {
+                            UmlActivityNodeKind.ACTION, UmlActivityNodeKind.OBJECT -> out[e.id] = activityActionSize(e)
+                            // Pseudo-/decision-/sync-nodes are shape-constrained, not
+                            // text-constrained — [UmlLayoutBridge] keeps its own
+                            // hardcoded sizes for these and never calls [sizeOf] for
+                            // them, so no entry is needed here.
+                            else -> {}
+                        }
                     is UmlPackage -> collect(e.members, out)
                     else -> {} // ignore — fall back to default
                 }
@@ -308,6 +319,30 @@ public class UmlContentSizeProvider
             val h = boxHeight(hasStereo = false, attrs = i.slots.size, ops = 0)
             val (wExtra, hExtra) = connectionPuffer(i.id)
             return Size(w + wExtra, h + hExtra)
+        }
+
+        /**
+         * Größe einer ACTION-/OBJECT-Activity-Node-Box.
+         *
+         * Vorher (siehe [dev.kuml.layout.bridge.UmlLayoutBridge.ACTIVITY_ACTION_WIDTH])
+         * bekam JEDE Action-Box unabhängig vom Label immer exakt
+         * `160 × 60` — lange Labels wie
+         * `"2. Hostsprachen-Wahl nach Trainingsdaten-Affinität"` liefen rechts
+         * aus der Box, weil [dev.kuml.io.svg.uml.renderUmlActivityNode] das
+         * Label als einzeiligen, zentrierten `<text>` ohne Wort-Wrap zeichnet.
+         *
+         * Fix: Breite wächst mit der Label-Länge, analog zu [boxWidth] für
+         * Klassen — `estimateLabelWidth` mit [TITLE_CHAR_PX] (Action-Labels
+         * werden wie Klassentitel gerendert, CSS-Klasse `kuml-title`), plus
+         * horizontales Padding, gedeckelt nach unten auf die bisherige
+         * `160`-Konstante (kurze Labels behalten die gewohnte Box-Größe).
+         * Höhe bleibt fix bei `ACTIVITY_ACTION_HEIGHT` (60 px) — Single-Line-
+         * Text, kein Wort-Wrap in V1 dieses Fixes.
+         */
+        private fun activityActionSize(node: UmlActivityNode): Size {
+            val measured = estimateLabelWidth(node.name, charPx = TITLE_CHAR_PX).toFloat() + BOX_H_PADDING
+            val w = maxOf(UmlLayoutBridge.ACTIVITY_ACTION_WIDTH, measured)
+            return Size(w, UmlLayoutBridge.ACTIVITY_ACTION_HEIGHT)
         }
 
         private fun interfaceSize(i: UmlInterface): Size {
