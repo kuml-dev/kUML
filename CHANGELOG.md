@@ -4,6 +4,51 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.35.0] — 2026-07-14
+
+### Added
+
+**ERM mapping profile: `«Index»` stereotype — composite/multi-column index and unique-constraint declaration**
+
+`«Column».unique` only covers single-column uniqueness — there was no way to declare a
+composite `UNIQUE` constraint or a standalone multi-column performance index from a UML
+class diagram, even though the underlying `ErmIndex`/`EntityBuilder.index()` machinery
+already supported it (only the UML-profile surface was missing). New repeatable
+class-level `«Index»` stereotype (`columns: List<String>`, `unique: Boolean` default
+`false`, `name: String` optional) — apply once per index a class needs. Resolved in a new
+post-entity-construction pass (`UmlToErmTransformer.resolveIndexes`, mirroring
+`resolveColumnLevelForeignKeys`), placed after association resolution so it sees the
+entity's final attribute set including association-derived FK columns. An
+unresolvable/empty column list fails the transform loudly (`UnresolvedIndexException`)
+instead of silently producing a smaller index. Flows through
+`ErmSqlEmitter`/`ErmExposedEmitter` unchanged, since both already key off `ErmEntity.indexes`
+regardless of origin.
+
+Found wiring up the ERM→SQL/Flyway branch of Lapis Cloud's MDA pipeline for the first
+time: retroactively regenerating all 9 domain migrations from the model surfaced 11
+composite `UNIQUE` constraints and 40 standalone indexes with no UML-profile equivalent.
+
+### Fixed
+
+**`UmlToErmTransformer`: `resolveIndexes` now runs after association resolution, not before**
+
+An `«Index»` column can be an association-derived FK column that only exists once
+`mapAssociation` has run (e.g. `contribution.member_id`) — resolving indexes before
+associations meant such columns didn't exist yet, failing with "does not exist on entity"
+for a column that legitimately would exist by the time the model is fully built. Moved
+from step 4.6 to step 5.5. Caught immediately by the first real invocation against Lapis
+Cloud's 9-domain model, before it could reach a release.
+
+**`ErmSqlEmitter`: string-shaped `DEFAULT` values are now quoted**
+
+`ErmAttribute.default` always holds the plain semantic value (e.g. `"GREMIUM_QUORUM"`),
+never pre-quoted SQL literal syntax — matching the existing `"0"`/`"TRUE"` convention for
+numeric/boolean defaults. The emitter interpolated it verbatim regardless of column type,
+so a `Varchar`/`Enum`/`Text` default rendered as a bare, invalid identifier
+(`DEFAULT GREMIUM_QUORUM`) instead of a string literal (`DEFAULT 'GREMIUM_QUORUM'`).
+Embedded single quotes are now escaped by doubling. Found generating a real enum-column
+default during the same Lapis Cloud Flyway-baseline regeneration.
+
 ## [0.34.0] — 2026-07-14
 
 ### Added
