@@ -337,10 +337,30 @@ jobs:
           echo "name=$(basename "$OUT")" >> $GITHUB_OUTPUT
 
       - name: Upload runtime zip to existing GitHub Release
+        # Occasionally fails with "release not found" even though
+        # `gh release view` confirms the release was already published
+        # several minutes earlier (observed on v0.35.0, linux-aarch64 leg,
+        # run 29328886350 / job 87073764089) — likely a GitHub API
+        # read-after-write consistency delay rather than the release
+        # genuinely missing. A bare re-run of that one job succeeded
+        # immediately, so retry a few times with backoff before failing
+        # the leg outright.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ github.ref_name }}" "${{ steps.pack.outputs.zip }}" --clobber
+          TAG="${{ github.ref_name }}"
+          ZIP="${{ steps.pack.outputs.zip }}"
+          for attempt in 1 2 3; do
+            if gh release upload "$TAG" "$ZIP" --clobber; then
+              exit 0
+            fi
+            echo "::warning::gh release upload attempt $attempt/3 failed for $TAG ($ZIP)"
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 10))
+            fi
+          done
+          echo "::error::gh release upload failed after 3 attempts for $TAG ($ZIP)"
+          exit 1
 
       - name: Stash sha+url for dispatch job
         shell: bash
@@ -496,10 +516,25 @@ jobs:
           echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
 
       - name: Upload DMG to existing GitHub Release
+        # Same transient-failure retry as the package-runtime job's
+        # "Upload runtime zip" step — see that step's comment for the
+        # observed v0.35.0 failure this guards against.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ github.ref_name }}" "${{ steps.pack.outputs.zip }}" --clobber
+          TAG="${{ github.ref_name }}"
+          DMG="${{ steps.pack.outputs.zip }}"
+          for attempt in 1 2 3; do
+            if gh release upload "$TAG" "$DMG" --clobber; then
+              exit 0
+            fi
+            echo "::warning::gh release upload attempt $attempt/3 failed for $TAG ($DMG)"
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 10))
+            fi
+          done
+          echo "::error::gh release upload failed after 3 attempts for $TAG ($DMG)"
+          exit 1
 
   # ─────────────────────────────────────────────────────────────────────────
   # Job 2c (V3.2.14): dispatch the kuml-desktop DMG url/sha256 to the
@@ -1007,10 +1042,25 @@ jobs:
           echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
 
       - name: Upload MSI to existing GitHub Release
+        # Same transient-failure retry as the package-runtime job's
+        # "Upload runtime zip" step — see that step's comment for the
+        # observed v0.35.0 failure this guards against.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ github.ref_name }}" "${{ steps.pack.outputs.zip }}" --clobber
+          TAG="${{ github.ref_name }}"
+          MSI="${{ steps.pack.outputs.zip }}"
+          for attempt in 1 2 3; do
+            if gh release upload "$TAG" "$MSI" --clobber; then
+              exit 0
+            fi
+            echo "::warning::gh release upload attempt $attempt/3 failed for $TAG ($MSI)"
+            if [ "$attempt" -lt 3 ]; then
+              sleep $((attempt * 10))
+            fi
+          done
+          echo "::error::gh release upload failed after 3 attempts for $TAG ($MSI)"
+          exit 1
 
   # ─────────────────────────────────────────────────────────────────────────
   # Job 6c (v0.23.4): publish the kuml-desktop MSI as its own `kuml-desktop`
