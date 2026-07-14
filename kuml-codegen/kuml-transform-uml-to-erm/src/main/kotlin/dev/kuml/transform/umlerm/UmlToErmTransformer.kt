@@ -224,14 +224,16 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             // (including SINGLE_TABLE/JOINED-materialised columns) exists; see resolveColumnLevelForeignKeys.
             resolveColumnLevelForeignKeys(classesByName, plans)
 
-            // 4.6. «Index» applications — same "resolve only after every entity's final attribute
-            // set exists" reasoning as 4.5; see resolveIndexes.
-            resolveIndexes(classes, plans)
-
             // 5. Associations → FK column or M:N junction entity.
             for (assoc in associations) {
                 mapAssociation(assoc, classById, plans)
             }
+
+            // 5.5. «Index» applications — resolved only now that every entity's final attribute set
+            // exists, including association-derived FK columns from step 5 (e.g. an «Index» naming
+            // a column that only exists because an association-to-FK default happened to match the
+            // real schema, like contribution.member_id) — see resolveIndexes.
+            resolveIndexes(classes, plans)
 
             val model =
                 ErmModel(
@@ -674,9 +676,14 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
          *
          * Runs after every entity's final attribute set exists (same "resolve late" reasoning as
          * [resolveColumnLevelForeignKeys]) — a JOINED/SINGLE_TABLE-materialised entity's attribute
-         * set isn't final until steps 2-4 have run. `«Index»` is repeatable — a class may carry
-         * several applications, each becoming one [ErmIndex] — so this reads
-         * [List.ermStereotypes] (all matches), not [List.ermStereotype] (first match only).
+         * set isn't final until steps 2-4 have run, and — unlike [resolveColumnLevelForeignKeys],
+         * which only needs every *entity* to exist — an indexed column can itself be an
+         * association-derived FK column that step 5 ([mapAssociation]) only adds once an
+         * association's default-derived name happens to match the real schema (e.g.
+         * `contribution.member_id`), so this must run *after* step 5, not alongside 4.5. `«Index»`
+         * is repeatable — a class may carry several applications, each becoming one [ErmIndex] —
+         * so this reads [List.ermStereotypes] (all matches), not [List.ermStereotype] (first match
+         * only).
          *
          * `columns` names real ERM column names (i.e. [ErmAttribute.name], already resolved by
          * [mapAttributeToColumn] — not raw UML property names), matching how a `«Column».columnName`
