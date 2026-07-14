@@ -4,6 +4,62 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.36.0] — 2026-07-14
+
+### Fixed
+
+**Sequence diagrams: content-aware lifeline width, guard z-order, label color, node order**
+
+Four related fixes found while producing an external-publication rendering. Lifeline
+header boxes now size to the participant name instead of a fixed 140px width (long names
+like "Hostsprachen-Compiler" no longer overflow). Combined-fragment guard labels
+(LOOP/BREAK/ALT `[guard]` text) now paint after lifelines instead of before, so a
+lifeline's dashed line no longer crosses through guard text. Label backgrounds are now
+threaded through a `canvasBackgroundFill` parameter instead of hardcoded white, so labels
+inside a tinted combined-fragment (e.g. BREAK's light-blue fill) blend in instead of
+standing out. A follow-up ELK layout bug is also fixed: sequence-diagram lifelines have no
+edges between themselves, so ELK was treating each as a disconnected component and
+repacking them by size instead of declaration order once widths stopped being uniform —
+new opt-in `LayoutHints.preserveNodeOrder`, wired for `DiagramType.SEQUENCE` in the CLI
+render pipeline.
+
+**Sequence diagrams: uniform label backdrop + guard/pentagon spacing**
+
+Two follow-ups to the fix above, found via user report after it shipped. Root cause of
+"some labels blue, some white": combined-fragment frame rects carry both a CSS class and a
+`fill` presentation attribute, and the stylesheet rule always wins per the cascade — so a
+fragment's intended tint never actually rendered, and the previous round's backdrop-
+matching logic matched against the wrong (CSS-discarded) color. All sequence-diagram label
+backgrounds now uniformly use the theme's effective node fill, the color that is actually
+rendered. Also fixed guard labels ("[k ≤ 3]") overlapping the LOOP/BREAK pentagon operator
+tag by a few pixels, for both the first operand and subsequent ALT/PAR branch operands.
+
+**Activity/state diagrams: orientation now affects layout direction, content-aware action sizing**
+
+`ActivityDiagramConfig.orientation` / `StateDiagramConfig.orientation` were dead DSL
+properties with zero effect on the render — `orientation = ActivityOrientation.LEFT_RIGHT`
+now genuinely produces a horizontal layout. ACTION/OBJECT activity nodes also no longer get
+a hardcoded 160×60 box regardless of label length; sizing now reuses the same text-width
+heuristic as classifier boxes, most visible once combined with the orientation fix where
+overflowing text used to collide with the neighboring box.
+
+**Release pipeline: retry `gh release upload` on transient GitHub API failure**
+
+The v0.35.0 release's `linux-aarch64` runtime-upload leg hit a one-off "release not found"
+from `gh release upload` despite the release having been published minutes earlier —
+likely a GitHub API read-after-write consistency delay rather than the release genuinely
+missing. A bare job re-run succeeded immediately. All three "Upload ... to existing GitHub
+Release" steps (`package-runtime`, `desktop-dmg`, `desktop-msi`) now retry up to three
+times with backoff instead of relying on a maintainer noticing and re-running manually.
+
+### Added
+
+**Code of Conduct (Contributor Covenant 2.1)**
+
+Adds `CODE_OF_CONDUCT.adoc`, matching the repository's AsciiDoctor documentation
+convention. Fulfils the Kotlin Foundation grant requirement that grant recipients have a
+Code of Conduct in place.
+
 ## [0.35.0] — 2026-07-14
 
 ### Added
