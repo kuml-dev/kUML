@@ -5,7 +5,7 @@ import dev.kuml.profile.UmlMetaclass
 import dev.kuml.profile.builder.profile
 
 /**
- * ERM mapping profile — seven stereotypes that let a UML class-diagram author
+ * ERM mapping profile — eight stereotypes that let a UML class-diagram author
  * override the defaults [dev.kuml.transform.umlerm.UmlToErmTransformer]
  * (module `kuml-transform-uml-to-erm`, V3.4.6) would otherwise derive purely
  * from naming conventions (snake_case + pluralisation) and structural
@@ -45,6 +45,19 @@ public val ermMappingProfile: KumlProfile =
             // SINGLE_TABLE | JOINED | TABLE_PER_CLASS — see InheritanceStrategy in the transformer module.
             property<String>(ErmProfileNames.TAG_STRATEGY) { default = "JOINED" }
             property<String>(ErmProfileNames.TAG_DISCRIMINATOR_COLUMN) { default = "dtype" }
+        }
+
+        // Composite (multi-column) index/unique-constraint declaration — repeatable: apply
+        // `stereotype("Index") { ... }` once per index a class needs. `«Column».unique` only
+        // covers single-column uniqueness; this closes the gap for e.g. `UNIQUE (a, b)` or a
+        // standalone multi-column performance index, both unrepresentable any other way from a
+        // UML class diagram (the underlying ErmIndex/EntityBuilder.index() machinery already
+        // supported this — only the UML-profile surface was missing it).
+        stereotype(ErmProfileNames.INDEX) {
+            extends(UmlMetaclass.Class)
+            property<List<String>>(ErmProfileNames.TAG_INDEX_COLUMNS) // required — no default; column names, not UML property names
+            property<Boolean>(ErmProfileNames.TAG_UNIQUE) { default = false }
+            property<String>(ErmProfileNames.TAG_INDEX_NAME) { required = false } // optional — no default; falls back to idx_<table>_<cols>
         }
 
         // ── Property-level ────────────────────────────────────────────────────

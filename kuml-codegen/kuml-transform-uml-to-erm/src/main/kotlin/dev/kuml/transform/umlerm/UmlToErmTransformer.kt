@@ -18,6 +18,7 @@ import dev.kuml.erm.model.ErmCheckConstraint
 import dev.kuml.erm.model.ErmDataType
 import dev.kuml.erm.model.ErmDiagram
 import dev.kuml.erm.model.ErmForeignKey
+import dev.kuml.erm.model.ErmIndex
 import dev.kuml.erm.model.ErmMetadataKeys
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ErmNotation
@@ -107,7 +108,10 @@ import dev.kuml.uml.UmlProperty
  * - Multiple inheritance (a class with more than one [UmlGeneralization] parent)
  *   is not modelled — only the first-declared parent per class is honoured.
  * - `ErmIndex` is not synthesized from `«Column».unique` (only the column-level
- *   `unique` flag is set); composite unique constraints are out of scope.
+ *   `unique` flag is set) — for a composite (multi-column) unique constraint or a
+ *   standalone multi-column performance index, apply `«Index»` to the class directly
+ *   (repeatable — once per index), naming the real ERM column names in its `columns`
+ *   tag; see [resolveIndexes].
  * - Composite (multi-column) primary/foreign keys on the *source* side of an
  *   association are not supported — [dev.kuml.erm.model.ErmEntity.primaryKey]
  *   must be a single column for FK/junction type inference to succeed.
@@ -152,6 +156,8 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             TransformResult.Failure(listOf(TransformError(e.message ?: "unsafe identifier", null)))
         } catch (e: UnresolvedColumnForeignKeyException) {
             TransformResult.Failure(listOf(TransformError(e.message ?: "unresolved column-level FK", null)))
+        } catch (e: UnresolvedIndexException) {
+            TransformResult.Failure(listOf(TransformError(e.message ?: "unresolved index", null)))
         }
 
     /** Per-call mutable state — a fresh instance is created for every [transform] invocation. */
@@ -217,6 +223,10 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             // 4.5. «Column».fkEntity/fkAttribute overrides — resolved only now that every entity
             // (including SINGLE_TABLE/JOINED-materialised columns) exists; see resolveColumnLevelForeignKeys.
             resolveColumnLevelForeignKeys(classesByName, plans)
+
+            // 4.6. «Index» applications — same "resolve only after every entity's final attribute
+            // set exists" reasoning as 4.5; see resolveIndexes.
+            resolveIndexes(classes, plans)
 
             // 5. Associations → FK column or M:N junction entity.
             for (assoc in associations) {
@@ -655,6 +665,58 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                         entity.attributes[idx].copy(
                             foreignKey = ErmForeignKey(targetEntityId = targetEntityId, targetAttributeId = targetAttrId),
                         )
+                }
+            }
+        }
+
+        /**
+         * Resolves every `«Index»` application into a real [ErmIndex] on the owning entity.
+         *
+         * Runs after every entity's final attribute set exists (same "resolve late" reasoning as
+         * [resolveColumnLevelForeignKeys]) — a JOINED/SINGLE_TABLE-materialised entity's attribute
+         * set isn't final until steps 2-4 have run. `«Index»` is repeatable — a class may carry
+         * several applications, each becoming one [ErmIndex] — so this reads
+         * [List.ermStereotypes] (all matches), not [List.ermStereotype] (first match only).
+         *
+         * `columns` names real ERM column names (i.e. [ErmAttribute.name], already resolved by
+         * [mapAttributeToColumn] — not raw UML property names), matching how a `«Column».columnName`
+         * override is authored elsewhere in this profile. A missing/empty `columns` tag or a column
+         * name that doesn't exist on the entity fails the transform with [UnresolvedIndexException]
+         * rather than silently producing a smaller or empty index.
+         */
+        private fun resolveIndexes(
+            classes: List<UmlClass>,
+            plans: Map<String, ClassPlan>,
+        ) {
+            for (cls in classes) {
+                val indexApps = cls.appliedStereotypes.ermStereotypes(ErmProfileNames.INDEX)
+                if (indexApps.isEmpty()) continue
+                val entityId =
+                    physicalEntityIdOf(cls.id, plans)
+                        ?: throw UnresolvedIndexException(
+                            "uml-to-erm: «Index» on '${cls.name}' (element ${cls.id}) resolves to a class with no table of its own.",
+                        )
+                val entity = entities.getValue(entityId)
+
+                for (app in indexApps) {
+                    val columnNames = app.listTag(ErmProfileNames.TAG_INDEX_COLUMNS)
+                    if (columnNames.isNullOrEmpty()) {
+                        throw UnresolvedIndexException(
+                            "uml-to-erm: «Index» on '${cls.name}' (element ${cls.id}) is missing a non-empty " +
+                                "'${ErmProfileNames.TAG_INDEX_COLUMNS}' tag.",
+                        )
+                    }
+                    val attrIds =
+                        columnNames.map { colName ->
+                            entity.attributes.firstOrNull { it.name == colName }?.id
+                                ?: throw UnresolvedIndexException(
+                                    "uml-to-erm: «Index» on '${cls.name}' (element ${cls.id}) names column '$colName', " +
+                                        "which does not exist on entity '${entity.name}'.",
+                                )
+                        }
+                    val unique = app.boolTag(ErmProfileNames.TAG_UNIQUE) ?: false
+                    val name = app.stringTag(ErmProfileNames.TAG_INDEX_NAME)?.takeIf { it.isNotBlank() }
+                    entity.indexes += ErmIndex(id = entity.nextIndexId(), name = name, attributeIds = attrIds, unique = unique)
                 }
             }
         }

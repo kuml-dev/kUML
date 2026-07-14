@@ -23,6 +23,7 @@ public object ErmProfileNames {
     public const val TRANSIENT: String = "Transient"
     public const val FK: String = "FK"
     public const val JUNCTION_TABLE: String = "JunctionTable"
+    public const val INDEX: String = "Index"
 
     // ── Tag keys ──────────────────────────────────────────────────────────────
     public const val TAG_TABLE_NAME: String = "tableName"
@@ -43,4 +44,6 @@ public object ErmProfileNames {
     public const val TAG_ON_UPDATE: String = "onUpdate"
     public const val TAG_SOURCE_COLUMN: String = "sourceColumn"
     public const val TAG_TARGET_COLUMN: String = "targetColumn"
+    public const val TAG_INDEX_COLUMNS: String = "columns"
+    public const val TAG_INDEX_NAME: String = "name"
 }

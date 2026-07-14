@@ -16,7 +16,7 @@ import io.kotest.matchers.shouldNotBe
  * V3.4.6 — profile tests for the ERM mapping profile.
  *
  * Covers:
- * 1. Whitelist — exactly 7 stereotypes
+ * 1. Whitelist — exactly 8 stereotypes
  * 2. Target metaclass checks
  * 3. Properties with correct required/default definitions
  * 4. ServiceLoader discovery via ProfileRegistry.loadFromClasspath()
@@ -31,11 +31,11 @@ class ErmMappingProfileTest :
 
         // ── Test 1: Whitelist ────────────────────────────────────────────────────
 
-        test("ermMappingProfile has exactly 7 stereotypes") {
+        test("ermMappingProfile has exactly 8 stereotypes") {
             val names = ermMappingProfile.stereotypes.map { it.name }.toSet()
             names shouldContainExactlyInAnyOrder
-                setOf("Entity", "Inheritance", "Column", "Id", "Transient", "FK", "JunctionTable")
-            ermMappingProfile.stereotypes.size shouldBe 7
+                setOf("Entity", "Inheritance", "Column", "Id", "Transient", "FK", "JunctionTable", "Index")
+            ermMappingProfile.stereotypes.size shouldBe 8
         }
 
         // ── Test 2: Target metaclasses ───────────────────────────────────────────
@@ -66,6 +66,10 @@ class ErmMappingProfileTest :
 
         test("JunctionTable targets UmlMetaclass.Association") {
             ermMappingProfile.stereotype("JunctionTable")!!.targetMetaclass shouldBe UmlMetaclass.Association
+        }
+
+        test("Index targets UmlMetaclass.Class") {
+            ermMappingProfile.stereotype("Index")!!.targetMetaclass shouldBe UmlMetaclass.Class
         }
 
         // ── Test 3: Properties ───────────────────────────────────────────────────
@@ -140,6 +144,20 @@ class ErmMappingProfileTest :
             val tableName = junction.properties.first { it.name == "tableName" }
             tableName.required shouldBe true
             tableName.default shouldBe null
+        }
+
+        test("Index has columns (required), unique (default false), name (optional)") {
+            val index = ermMappingProfile.stereotype("Index")!!
+            index.properties.size shouldBe 3
+            val columns = index.properties.first { it.name == "columns" }
+            columns.required shouldBe true
+            columns.default shouldBe null
+            val unique = index.properties.first { it.name == "unique" }
+            unique.required shouldBe false
+            unique.default shouldBe false
+            val name = index.properties.first { it.name == "name" }
+            name.required shouldBe false
+            name.default shouldBe null
         }
 
         // ── Test 4: ServiceLoader discovery ──────────────────────────────────────

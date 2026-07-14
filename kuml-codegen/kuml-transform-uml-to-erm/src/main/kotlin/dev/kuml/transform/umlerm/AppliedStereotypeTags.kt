@@ -22,6 +22,15 @@ internal fun List<AppliedStereotype>.ermStereotype(name: String): AppliedStereot
 /** `true` if this list contains an applied ERM-namespaced stereotype called [name]. */
 internal fun List<AppliedStereotype>.hasErmStereotype(name: String): Boolean = ermStereotype(name) != null
 
+/**
+ * All applied ERM-namespaced stereotypes called [name] — unlike [ermStereotype], does not stop
+ * at the first match. Needed for repeatable stereotypes (e.g. `«Index»`, applied once per index
+ * a class needs) where [ermStereotype]'s `firstOrNull` would silently drop every application
+ * after the first.
+ */
+internal fun List<AppliedStereotype>.ermStereotypes(name: String): List<AppliedStereotype> =
+    filter { it.profileNamespace == ErmProfileNames.NAMESPACE && it.stereotypeName.equals(name, ignoreCase = true) }
+
 /** Reads tag [key] as a string — unwraps [TagValue.StringVal] or [TagValue.EnumVal.valueName]. */
 internal fun AppliedStereotype.stringTag(key: String): String? =
     when (val v = tags[key]) {
@@ -37,3 +46,7 @@ internal fun AppliedStereotype.boolTag(key: String): Boolean? =
         is TagValue.StringVal -> v.v.toBooleanStrictOrNull()
         else -> null
     }
+
+/** Reads tag [key] as a list of strings — unwraps [TagValue.ListVal], dropping any non-string item. */
+internal fun AppliedStereotype.listTag(key: String): List<String>? =
+    (tags[key] as? TagValue.ListVal)?.items?.mapNotNull { (it as? TagValue.StringVal)?.v }

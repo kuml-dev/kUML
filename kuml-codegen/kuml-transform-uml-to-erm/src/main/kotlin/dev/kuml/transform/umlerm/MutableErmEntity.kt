@@ -4,6 +4,7 @@ import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.erm.model.ErmAttribute
 import dev.kuml.erm.model.ErmCheckConstraint
 import dev.kuml.erm.model.ErmEntity
+import dev.kuml.erm.model.ErmIndex
 
 /**
  * Mutable working representation of an [ErmEntity] under construction.
@@ -27,13 +28,17 @@ internal class MutableErmEntity(
     var metadata: Map<String, KumlMetaValue> = emptyMap()
     val attributes: MutableList<ErmAttribute> = mutableListOf()
     val checks: MutableList<ErmCheckConstraint> = mutableListOf()
+    val indexes: MutableList<ErmIndex> = mutableListOf()
 
     private var attrCounter = 0
     private var checkCounter = 0
+    private var indexCounter = 0
 
     fun nextAttrId(): String = "attr_${ix}_${attrCounter++}"
 
     fun nextCheckId(): String = "check_${ix}_${checkCounter++}"
+
+    fun nextIndexId(): String = "index_${ix}_${indexCounter++}"
 
     /** All attributes currently marked [ErmAttribute.primaryKey]. */
     val primaryKey: List<ErmAttribute> get() = attributes.filter { it.primaryKey }
@@ -47,6 +52,7 @@ internal class MutableErmEntity(
             attributes = attributes.toList(),
             weak = weak,
             checks = checks.toList(),
+            indexes = indexes.toList(),
             metadata = metadata,
         )
 }

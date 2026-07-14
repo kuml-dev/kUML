@@ -88,3 +88,13 @@ public class UnsafeUmlNameException(
 public class UnresolvedColumnForeignKeyException(
     message: String,
 ) : RuntimeException(message)
+
+/**
+ * Thrown by [UmlToErmTransformer] when a `«Index»` application is missing its required
+ * `columns` tag, has an empty column list, or names a column that does not exist on the
+ * entity — a malformed or stale index declaration must fail loudly rather than silently
+ * producing a smaller/different index than intended.
+ */
+public class UnresolvedIndexException(
+    message: String,
+) : RuntimeException(message)
