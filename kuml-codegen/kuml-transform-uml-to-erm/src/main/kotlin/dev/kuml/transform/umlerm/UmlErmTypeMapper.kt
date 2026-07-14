@@ -38,6 +38,9 @@ internal object UmlErmTypeMapper {
     /** Matches a `VARCHAR(n)` / `varchar( n )`-shaped override, case-insensitive. */
     private val VARCHAR_N_REGEX = Regex("""varchar\s*\(\s*(\d+)\s*\)""", RegexOption.IGNORE_CASE)
 
+    /** Matches a `DECIMAL(p,s)` / `decimal( p , s )`-shaped override, case-insensitive. */
+    private val DECIMAL_P_S_REGEX = Regex("""decimal\s*\(\s*(\d+)\s*,\s*(\d+)\s*\)""", RegexOption.IGNORE_CASE)
+
     /**
      * Parses a `«Column».sqlType` override string into an [ErmDataType].
      *
@@ -46,6 +49,16 @@ internal object UmlErmTypeMapper {
      * `"varchar"` keyword and any explicit length falls through to [ErmDataType.Custom],
      * which the Exposed emitter renders as a generic `text(...)` fallback instead of
      * `varchar(col, n)`.
+     *
+     * A `DECIMAL(p,s)`-shaped override (explicit precision/scale) is recognised next and
+     * mapped to [ErmDataType.Decimal] with that precision/scale — same rationale as the
+     * `VARCHAR(n)` case: without this, [map] only matches the bare `"decimal"`/`"bigdecimal"`/
+     * `"money"` keywords (falling back to a fixed `Decimal(19, 2)`), so any explicit
+     * precision/scale in the override string fell through to [ErmDataType.Custom] and the
+     * Exposed emitter rendered a generic `text(...)` fallback instead of `decimal(col, p, s)`
+     * — found during a real MDA retrofit where every monetary column's hand-written
+     * `decimal("col", p, s)` call carried a project-specific precision/scale that the bare
+     * `"decimal"` keyword's fixed default couldn't reproduce.
      *
      * Otherwise reuses [map]'s vocabulary; anything unrecognised (including dialect-specific
      * types such as Postgres `tsvector`) becomes [ErmDataType.Custom] holding the
@@ -58,6 +71,13 @@ internal object UmlErmTypeMapper {
         VARCHAR_N_REGEX.matchEntire(trimmed)?.let { match ->
             match.groupValues[1].toIntOrNull()?.takeIf { it > 0 }?.let { length ->
                 return ErmDataType.Varchar(length)
+            }
+        }
+        DECIMAL_P_S_REGEX.matchEntire(trimmed)?.let { match ->
+            val precision = match.groupValues[1].toIntOrNull()
+            val scale = match.groupValues[2].toIntOrNull()
+            if (precision != null && precision > 0 && scale != null && scale >= 0 && scale <= precision) {
+                return ErmDataType.Decimal(precision, scale)
             }
         }
         val mapped = map(trimmed)

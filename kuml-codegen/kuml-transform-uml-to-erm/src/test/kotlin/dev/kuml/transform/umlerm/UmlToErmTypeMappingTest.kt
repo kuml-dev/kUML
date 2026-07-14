@@ -198,4 +198,31 @@ class UmlToErmTypeMappingTest :
             val col = model.entities.first().attributeByName("nickname")!!
             col.type shouldBe ErmDataType.Varchar(120)
         }
+
+        test("mapOverride recognises DECIMAL(p,s) and maps to ErmDataType.Decimal(p,s)") {
+            UmlErmTypeMapper.mapOverride("DECIMAL(18,2)") shouldBe ErmDataType.Decimal(18, 2)
+            UmlErmTypeMapper.mapOverride("decimal( 12 , 2 )") shouldBe ErmDataType.Decimal(12, 2)
+            UmlErmTypeMapper.mapOverride("decimal") shouldBe ErmDataType.Decimal(19, 2)
+        }
+
+        test("«Column».sqlType = DECIMAL(p,s) maps the column to ErmDataType.Decimal(p,s)") {
+            val transformer = UmlToErmTransformer()
+            val diagram =
+                classDiagram("D") {
+                    applyProfile(ermMappingProfile)
+                    classOf("Order") {
+                        attribute("id", "UUID")
+                        attribute("total", "BigDecimal") {
+                            stereotype("Column") {
+                                "columnName" to "total"
+                                "sqlType" to "DECIMAL(18,2)"
+                            }
+                        }
+                    }
+                }
+            val result = transformer.transform(diagram, TransformContext())
+            val model = (result as TransformResult.Success).output
+            val col = model.entities.first().attributeByName("total")!!
+            col.type shouldBe ErmDataType.Decimal(18, 2)
+        }
     })
