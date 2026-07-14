@@ -27,6 +27,12 @@ import java.io.File
  *  - `uuidRepresentation` — which Kotlin type `ErmDataType.Uuid` columns render as: `"java"`
  *    (default, `Column<java.util.UUID>`) or `"kotlin"` (`Column<kotlin.uuid.Uuid>`, Exposed
  *    1.x native support). See [UuidRepresentation] and [ErmExposedEmitter]'s KDoc.
+ *  - `dateTimeRepresentation` — which Kotlin type `ErmDataType.Date`/`ErmDataType.Timestamp`
+ *    columns render as: `"java"` (default, `Column<java.time.LocalDate>`/
+ *    `Column<java.time.LocalDateTime>`) or `"kotlin"` (`Column<kotlinx.datetime.LocalDate>`/
+ *    `Column<kotlinx.datetime.LocalDateTime>`, Exposed 1.x's kotlinx-datetime module).
+ *    Independent of `uuidRepresentation`. See [DateTimeRepresentation] and
+ *    [ErmExposedEmitter]'s KDoc.
  *
  * Writes one file per [ErmModel] entity, named `"<ObjectName>.kt"`.
  */
@@ -42,7 +48,11 @@ public class ErmExposedGenerator : ErmCodeGenerator {
         outputDir.mkdirs()
         val packageName = options["package"] ?: ErmExposedEmitter.DEFAULT_PACKAGE
         val uuidRepresentation = UuidRepresentation.fromOption(options["uuidRepresentation"])
-        return when (val result = ErmExposedEmitter(packageName, uuidRepresentation).emit(model)) {
+        val dateTimeRepresentation = DateTimeRepresentation.fromOption(options["dateTimeRepresentation"])
+        return when (
+            val result =
+                ErmExposedEmitter(packageName, uuidRepresentation, dateTimeRepresentation).emit(model)
+        ) {
             is TransformResult.Success ->
                 result.output.map { file ->
                     File(outputDir, file.relativePath).apply {

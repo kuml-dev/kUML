@@ -50,6 +50,49 @@ internal enum class UuidRepresentation {
 }
 
 /**
+ * Which Kotlin type [ErmExposedEmitter] renders [ErmDataType.Date]/[ErmDataType.Timestamp]
+ * columns as. Selected per generation run via `TransformContext.options["dateTimeRepresentation"]`
+ * (`"java"`, the default, or `"kotlin"`) — see [ErmExposedEmitter]'s "Known limitations" KDoc
+ * section for the full rationale and the exact rendered syntax for each case. Independent of
+ * [UuidRepresentation]: a model may mix, e.g., `uuidRepresentation = "kotlin"` with
+ * `dateTimeRepresentation = "java"`, or vice versa — the two options are not coupled into a
+ * single flag. An unrecognized option value falls back to [JAVA] rather than failing generation
+ * (same tolerance pattern as [UuidRepresentation.fromOption] / `UmlToErmTransformer`'s `idType`
+ * option).
+ */
+internal enum class DateTimeRepresentation {
+    /**
+     * `date(...)`/`datetime(...)` (`org.jetbrains.exposed.v1.javatime`) →
+     * `Column<java.time.LocalDate>`/`Column<java.time.LocalDateTime>` (default,
+     * backward-compatible).
+     */
+    JAVA,
+
+    /**
+     * `date(...)`/`datetime(...)` (`org.jetbrains.exposed.v1.datetime`, Exposed 1.x's
+     * kotlinx-datetime module) → `Column<kotlinx.datetime.LocalDate>`/
+     * `Column<kotlinx.datetime.LocalDateTime>`.
+     */
+    KOTLIN,
+
+    ;
+
+    internal companion object {
+        /**
+         * Parses `TransformContext.options["dateTimeRepresentation"]` — trims + lowercases first
+         * (mirroring [UuidRepresentation.fromOption]), then maps `"kotlin"` to [KOTLIN] and
+         * everything else (`null`, `"java"`, blank, or an unrecognized typo) to [JAVA].
+         * Unrecognized values are tolerated rather than failing generation.
+         */
+        fun fromOption(raw: String?): DateTimeRepresentation =
+            when (raw?.trim()?.lowercase()) {
+                "kotlin" -> KOTLIN
+                else -> JAVA
+            }
+    }
+}
+
+/**
  * V3.4.8 (V3.4.10: retargeted at Exposed 1.3.1's `org.jetbrains.exposed.v1.*`
  * package layout, see ADR-0016 retrofit notes) — the single source of truth
  * for Kotlin Exposed `Table` object generation from an [ErmModel]. All three
@@ -179,6 +222,26 @@ internal enum class UuidRepresentation {
  * - `Timestamp.withTimeZone` is not distinguished — always rendered via
  *   `datetime(...)`, matching the `java.time`-based `org.jetbrains.exposed.v1.javatime`
  *   module (no `timestampWithTimeZone()` call is emitted).
+ * - [ErmDataType.Date] and [ErmDataType.Timestamp] render via `date(...)`/`datetime(...)`
+ *   from `org.jetbrains.exposed.v1.javatime` (`import org.jetbrains.exposed.v1.javatime.date` /
+ *   `import org.jetbrains.exposed.v1.javatime.datetime` — extension functions on `Table`, not
+ *   members, so the import is required), yielding `Column<java.time.LocalDate>`/
+ *   `Column<java.time.LocalDateTime>`, **by default**. Opting into
+ *   [DateTimeRepresentation.KOTLIN] (via `TransformContext.options["dateTimeRepresentation"] =
+ *   "kotlin"`, threaded through the constructor's [dateTimeRepresentation] parameter) instead
+ *   renders the *same-named* `date(...)`/`datetime(...)` extension functions from Exposed 1.x's
+ *   kotlinx-datetime module (`import org.jetbrains.exposed.v1.datetime.date` /
+ *   `import org.jetbrains.exposed.v1.datetime.datetime` — also `Table` extension functions
+ *   requiring an import, confirmed by decompiling `exposed-kotlin-datetime-1.3.1.jar`'s
+ *   `KotlinDateColumnTypeKt` facade class), yielding `Column<kotlinx.datetime.LocalDate>`/
+ *   `Column<kotlinx.datetime.LocalDateTime>` (`import kotlinx.datetime.LocalDate` /
+ *   `import kotlinx.datetime.LocalDateTime`). Like [UuidRepresentation], this is a
+ *   whole-generation-run option, not a per-column tag — a Kotlin Multiplatform project sharing
+ *   code with Kotlin/JS (where `java.time.*` does not exist) needs *every* Date/Timestamp column
+ *   consistently typed. [DateTimeRepresentation] is entirely independent of [UuidRepresentation]:
+ *   the two options are selected separately and may be mixed freely. Default stays
+ *   [DateTimeRepresentation.JAVA] for full backward compatibility with every existing
+ *   model/consumer.
  * - [ErmDataType.Uuid] renders via `javaUUID(...)` (`org.jetbrains.exposed.v1.core.java.javaUUID`),
  *   yielding `Column<java.util.UUID>`, **by default** — the direct Exposed-1.x continuation of
  *   the pre-1.0 `uuid(...)` contract (which returned `Column<java.util.UUID>` too). Opting into
@@ -228,6 +291,7 @@ internal enum class UuidRepresentation {
 internal class ErmExposedEmitter(
     private val packageName: String = DEFAULT_PACKAGE,
     private val uuidRepresentation: UuidRepresentation = UuidRepresentation.JAVA,
+    private val dateTimeRepresentation: DateTimeRepresentation = DateTimeRepresentation.JAVA,
 ) {
     fun emit(model: ErmModel): TransformResult<List<GeneratedFile>> {
         val violations = ErmConstraintChecker().check(model).filter { it.severity == ViolationSeverity.ERROR }
@@ -779,11 +843,20 @@ internal class ErmExposedEmitter(
             ErmDataType.Text -> ColumnCallRendering("text(\"$colLiteral\")", "String", emptySet())
             ErmDataType.Boolean -> ColumnCallRendering("bool(\"$colLiteral\")", "Boolean", emptySet())
             ErmDataType.Date ->
-                ColumnCallRendering(
-                    "date(\"$colLiteral\")",
-                    "LocalDate",
-                    setOf("org.jetbrains.exposed.v1.javatime.date", "java.time.LocalDate"),
-                )
+                when (dateTimeRepresentation) {
+                    DateTimeRepresentation.JAVA ->
+                        ColumnCallRendering(
+                            "date(\"$colLiteral\")",
+                            "LocalDate",
+                            setOf("org.jetbrains.exposed.v1.javatime.date", "java.time.LocalDate"),
+                        )
+                    DateTimeRepresentation.KOTLIN ->
+                        ColumnCallRendering(
+                            "date(\"$colLiteral\")",
+                            "LocalDate",
+                            setOf("org.jetbrains.exposed.v1.datetime.date", "kotlinx.datetime.LocalDate"),
+                        )
+                }
             ErmDataType.Time ->
                 ColumnCallRendering(
                     "time(\"$colLiteral\")",
@@ -791,11 +864,20 @@ internal class ErmExposedEmitter(
                     setOf("org.jetbrains.exposed.v1.javatime.time", "java.time.LocalTime"),
                 )
             is ErmDataType.Timestamp ->
-                ColumnCallRendering(
-                    "datetime(\"$colLiteral\")",
-                    "LocalDateTime",
-                    setOf("org.jetbrains.exposed.v1.javatime.datetime", "java.time.LocalDateTime"),
-                )
+                when (dateTimeRepresentation) {
+                    DateTimeRepresentation.JAVA ->
+                        ColumnCallRendering(
+                            "datetime(\"$colLiteral\")",
+                            "LocalDateTime",
+                            setOf("org.jetbrains.exposed.v1.javatime.datetime", "java.time.LocalDateTime"),
+                        )
+                    DateTimeRepresentation.KOTLIN ->
+                        ColumnCallRendering(
+                            "datetime(\"$colLiteral\")",
+                            "LocalDateTime",
+                            setOf("org.jetbrains.exposed.v1.datetime.datetime", "kotlinx.datetime.LocalDateTime"),
+                        )
+                }
             ErmDataType.Uuid ->
                 when (uuidRepresentation) {
                     UuidRepresentation.JAVA ->

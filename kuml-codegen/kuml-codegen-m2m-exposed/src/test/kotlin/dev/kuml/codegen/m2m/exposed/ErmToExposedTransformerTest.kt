@@ -1058,4 +1058,148 @@ class ErmToExposedTransformerTest :
             content shouldContain "val id: Column<UUID> = javaUUID(\"id\")"
             content shouldContain "import java.util.UUID"
         }
+
+        // ── dateTimeRepresentation option ────────────────────────────────────
+
+        test("no dateTimeRepresentation option set renders javatime date/datetime (unchanged default behaviour)") {
+            val model =
+                ermModel("M") {
+                    entity("events") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("released_on", ErmDataType.Date, nullable = false)
+                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                    }
+                }
+            val content = successFiles(model)[0].content
+            content shouldContain "val releasedOn: Column<LocalDate> = date(\"released_on\")"
+            content shouldContain "val createdAt: Column<LocalDateTime> = datetime(\"created_at\")"
+            content shouldContain "import org.jetbrains.exposed.v1.javatime.date"
+            content shouldContain "import org.jetbrains.exposed.v1.javatime.datetime"
+            content shouldContain "import java.time.LocalDate"
+            content shouldContain "import java.time.LocalDateTime"
+            content shouldNotContain "kotlinx.datetime"
+            content shouldNotContain "org.jetbrains.exposed.v1.datetime."
+        }
+
+        test("dateTimeRepresentation = \"java\" (explicit) renders javatime date/datetime, same as the default") {
+            val model =
+                ermModel("M") {
+                    entity("events") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("released_on", ErmDataType.Date, nullable = false)
+                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                    }
+                }
+            val content = successFiles(model, mapOf("dateTimeRepresentation" to "java"))[0].content
+            content shouldContain "val releasedOn: Column<LocalDate> = date(\"released_on\")"
+            content shouldContain "val createdAt: Column<LocalDateTime> = datetime(\"created_at\")"
+            content shouldContain "import org.jetbrains.exposed.v1.javatime.date"
+            content shouldContain "import org.jetbrains.exposed.v1.javatime.datetime"
+            content shouldContain "import java.time.LocalDate"
+            content shouldContain "import java.time.LocalDateTime"
+        }
+
+        test(
+            "dateTimeRepresentation = \"kotlin\" renders kotlinx-datetime date(...)/datetime(...) with " +
+                "kotlinx.datetime imports",
+        ) {
+            val model =
+                ermModel("M") {
+                    entity("events") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("released_on", ErmDataType.Date, nullable = false)
+                        attribute("created_at", ErmDataType.Timestamp(), nullable = true)
+                    }
+                }
+            val content = successFiles(model, mapOf("dateTimeRepresentation" to "kotlin"))[0].content
+            content shouldContain "val releasedOn: Column<LocalDate> = date(\"released_on\")"
+            content shouldContain "val createdAt: Column<LocalDateTime?> = datetime(\"created_at\").nullable()"
+            content shouldContain "import org.jetbrains.exposed.v1.datetime.date"
+            content shouldContain "import org.jetbrains.exposed.v1.datetime.datetime"
+            content shouldContain "import kotlinx.datetime.LocalDate"
+            content shouldContain "import kotlinx.datetime.LocalDateTime"
+            content shouldNotContain "org.jetbrains.exposed.v1.javatime.date"
+            content shouldNotContain "org.jetbrains.exposed.v1.javatime.datetime"
+            content shouldNotContain "import java.time.LocalDate"
+            content shouldNotContain "import java.time.LocalDateTime"
+        }
+
+        test("unrecognized dateTimeRepresentation value falls back to the java default rather than failing") {
+            val model =
+                ermModel("M") {
+                    entity("events") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("released_on", ErmDataType.Date, nullable = false)
+                    }
+                }
+            val content = successFiles(model, mapOf("dateTimeRepresentation" to "bogus-typo"))[0].content
+            content shouldContain "val releasedOn: Column<LocalDate> = date(\"released_on\")"
+            content shouldContain "import java.time.LocalDate"
+            content shouldContain "import org.jetbrains.exposed.v1.javatime.date"
+        }
+
+        test(
+            "uuidRepresentation and dateTimeRepresentation are independently selectable and both apply " +
+                "in the same generation run",
+        ) {
+            val model =
+                ermModel("M") {
+                    entity("events") {
+                        id("id", ErmDataType.Uuid)
+                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                    }
+                }
+            val content =
+                successFiles(
+                    model,
+                    mapOf("uuidRepresentation" to "kotlin", "dateTimeRepresentation" to "kotlin"),
+                )[0].content
+
+            content shouldContain "val id: Column<Uuid> = uuid(\"id\")"
+            content shouldContain "import kotlin.uuid.Uuid"
+            content shouldContain "val createdAt: Column<LocalDateTime> = datetime(\"created_at\")"
+            content shouldContain "import org.jetbrains.exposed.v1.datetime.datetime"
+            content shouldContain "import kotlinx.datetime.LocalDateTime"
+            content shouldNotContain "javaUUID"
+            content shouldNotContain "java.util.UUID"
+            content shouldNotContain "org.jetbrains.exposed.v1.javatime.datetime"
+            content shouldNotContain "import java.time.LocalDateTime"
+        }
+
+        test("uuidRepresentation = \"kotlin\" alone leaves Date/Timestamp columns on the javatime default") {
+            val model =
+                ermModel("M") {
+                    entity("events") {
+                        id("id", ErmDataType.Uuid)
+                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                    }
+                }
+            val content = successFiles(model, mapOf("uuidRepresentation" to "kotlin"))[0].content
+
+            content shouldContain "val id: Column<Uuid> = uuid(\"id\")"
+            content shouldContain "import kotlin.uuid.Uuid"
+            content shouldContain "val createdAt: Column<LocalDateTime> = datetime(\"created_at\")"
+            content shouldContain "import org.jetbrains.exposed.v1.javatime.datetime"
+            content shouldContain "import java.time.LocalDateTime"
+            content shouldNotContain "org.jetbrains.exposed.v1.datetime.datetime"
+            content shouldNotContain "kotlinx.datetime"
+        }
+
+        test("dateTimeRepresentation = \"kotlin\" alone leaves the Uuid column on the javaUUID default") {
+            val model =
+                ermModel("M") {
+                    entity("events") {
+                        id("id", ErmDataType.Uuid)
+                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                    }
+                }
+            val content = successFiles(model, mapOf("dateTimeRepresentation" to "kotlin"))[0].content
+
+            content shouldContain "val id: Column<UUID> = javaUUID(\"id\")"
+            content shouldContain "import java.util.UUID"
+            content shouldContain "import org.jetbrains.exposed.v1.core.java.javaUUID"
+            content shouldContain "val createdAt: Column<LocalDateTime> = datetime(\"created_at\")"
+            content shouldContain "import org.jetbrains.exposed.v1.datetime.datetime"
+            content shouldNotContain "kotlin.uuid.Uuid"
+        }
     })

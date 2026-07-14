@@ -27,7 +27,10 @@ import dev.kuml.erm.model.ErmModel
  * name (default `"com.example.tables"`). `uuidRepresentation`
  * (`ctx.options["uuidRepresentation"]`, `"java"` default / `"kotlin"`) selects which Kotlin
  * type `ErmDataType.Uuid` columns render as — see [UuidRepresentation] and
- * [ErmExposedEmitter]'s KDoc for the full rationale.
+ * [ErmExposedEmitter]'s KDoc for the full rationale. `dateTimeRepresentation`
+ * (`ctx.options["dateTimeRepresentation"]`, `"java"` default / `"kotlin"`) independently
+ * selects which Kotlin type `ErmDataType.Date`/`ErmDataType.Timestamp` columns render as —
+ * see [DateTimeRepresentation] and [ErmExposedEmitter]'s KDoc.
  */
 public class ErmToExposedTransformer : KumlTransformer<ErmModel, List<GeneratedFile>> {
     override val id: String = "erm-to-exposed"
@@ -41,6 +44,7 @@ public class ErmToExposedTransformer : KumlTransformer<ErmModel, List<GeneratedF
         ErmExposedEmitter(
             packageName = ctx.options["package"] ?: ErmExposedEmitter.DEFAULT_PACKAGE,
             uuidRepresentation = UuidRepresentation.fromOption(ctx.options["uuidRepresentation"]),
+            dateTimeRepresentation = DateTimeRepresentation.fromOption(ctx.options["dateTimeRepresentation"]),
         ).emit(source)
 }
 
