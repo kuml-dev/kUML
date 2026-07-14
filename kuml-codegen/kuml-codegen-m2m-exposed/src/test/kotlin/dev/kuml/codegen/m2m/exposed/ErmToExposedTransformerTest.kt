@@ -963,4 +963,99 @@ class ErmToExposedTransformerTest :
                 }
             transform(model).shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
         }
+
+        // ── uuidRepresentation option ────────────────────────────────────────
+
+        test("no uuidRepresentation option set renders javaUUID/UUID (unchanged default behaviour)") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Uuid)
+                    }
+                }
+            val content = successFiles(model)[0].content
+            content shouldContain "val id: Column<UUID> = javaUUID(\"id\")"
+            content shouldContain "import java.util.UUID"
+            content shouldContain "import org.jetbrains.exposed.v1.core.java.javaUUID"
+            content shouldNotContain "kotlin.uuid.Uuid"
+        }
+
+        test("uuidRepresentation = \"java\" (explicit) renders javaUUID/UUID, same as the default") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Uuid)
+                    }
+                }
+            val content = successFiles(model, mapOf("uuidRepresentation" to "java"))[0].content
+            content shouldContain "val id: Column<UUID> = javaUUID(\"id\")"
+            content shouldContain "import java.util.UUID"
+            content shouldContain "import org.jetbrains.exposed.v1.core.java.javaUUID"
+        }
+
+        test("uuidRepresentation = \"kotlin\" renders uuid(...)/Column<Uuid> with kotlin.uuid.Uuid import") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Uuid)
+                        attribute("external_ref", ErmDataType.Uuid, nullable = true)
+                    }
+                }
+            val content = successFiles(model, mapOf("uuidRepresentation" to "kotlin"))[0].content
+            content shouldContain "val id: Column<Uuid> = uuid(\"id\")"
+            content shouldContain "val externalRef: Column<Uuid?> = uuid(\"external_ref\").nullable()"
+            content shouldContain "import kotlin.uuid.Uuid"
+            content shouldNotContain "javaUUID"
+            content shouldNotContain "java.util.UUID"
+        }
+
+        test("uuidRepresentation = \"kotlin\": FK reference() to a Uuid primary key renders Column<Uuid>") {
+            val model =
+                ermModel("M") {
+                    val authors = entity("authors") { id("id", ErmDataType.Uuid) }
+                    entity("books") {
+                        id("id", ErmDataType.Uuid)
+                        foreignKey("author_id", references = authors, nullable = false)
+                    }
+                }
+            val files = successFiles(model, mapOf("uuidRepresentation" to "kotlin"))
+            val authorsContent = files.first { it.relativePath == "Authors.kt" }.content
+            val booksContent = files.first { it.relativePath == "Books.kt" }.content
+
+            authorsContent shouldContain "val id: Column<Uuid> = uuid(\"id\")"
+            authorsContent shouldContain "import kotlin.uuid.Uuid"
+
+            booksContent shouldContain "val authorId: Column<Uuid> = reference(\"author_id\", Authors.id)"
+            booksContent shouldContain "import kotlin.uuid.Uuid"
+            booksContent shouldNotContain "javaUUID"
+            booksContent shouldNotContain "java.util.UUID"
+        }
+
+        test("uuidRepresentation = \"kotlin\": nullable FK optReference() to a Uuid primary key renders Column<Uuid?>") {
+            val model =
+                ermModel("M") {
+                    val authors = entity("authors") { id("id", ErmDataType.Uuid) }
+                    entity("books") {
+                        id("id", ErmDataType.Uuid)
+                        foreignKey("author_id", references = authors, nullable = true)
+                    }
+                }
+            val booksContent =
+                successFiles(model, mapOf("uuidRepresentation" to "kotlin"))
+                    .first { it.relativePath == "Books.kt" }
+                    .content
+            booksContent shouldContain "val authorId: Column<Uuid?> = optReference(\"author_id\", Authors.id)"
+        }
+
+        test("unrecognized uuidRepresentation value falls back to the java default rather than failing") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Uuid)
+                    }
+                }
+            val content = successFiles(model, mapOf("uuidRepresentation" to "bogus-typo"))[0].content
+            content shouldContain "val id: Column<UUID> = javaUUID(\"id\")"
+            content shouldContain "import java.util.UUID"
+        }
     })

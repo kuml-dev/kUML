@@ -24,6 +24,9 @@ import java.io.File
  * Options via `options`-Map:
  *  - `package` — Kotlin package for the generated `Table` objects (default
  *    `"com.example.tables"`).
+ *  - `uuidRepresentation` — which Kotlin type `ErmDataType.Uuid` columns render as: `"java"`
+ *    (default, `Column<java.util.UUID>`) or `"kotlin"` (`Column<kotlin.uuid.Uuid>`, Exposed
+ *    1.x native support). See [UuidRepresentation] and [ErmExposedEmitter]'s KDoc.
  *
  * Writes one file per [ErmModel] entity, named `"<ObjectName>.kt"`.
  */
@@ -38,7 +41,8 @@ public class ErmExposedGenerator : ErmCodeGenerator {
     ): List<File> {
         outputDir.mkdirs()
         val packageName = options["package"] ?: ErmExposedEmitter.DEFAULT_PACKAGE
-        return when (val result = ErmExposedEmitter(packageName).emit(model)) {
+        val uuidRepresentation = UuidRepresentation.fromOption(options["uuidRepresentation"])
+        return when (val result = ErmExposedEmitter(packageName, uuidRepresentation).emit(model)) {
             is TransformResult.Success ->
                 result.output.map { file ->
                     File(outputDir, file.relativePath).apply {

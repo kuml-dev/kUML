@@ -24,7 +24,10 @@ import dev.kuml.erm.model.ErmModel
  * parity with `UmlToErmTransformerProvider`.
  *
  * `--package` (`ctx.options["package"]`) selects the generated files' package
- * name (default `"com.example.tables"`).
+ * name (default `"com.example.tables"`). `uuidRepresentation`
+ * (`ctx.options["uuidRepresentation"]`, `"java"` default / `"kotlin"`) selects which Kotlin
+ * type `ErmDataType.Uuid` columns render as — see [UuidRepresentation] and
+ * [ErmExposedEmitter]'s KDoc for the full rationale.
  */
 public class ErmToExposedTransformer : KumlTransformer<ErmModel, List<GeneratedFile>> {
     override val id: String = "erm-to-exposed"
@@ -35,7 +38,10 @@ public class ErmToExposedTransformer : KumlTransformer<ErmModel, List<GeneratedF
         source: ErmModel,
         ctx: TransformContext,
     ): TransformResult<List<GeneratedFile>> =
-        ErmExposedEmitter(packageName = ctx.options["package"] ?: ErmExposedEmitter.DEFAULT_PACKAGE).emit(source)
+        ErmExposedEmitter(
+            packageName = ctx.options["package"] ?: ErmExposedEmitter.DEFAULT_PACKAGE,
+            uuidRepresentation = UuidRepresentation.fromOption(ctx.options["uuidRepresentation"]),
+        ).emit(source)
 }
 
 /** ServiceLoader provider for [ErmToExposedTransformer]. */

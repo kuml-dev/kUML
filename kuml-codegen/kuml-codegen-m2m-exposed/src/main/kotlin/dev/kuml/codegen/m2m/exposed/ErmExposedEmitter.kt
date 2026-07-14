@@ -18,6 +18,38 @@ import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ReferentialAction
 
 /**
+ * Which Kotlin type [ErmExposedEmitter] renders an [ErmDataType.Uuid] column as. Selected
+ * per generation run via `TransformContext.options["uuidRepresentation"]` (`"java"`, the
+ * default, or `"kotlin"`) — see [ErmExposedEmitter]'s "Known limitations" KDoc section for
+ * the full rationale and the exact rendered syntax for each case. An unrecognized option
+ * value falls back to [JAVA] rather than failing generation (same tolerance pattern as
+ * `UmlToErmTransformer`'s `idType` option).
+ */
+internal enum class UuidRepresentation {
+    /** `javaUUID("col")` → `Column<java.util.UUID>` (default, backward-compatible). */
+    JAVA,
+
+    /** `uuid("col")` → `Column<kotlin.uuid.Uuid>` (Exposed 1.x native support). */
+    KOTLIN,
+
+    ;
+
+    internal companion object {
+        /**
+         * Parses `TransformContext.options["uuidRepresentation"]` — trims + lowercases first
+         * (mirroring `UmlToErmTransformer`'s `idType` option parsing), then maps `"kotlin"` to
+         * [KOTLIN] and everything else (`null`, `"java"`, blank, or an unrecognized typo) to
+         * [JAVA]. Unrecognized values are tolerated rather than failing generation.
+         */
+        fun fromOption(raw: String?): UuidRepresentation =
+            when (raw?.trim()?.lowercase()) {
+                "kotlin" -> KOTLIN
+                else -> JAVA
+            }
+    }
+}
+
+/**
  * V3.4.8 (V3.4.10: retargeted at Exposed 1.3.1's `org.jetbrains.exposed.v1.*`
  * package layout, see ADR-0016 retrofit notes) — the single source of truth
  * for Kotlin Exposed `Table` object generation from an [ErmModel]. All three
@@ -148,12 +180,25 @@ import dev.kuml.erm.model.ReferentialAction
  *   `datetime(...)`, matching the `java.time`-based `org.jetbrains.exposed.v1.javatime`
  *   module (no `timestampWithTimeZone()` call is emitted).
  * - [ErmDataType.Uuid] renders via `javaUUID(...)` (`org.jetbrains.exposed.v1.core.java.javaUUID`),
- *   yielding `Column<java.util.UUID>` — the direct Exposed-1.x continuation of the
- *   pre-1.0 `uuid(...)` contract (which returned `Column<java.util.UUID>` too).
- *   Exposed 1.x's own `Table.uuid(...)` member now returns `Column<kotlin.uuid.Uuid>`
- *   instead and is intentionally not used here, to keep this emitter's documented
- *   "Type mapping" contract (and existing consumers' `java.util.UUID`-typed code)
- *   stable across the Exposed-version retarget.
+ *   yielding `Column<java.util.UUID>`, **by default** — the direct Exposed-1.x continuation of
+ *   the pre-1.0 `uuid(...)` contract (which returned `Column<java.util.UUID>` too). Opting into
+ *   [UuidRepresentation.KOTLIN] (via `TransformContext.options["uuidRepresentation"] = "kotlin"`,
+ *   threaded through the constructor's [uuidRepresentation] parameter) instead renders Exposed
+ *   1.x's own `Table.uuid(...)` member (`org.jetbrains.exposed.v1.core`, no import needed — a
+ *   genuine member function, like `enumerationByName`/`integer`/etc.), yielding
+ *   `Column<kotlin.uuid.Uuid>` (`import kotlin.uuid.Uuid` — not part of Kotlin's default-imported
+ *   stdlib scope, but stable with no `@OptIn` needed as of the Kotlin 2.4 toolchain this project
+ *   targets). This is a whole-generation-run option, not a per-column tag: a Kotlin Multiplatform
+ *   project sharing code with Kotlin/JS (where `java.util.UUID` does not exist) needs *every* Uuid
+ *   column to use the same representation, so [UuidRepresentation] is global to one [emit] call
+ *   rather than an `ermMappingProfile «Column»` tag. Default stays [UuidRepresentation.JAVA] for
+ *   full backward compatibility with every existing model/consumer. `reference()`/`optReference()`
+ *   FK rendering needs no special-casing either way — Exposed's `Table.reference()` overload for a
+ *   plain `Table` is generically typed over the target column's type (`fun <T> reference(name:
+ *   String, refColumn: Column<T>, ...): Column<T>`), so it resolves to `Column<kotlin.uuid.Uuid>`
+ *   automatically when the target primary key is itself rendered under
+ *   [UuidRepresentation.KOTLIN] — see [renderReferenceColumnLine], which delegates to the same
+ *   [renderBaseColumnCall] as every other column and therefore picks up the same representation.
  * - Two attributes whose camelCase-converted names collide (e.g. `user_id` and
  *   `userId` on the same entity) produce two Kotlin `val`s with the same
  *   property name — a non-compiling collision. Not defended against, mirroring
@@ -182,6 +227,7 @@ import dev.kuml.erm.model.ReferentialAction
  */
 internal class ErmExposedEmitter(
     private val packageName: String = DEFAULT_PACKAGE,
+    private val uuidRepresentation: UuidRepresentation = UuidRepresentation.JAVA,
 ) {
     fun emit(model: ErmModel): TransformResult<List<GeneratedFile>> {
         val violations = ErmConstraintChecker().check(model).filter { it.severity == ViolationSeverity.ERROR }
@@ -751,11 +797,20 @@ internal class ErmExposedEmitter(
                     setOf("org.jetbrains.exposed.v1.javatime.datetime", "java.time.LocalDateTime"),
                 )
             ErmDataType.Uuid ->
-                ColumnCallRendering(
-                    "javaUUID(\"$colLiteral\")",
-                    "UUID",
-                    setOf("java.util.UUID", "org.jetbrains.exposed.v1.core.java.javaUUID"),
-                )
+                when (uuidRepresentation) {
+                    UuidRepresentation.JAVA ->
+                        ColumnCallRendering(
+                            "javaUUID(\"$colLiteral\")",
+                            "UUID",
+                            setOf("java.util.UUID", "org.jetbrains.exposed.v1.core.java.javaUUID"),
+                        )
+                    UuidRepresentation.KOTLIN ->
+                        ColumnCallRendering(
+                            "uuid(\"$colLiteral\")",
+                            "Uuid",
+                            setOf("kotlin.uuid.Uuid"),
+                        )
+                }
             ErmDataType.Blob ->
                 ColumnCallRendering(
                     "blob(\"$colLiteral\")",
