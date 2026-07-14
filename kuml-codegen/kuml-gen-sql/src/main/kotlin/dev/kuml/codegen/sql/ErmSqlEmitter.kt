@@ -155,12 +155,33 @@ internal class ErmSqlEmitter(
         if (!attr.autoIncrement) {
             parts += if (attr.nullable) "NULL" else "NOT NULL"
             if (attr.unique && !attr.primaryKey) parts += "UNIQUE"
-            attr.default?.let { parts += "DEFAULT $it" }
+            attr.default?.let { parts += "DEFAULT ${renderDefaultLiteral(it, attr.type)}" }
         }
         if (attr.primaryKey && singleColumnPk) parts += "PRIMARY KEY"
 
         return "    " + parts.joinToString(" ")
     }
+
+    /**
+     * Renders [raw] (an [ErmAttribute.default] value — always the plain semantic value, e.g.
+     * `"GREMIUM_QUORUM"` or `"TRUE"`, never pre-quoted SQL literal syntax; see
+     * `EntityBuilder`/`ermMappingProfile` DSL conventions) as a SQL literal appropriate for
+     * [type]. String-shaped types need single-quoting (and embedded-quote escaping) or the
+     * literal is emitted as a bare, invalid identifier — e.g. `DEFAULT GREMIUM_QUORUM` instead of
+     * `DEFAULT 'GREMIUM_QUORUM'`, found emitting a real enum-column default in the Lapis Cloud MDA
+     * production swap. Numeric/boolean types (`Integer`, `Decimal`, `Real`, `Boolean`) are valid
+     * SQL literals unquoted and are passed through verbatim, as is [ErmDataType.Custom] (an
+     * escape hatch where the raw value may already be dialect-specific literal syntax).
+     */
+    private fun renderDefaultLiteral(
+        raw: String,
+        type: ErmDataType,
+    ): String =
+        when (type) {
+            is ErmDataType.Varchar, is ErmDataType.Enum, ErmDataType.Text ->
+                "'" + raw.replace("'", "''") + "'"
+            else -> raw
+        }
 
     private fun renderTableConstraints(entity: ErmEntity): List<String> {
         val lines = mutableListOf<String>()

@@ -48,6 +48,31 @@ class ErmSqlEmitterTest :
             sql shouldContain "credits INTEGER NOT NULL DEFAULT 0"
         }
 
+        test("string-shaped DEFAULT values are single-quoted, numeric/boolean ones are not") {
+            // Found emitting a real enum-column default (Lapis Cloud MDA production swap):
+            // ErmAttribute.default always holds the plain semantic value (never pre-quoted SQL
+            // literal syntax, per the EntityBuilder/ermMappingProfile DSL convention — same as
+            // "0"/"TRUE" for numeric/boolean defaults), so a Varchar/Enum/Text default needs the
+            // emitter to add the quotes, or the literal comes out as a bare, invalid identifier
+            // (`DEFAULT GREMIUM_QUORUM` instead of `DEFAULT 'GREMIUM_QUORUM'`).
+            val model =
+                ermModel("M") {
+                    entity("widgets") {
+                        id("id", ErmDataType.Integer(32))
+                        attribute("mode", ErmDataType.Varchar(20), nullable = false, default = "GREMIUM_QUORUM")
+                        attribute("note", ErmDataType.Text, nullable = false, default = "it's fine")
+                        attribute("active", ErmDataType.Boolean, nullable = false, default = "TRUE")
+                        attribute("count", ErmDataType.Integer(32), nullable = false, default = "0")
+                    }
+                }
+            val sql = emit(model)
+            sql shouldContain "mode VARCHAR(20) NOT NULL DEFAULT 'GREMIUM_QUORUM'"
+            // Embedded single quote is escaped by doubling, not left unescaped or stripped.
+            sql shouldContain "note TEXT NOT NULL DEFAULT 'it''s fine'"
+            sql shouldContain "active BOOLEAN NOT NULL DEFAULT TRUE"
+            sql shouldContain "count INTEGER NOT NULL DEFAULT 0"
+        }
+
         test("composite PK renders as a table-level PRIMARY KEY, not inline") {
             // Built with raw `attribute(...)` (not the `foreignKey()` convenience builder) since
             // the latter never sets `primaryKey = true` — junction tables need both columns to
