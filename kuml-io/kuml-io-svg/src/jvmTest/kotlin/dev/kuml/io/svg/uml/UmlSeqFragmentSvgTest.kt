@@ -11,6 +11,7 @@ import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
+import dev.kuml.renderer.theme.core.KumlBrandTheme
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.uml.InteractionOperator
 import dev.kuml.uml.MessageSort
@@ -253,6 +254,86 @@ class UmlSeqFragmentSvgTest :
             assert(breakWidth < loopWidth) {
                 "Nested BREAK frame must be narrower than enclosing LOOP frame. " +
                     "loopWidth=$loopWidth, breakWidth=$breakWidth"
+            }
+        }
+
+        // ── Bug fix regression 2026-07-14 ────────────────────────────────────
+        // Bug A: label background rects used to match each fragment's own (never
+        // actually rendered — see doc comment on renderUmlCombinedFragments)
+        // fill, producing mismatched blue/white chips. All label rects must now
+        // use ONE uniform colour: the theme's effective node fill.
+
+        test("all sequence label background rects use the theme's uniform effectiveNodeFill") {
+            val theme = KumlBrandTheme()
+            val svg = KumlSvgRenderer.toSvg(diagram, fakeLayout(), theme)
+            val expectedFill = theme.colors.effectiveNodeFill.toHex()
+            assert(expectedFill != "#eef6ff") {
+                "Test assumption violated: KumlBrandTheme effectiveNodeFill should differ from #eef6ff"
+            }
+            val rectFillRegex = Regex("""<rect[^>]*fill="([^"]+)"[^>]*stroke="none"[^>]*/>""")
+            val fills = rectFillRegex.findAll(svg).map { it.groupValues[1] }.toList()
+            assert(fills.isNotEmpty()) { "Expected at least one label background rect in SVG" }
+            for (fill in fills) {
+                assert(fill == expectedFill) {
+                    "Every label background rect should use the uniform effectiveNodeFill " +
+                        "($expectedFill), but found '$fill'. This is the two-tone label-chip " +
+                        "regression (blue #eef6ff vs. white chips) — see renderUmlCombinedFragments " +
+                        "doc comment."
+                }
+            }
+            assert(fills.none { it == "#eef6ff" }) {
+                "No label background rect may use the raw BREAK fill #eef6ff directly " +
+                    "(it is overridden by CSS on the frame rect itself, not on labels)."
+            }
+        }
+
+        // Bug B: guard label background rects used to overlap the operator-tag
+        // pentagon (index-0 guards) by ~2px, since guards paint in a LATER pass
+        // and thus paint over the pentagon's border stroke.
+
+        test("guard label rect never overlaps its operator-tag pentagon") {
+            val svg = KumlSvgRenderer.toSvg(diagram, fakeLayout(), PlainTheme())
+
+            fun pentagonRightX(fragId: String): Float {
+                val groupStart = svg.indexOf("id=\"$fragId\"")
+                assert(groupStart >= 0) { "Fragment <g id=\"$fragId\"> not found in SVG" }
+                val groupEnd = svg.indexOf("</g>", groupStart) + 4
+                val groupSvg = svg.substring(groupStart, groupEnd)
+                val pointsMatch = Regex("""<polygon points="([^"]+)"""").find(groupSvg)
+                assert(pointsMatch != null) { "No pentagon <polygon> found in fragment group for $fragId" }
+                val xs =
+                    pointsMatch!!.groupValues[1].split(" ").map { pair ->
+                        pair.split(",")[0].toFloat()
+                    }
+                return xs.max()
+            }
+
+            fun guardRectX(guardText: String): Float {
+                // Guard text is emitted on its own indented line inside <text>...</text>,
+                // not immediately between '>' and '<', so search for the raw text content.
+                val textIdx = svg.indexOf(guardText)
+                assert(textIdx >= 0) { "Guard text '$guardText' not found in SVG" }
+                val rectStart = svg.lastIndexOf("<rect", textIdx)
+                assert(rectStart >= 0) { "No <rect> preceding guard text '$guardText'" }
+                val rectEnd = svg.indexOf(">", rectStart)
+                val rectTag = svg.substring(rectStart, rectEnd)
+                val xMatch = Regex("""x="([0-9.]+)"""").find(rectTag)
+                assert(xMatch != null) { "No x attribute found in guard <rect>: $rectTag" }
+                return xMatch!!.groupValues[1].toFloat()
+            }
+
+            val loopPentagonRight = pentagonRightX(loopFrag.id)
+            val loopGuardRectX = guardRectX("[k ≤ 3]")
+            assert(loopGuardRectX >= loopPentagonRight + 4f) {
+                "LOOP guard rect (x=$loopGuardRectX) must clear the pentagon's right edge " +
+                    "(x=$loopPentagonRight) by at least 4px. Overlap regression."
+            }
+
+            val breakPentagonRight = pentagonRightX(breakFrag.id)
+            val breakGuardRectX = guardRectX("[success]")
+            assert(breakGuardRectX >= breakPentagonRight + 4f) {
+                "BREAK guard rect (x=$breakGuardRectX) must clear the pentagon's right edge " +
+                    "(x=$breakPentagonRight) by at least 4px. Overlap regression."
             }
         }
     })

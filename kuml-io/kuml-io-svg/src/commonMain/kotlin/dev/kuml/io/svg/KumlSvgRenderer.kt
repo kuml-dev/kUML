@@ -804,7 +804,21 @@ public object KumlSvgRenderer {
             //    in the top-left corner paints opaque, and that corner sits
             //    OUTSIDE the leftmost lifeline's centre-line (frame starts at
             //    minLifelineX - FRAGMENT_PADDING).
-            val canvasBackgroundFill = theme.colors.background.toHex()
+            //
+            // Label backdrop: ALL message/guard label background rects use ONE
+            // uniform colour — the theme's effective node fill (the lifeline
+            // header "Kästchen" colour), not the raw canvas background. Reason:
+            // the fragment frame rect (BREAK's "#eef6ff" or LOOP/ALT/OPT/PAR's
+            // "none") also carries class="kuml-class", and the generated CSS rule
+            // `.kuml-class { fill: ... }` (SvgDocument.kt) has higher specificity
+            // than the presentation attribute, so it ALWAYS wins — every fragment
+            // interior actually renders as effectiveNodeFill, never canvas white
+            // or "#eef6ff". Matching labels against the fill attribute (as before)
+            // therefore matched a colour that never visually appears, producing
+            // mismatched blue/white label chips. Matching effectiveNodeFill makes
+            // in-fragment label chips blend invisibly with their true backdrop,
+            // and out-of-fragment chips subtly match the lifeline header boxes.
+            val labelBackdropFill = theme.colors.effectiveNodeFill.toHex()
             val visibleLifelineLayouts =
                 interaction.lifelines
                     .mapNotNull { shiftedLayouts[dev.kuml.layout.NodeId(it.id)] }
@@ -814,7 +828,7 @@ public object KumlSvgRenderer {
                     interaction,
                     visibleLifelineLayouts,
                     nodesBuilder,
-                    canvasBackgroundFill,
+                    labelBackdropFill,
                 )
 
             // 3. NOW render the lifeline heads + dashed time axes on top of the
@@ -844,8 +858,7 @@ public object KumlSvgRenderer {
                     interaction.fragments,
                     interaction.messages.associateBy { it.id },
                 ),
-                fragmentRenderResult.messageBackdrops,
-                canvasBackgroundFill,
+                labelBackdropFill,
             )
 
             // 5. V0.23.1 — UML Comments. Sequence diagrams route lifelines

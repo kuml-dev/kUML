@@ -66,6 +66,17 @@ private const val FRAGMENT_TOP_OUTSET = 24f
 private const val FRAGMENT_BOTTOM_OUTSET = 8f
 private const val FRAGMENT_TAG_W = 50f
 private const val FRAGMENT_TAG_H = 18f
+
+/**
+ * Zusätzlicher horizontaler Abstand zwischen dem linken Nachbarn eines Guard-Labels
+ * — dem Operator-Tag-Pentagon bei `index == 0`, dem Frame-Rand bei `index > 0` — und
+ * dem sichtbaren linken Rand des Guard-Hintergrund-Rechtecks. Guards werden in einem
+ * eigenen, LETZTEN Render-Pass gezeichnet (siehe [renderUmlGuardLabels]), sodass ihr
+ * Hintergrund-Rechteck alles darunter überzeichnet — ohne genug Abstand malt es sich
+ * über die Pentagon-Kontur bzw. den Frame-Rahmen. Behebt eine ~2px-Überlappung
+ * ("Box-Titel" wird vom Guard-Text teilweise verdeckt", Bug-Report 2026-07-14).
+ */
+private const val GUARD_TAG_GAP = 6f
 private const val SELF_CALL_W = 24f
 private const val SELF_CALL_H = 16f
 
@@ -192,11 +203,11 @@ internal fun renderUmlLifelineHead(
  * Filters for messages where both endpoints are in visibleLifelineIds.
  * Messages are sorted by sequence number.
  *
- * @param messageBackdrops Per-message-id background fill for the label rect, e.g. the
- *   enclosing combined fragment's own fill (`#eef6ff` for BREAK). Messages not present in
- *   this map (i.e. not inside any fragment) fall back to [canvasBackgroundFill].
- * @param canvasBackgroundFill Theme background colour to use for messages outside any
- *   combined fragment. Defaults to `"white"` for backward compatibility.
+ * @param labelBackdropFill Uniform background fill used for every message label's background
+ *   rect, regardless of whether the message sits inside a combined fragment or not — see
+ *   [renderUmlCombinedFragments] doc comment for why a single colour (the theme's effective
+ *   node fill) is correct everywhere instead of per-fragment matching. Defaults to `"white"`
+ *   for backward compatibility.
  */
 internal fun renderUmlSeqMessages(
     messages: List<UmlMessage>,
@@ -204,8 +215,7 @@ internal fun renderUmlSeqMessages(
     nodeLayouts: Map<NodeId, NodeLayout>,
     builder: SvgBuilder,
     operandFirstSeqs: List<Int> = emptyList(),
-    messageBackdrops: Map<String, String> = emptyMap(),
-    canvasBackgroundFill: String = "white",
+    labelBackdropFill: String = "white",
 ) {
     val visible =
         messages
@@ -215,8 +225,7 @@ internal fun renderUmlSeqMessages(
         val srcLayout = nodeLayouts[NodeId(msg.fromLifelineId)] ?: continue
         val tgtLayout = nodeLayouts[NodeId(msg.toLifelineId)] ?: continue
         val rowOffset = umlSeqRowOffset(msg.sequence, operandFirstSeqs)
-        val backdropFill = messageBackdrops[msg.id] ?: canvasBackgroundFill
-        renderUmlMessage(msg, srcLayout, tgtLayout, builder, rowOffset, backdropFill)
+        renderUmlMessage(msg, srcLayout, tgtLayout, builder, rowOffset, labelBackdropFill)
     }
 }
 
@@ -305,10 +314,10 @@ private fun renderUmlMessage(
  * @param hPad Horizontal padding added to each side of the text estimate when sizing the
  *   background rect. Defaults to [LABEL_BG_HPAD]. Pass `0f` for self-call labels
  *   so the background matches the text width and does not spill into adjacent lifelines.
- * @param fill Background rect fill colour. Defaults to `"white"`, but callers should pass
- *   the actual local backdrop (page/canvas background, or the enclosing combined-fragment's
- *   own fill, e.g. `#eef6ff` for BREAK) so the rect blends in instead of standing out as a
- *   visibly different white patch against a tinted fragment background.
+ * @param fill Background rect fill colour. Defaults to `"white"`, but callers pass the ONE
+ *   uniform label backdrop colour used across the whole sequence diagram (the theme's
+ *   effective node fill) — see [renderUmlCombinedFragments] doc comment for why a single
+ *   colour, not per-fragment matching, is correct here.
  */
 private fun drawLabelWithWhiteBackground(
     label: String,
@@ -408,9 +417,9 @@ private fun renderUmlSelfCall(
  * Guard labels are collected instead of drawn immediately by [renderUmlFragment]
  * so the caller can paint them in a later pass — see [renderUmlCombinedFragments].
  *
- * @param backdropFill The enclosing fragment's own fill (e.g. `#eef6ff` for BREAK, or the
- *   page/canvas background for fragments with `fill="none"`) so the label's background rect
- *   blends into its surroundings instead of standing out as plain white.
+ * @param backdropFill The ONE uniform label backdrop colour used across the whole sequence
+ *   diagram (the theme's effective node fill) — see [renderUmlCombinedFragments] doc comment
+ *   for why every guard label uses the same colour regardless of its enclosing fragment.
  */
 internal data class SeqGuardLabel(
     val label: String,
@@ -422,14 +431,10 @@ internal data class SeqGuardLabel(
 )
 
 /**
- * Result of [renderUmlCombinedFragments]: guard labels queued for a later render pass, plus
- * the per-message backdrop fill (keyed by message id) for messages that live inside a
- * fragment, so [renderUmlSeqMessages] can match its label background to the same fragment
- * tint instead of always using the page background.
+ * Result of [renderUmlCombinedFragments]: guard labels queued for a later render pass.
  */
 internal data class SeqFragmentRenderResult(
     val guardLabels: List<SeqGuardLabel>,
-    val messageBackdrops: Map<String, String>,
 )
 
 /**
@@ -445,18 +450,29 @@ internal data class SeqFragmentRenderResult(
  * paint directly through a guard's own background rect + text (the guard sits
  * inside the fragment, not just on its border).
  *
- * @param canvasBackgroundFill Theme background colour used for guard/message labels
- *   belonging to a fragment whose own fill is `"none"` (i.e. everything except BREAK).
- *   Defaults to `"white"` for backward compatibility.
+ * **Label backdrop design (Bug fix 2026-07-14):** guard labels use ONE uniform backdrop
+ * colour ([labelBackdropFill]) everywhere, instead of matching each fragment's own declared
+ * fill (`#eef6ff` for BREAK, `"none"`/canvas white otherwise). Reason: the frame `<rect>`
+ * carries BOTH a `fill` presentation attribute AND `class="kuml-class"`, and the generated
+ * stylesheet rule `.kuml-class { fill: <effectiveNodeFill> }` ([SvgDocument]) has higher CSS
+ * specificity, so it always wins — every fragment interior actually renders as the theme's
+ * effective node fill, never the `fill` attribute's `"#eef6ff"` or canvas white. Matching
+ * labels to the (never-rendered) `fill` attribute produced mismatched blue/white label chips.
+ * Matching [labelBackdropFill] (== effectiveNodeFill) makes every chip blend with its true
+ * backdrop. Do NOT reintroduce per-fragment colour matching without first fixing the CSS
+ * specificity clash — otherwise the mismatch bug returns.
+ *
+ * @param labelBackdropFill The ONE uniform background colour for every guard label's rect —
+ *   pass the theme's effective node fill. Defaults to `"white"` for backward compatibility.
  */
 internal fun renderUmlCombinedFragments(
     fragments: List<UmlCombinedFragment>,
     interaction: UmlInteraction,
     visibleLifelineLayouts: List<NodeLayout>,
     builder: SvgBuilder,
-    canvasBackgroundFill: String = "white",
+    labelBackdropFill: String = "white",
 ): SeqFragmentRenderResult {
-    if (visibleLifelineLayouts.isEmpty()) return SeqFragmentRenderResult(emptyList(), emptyMap())
+    if (visibleLifelineLayouts.isEmpty()) return SeqFragmentRenderResult(emptyList())
     val msgById: Map<String, UmlMessage> = interaction.messages.associateBy { it.id }
     val operandFirstSeqs = umlOperandFirstSeqs(fragments, msgById)
     // Nested fragments (those referenced by any operand's fragmentIds) must be
@@ -467,11 +483,6 @@ internal fun renderUmlCombinedFragments(
     val nestedIds = fragments.flatMap { f -> f.operands.flatMap { o -> o.fragmentIds } }.toSet()
     val renderOrder = fragments.sortedBy { if (it.id in nestedIds) 1 else 0 }
     val guardLabels = mutableListOf<SeqGuardLabel>()
-    // A nested fragment (e.g. BREAK inside LOOP) is processed AFTER its enclosing
-    // fragment in renderOrder, so simply overwriting entries here means a message
-    // shared by both ends up tagged with the innermost fragment's own fill — no
-    // explicit nesting-depth tracking needed.
-    val messageBackdrops = mutableMapOf<String, String>()
     for (fragment in renderOrder) {
         renderUmlFragment(
             fragment,
@@ -480,12 +491,11 @@ internal fun renderUmlCombinedFragments(
             builder,
             operandFirstSeqs,
             guardLabels,
-            messageBackdrops,
-            canvasBackgroundFill,
+            labelBackdropFill,
             isNested = fragment.id in nestedIds,
         )
     }
-    return SeqFragmentRenderResult(guardLabels, messageBackdrops)
+    return SeqFragmentRenderResult(guardLabels)
 }
 
 /** Draws guard labels queued by [renderUmlCombinedFragments], on top of whatever is already in [builder]. */
@@ -513,8 +523,7 @@ private fun renderUmlFragment(
     builder: SvgBuilder,
     operandFirstSeqs: List<Int>,
     guardLabels: MutableList<SeqGuardLabel>,
-    messageBackdrops: MutableMap<String, String>,
-    canvasBackgroundFill: String,
+    labelBackdropFill: String,
     isNested: Boolean = false,
 ) {
     if (fragment.operands.isEmpty()) return
@@ -552,18 +561,12 @@ private fun renderUmlFragment(
 
     // BREAK frames: solid border + subtle fill so they visually stand out inside
     // an enclosing loop/alt frame that uses a dashed border.  All other operators
-    // keep the standard dashed-border / transparent style.
+    // keep the standard dashed-border / transparent style. NOTE: the "#eef6ff"
+    // fill attribute below is overridden by the `.kuml-class` CSS rule (higher
+    // specificity — see [renderUmlCombinedFragments] doc comment) and never
+    // actually paints; it is kept only so a style-based override could restore
+    // it later. Guard labels use the uniform [labelBackdropFill], NOT this value.
     val isBreak = fragment.operator == InteractionOperator.BREAK
-    // Same fill the frame rect itself uses (line below): messages/guards that live
-    // inside this fragment should use it as their label backdrop too, so the label
-    // background blends in instead of standing out as a plain white patch against
-    // a tinted (e.g. BREAK's #eef6ff) fragment background.
-    val fragmentFill = if (isBreak) "#eef6ff" else canvasBackgroundFill
-    for (operand in fragment.operands) {
-        for (msgId in operand.messageIds) {
-            messageBackdrops[msgId] = fragmentFill
-        }
-    }
     builder.tag("g", mapOf("id" to xmlEscapeAttr(fragment.id))) {
         val rectAttrs =
             buildMap {
@@ -659,14 +662,25 @@ private fun renderUmlFragment(
                 // (same Y as the keyword centre).  This keeps it above the first
                 // message arrow and gives it the full remaining frame width.
                 // Subsequent-operand guards sit at the left of the frame, just
-                // below their separator line — unchanged from before.
-                val guardX = if (index == 0) frameX + FRAGMENT_TAG_W + 4f else frameX + 4f
-                val guardMaxWidth =
+                // below their separator line.
+                //
+                // Both branches keep [GUARD_TAG_GAP] clearance so the guard's
+                // background rect (whose left edge sits at guardX − LABEL_BG_HPAD,
+                // see drawLabelWithWhiteBackground) never overlaps its left-hand
+                // neighbour: the operator-tag pentagon (index 0, flat right edge at
+                // frameX + FRAGMENT_TAG_W) or the frame's own left border (index > 0).
+                // Previously guardX = frameX + FRAGMENT_TAG_W + 4f put the rect's
+                // left edge 2px INSIDE the pentagon (4 - LABEL_BG_HPAD(6) = -2), and
+                // guardX = frameX + 4f put non-first guards' rects 2px OUTSIDE the
+                // frame border — both painted over their neighbour's stroke because
+                // guards render in a later pass, on top of the frame/pentagon.
+                val guardX =
                     if (index == 0) {
-                        (frameW - FRAGMENT_TAG_W - 8f).coerceAtLeast(20f)
+                        frameX + FRAGMENT_TAG_W + LABEL_BG_HPAD + GUARD_TAG_GAP
                     } else {
-                        (frameW - 8f).coerceAtLeast(20f)
+                        frameX + LABEL_BG_HPAD + 4f
                     }
+                val guardMaxWidth = (frameX + frameW - guardX - 8f).coerceAtLeast(20f)
                 guardLabels.add(
                     SeqGuardLabel(
                         label = displayGuard,
@@ -674,7 +688,7 @@ private fun renderUmlFragment(
                         y = guardY,
                         anchor = "start",
                         maxWidth = guardMaxWidth,
-                        backdropFill = fragmentFill,
+                        backdropFill = labelBackdropFill,
                     ),
                 )
             }
