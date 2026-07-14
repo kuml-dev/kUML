@@ -54,6 +54,14 @@ public val ermMappingProfile: KumlProfile =
             property<String>(ErmProfileNames.TAG_COLUMN_NAME) // required — no default
             property<String>(ErmProfileNames.TAG_SQL_TYPE) { default = "" }
             property<String>(ErmProfileNames.TAG_ENUM_TYPE) { required = false } // optional override — no default
+            // Pins an explicit FK target (by UML class name, and optionally a target ERM column
+            // name — defaults to the target's primary key) directly on a plain attribute, bypassing
+            // UmlAssociation-based FK derivation entirely. Closes the gap where the real column name
+            // (e.g. "created_by") doesn't match what association-to-FK naming would derive (e.g.
+            // "member_id") and there is no role-based way to override it (see UmlToErmTransformer's
+            // "Known limitations" KDoc).
+            property<String>(ErmProfileNames.TAG_FK_ENTITY) { required = false } // optional — no default
+            property<String>(ErmProfileNames.TAG_FK_ATTRIBUTE) { required = false } // optional — no default
             property<Boolean>(ErmProfileNames.TAG_NULLABLE) { default = true }
             property<Boolean>(ErmProfileNames.TAG_UNIQUE) { default = false }
         }

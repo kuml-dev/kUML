@@ -120,7 +120,22 @@ import dev.kuml.uml.UmlProperty
  *   is currently no `«FK»` tag to override the column name directly (only
  *   `constraintName` / `onDelete` / `onUpdate` are supported) — a future wave
  *   could add a `columnName` tag to the `«FK»` stereotype to close this gap
- *   without requiring role names.
+ *   without requiring role names. In the meantime, `«Column».fkEntity` (see
+ *   below) is the escape hatch: model the FK as a plain attribute with the
+ *   real column name and pin its target directly, bypassing association
+ *   derivation (and its naming defaults) entirely.
+ * - A plain attribute can pin an explicit FK target directly via
+ *   `«Column».fkEntity` (target class name) and, optionally, `«Column».fkAttribute`
+ *   (target column name; defaults to the target's primary key) — see
+ *   [resolveColumnLevelForeignKeys]. This is the way to model a real FK whose
+ *   column name doesn't match what association-to-FK naming would derive (e.g.
+ *   a real `created_by` column referencing `member.id`, where the derived
+ *   default would be `member_id`) without requiring an
+ *   `UmlAssociationEnd.role`. Resolved only after every entity in the diagram
+ *   already exists, so `fkEntity` may name any class regardless of
+ *   declaration order; an unresolvable `fkEntity`/`fkAttribute` fails the
+ *   transform with [UnresolvedColumnForeignKeyException] rather than silently
+ *   leaving the column unreferenced.
  */
 public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
     override val id: String = "uml-to-erm"
@@ -135,6 +150,8 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             Session(ctx).run(source)
         } catch (e: UnsafeUmlNameException) {
             TransformResult.Failure(listOf(TransformError(e.message ?: "unsafe identifier", null)))
+        } catch (e: UnresolvedColumnForeignKeyException) {
+            TransformResult.Failure(listOf(TransformError(e.message ?: "unresolved column-level FK", null)))
         }
 
     /** Per-call mutable state — a fresh instance is created for every [transform] invocation. */
@@ -149,7 +166,17 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
         private val entityIdByClassId = mutableMapOf<String, String>()
         private val relationships = mutableListOf<ErmRelationship>()
         private val categories = mutableListOf<ErmCategory>()
+        private val pendingColumnFks = mutableListOf<PendingColumnFk>()
         private var trace = TransformTrace()
+
+        /** A `«Column».fkEntity`/`fkAttribute` override, stashed until every entity exists (see [resolveColumnLevelForeignKeys]). */
+        private data class PendingColumnFk(
+            val entityId: String,
+            val attrId: String,
+            val fkEntityName: String,
+            val fkAttributeName: String?,
+            val sourceAttrId: String,
+        )
 
         fun run(source: KumlDiagram): TransformResult<ErmModel> {
             val classes = source.elements.filterIsInstance<UmlClass>()
@@ -158,6 +185,7 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             val generalizations = source.elements.filterIsInstance<UmlGeneralization>()
 
             val classById = classes.associateBy { it.id }
+            val classesByName = classes.associateBy { it.name }
             val enumsByName = enums.associateBy { it.name }
 
             // Only the first-declared parent per class is honoured (V3.4.6 scope — no multiple inheritance).
@@ -185,6 +213,10 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
 
             // 4. IDEF1X categories for JOINED hierarchies (best-effort, non-blocking if skipped).
             applyCategories(classes, plans)
+
+            // 4.5. «Column».fkEntity/fkAttribute overrides — resolved only now that every entity
+            // (including SINGLE_TABLE/JOINED-materialised columns) exists; see resolveColumnLevelForeignKeys.
+            resolveColumnLevelForeignKeys(classesByName, plans)
 
             // 5. Associations → FK column or M:N junction entity.
             for (assoc in associations) {
@@ -297,6 +329,16 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
             template.checkExpression?.let { expr ->
                 entity.checks += ErmCheckConstraint(id = entity.nextCheckId(), name = null, expression = expr)
             }
+            template.fkEntityName?.let { fkEntityName ->
+                pendingColumnFks +=
+                    PendingColumnFk(
+                        entityId = entity.id,
+                        attrId = attrId,
+                        fkEntityName = fkEntityName,
+                        fkAttributeName = template.fkAttributeName,
+                        sourceAttrId = template.sourceAttrId,
+                    )
+            }
         }
 
         private fun mapAttributeToColumn(
@@ -347,6 +389,9 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                     false
                 }
 
+            val fkEntityName = columnStereo?.stringTag(ErmProfileNames.TAG_FK_ENTITY)?.takeIf { it.isNotBlank() }
+            val fkAttributeName = columnStereo?.stringTag(ErmProfileNames.TAG_FK_ATTRIBUTE)?.takeIf { it.isNotBlank() }
+
             return ColumnTemplate(
                 name = columnName,
                 type = type,
@@ -357,6 +402,8 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                 autoIncrement = autoIncrement,
                 sourceAttrId = attr.id,
                 checkExpression = checkExpression,
+                fkEntityName = fkEntityName,
+                fkAttributeName = fkAttributeName,
             )
         }
 
@@ -557,6 +604,59 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                 cur = plan.parentId
             }
             return null
+        }
+
+        /**
+         * Resolves every `«Column».fkEntity`/`fkAttribute` override stashed by [addColumn] into a
+         * real [ErmForeignKey], mutating the already-built [ErmAttribute] in place.
+         *
+         * Must run only after every entity (including SINGLE_TABLE/JOINED-materialised columns)
+         * already exists — unlike [addForeignKey]'s per-association derivation, a column-level
+         * override can name a class declared anywhere in the diagram, including one processed
+         * later than the attribute carrying the override, so resolution cannot happen inline
+         * inside [mapAttributeToColumn].
+         *
+         * A typo in [ErmProfileNames.TAG_FK_ENTITY]/[ErmProfileNames.TAG_FK_ATTRIBUTE] is a
+         * user-authored mistake, not a structural inevitability like association-derived FKs are
+         * — it fails the transform with [UnresolvedColumnForeignKeyException] instead of silently
+         * leaving the column unreferenced.
+         */
+        private fun resolveColumnLevelForeignKeys(
+            classesByName: Map<String, UmlClass>,
+            plans: Map<String, ClassPlan>,
+        ) {
+            for (pending in pendingColumnFks) {
+                val targetClass =
+                    classesByName[pending.fkEntityName]
+                        ?: throw UnresolvedColumnForeignKeyException(
+                            "uml-to-erm: «Column».fkEntity '${pending.fkEntityName}' (element ${pending.sourceAttrId}) " +
+                                "does not name a class in this diagram.",
+                        )
+                val targetEntityId =
+                    physicalEntityIdOf(targetClass.id, plans)
+                        ?: throw UnresolvedColumnForeignKeyException(
+                            "uml-to-erm: «Column».fkEntity '${pending.fkEntityName}' (element ${pending.sourceAttrId}) " +
+                                "resolves to a class with no table of its own.",
+                        )
+                val targetEntity = entities.getValue(targetEntityId)
+                val targetAttrId =
+                    pending.fkAttributeName?.let { fkAttributeName ->
+                        targetEntity.attributes.firstOrNull { it.name == fkAttributeName }?.id
+                            ?: throw UnresolvedColumnForeignKeyException(
+                                "uml-to-erm: «Column».fkAttribute '$fkAttributeName' (element ${pending.sourceAttrId}) " +
+                                    "does not name a column on '${pending.fkEntityName}'.",
+                            )
+                    }
+
+                val entity = entities.getValue(pending.entityId)
+                val idx = entity.attributes.indexOfFirst { it.id == pending.attrId }
+                if (idx >= 0) {
+                    entity.attributes[idx] =
+                        entity.attributes[idx].copy(
+                            foreignKey = ErmForeignKey(targetEntityId = targetEntityId, targetAttributeId = targetAttrId),
+                        )
+                }
+            }
         }
 
         // ── Association resolution ───────────────────────────────────────────

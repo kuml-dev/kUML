@@ -77,3 +77,14 @@ internal fun String.toSingular(): String =
 public class UnsafeUmlNameException(
     message: String,
 ) : RuntimeException(message)
+
+/**
+ * Thrown by [UmlToErmTransformer] when a `«Column».fkEntity`/`fkAttribute` override
+ * names a UML class or target column that does not exist in the diagram — a typo in
+ * an explicit, user-authored FK override must fail loudly rather than silently
+ * leaving the column unreferenced (unlike association-derived FKs, which are only
+ * ever synthesized from structures the transformer itself already validated).
+ */
+public class UnresolvedColumnForeignKeyException(
+    message: String,
+) : RuntimeException(message)
