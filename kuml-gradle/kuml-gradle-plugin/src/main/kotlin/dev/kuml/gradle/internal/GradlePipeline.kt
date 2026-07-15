@@ -55,6 +55,12 @@ import kotlin.script.experimental.jvmhost.BasicJvmScriptingHost
 internal object GradlePipeline {
     private val layoutEngine = ElkLayoutEngine()
 
+    // V3.0.x — see RenderPipeline.kt (CLI) for the full rationale: UML sequence
+    // diagrams are the one diagram type where declaration order is semantically
+    // meaningful, so pin it via LayoutHints.preserveNodeOrder.
+    private fun umlHintsFor(diagram: KumlDiagram): LayoutHints =
+        LayoutHints.DEFAULT.copy(preserveNodeOrder = diagram.type == DiagramType.SEQUENCE)
+
     /**
      * Plugin-eigener Scripting-Host für Gradle-Worker-Klassen­hierarchien.
      *
@@ -148,7 +154,7 @@ internal object GradlePipeline {
     ): String =
         when (extracted) {
             is ExtractedDiagram.Uml -> {
-                val layout = layoutEngine.layout(UmlLayoutBridge.toLayoutGraph(extracted.diagram), LayoutHints.DEFAULT)
+                val layout = layoutEngine.layout(UmlLayoutBridge.toLayoutGraph(extracted.diagram), umlHintsFor(extracted.diagram))
                 KumlSvgRenderer.toSvg(extracted.diagram, layout, theme)
             }
             is ExtractedDiagram.C4 -> {
@@ -271,7 +277,7 @@ internal object GradlePipeline {
         val options = PngRenderOptions(widthPx = widthPx)
         return when (extracted) {
             is ExtractedDiagram.Uml -> {
-                val layout = layoutEngine.layout(UmlLayoutBridge.toLayoutGraph(extracted.diagram), LayoutHints.DEFAULT)
+                val layout = layoutEngine.layout(UmlLayoutBridge.toLayoutGraph(extracted.diagram), umlHintsFor(extracted.diagram))
                 KumlPngRenderer.toPng(extracted.diagram, layout, theme, options)
             }
             is ExtractedDiagram.C4 -> {

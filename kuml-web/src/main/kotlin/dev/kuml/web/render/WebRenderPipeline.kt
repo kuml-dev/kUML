@@ -167,7 +167,11 @@ internal object WebRenderPipeline {
         val diagram = extracted.diagram
         val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
         val engine = pickEngine(diagram, layoutOverride)
-        val layoutResult: LayoutResult = engine.layout(layoutGraph, LayoutHints.DEFAULT)
+        // V3.0.x — see CLI's RenderPipeline.kt for the full rationale: UML sequence
+        // diagrams are the one diagram type where declaration order is semantically
+        // meaningful, so pin it via LayoutHints.preserveNodeOrder.
+        val hints = LayoutHints.DEFAULT.copy(preserveNodeOrder = diagram.type == DiagramType.SEQUENCE)
+        val layoutResult: LayoutResult = engine.layout(layoutGraph, hints)
         return when (format) {
             "svg" -> {
                 val geometry = NodeGeometryExtractor.extract(diagram.type, layoutResult)

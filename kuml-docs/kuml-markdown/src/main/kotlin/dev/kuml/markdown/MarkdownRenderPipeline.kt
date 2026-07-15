@@ -1,5 +1,6 @@
 package dev.kuml.markdown
 
+import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.script.DiagramExtractor
 import dev.kuml.core.script.KumlScriptHost
@@ -46,7 +47,7 @@ internal object MarkdownRenderPipeline {
     /** Render [diagram] to a self-contained SVG string. */
     internal fun renderSvg(diagram: KumlDiagram): String {
         val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
-        val layoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+        val layoutResult = layoutEngine.layout(layoutGraph, hintsFor(diagram))
         return KumlSvgRenderer.toSvg(diagram, layoutResult, theme)
     }
 
@@ -56,7 +57,13 @@ internal object MarkdownRenderPipeline {
         widthPx: Int,
     ): ByteArray {
         val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
-        val layoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+        val layoutResult = layoutEngine.layout(layoutGraph, hintsFor(diagram))
         return KumlPngRenderer.toPng(diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx))
     }
+
+    // V3.0.x — see RenderPipeline.kt (CLI) for the full rationale: UML sequence
+    // diagrams are the one diagram type where declaration order is semantically
+    // meaningful, so pin it via LayoutHints.preserveNodeOrder.
+    private fun hintsFor(diagram: KumlDiagram): LayoutHints =
+        LayoutHints.DEFAULT.copy(preserveNodeOrder = diagram.type == DiagramType.SEQUENCE)
 }
