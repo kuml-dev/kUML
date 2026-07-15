@@ -62,7 +62,11 @@ internal object DesktopRenderPipeline {
             val svg = when (extracted) {
                 is ExtractedDiagram.Uml -> {
                     val graph = UmlLayoutBridge.toLayoutGraph(extracted.diagram)
-                    val layout = elkEngine.layout(graph, LayoutHints.DEFAULT)
+                    // V3.0.x — see CLI's RenderPipeline.kt for the full rationale: UML
+                    // sequence diagrams are the one diagram type where declaration order
+                    // is semantically meaningful, so pin it via LayoutHints.preserveNodeOrder.
+                    val hints = LayoutHints.DEFAULT.copy(preserveNodeOrder = extracted.diagram.type == DiagramType.SEQUENCE)
+                    val layout = elkEngine.layout(graph, hints)
                     KumlSvgRenderer.toSvg(extracted.diagram, layout, theme)
                 }
                 is ExtractedDiagram.C4 -> {

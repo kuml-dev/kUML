@@ -1,5 +1,6 @@
 package dev.kuml.mcp
 
+import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
@@ -30,7 +31,11 @@ internal object McpRenderPipeline {
         widthPx: Int = 1024,
     ): RenderResult {
         val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
-        val layoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
+        // V3.0.x — see CLI's RenderPipeline.kt for the full rationale: UML sequence
+        // diagrams are the one diagram type where declaration order is semantically
+        // meaningful, so pin it via LayoutHints.preserveNodeOrder.
+        val hints = LayoutHints.DEFAULT.copy(preserveNodeOrder = diagram.type == DiagramType.SEQUENCE)
+        val layoutResult = layoutEngine.layout(layoutGraph, hints)
         val theme = PlainTheme()
 
         return when (format) {
