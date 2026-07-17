@@ -22,8 +22,52 @@ import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
 import dev.kuml.uml.UmlLink
+import kotlin.math.abs
 
 // ── UML Edge Renderer ─────────────────────────────────────────────────────────
+
+/**
+ * Which end of a [UmlAssociation] / [UmlLink] a role/multiplicity label
+ * belongs to. Used only for the converging-label fan-out grouping computed
+ * once per diagram in `KumlSvgRenderer` — rendering itself still resolves
+ * source/target directly from the [EdgeRoute].
+ */
+internal enum class UmlEndpointSide { SOURCE, TARGET }
+
+/**
+ * Per-sibling along-edge step (px) added on top of the fixed multiplicity/
+ * role margins when several association/link ends converge on the same
+ * node face (`stackIndex > 0`). Mirrors
+ * `ErmChenSizing.CARDINALITY_LABEL_STACK_PX` — the identical fix already
+ * applied to ERM/Chen cardinality labels (fix/erm-chen-label-collisions).
+ */
+internal const val UML_ENDPOINT_LABEL_STACK_PX: Float = 14f
+
+/**
+ * Caps the along-edge stacking so a very dense hub doesn't fling labels far
+ * from their node. One index higher than ERM/Chen's
+ * `CHEN_CARDINALITY_MAX_STACK_INDEX` (`2`) because the real-world repro
+ * case (four associations converging on one class, e.g. `Mitglied` in a
+ * PdV-statutes diagram) needs four distinct positions (`0..3`); beyond
+ * that, extra siblings share the last slot — bounded degradation rather
+ * than unbounded drift.
+ */
+internal const val UML_ENDPOINT_LABEL_MAX_STACK_INDEX: Int = 3
+
+/**
+ * Quantizes a segment tangent to one coarse border face (N/S/E/W) so labels
+ * docking on genuinely different sides of a large node are grouped into
+ * separate fan-out sequences instead of being stacked together as if they
+ * converged on the same spot.
+ */
+internal fun umlEndpointFaceBucket(tangent: Pair<Float, Float>): String {
+    val (tx, ty) = tangent
+    return if (abs(tx) >= abs(ty)) {
+        if (tx >= 0f) "E" else "W"
+    } else {
+        if (ty >= 0f) "S" else "N"
+    }
+}
 
 /**
  * UML Association — durchgezogene Linie mit offenem Pfeilkopf.
@@ -36,6 +80,8 @@ internal fun renderUmlAssociation(
     route: EdgeRoute,
     theme: KumlTheme,
     builder: SvgBuilder,
+    sourceStackIndex: Int = 0,
+    targetStackIndex: Int = 0,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
@@ -84,45 +130,63 @@ internal fun renderUmlAssociation(
     // (mulMargin); the role name on the `−perp` side a bit further along the
     // edge (roleMargin). For a vertical edge they end up diagonally apart, for a
     // horizontal edge they straddle the line at different along-edge offsets.
+    //
+    // Bug-fix (fix/uml-association-label-overlap): when several associations
+    // from different source classes converge on the same target class close
+    // together on its border, their role-name / multiplicity labels used to
+    // pile on top of each other (identical bug class as the ERM/Chen
+    // cardinality-label hub collision, already fixed there). [sourceStackIndex]
+    // / [targetStackIndex] are 0-based sibling indices — assigned once per
+    // diagram in `KumlSvgRenderer` by grouping every label-bearing end by
+    // `(nodeId, borderFace)` — that add `UML_ENDPOINT_LABEL_STACK_PX` per
+    // step to that end's along-edge margins, so converging siblings fan apart
+    // instead of stacking. `stackIndex == 0` (the default) reproduces the
+    // pre-fix geometry byte-for-byte.
     if (rel.ends.size >= 2) {
         val sourceEnd = rel.ends[0]
         val targetEnd = rel.ends[1]
         val mulMargin = 14f
         val roleMargin = 30f
         val perpOff = 10f
+        val srcStep = sourceStackIndex.coerceIn(0, UML_ENDPOINT_LABEL_MAX_STACK_INDEX) * UML_ENDPOINT_LABEL_STACK_PX
+        val tgtStep = targetStackIndex.coerceIn(0, UML_ENDPOINT_LABEL_MAX_STACK_INDEX) * UML_ENDPOINT_LABEL_STACK_PX
 
         val (stx, sty) = EdgeLabelGeometry.sourceSegmentTangent(route)
         sourceEnd.multiplicity.toLabel()?.let { label ->
+            val m = mulMargin + srcStep
             endpointLabel(
                 builder,
-                route.source.x + stx * mulMargin - sty * perpOff,
-                route.source.y + sty * mulMargin + stx * perpOff,
+                route.source.x + stx * m - sty * perpOff,
+                route.source.y + sty * m + stx * perpOff,
                 label,
             )
         }
         sourceEnd.role?.let { label ->
+            val m = roleMargin + srcStep
             endpointLabel(
                 builder,
-                route.source.x + stx * roleMargin + sty * perpOff,
-                route.source.y + sty * roleMargin - stx * perpOff,
+                route.source.x + stx * m + sty * perpOff,
+                route.source.y + sty * m - stx * perpOff,
                 label,
             )
         }
 
         val (ttx, tty) = EdgeLabelGeometry.targetSegmentTangent(route)
         targetEnd.multiplicity.toLabel()?.let { label ->
+            val m = mulMargin + tgtStep
             endpointLabel(
                 builder,
-                route.target.x - ttx * mulMargin - tty * perpOff,
-                route.target.y - tty * mulMargin + ttx * perpOff,
+                route.target.x - ttx * m - tty * perpOff,
+                route.target.y - tty * m + ttx * perpOff,
                 label,
             )
         }
         targetEnd.role?.let { label ->
+            val m = roleMargin + tgtStep
             endpointLabel(
                 builder,
-                route.target.x - ttx * roleMargin + tty * perpOff,
-                route.target.y - tty * roleMargin - ttx * perpOff,
+                route.target.x - ttx * m + tty * perpOff,
+                route.target.y - tty * m - ttx * perpOff,
                 label,
             )
         }
@@ -149,8 +213,14 @@ private fun endpointLabel(
     builder.tag("text", mapOf("class" to "kuml-small") + attrs) { text(label) }
 }
 
-/** Returns a multiplicity label string, or null if the multiplicity is the trivial "1". */
-private fun Multiplicity.toLabel(): String? {
+/**
+ * Returns a multiplicity label string, or null if the multiplicity is the
+ * trivial "1". Internal (not private) so `KumlSvgRenderer`'s converging-
+ * label grouping can reuse the exact same "does this end draw a label?"
+ * rule as the renderer, keeping stack indices dense (no gaps from ends that
+ * never draw anything).
+ */
+internal fun Multiplicity.toLabel(): String? {
     val upper = if (this.upper == null) "*" else this.upper.toString()
     val label = if (this.lower == this.upper) upper else "${this.lower}..$upper"
     return if (label == "1") null else label
@@ -333,12 +403,21 @@ private fun renderEdgeLabel(
  * UML Link — solid line, no arrowhead. Object-diagram instances of an
  * association. Optional `sourceRole` / `targetRole` labels appear near the
  * respective endpoints. If neither role is set, the link is unlabelled.
+ *
+ * Bug-fix (fix/uml-association-label-overlap): shares the exact single-edge
+ * fixed-margin math and converging-hub overlap as [renderUmlAssociation] —
+ * several links can converge on one instance box (e.g. one order instance
+ * linked from multiple line-item instances). [sourceStackIndex] /
+ * [targetStackIndex] apply the identical along-edge fan-out; see
+ * [renderUmlAssociation]'s KDoc for the full rationale.
  */
 internal fun renderUmlLink(
     rel: UmlLink,
     route: EdgeRoute,
     theme: KumlTheme,
     builder: SvgBuilder,
+    sourceStackIndex: Int = 0,
+    targetStackIndex: Int = 0,
 ) {
     val (tag, attrs) = EdgePathBuilder.build(route)
     builder.tag(tag, attrs + mapOf("class" to "kuml-edge"))
@@ -352,23 +431,27 @@ internal fun renderUmlLink(
     // Zielinstanz weg saß.
     val margin = 16f
     val perpOff = 10f
+    val srcStep = sourceStackIndex.coerceIn(0, UML_ENDPOINT_LABEL_MAX_STACK_INDEX) * UML_ENDPOINT_LABEL_STACK_PX
+    val tgtStep = targetStackIndex.coerceIn(0, UML_ENDPOINT_LABEL_MAX_STACK_INDEX) * UML_ENDPOINT_LABEL_STACK_PX
 
     rel.sourceRoleName?.let { label ->
         val (tx, ty) = EdgeLabelGeometry.sourceSegmentTangent(route)
+        val m = margin + srcStep
         endpointLabel(
             builder,
-            route.source.x + tx * margin - ty * perpOff,
-            route.source.y + ty * margin + tx * perpOff,
+            route.source.x + tx * m - ty * perpOff,
+            route.source.y + ty * m + tx * perpOff,
             label,
         )
     }
 
     rel.targetRoleName?.let { label ->
         val (tx, ty) = EdgeLabelGeometry.targetSegmentTangent(route)
+        val m = margin + tgtStep
         endpointLabel(
             builder,
-            route.target.x - tx * margin - ty * perpOff,
-            route.target.y - ty * margin + tx * perpOff,
+            route.target.x - tx * m - ty * perpOff,
+            route.target.y - ty * m + tx * perpOff,
             label,
         )
     }

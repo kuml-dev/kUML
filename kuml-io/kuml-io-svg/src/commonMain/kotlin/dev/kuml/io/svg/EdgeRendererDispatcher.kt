@@ -44,22 +44,32 @@ internal object EdgeRendererDispatcher {
      */
     fun dispatchKey(element: KumlElement): String = element::class.simpleName ?: "Unknown"
 
-    /** Rendert das passende SVG-Fragment für [relationship]. */
+    /**
+     * Rendert das passende SVG-Fragment für [relationship].
+     *
+     * [sourceStackIndex] / [targetStackIndex] (fix/uml-association-label-
+     * overlap) are forwarded only to the two label-bearing UML relationship
+     * kinds that support converging-endpoint fan-out — [UmlAssociation] and
+     * [UmlLink]. All other branches ignore them; see
+     * `dev.kuml.io.svg.uml.renderUmlAssociation`'s KDoc for the rationale.
+     */
     fun dispatch(
         relationship: KumlElement,
         route: EdgeRoute,
         theme: KumlTheme,
         builder: SvgBuilder,
+        sourceStackIndex: Int = 0,
+        targetStackIndex: Int = 0,
     ) {
         when (relationship) {
-            is UmlAssociation -> renderUmlAssociation(relationship, route, theme, builder)
+            is UmlAssociation -> renderUmlAssociation(relationship, route, theme, builder, sourceStackIndex, targetStackIndex)
             is UmlGeneralization -> renderUmlGeneralization(relationship, route, theme, builder)
             is UmlInterfaceRealization -> renderUmlInterfaceRealization(relationship, route, theme, builder)
             is UmlDependency -> renderUmlDependency(relationship, route, theme, builder)
             is UmlConnector -> renderUmlConnector(relationship, route, theme, builder)
             is UmlInclude -> renderUmlInclude(relationship, route, theme, builder)
             is UmlExtend -> renderUmlExtend(relationship, route, theme, builder)
-            is UmlLink -> renderUmlLink(relationship, route, theme, builder)
+            is UmlLink -> renderUmlLink(relationship, route, theme, builder, sourceStackIndex, targetStackIndex)
             is UmlActivityEdge -> renderUmlActivityEdge(relationship, route, theme, builder)
             is UmlCommentLink -> renderUmlCommentLink(route, builder)
             is C4Relationship -> renderC4Relationship(relationship, route, theme, builder)

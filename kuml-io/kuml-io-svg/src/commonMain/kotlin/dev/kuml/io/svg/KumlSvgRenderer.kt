@@ -59,6 +59,9 @@ import dev.kuml.io.svg.erm.renderErmView
 import dev.kuml.io.svg.erm.renderIdef1xCategoryCircle
 import dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
 import dev.kuml.io.svg.sysml2.sysml2SeqFragmentLeftPad
+import dev.kuml.io.svg.uml.UmlEndpointSide
+import dev.kuml.io.svg.uml.toLabel
+import dev.kuml.io.svg.uml.umlEndpointFaceBucket
 import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.GroupId
@@ -100,10 +103,12 @@ import dev.kuml.sysml2.edge.ReqEdgeAdapter
 import dev.kuml.sysml2.edge.StmEdgeAdapter
 import dev.kuml.sysml2.edge.Sysml2EdgeAdapter
 import dev.kuml.sysml2.edge.UcEdgeAdapter
+import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlInteraction
+import dev.kuml.uml.UmlLink
 import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.UmlNode
 import dev.kuml.uml.UmlPackage
@@ -491,6 +496,67 @@ public object KumlSvgRenderer {
                 } else {
                     emptyList()
                 }
+
+            // Fan-out for converging class-/object-diagram endpoint labels
+            // (fix/uml-association-label-overlap). Group every label-bearing
+            // UmlAssociation/UmlLink end by (nodeId, borderFace) — quantizing
+            // the tangent to a coarse N/S/E/W face keeps ends that dock on
+            // genuinely different sides of a large node from being stacked
+            // together — then assign each sibling a deterministic 0-based
+            // index sorted by (edgeId, side). Consumed below so role/
+            // multiplicity labels that converge on the same face of the same
+            // node fan apart along their own edge tails instead of piling
+            // into unreadable overlapping text — same pattern already
+            // applied to ERM/Chen cardinality labels via
+            // `chenCardinalityStackIndex` in [renderErmChen].
+            val umlEndpointStackIndex: Map<Pair<String, UmlEndpointSide>, Int> =
+                run {
+                    val buckets = mutableMapOf<Pair<String, String>, MutableList<Pair<String, UmlEndpointSide>>>()
+                    for ((edgeId, route) in effectiveLayoutResult.edges) {
+                        when (val el = flatElementIndex[edgeId.value]) {
+                            is UmlAssociation -> {
+                                if (el.ends.size >= 2) {
+                                    val sourceEnd = el.ends[0]
+                                    val targetEnd = el.ends[1]
+                                    if (sourceEnd.role != null || sourceEnd.multiplicity.toLabel() != null) {
+                                        val face = umlEndpointFaceBucket(EdgeLabelGeometry.sourceSegmentTangent(route))
+                                        buckets
+                                            .getOrPut(sourceEnd.typeId to face) { mutableListOf() }
+                                            .add(edgeId.value to UmlEndpointSide.SOURCE)
+                                    }
+                                    if (targetEnd.role != null || targetEnd.multiplicity.toLabel() != null) {
+                                        val face = umlEndpointFaceBucket(EdgeLabelGeometry.targetSegmentTangent(route))
+                                        buckets
+                                            .getOrPut(targetEnd.typeId to face) { mutableListOf() }
+                                            .add(edgeId.value to UmlEndpointSide.TARGET)
+                                    }
+                                }
+                            }
+                            is UmlLink -> {
+                                if (el.sourceRoleName != null) {
+                                    val face = umlEndpointFaceBucket(EdgeLabelGeometry.sourceSegmentTangent(route))
+                                    buckets
+                                        .getOrPut(el.sourceInstanceId to face) { mutableListOf() }
+                                        .add(edgeId.value to UmlEndpointSide.SOURCE)
+                                }
+                                if (el.targetRoleName != null) {
+                                    val face = umlEndpointFaceBucket(EdgeLabelGeometry.targetSegmentTangent(route))
+                                    buckets
+                                        .getOrPut(el.targetInstanceId to face) { mutableListOf() }
+                                        .add(edgeId.value to UmlEndpointSide.TARGET)
+                                }
+                            }
+                            else -> {}
+                        }
+                    }
+                    buckets.values
+                        .flatMap { siblings ->
+                            siblings
+                                .sortedWith(compareBy({ it.first }, { it.second.name }))
+                                .mapIndexed { index, key -> key to index }
+                        }.toMap()
+                }
+
             for ((edgeId, route) in effectiveLayoutResult.edges) {
                 val element = flatElementIndex[edgeId.value]
                 if (element != null) {
@@ -538,7 +604,9 @@ public object KumlSvgRenderer {
                         } else {
                             activityClippedRoute
                         }
-                    EdgeRendererDispatcher.dispatch(element, clippedRoute, theme, edgesBuilder)
+                    val srcStackIdx = umlEndpointStackIndex[edgeId.value to UmlEndpointSide.SOURCE] ?: 0
+                    val tgtStackIdx = umlEndpointStackIndex[edgeId.value to UmlEndpointSide.TARGET] ?: 0
+                    EdgeRendererDispatcher.dispatch(element, clippedRoute, theme, edgesBuilder, srcStackIdx, tgtStackIdx)
                 }
             }
         }
