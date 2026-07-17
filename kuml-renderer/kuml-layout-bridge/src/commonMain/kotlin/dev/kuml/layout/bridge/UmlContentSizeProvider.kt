@@ -243,7 +243,10 @@ public class UmlContentSizeProvider
                             (c.appliedStereotypes.map { it.stereotypeName } + plainNames).distinct()
                         "«" + merged.joinToString(", ") + "»"
                     }
-                    else -> if (c.isAbstract) "«abstract»" else ""
+                    // isAbstract alone is NOT a stereotype header (UML 2.5): the renderer
+                    // italicizes the name instead of printing a fake «abstract» line, so no
+                    // stereotype-header height/width may be reserved for it here.
+                    else -> ""
                 }
 
             val attrLines = c.attributes.map { it.toFormattedLine() }

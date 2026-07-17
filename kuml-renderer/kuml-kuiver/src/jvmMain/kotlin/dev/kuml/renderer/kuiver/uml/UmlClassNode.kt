@@ -8,6 +8,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import dev.kuml.renderer.theme.KumlTheme
 import dev.kuml.uml.UmlClass
@@ -17,7 +18,7 @@ import dev.kuml.uml.Visibility
 
 /**
  * Renders a [UmlClass] as a three-section rectangle:
- * - Top: class name (bold), optional stereotype above
+ * - Top: class name (bold), italic when the class is abstract (UML 2.5)
  * - Middle: attributes list (`name: Type`)
  * - Bottom: operations list (`name(…): ReturnType`)
  *
@@ -31,18 +32,14 @@ internal fun UmlClassNode(element: UmlClass, theme: KumlTheme) {
             .border(theme.borders.regular, theme.colors.border)
             .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
-        // Header — optional «abstract» + name
-        if (element.isAbstract) {
-            Text(
-                text = "«abstract»",
-                style = theme.typography.stereotype,
-                color = theme.colors.muted,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+        // Header — name, italicized when the class is abstract (UML 2.5)
         Text(
             text = element.name,
-            style = theme.typography.title,
+            style = if (element.isAbstract) {
+                theme.typography.title.copy(fontStyle = FontStyle.Italic)
+            } else {
+                theme.typography.title
+            },
             color = theme.colors.foreground,
             modifier = Modifier.fillMaxWidth(),
         )

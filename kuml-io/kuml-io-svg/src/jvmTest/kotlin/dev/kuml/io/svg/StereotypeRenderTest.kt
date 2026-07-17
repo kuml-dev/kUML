@@ -356,4 +356,43 @@ class StereotypeRenderTest :
                     .headerLabel(rel, StereotypeTheme.Default)
             label shouldBe "«FK»"
         }
+
+        // ── Test 12: abstract class italicizes name instead of «abstract» header ─
+
+        test("abstract class italicizes name instead of «abstract» stereotype line") {
+            val cls =
+                UmlClass(
+                    id = "clsAbs",
+                    name = "AbstractOrder",
+                    isAbstract = true,
+                )
+            val diagram = KumlDiagram(name = "D", elements = listOf(cls))
+            val layout = singleNodeLayout("clsAbs")
+
+            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+
+            svg shouldContain "kuml-title-abstract"
+            svg shouldContain "AbstractOrder"
+            svg shouldNotContain "«abstract»"
+        }
+
+        // ── Test 13: abstract + applied stereotype keeps both header and italics ─
+
+        test("abstract class with applied stereotype keeps both stereotype header and italic name") {
+            val cls =
+                UmlClass(
+                    id = "clsAbs2",
+                    name = "AbstractEntity",
+                    isAbstract = true,
+                    appliedStereotypes = listOf(entityApp),
+                )
+            val diagram = KumlDiagram(name = "D", elements = listOf(cls))
+            val layout = singleNodeLayout("clsAbs2")
+
+            val svg = KumlSvgRenderer.toSvg(diagram, layout, PlainTheme())
+
+            svg shouldContain "«Entity»"
+            svg shouldContain "kuml-title-abstract"
+            svg shouldNotContain "«abstract»"
+        }
     })

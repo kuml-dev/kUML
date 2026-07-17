@@ -10,7 +10,8 @@ import dev.kuml.uml.UmlClass
 
 /**
  * Rendert eine [UmlClass] als drei-Sektions-Rechteck:
- * - Header: `«appliedStereotypes»` (wenn vorhanden) + `«abstract»` + Klassenname (fett)
+ * - Header: `«appliedStereotypes»` (wenn vorhanden) + Klassenname (fett, kursiv wenn `isAbstract`
+ *   gemäß UML 2.5 — keine erfundene `«abstract»`-Stereotyp-Zeile)
  * - Optional: Tagged-Value-Compartment (wenn `theme.stereotypes.showTaggedValues = true`)
  * - Mitte: Attribute
  * - Unten: Operationen
@@ -35,33 +36,24 @@ internal fun renderUmlClass(
 
         var cy = 18f
 
-        // Applied stereotypes header (V1.1) — overrides the legacy «abstract» when present
+        // Applied stereotypes header (V1.1)
         val stereoAdv = StereotypeHelper.renderHeader(element, theme, this, w / 2f, cy)
         if (stereoAdv > 0f) {
             cy += stereoAdv
-        } else if (element.isAbstract) {
-            // Legacy «abstract» fallback when no appliedStereotypes
-            tag(
-                "text",
-                mapOf(
-                    "class" to "kuml-stereotype",
-                    "x" to fmt(w / 2f),
-                    "y" to fmt(cy),
-                    "text-anchor" to "middle",
-                ),
-            ) { text("«abstract»") }
-            cy += 14f
         }
 
-        tag(
-            "text",
-            mapOf(
-                "class" to "kuml-title",
-                "x" to fmt(w / 2f),
-                "y" to fmt(cy),
-                "text-anchor" to "middle",
-            ),
-        ) { text(element.name) }
+        // Type name (bold, centered). Abstract classes get the italics-via-style hint (UML 2.5),
+        // independent of whether a real stereotype header was rendered above it.
+        val nameClass = if (element.isAbstract) "kuml-title kuml-title-abstract" else "kuml-title"
+        val nameAttrs =
+            buildMap<String, String> {
+                put("class", nameClass)
+                put("x", fmt(w / 2f))
+                put("y", fmt(cy))
+                put("text-anchor", "middle")
+                if (element.isAbstract) put("font-style", "italic")
+            }
+        tag("text", nameAttrs) { text(element.name) }
         cy += 6f
 
         // Tagged-value compartment (V1.1, opt-in)
