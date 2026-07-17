@@ -16,6 +16,7 @@ next tag.
 | Homebrew cask (`kuml-desktop`) | live ✅ (V3.2.14) | cask auto-bumped by `kuml-dev/homebrew-kuml`, DMG built on macOS runner |
 | jlink bundle   | live ✅           | built + uploaded on every tag (self-contained, no JDK needed) |
 | Native image   | V1.1 (ADR-0009)   | —                                               |
+| Windows Authenticode signing (jlink bundle + `kuml-desktop` MSI) | planned — gated on `AZURE_TENANT_ID` | Azure Trusted Signing via `azure/trusted-signing-action`, see step 6 below |
 
 ## One-time setup
 
@@ -107,8 +108,11 @@ absent, the workflow degrades gracefully: it prints the new `url` /
 `sha256` in its job summary and leaves the formula edit to a human.
 
 The same `HOMEBREW_TAP_TOKEN` secret also gates the `kuml-desktop` **Cask**
-update (V3.2.14): the `desktop-dmg` job builds an unsigned macOS DMG via
-`:kuml-desktop:packageDmg`, and `dispatch-tap-cask` sends a
+update (V3.2.14): the `desktop-dmg` job builds a macOS DMG via
+`:kuml-desktop:packageDmg` (Developer-ID signed + notarized since V3.2.27,
+when `APPLE_CERTIFICATE_P12_BASE64` is set — see step 6 in the vault's
+"03 Bereiche/kUML/MCP-Server AMFI-Signierungsproblem (macOS).md" for the
+original bug this closed), and `dispatch-tap-cask` sends a
 `repository_dispatch` event of type `kuml-desktop-release` to the tap's
 `update-cask.yml` workflow, which rewrites `Casks/kuml-desktop.rb`.
 Independent of the CLI Formula dispatch — a Cask update failure never
@@ -120,6 +124,58 @@ Users then install via:
 brew tap kuml-dev/kuml
 brew install kuml
 ```
+
+### 6. Azure Trusted Signing (Windows Authenticode)
+
+Windows binaries — the CLI's bundled jlink runtime zip and the `kuml-desktop`
+MSI — are unsigned today. Combined with the runtime zip's size (~259 MB,
+documented in the vault's Distribution-und-Packaging note), this is exactly
+the pattern Windows Defender/SmartScreen heuristics flag. The fix wired into
+`release.yml`'s `package-runtime` (Windows leg) and `desktop-msi` jobs is
+[Azure Trusted Signing](https://learn.microsoft.com/en-us/azure/trusted-signing/),
+chosen over a classic OV/EV Authenticode certificate because it needs no
+hardware token or local HSM to plug into a hosted GitHub Actions runner, and
+is cheaper (~120 €/year vs. ~65–500 €/year for OV/EV). Both signing steps are
+gated on `AZURE_TENANT_ID` exactly like the Apple signing steps are gated on
+`APPLE_CERTIFICATE_P12_BASE64` — unset secrets mean an unsigned build, never
+a broken one.
+
+One-time Azure setup (Azure Portal or `az` CLI):
+
+1. Create a **Trusted Signing** resource (`Microsoft.CodeSigning/codeSigningAccounts`)
+   in a [supported region](https://learn.microsoft.com/en-us/azure/trusted-signing/overview)
+   — note the account name and its endpoint URI (e.g. `https://eus.codesigning.azure.net/`).
+2. Inside that resource, create a **Certificate Profile** of type *Public Trust*
+   (requires identity/organization validation — similar in kind to the
+   validation a classic OV certificate CA does, one-time).
+3. Create an **App Registration** in Entra ID, generate a client secret, and
+   grant it the **Trusted Signing Certificate Profile Signer** role on the
+   Trusted Signing resource (Azure Portal → resource → *Access control (IAM)*).
+4. Store the following as GitHub Secrets:
+
+   | Secret name                        | Value                                                     |
+   |-------------------------------------|-------------------------------------------------------------|
+   | `AZURE_TENANT_ID`                  | Entra ID tenant (directory) ID                              |
+   | `AZURE_CLIENT_ID`                  | App Registration's client (application) ID                  |
+   | `AZURE_CLIENT_SECRET`              | App Registration's client secret                             |
+   | `AZURE_TRUSTED_SIGNING_ENDPOINT`   | Account endpoint URI from step 1 (e.g. `https://eus.codesigning.azure.net/`) |
+   | `AZURE_TRUSTED_SIGNING_ACCOUNT`    | Trusted Signing account name from step 1                    |
+   | `AZURE_TRUSTED_SIGNING_CERT_PROFILE` | Certificate Profile name from step 2                       |
+
+   ```bash
+   gh secret set AZURE_TENANT_ID -R kuml-dev/kUML
+   gh secret set AZURE_CLIENT_ID -R kuml-dev/kUML
+   gh secret set AZURE_CLIENT_SECRET -R kuml-dev/kUML
+   gh secret set AZURE_TRUSTED_SIGNING_ENDPOINT -R kuml-dev/kUML
+   gh secret set AZURE_TRUSTED_SIGNING_ACCOUNT -R kuml-dev/kUML
+   gh secret set AZURE_TRUSTED_SIGNING_CERT_PROFILE -R kuml-dev/kUML
+   ```
+
+Once set, every `v*.*.*` tag Authenticode-signs `kuml-cli/build/image/kuml/runtime/bin/*.{exe,dll}`
+(before the runtime zip is packaged) and `kuml-desktop`'s MSI, both with an
+RFC 3161 timestamp so the signature stays valid after the ~15-month
+certificate expires. Limitation: Azure Trusted Signing's Public Trust profile
+doesn't cover kernel-mode drivers — irrelevant here, kUML ships none.
 
 ## Cutting a release
 

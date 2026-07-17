@@ -257,15 +257,18 @@ jobs:
           mkdir -p "$RUNNER_TEMP/notary"
           echo "$P8_B64" | base64 --decode > "$RUNNER_TEMP/notary/AuthKey_${KEY_ID}.p8"
 
-      - name: Build bundled jlink runtime zip
-        # :kuml-cli:runtimeZip already depends on :kuml-mcp:installDist via the
-        # bundledImage -> bundleMcpInstallDist task graph (V3.2.13), but we chain
-        # it explicitly here too so CI logs show the kuml-mcp build step distinctly.
+      - name: Build bundled jlink runtime image
+        # Builds up to :kuml-cli:bundledImage (build/image/kuml/) rather than
+        # the full :kuml-cli:runtimeZip in one shot, so the Windows leg gets a
+        # chance to Authenticode-sign the bundled JRE's native binaries
+        # (runtime/bin/*.exe, *.dll) before they get zipped up — signing a
+        # binary after it's already inside the zip isn't possible. The actual
+        # zip step is "Package runtime zip" below, after signing.
         #
-        # runtimeZip itself depends on signBundledRuntime (kuml-cli/build.gradle.kts),
-        # which signs every Mach-O in the bundled jlink runtime when
-        # KUML_SIGN_IDENTITY is set and the host is macOS; it silently no-ops
-        # otherwise (Linux/Windows legs, or macOS legs without the Apple secrets).
+        # :kuml-cli:bundledImage already depends on :kuml-mcp:installDist via
+        # the bundledImage -> bundleMcpInstallDist task graph (V3.2.13), but we
+        # chain it explicitly here too so CI logs show the kuml-mcp build step
+        # distinctly.
         #
         # `clean` is mandatory here (CLAUDE.md: always clean before any gradlew
         # invocation) — its absence is the confirmed root cause of v0.24.0/
@@ -276,11 +279,61 @@ jobs:
         # (bundledImage/jlinkRuntime) from before signing existed or from a
         # differently-configured prior run, served instead of a fresh build —
         # `packageDmg`/`packageMsi` below already ran with `clean` and were
-        # never affected.
+        # never affected. None of the steps between here and "Package runtime
+        # zip" invoke `clean` again, so bundledImage's output (including the
+        # Windows-signed binaries) survives untouched into the zip step.
+        run: ./gradlew clean :kuml-mcp:installDist :kuml-cli:bundledImage
+
+      # Windows counterpart of the Apple signing gate above. Authenticode via
+      # Azure Trusted Signing (cloud HSM, no local certificate/token needed —
+      # see Distribution und Packaging.md in the vault for the cost/provider
+      # comparison behind this choice). Gated on AZURE_TENANT_ID so this leg
+      # still produces an unsigned runtime zip, as it always has, on any run
+      # where the Azure secrets aren't configured yet.
+      - name: Detect Azure Trusted Signing secret presence
+        if: runner.os == 'Windows'
+        id: azure_gate
+        shell: bash
+        env:
+          HAS_SIGN: ${{ secrets.AZURE_TENANT_ID != '' }}
+        run: |
+          echo "has_sign=$HAS_SIGN" >> $GITHUB_OUTPUT
+          if [ "$HAS_SIGN" != "true" ]; then
+            echo "::notice::AZURE_TENANT_ID not set — skipping Azure Trusted Signing, runtime zip will be unsigned."
+          fi
+
+      - name: Sign bundled JRE binaries (Azure Trusted Signing)
+        if: runner.os == 'Windows' && steps.azure_gate.outputs.has_sign == 'true'
+        uses: azure/trusted-signing-action@v0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_TRUSTED_SIGNING_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}/kuml-cli/build/image/kuml/runtime/bin
+          files-folder-filter: exe,dll
+          files-folder-recurse: true
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: kUML CLI bundled JRE runtime
+          description-url: https://kuml.dev
+
+      - name: Package runtime zip
+        # Separate step from "Build bundled jlink runtime image" above (no
+        # `clean` here — see that step's comment). :kuml-cli:runtimeZip still
+        # depends on bundledImage + signBundledRuntime (kuml-cli/build.gradle.kts);
+        # bundledImage is already up to date, signBundledRuntime signs every
+        # Mach-O in the bundled jlink runtime when KUML_SIGN_IDENTITY is set
+        # and the host is macOS, and silently no-ops otherwise (Linux legs,
+        # Windows legs — Authenticode already happened above, not through
+        # Gradle — or macOS legs without the Apple secrets).
         env:
           KUML_SIGN_IDENTITY: ${{ runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true' && secrets.APPLE_SIGN_IDENTITY || '' }}
           KUML_SIGN_KEYCHAIN: ${{ runner.os == 'macOS' && steps.apple_gate.outputs.has_sign == 'true' && format('{0}/kuml-signing.keychain-db', runner.temp) || '' }}
-        run: ./gradlew clean :kuml-mcp:installDist :kuml-cli:runtimeZip
+        run: ./gradlew :kuml-cli:runtimeZip
 
       - name: Notarize runtime zip
         # No --staple: a bare zip cannot be stapled (only .app/.pkg/.dmg can).
@@ -1001,6 +1054,14 @@ jobs:
   # using the plain `packageMsi` task instead of `packageReleaseMsi` (ProGuard
   # currently fails on this module, see the desktop-dmg comment above).
   #
+  # Authenticode-signed via Azure Trusted Signing when AZURE_TENANT_ID is set
+  # (gated the same way as the Apple signing steps elsewhere in this file —
+  # unsigned MSI when the secret isn't configured, so this job never breaks
+  # a release). Chosen over a classic OV/EV certificate because it needs no
+  # hardware token/HSM to wire into a hosted GitHub Actions runner and is
+  # cheaper (~120 €/year vs. ~65–500 €/year) — see the cost/provider writeup
+  # in the vault under "03 Bereiche/kUML/Distribution und Packaging.md".
+  #
   # MSI filename is `kuml-desktop-<version>.msi`, where <version> is kUML's
   # release tag version (matching the CLI runtimeZip naming convention) —
   # NOT the jpackage-mapped "MINOR.PATCH.0" app version baked into the MSI's
@@ -1029,8 +1090,42 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build kuml-desktop MSI (unsigned)
+      - name: Build kuml-desktop MSI
         run: ./gradlew clean :kuml-desktop:packageMsi
+
+      # Same Azure Trusted Signing gate as package-runtime's Windows leg — see
+      # that job's "Detect Azure Trusted Signing secret presence" comment.
+      # Kept as an independent gate (not `needs`-shared) because desktop-msi
+      # and package-runtime run as separate matrix/job instances with no
+      # output-passing between them.
+      - name: Detect Azure Trusted Signing secret presence
+        id: azure_gate
+        shell: bash
+        env:
+          HAS_SIGN: ${{ secrets.AZURE_TENANT_ID != '' }}
+        run: |
+          echo "has_sign=$HAS_SIGN" >> $GITHUB_OUTPUT
+          if [ "$HAS_SIGN" != "true" ]; then
+            echo "::notice::AZURE_TENANT_ID not set — skipping Azure Trusted Signing, MSI will be unsigned."
+          fi
+
+      - name: Sign MSI (Azure Trusted Signing)
+        if: steps.azure_gate.outputs.has_sign == 'true'
+        uses: azure/trusted-signing-action@v0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_TRUSTED_SIGNING_CERT_PROFILE }}
+          files-folder: ${{ github.workspace }}/kuml-desktop/build/compose/binaries/main/msi
+          files-folder-filter: msi
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: kUML Desktop installer
+          description-url: https://kuml.dev
 
       - name: Rename MSI with version tag, upload, compute SHA-256
         id: pack
