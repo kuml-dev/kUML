@@ -32,6 +32,7 @@ import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
@@ -552,7 +553,7 @@ internal object WebRenderPipeline {
                         type = DiagramType.BPMN_PROCESS,
                         elements = elements,
                     )
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(kumlDiagram, layoutResult, theme), durationMs)
@@ -564,7 +565,7 @@ internal object WebRenderPipeline {
                 }
             }
             is CollaborationDiagram -> {
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme), durationMs)
@@ -588,7 +589,7 @@ internal object WebRenderPipeline {
                 }
             }
             is ConversationDiagram -> {
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme), durationMs)

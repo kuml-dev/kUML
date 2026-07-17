@@ -18,6 +18,7 @@ import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.elk.ElkLayoutEngine
@@ -240,11 +241,19 @@ internal object GradlePipeline {
                         val elements: List<dev.kuml.core.model.KumlElement> =
                             if (process != null) process.flowNodes + process.sequenceFlows + process.dataObjects else emptyList()
                         val kumlDiagram = KumlDiagram(name = diagram.name, type = DiagramType.BPMN_PROCESS, elements = elements)
-                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        val layout =
+                            layoutEngine.layout(
+                                BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
+                                LayoutHints.DEFAULT,
+                            )
                         KumlSvgRenderer.toSvg(kumlDiagram, layout, theme)
                     }
                     is CollaborationDiagram -> {
-                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        val layout =
+                            layoutEngine.layout(
+                                BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
+                                LayoutHints.DEFAULT,
+                            )
                         KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                     }
                     is ChoreographyDiagram -> {
@@ -253,7 +262,11 @@ internal object GradlePipeline {
                         KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                     }
                     is ConversationDiagram -> {
-                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        val layout =
+                            layoutEngine.layout(
+                                BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
+                                LayoutHints.DEFAULT,
+                            )
                         KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                     }
                 }
@@ -302,11 +315,19 @@ internal object GradlePipeline {
                         val elements: List<dev.kuml.core.model.KumlElement> =
                             if (process != null) process.flowNodes + process.sequenceFlows + process.dataObjects else emptyList()
                         val kumlDiagram = KumlDiagram(name = diagram.name, type = DiagramType.BPMN_PROCESS, elements = elements)
-                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        val layout =
+                            layoutEngine.layout(
+                                BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
+                                LayoutHints.DEFAULT,
+                            )
                         KumlPngRenderer.toPng(kumlDiagram, layout, theme, options)
                     }
                     is CollaborationDiagram -> {
-                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        val layout =
+                            layoutEngine.layout(
+                                BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
+                                LayoutHints.DEFAULT,
+                            )
                         val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                         KumlPngRenderer.toPng(svg, options)
                     }
@@ -317,7 +338,11 @@ internal object GradlePipeline {
                         KumlPngRenderer.toPng(svg, options)
                     }
                     is ConversationDiagram -> {
-                        val layout = layoutEngine.layout(BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram), LayoutHints.DEFAULT)
+                        val layout =
+                            layoutEngine.layout(
+                                BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
+                                LayoutHints.DEFAULT,
+                            )
                         val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                         KumlPngRenderer.toPng(svg, options)
                     }

@@ -1,6 +1,8 @@
 package dev.kuml.layout.elk
 
 import dev.kuml.layout.EdgeRouteStyle
+import dev.kuml.layout.GroupId
+import dev.kuml.layout.Insets
 import dev.kuml.layout.LayoutDirection
 import dev.kuml.layout.LayoutGraph
 import dev.kuml.layout.LayoutHints
@@ -217,19 +219,34 @@ internal object HintsMapper {
      * origin) and intra-compound edges are routed by the compound's child layout but
      * their bend points remain relative to the compound, which only resolves cleanly
      * when the result mapper also translates them to absolute coordinates.
+     *
+     * @param extraPadding Additional per-group padding (on top of [dev.kuml.layout.LayoutGroup.padding])
+     *   used by [ElkLayoutEngine]'s [dev.kuml.layout.LayoutGroup.minSize] re-layout pass (V3.1.x — see
+     *   its KDoc): once a first layout pass reveals that a compound group's ELK-computed size falls
+     *   short of its declared `minSize`, the engine reruns the *entire* layout with this extra padding
+     *   added to the affected group(s) so ELK itself reserves the wider/taller box for the compound
+     *   node *before* positioning that node's siblings — avoiding the sibling-overlap that a purely
+     *   post-layout bounds-widening (the previous approach) could produce. Empty by default (first pass).
      */
     fun applyGroupPadding(
         builder: ElkGraphBuilder,
         hints: LayoutHints,
         config: ElkEngineConfiguration,
+        extraPadding: Map<GroupId, Insets> = emptyMap(),
     ) {
         var anyCompound = false
         for (group in builder.groups()) {
             val elkGroup = builder.groupMap[group.id] ?: continue
             val p = group.padding
+            val extra = extraPadding[group.id] ?: Insets.ZERO
             elkGroup.setProperty(
                 CoreOptions.PADDING,
-                ElkPadding(p.top.toDouble(), p.right.toDouble(), p.bottom.toDouble(), p.left.toDouble()),
+                ElkPadding(
+                    (p.top + extra.top).toDouble(),
+                    (p.right + extra.right).toDouble(),
+                    (p.bottom + extra.bottom).toDouble(),
+                    (p.left + extra.left).toDouble(),
+                ),
             )
             if (group.layoutAsCompound) {
                 anyCompound = true
@@ -243,6 +260,25 @@ internal object HintsMapper {
                 // requested node/edge/layer gaps — otherwise transition arrows
                 // between states collapse onto each other.
                 applyCompoundSpacing(elkGroup, hints, config)
+
+                // NOTE on [LayoutGroup.minSize]: ELK's own `NODE_SIZE_CONSTRAINTS` /
+                // `NODE_SIZE_MINIMUM` properties are intentionally *not* set here.
+                // Verified empirically that `elk.layered` ignores them for a node
+                // with `HIERARCHY_HANDLING = INCLUDE_CHILDREN` children — such a
+                // compound node's size is derived purely from its children's
+                // laid-out bounding box plus padding; the size-constraint
+                // machinery only takes effect for leaf nodes. The floor is instead
+                // enforced by [ElkLayoutEngine] via an iterative re-layout: after a
+                // first pass, any compound group whose ELK-computed size falls short
+                // of `minSize` gets its [extraPadding] increased by the deficit and
+                // the *whole graph* is laid out again from scratch, so ELK reserves
+                // the wider/taller box for this compound node — and therefore also
+                // for its siblings — during the actual layout pass, instead of only
+                // after the fact. `ResultMapper.buildGroupLayouts` still applies a
+                // defensive `maxOf(rawSize, minSize)` floor as a last-resort safety
+                // net for the (expected to be rare) case where the re-layout loop
+                // hits its attempt cap without fully closing the gap — see that
+                // function's KDoc.
             }
         }
         if (anyCompound) {

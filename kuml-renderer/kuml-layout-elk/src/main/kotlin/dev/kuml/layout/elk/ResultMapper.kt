@@ -197,19 +197,57 @@ internal object ResultMapper {
         // groups would just re-derive almost the same box at extra cost — and
         // could disagree at the edges, breaking edge endpoints that ELK
         // anchored on the compound boundary.
-        val compoundGroupIds: Set<GroupId> =
-            builder
-                .groups()
-                .filter { it.layoutAsCompound }
-                .map { it.id }
-                .toSet()
+        val compoundGroups = builder.groups().filter { it.layoutAsCompound }
+        val compoundGroupIds: Set<GroupId> = compoundGroups.map { it.id }.toSet()
+        val minSizeByGroup: Map<GroupId, Size> =
+            compoundGroups.mapNotNull { g -> g.minSize?.let { g.id to it } }.toMap()
         val result = mutableMapOf<GroupId, GroupLayout>()
         for (gid in compoundGroupIds) {
             val elkGroup = builder.groupMap[gid] ?: continue
             val (absX, absY) = absolutePosition(elkGroup)
+            val rawWidth = elkGroup.width.toFloat()
+            val rawHeight = elkGroup.height.toFloat()
+
+            // V3.1.x — [LayoutGroup.minSize] floor for compound (hierarchical) groups.
+            // ELK's own `CoreOptions.NODE_SIZE_MINIMUM` / `NODE_SIZE_CONSTRAINTS`
+            // (set in [HintsMapper.applyGroupPadding]) has **no effect** on a node
+            // with `HIERARCHY_HANDLING = INCLUDE_CHILDREN` children: `elk.layered`
+            // sizes such a compound node purely from its children's laid-out
+            // bounding box plus padding — the size-constraint machinery only
+            // applies to leaf nodes (verified empirically: `elkGroup.width/height`
+            // stayed at the children-derived size even with the property set).
+            //
+            // The *primary* fix lives in [ElkLayoutEngine.layout]: it detects a
+            // group whose ELK-computed size falls short of `minSize` and reruns the
+            // whole layout with extra padding on that group, so ELK itself reserves
+            // the wider/taller box for the compound *and its siblings* during the
+            // actual layout pass (see that function's KDoc for why a purely
+            // post-layout widening previously caused sibling-overlap regressions —
+            // e.g. an expanded BPMN SubProcess frame with a long name, see
+            // [dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge], eating into a parallel
+            // sibling branch).
+            //
+            // `rawWidth`/`rawHeight` below should therefore already satisfy
+            // `minSize` by the time this function runs. The `maxOf` floor here is
+            // only a defensive last resort for the (expected to be rare) case where
+            // [ElkLayoutEngine]'s re-layout loop hits its attempt cap without fully
+            // closing the gap — widening/heightening the reported box symmetrically
+            // around its ELK-computed center. This never moves the (already
+            // absolutely-positioned) child nodes — it only grows the frame's
+            // rendered bounds outward on both sides, so children stay visually
+            // centered and the frame's own centred title fits inside the border
+            // even when the children alone would lay out narrower than the title —
+            // but, unlike the pre-layout fix above, it can still overlap a sibling
+            // in this fallback path.
+            val minSize = minSizeByGroup[gid]
+            val width = maxOf(rawWidth, minSize?.width ?: 0f)
+            val height = maxOf(rawHeight, minSize?.height ?: 0f)
+            val x = absX - (width - rawWidth) / 2f
+            val y = absY - (height - rawHeight) / 2f
+
             result[gid] =
                 GroupLayout(
-                    bounds = Rect(Point(absX, absY), Size(elkGroup.width.toFloat(), elkGroup.height.toFloat())),
+                    bounds = Rect(Point(x, y), Size(width, height)),
                 )
         }
 

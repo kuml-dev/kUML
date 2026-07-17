@@ -18,6 +18,7 @@ import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.renderer.theme.core.ThemeRegistry
@@ -163,17 +164,19 @@ internal object DesktopRenderPipeline {
                                         type = DiagramType.BPMN_PROCESS,
                                         elements = elements,
                                     )
+                                val sizeProvider = BpmnContentSizeProvider(extracted.model)
                                 val layout =
                                     elkEngine.layout(
-                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram),
+                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, sizeProvider),
                                         LayoutHints.DEFAULT,
                                     )
                                 KumlSvgRenderer.toSvg(kumlDiagram, layout, theme)
                             }
                             is CollaborationDiagram -> {
+                                val sizeProvider = BpmnContentSizeProvider(extracted.model)
                                 val layout =
                                     elkEngine.layout(
-                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram),
+                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, sizeProvider),
                                         LayoutHints.DEFAULT,
                                     )
                                 KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
@@ -184,9 +187,10 @@ internal object DesktopRenderPipeline {
                                 KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
                             }
                             is ConversationDiagram -> {
+                                val sizeProvider = BpmnContentSizeProvider(extracted.model)
                                 val layout =
                                     elkEngine.layout(
-                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram),
+                                        BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, sizeProvider),
                                         LayoutHints.DEFAULT,
                                     )
                                 KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)

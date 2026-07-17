@@ -183,6 +183,18 @@ public object BpmnLayoutBridge {
                     parent = null,
                     padding = Insets(top = 20f, right = 20f, bottom = 20f, left = 20f),
                     layoutAsCompound = true,
+                    // Content-aware sizing fix: an expanded SubProcess frame carries its
+                    // own centred title (see renderBpmnSubProcess in BpmnActivitySvg,
+                    // font-size 12, text-anchor middle at `x + w / 2`) — the exact same
+                    // rendering shape a collapsed SubProcess box uses for its label. ELK
+                    // only sizes a compound node from its children's bounding box + the
+                    // padding above; it has no notion of a title label attached to the
+                    // container itself, so a long name would overflow the frame ELK
+                    // derives (dead-code before this fix: the size was computed by
+                    // BpmnContentSizeProvider but never read). Reusing the *same*
+                    // taskBoxSize()-based estimate here as [LayoutGroup.minSize] floors
+                    // the frame width so the title always fits.
+                    minSize = sizeProvider?.sizeOf(sp.id, "BpmnSubProcess"),
                 ),
             )
 

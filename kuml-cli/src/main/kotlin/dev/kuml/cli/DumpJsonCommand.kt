@@ -34,6 +34,7 @@ import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
@@ -256,9 +257,12 @@ internal class DumpJsonCommand : CliktCommand(name = "dump-json") {
                 ?: error("ELK layout engine not available for BPMN diagrams.")
         return when (val diagram = extracted.diagram) {
             is ChoreographyDiagram -> ChoreographyGridLayout.layout(model, diagram)
-            is ProcessDiagram -> engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-            is CollaborationDiagram -> engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-            is ConversationDiagram -> engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
+            is ProcessDiagram ->
+                engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram, BpmnContentSizeProvider(model)), LayoutHints.DEFAULT)
+            is CollaborationDiagram ->
+                engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram, BpmnContentSizeProvider(model)), LayoutHints.DEFAULT)
+            is ConversationDiagram ->
+                engine.layout(BpmnLayoutBridge.toLayoutGraph(model, diagram, BpmnContentSizeProvider(model)), LayoutHints.DEFAULT)
         }
     }
 

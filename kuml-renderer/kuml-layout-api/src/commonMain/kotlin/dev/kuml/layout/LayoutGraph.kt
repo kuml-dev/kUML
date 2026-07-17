@@ -64,6 +64,18 @@ public data class LayoutGroup(
     val parent: GroupId? = null,
     val padding: Insets = Insets.ZERO,
     val layoutAsCompound: Boolean = false,
+    /**
+     * Optionaler unterer Grenzwert für die von der Engine berechnete Gruppen-Größe
+     * (inklusive [padding]). Nur relevant für compound-Gruppen ([layoutAsCompound] =
+     * true) — bei ELK sorgt das dafür, dass die Container-Box nie kleiner wird als
+     * [minSize], selbst wenn die Kindknoten weniger Platz beanspruchen würden.
+     * Wird benötigt, wenn die Container-Box selbst ein (zentriertes) Text-Label
+     * trägt, dessen Breite unabhängig von den Kindknoten ist — z. B. der Titel
+     * eines expandierten BPMN-SubProcess-Rahmens, siehe
+     * [dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge]. `null` (Default) bedeutet:
+     * kein Mindestmaß, Verhalten unverändert (Engine-Default).
+     */
+    val minSize: Size? = null,
 )
 
 /**

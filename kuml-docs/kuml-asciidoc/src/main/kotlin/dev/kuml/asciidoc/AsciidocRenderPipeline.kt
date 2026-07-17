@@ -21,6 +21,7 @@ import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
@@ -300,17 +301,17 @@ internal object AsciidocRenderPipeline {
                 val process = model.processes.firstOrNull { it.id == diagram.processId }
                 val elements = process?.renderableElements() ?: emptyList()
                 val kumlDiagram = KumlDiagram(name = diagram.name, type = DiagramType.BPMN_PROCESS, elements = elements)
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, diagram)
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, diagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 KumlSvgRenderer.toSvg(kumlDiagram, layoutResult, theme)
             }
             is CollaborationDiagram -> {
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, diagram)
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, diagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
             }
             is ConversationDiagram -> {
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, diagram)
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, diagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = layoutEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
             }

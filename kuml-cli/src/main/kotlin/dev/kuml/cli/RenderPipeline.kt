@@ -55,6 +55,7 @@ import dev.kuml.layout.bridge.C4LayoutBridge
 import dev.kuml.layout.bridge.Sysml2LayoutBridge
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge
+import dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider
 import dev.kuml.layout.bridge.bpmn.BpmnLayoutBridge
 import dev.kuml.layout.bridge.bpmn.ChoreographyGridLayout
 import dev.kuml.layout.bridge.erm.ErmChenLayoutBridge
@@ -902,7 +903,7 @@ internal object RenderPipeline {
                         type = DiagramType.BPMN_PROCESS,
                         elements = elements,
                     )
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg", "apng", "webp", "mp4" -> {
@@ -937,7 +938,7 @@ internal object RenderPipeline {
                 }
             }
             is CollaborationDiagram -> {
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme))
@@ -963,7 +964,7 @@ internal object RenderPipeline {
                 }
             }
             is ConversationDiagram -> {
-                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram)
+                val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
                     "svg" -> writeText(output, KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme))
