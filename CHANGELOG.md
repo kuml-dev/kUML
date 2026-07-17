@@ -4,6 +4,74 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.36.1] — 2026-07-17
+
+### Fixed
+
+**BPMN: content-aware sizing for task/subprocess/call-activity boxes**
+
+BPMN Task/SubProcess/CallActivity boxes rendered at a fixed 120×60 size regardless of
+label length, so longer labels (e.g. "Schriftlichen Aufnahmeantrag stellen") overflowed
+the box on both sides in the SVG output. Unlike UML/ERM/SysML-2, BPMN had no content-aware
+`SizeProvider` at all. Adds `BpmnContentSizeProvider`, modeled on `UmlContentSizeProvider`'s
+char-width heuristic: box width now grows with label length, floored at the existing 120px
+default and capped at 480px (DoS/sanity hardening, since box size is derived from untrusted
+model text). Gateways, events and data objects keep their existing fixed shapes untouched,
+since their labels render outside the shape. Wired into every production render pipeline
+that calls `BpmnLayoutBridge.toLayoutGraph`: CLI, Web, Desktop, AsciiDoc/Gradle and the
+Gradle plugin — the initial fix only covered the CLI, code review caught the rest. Also
+fixes expanded BPMN SubProcess frames overflowing when the frame's content-driven minimum
+size is larger than what the initial ELK layout produced.
+
+**UML state machines: widen frame for overflowing transition labels instead of clamping**
+
+Two UML state-machine label bugs, both surfaced by the vault's "Mitgliedschafts-
+Lebenszyklus" example (a state machine with a choice node and multiple transitions
+converging on one final state). First, a transition routed through a narrow corridor close
+to the frame's left border could get a label wider than the corridor, pushing its
+background rect past the frame's own drawn edge — fixed by widening the frame itself (and
+the canvas with it) by exactly the overhang, instead of clamping the label inward and
+visually disconnecting it from the line it annotates; a no-op when no label overflows, so
+unrelated diagrams render byte-for-byte identical to before. Second, two transitions
+converging on the same final state got assigned separate vertical label bands relative to
+each edge's own natural anchor — when those anchors already differed, the intended gap
+shrank to a few pixels and the labels visually collided; labels after a cluster's first
+member now render relative to a shared baseline so the full intended gap always applies.
+
+**UML: italicize abstract class names instead of fake «abstract» line**
+
+UML 2.5 marks abstract classifiers by italicizing the name, not via a fake «abstract»
+stereotype line. Fixed across all three renderers that shared this bug (SVG, the
+layout-bridge sizing pass, and the Compose desktop viewer) — abstract class boxes no
+longer reserve a blank stereotype-header line the SVG renderer never prints.
+
+**UML: fan out converging association/link endpoint labels**
+
+Role-name and multiplicity labels on UML associations and links used to stack on top of
+each other when several relationships converged on the same node border close together
+(e.g. multiple associations ending at one class) — the same overlap bug already fixed for
+ERM/Chen cardinality labels. Converging endpoints now fan out along the border instead of
+piling on the same spot; single, non-converging edges render identical to before.
+
+**Sequence diagrams: wire `preserveNodeOrder` across the remaining five render pipelines**
+
+The CLI's render pipeline already pinned `LayoutHints.preserveNodeOrder` for UML sequence
+diagrams (declaration order is semantically meaningful for lifelines, unlike other diagram
+types), but the Gradle plugin, Web, Desktop, MCP and AsciiDoc/Markdown pipelines still let
+ELK reorder lifelines by size. Wired the same opt-in into all five remaining pipelines.
+
+### Fixed — build
+
+**ktlint now runs on all `kotlin.multiplatform` modules, closing a repo-wide lint gap**
+
+ktlint was only hooked to `org.jetbrains.kotlin.jvm` in the root build script, so all ~19
+`kotlin.multiplatform` modules (kuml-io-svg, kuml-layout-bridge, kuml-desktop,
+kuml-widget-compose, kuml-core-\*, kuml-metamodel-\*, etc.) silently had no ktlint task at
+all — `check` never linted them. Discovered while fixing the UML-abstract-rendering bug
+above. Fixed the ~140-file formatting drift this exposed and the handful of violations
+ktlint could not auto-correct (orphaned doc comments, non-conventional backing-field
+naming, four fully-dead placeholder files).
+
 ## [0.36.0] — 2026-07-14
 
 ### Fixed
