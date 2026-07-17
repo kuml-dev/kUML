@@ -5,6 +5,7 @@ import dev.kuml.layout.EdgeId
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.Point
 import io.kotest.core.spec.style.StringSpec
+import io.kotest.matchers.floats.plusOrMinus
 import io.kotest.matchers.shouldBe
 
 /**
@@ -111,5 +112,52 @@ class Sysml2EdgeRendererStackIndexTest :
             val stack = Sysml2EdgeRenderer.computeLabelStackIndices(edges)
             stack[EdgeId("e1")] shouldBe 0
             stack[EdgeId("e2")] shouldBe 0
+        }
+
+        "computeLabelStackAssignments — Sibling mit abweichendem natürlichen Anker rendert auf der Cluster-Baseline" {
+            // Reproduziert den Bug hinter zwei überlappenden UML-STM-Transition-
+            // Labels, die auf denselben Endzustand zulaufen (Vault-Beispiel
+            // „Mitgliedschafts-Lebenszyklus" — austritt()/abmeldung() +
+            // ausschluss()): beide Edges überlappen im Label-Bbox-Test und
+            // clustern korrekt, aber ihre natürlichen Anker-Y-Werte (aus
+            // unterschiedlich geformten Routen) liegen bereits 15 px
+            // auseinander. Würde [Sysml2EdgeRenderer.render] den Stack-
+            // Offset einfach auf den jeweils EIGENEN Anker addieren (die alte
+            // computeLabelStackIndices-only-Logik), ergäbe das nur einen
+            // Bruchteil des beabsichtigten Abstands statt eines vollen
+            // Bandes. Der Fix: Index-0 behält seinen eigenen natürlichen
+            // Anker (anchorOverride == null — Bit-für-Bit unverändert), aber
+            // jeder spätere Sibling bekommt (eigenes mx, Cluster-Baseline-my)
+            // als expliziten Override zurück, sodass der Stack-Offset in
+            // [Sysml2EdgeRenderer.render] von derselben Basis aus misst.
+            val first = verticalEdge("austritt", x = 160f, label = "austritt() / abmeldung()", y1 = 60f, y2 = 160f) // natural my = 110
+            val second = verticalEdge("ausschluss", x = 153f, label = "ausschluss()", y1 = 75f, y2 = 115f) // natural my = 95
+            val assignments = Sysml2EdgeRenderer.computeLabelStackAssignments(listOf(first, second))
+
+            val firstAssignment = assignments.getValue(EdgeId("austritt"))
+            firstAssignment.index shouldBe 0
+            firstAssignment.anchorOverride shouldBe null
+
+            val secondAssignment = assignments.getValue(EdgeId("ausschluss"))
+            secondAssignment.index shouldBe 1
+            // y must be the FIRST member's natural anchor (110), not the
+            // second edge's own natural anchor (95) — that is the whole fix.
+            secondAssignment.anchorOverride?.second shouldBe 110f
+            secondAssignment.anchorOverride?.first shouldBe 153f
+        }
+
+        "estimateLabelHalfWidth — leeres/blankes Label hat Halbbreite 0" {
+            Sysml2EdgeRenderer.estimateLabelHalfWidth(null) shouldBe 0f
+            Sysml2EdgeRenderer.estimateLabelHalfWidth("") shouldBe 0f
+        }
+
+        "estimateLabelHalfWidth — spiegelt die approxW-Formel aus emitText" {
+            // (12 * 6.2 + 6) / 2 = 40.2 — dieselbe Formel, die
+            // dev.kuml.io.svg.KumlSvgRenderer.umlStmWidenForLabelOverhang beim
+            // Bemessen der nötigen Rahmen-Verbreiterung verwendet (Fix für das
+            // Vault-Beispiel „streichung()", das früher über den linken
+            // State-Machine-Rahmenrand hinausragte statt dass der Rahmen dafür
+            // breiter gemacht wurde).
+            Sysml2EdgeRenderer.estimateLabelHalfWidth("streichung()") shouldBe (40.2f plusOrMinus 0.01f)
         }
     })

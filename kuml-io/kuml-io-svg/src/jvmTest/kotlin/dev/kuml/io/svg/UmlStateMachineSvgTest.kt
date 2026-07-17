@@ -3,6 +3,8 @@ package dev.kuml.io.svg
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.io.svg.uml.renderUmlState
+import dev.kuml.layout.EdgeId
+import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.GroupId
 import dev.kuml.layout.GroupLayout
 import dev.kuml.layout.LayoutEngineId
@@ -15,12 +17,14 @@ import dev.kuml.layout.Size
 import dev.kuml.profile.KumlStereotypeApplication
 import dev.kuml.renderer.theme.core.PlainTheme
 import dev.kuml.uml.PseudostateKind
+import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlPseudostate
 import dev.kuml.uml.UmlState
 import dev.kuml.uml.UmlStateMachine
 import dev.kuml.uml.UmlTransition
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
+import io.kotest.matchers.shouldNotBe
 import io.kotest.matchers.string.shouldContain
 
 /**
@@ -202,5 +206,77 @@ class UmlStateMachineSvgTest :
             // Substates rendered as simple state nodes
             svg shouldContain "Picking"
             svg shouldContain "Packing"
+        }
+
+        test("state-machine frame widens for an overflowing label instead of clamping it inward") {
+            // Regression test for the Vault "Mitgliedschafts-Lebenszyklus" bug:
+            // a transition routed close to the frame's left edge with a wide
+            // label used to get its label clamped inward (visually
+            // disconnecting it from the line it annotates) — the frame must
+            // widen instead, so the label stays exactly where its route
+            // geometry places it.
+            val source = UmlState(id = "ruhend", name = "Ruhend")
+            val target = UmlFinalState(id = "ausgeschieden", name = "")
+            val start = UmlPseudostate(id = "start", name = "", kind = PseudostateKind.INITIAL)
+            val sm =
+                UmlStateMachine(
+                    id = "sm7",
+                    name = "Overhang",
+                    vertices = listOf(start, source, target),
+                    transitions =
+                        listOf(
+                            UmlTransition(
+                                id = "t1",
+                                sourceId = "ruhend",
+                                targetId = "ausgeschieden",
+                                trigger = "einSehrLangerTriggerName()",
+                            ),
+                        ),
+                )
+            val diagram = KumlDiagram(name = "D", type = DiagramType.STATE, elements = listOf(sm))
+
+            // Narrow SM group (raw bounds): only 20px of gutter between its
+            // left edge (x=10) and the transition's route (x=30) — far less
+            // than the wide label needs.
+            val layoutResult =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = null,
+                    canvas = Size(300f, 300f),
+                    groups = mapOf(GroupId("sm7") to GroupLayout(bounds = Rect(Point(10f, 10f), Size(200f, 280f)))),
+                    nodes =
+                        mapOf(
+                            NodeId("start") to NodeLayout(bounds = Rect(Point(100f, 20f), Size(24f, 24f))),
+                            NodeId("ruhend") to NodeLayout(bounds = Rect(Point(60f, 100f), Size(120f, 60f))),
+                            NodeId("ausgeschieden") to NodeLayout(bounds = Rect(Point(30f, 240f), Size(28f, 28f))),
+                        ),
+                    edges =
+                        mapOf(
+                            EdgeId("t1") to
+                                EdgeRoute.Direct(source = Point(30f, 160f), target = Point(30f, 240f)),
+                        ),
+                )
+
+            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+
+            val frameMatch = Regex("""<rect width="([\d.]+)" height="[\d.]+" rx="8" ry="8" class="kuml-frame"/>""").find(svg)
+            frameMatch shouldNotBe null
+            val frameWidth = frameMatch!!.groupValues[1].toFloat()
+            // Original raw group width was 200 — the frame must have grown
+            // to make room for the label, not left it clamped inside 200.
+            (frameWidth > 200f) shouldBe true
+
+            val frameOriginMatch = Regex("""<g id="sm7" transform="translate\(([\d.]+),[\d.]+\)">""").find(svg)
+            frameOriginMatch shouldNotBe null
+            val frameLeft = frameOriginMatch!!.groupValues[1].toFloat()
+
+            // The label's white background rect must not start left of the
+            // frame's own left edge — it must fit inside the (now wider) frame.
+            val labelRectMatch =
+                Regex("""<rect x="(-?[\d.]+)" y="[\d.]+" width="[\d.]+" height="12" fill="white" stroke="none"/>""")
+                    .find(svg)
+            labelRectMatch shouldNotBe null
+            val labelLeft = labelRectMatch!!.groupValues[1].toFloat()
+            (labelLeft >= frameLeft) shouldBe true
         }
     })

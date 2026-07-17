@@ -963,6 +963,184 @@ public object KumlSvgRenderer {
     }
 
     /**
+     * Clearance kept between a state-machine transition label's estimated
+     * background rect and the SM frame's own border. Used by
+     * [umlStmWidenForLabelOverhang] to size how much wider the frame must
+     * grow — a few px beyond the frame's 1.5px stroke so a widened frame
+     * still shows clearly visible breathing room, not just touches the
+     * label.
+     */
+    private const val STM_LABEL_FRAME_CLEARANCE_PX: Float = 6f
+
+    /** Builds a UML state-machine transition's "trigger [guard] / effect" label text. */
+    private fun umlStmTransitionLabel(transition: dev.kuml.uml.UmlTransition): String =
+        buildList {
+            if (transition.trigger != null) add(transition.trigger)
+            // Guard is stored as-is from DSL (may already include "[...]" brackets)
+            if (transition.guard != null) add(transition.guard)
+            if (transition.effect != null) add("/ ${transition.effect}")
+        }.joinToString(" ")
+
+    /**
+     * Pre-computes per-transition label stacking (see
+     * [dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.computeLabelStackAssignments])
+     * from [layoutResult]'s edges, already shifted into the same *shifted*
+     * (padding-applied) coordinate space [umlStmTransitionLabelAnchor] and the
+     * render loop use — computing it from the raw, unshifted route would
+     * offset every overridden sibling by `padding` px relative to its
+     * correctly-shifted stackIndex-0 neighbour.
+     */
+    private fun umlStmComputeLabelStackAssignments(
+        layoutResult: LayoutResult,
+        transitionIndex: Map<String, dev.kuml.uml.UmlTransition>,
+        padding: Float,
+    ): Map<dev.kuml.layout.EdgeId, dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.LabelStackAssignment> =
+        dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.computeLabelStackAssignments(
+            layoutResult.edges.entries.map { (edgeId, route) ->
+                val transition = transitionIndex[edgeId.value]
+                val labelText = transition?.let { umlStmTransitionLabel(it).ifEmpty { null } }
+                Triple(edgeId, shiftRoute(route, padding), labelText)
+            },
+        )
+
+    /**
+     * Resolves the (x, y) a single transition's label renders at — same
+     * priority order as [dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.render]'s
+     * own `overrideLabelAnchor ?: labelAnchor(route)` fallback, factored out
+     * so [umlStmWidenForLabelOverhang]'s pre-pass and the actual render loop
+     * agree on exactly where every label will land.
+     *
+     * Priority: an explicit back-edge anchor (already chosen to sit clear of
+     * the frame/intermediate states — see the back-edge KDoc below) wins over
+     * the cluster's shared-baseline override; without either, falls back to
+     * the edge's own natural longest-segment anchor.
+     */
+    private fun umlStmTransitionLabelAnchor(
+        shiftedRoute: dev.kuml.layout.EdgeRoute,
+        label: String,
+        assignment: dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.LabelStackAssignment?,
+    ): Pair<Float, Float> {
+        // V3.x — Back-edge label repositioning: in a top-to-bottom STM the
+        // longest segment of a back-edge (e.g. Yellow→Red) is the long
+        // vertical run on the left side of the diagram. Its midpoint sits at
+        // the y-level of an intermediate state and far to the left, which
+        // causes the label to overlap that state. Instead we anchor the
+        // label at 8 % of the arc length from the source — this lands in the
+        // short upward stub that exits the source state, which is always in
+        // the whitespace BELOW the nearest intermediate node and ABOVE the
+        // source state.
+        val isBackEdge = label.isNotEmpty() && shiftedRoute.source.y > shiftedRoute.target.y + 5f
+        if (isBackEdge) {
+            val a = EdgeLabelGeometry.anchorAt(shiftedRoute, 0.08f)
+            return a.x to a.y
+        }
+        return assignment?.anchorOverride
+            ?: dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
+                .labelAnchor(shiftedRoute)
+    }
+
+    /**
+     * Widens the state-machine frame (and, if needed, the overall canvas) so
+     * every transition label's estimated background rect fits inside the
+     * frame's own drawn border, instead of repositioning labels away from
+     * their natural, edge-aligned anchor.
+     *
+     * Bug fix: a transition can get routed through a narrow corridor close
+     * to the SM frame border — e.g. a state → final-state edge ELK routes
+     * around the outside of intermediate states. A label centred on that
+     * corridor can be wider than the corridor itself, so its background rect
+     * crosses the frame's drawn border. The earlier fix clamped the label's
+     * x-coordinate inward to keep it inside the existing frame — but that
+     * visually disconnects the label from the line it annotates. Growing the
+     * frame (and canvas) instead keeps every label exactly where its route
+     * geometry puts it; only the frame's own width changes.
+     *
+     * Only the SM frame's bounds and canvas width grow — vertices, edges and
+     * comments keep their positions *relative to each other* by shifting
+     * right by [leftOverhang] wherever the frame gained room on the left;
+     * the frame itself grows on both sides to enclose them (see inline
+     * comments below for the exact math). Returns [layoutResult] unchanged
+     * when no label overflows (the overwhelmingly common case), so unrelated
+     * diagrams render byte-for-byte identical to before this fix.
+     */
+    private fun umlStmWidenForLabelOverhang(
+        layoutResult: LayoutResult,
+        sm: UmlStateMachine,
+        transitionIndex: Map<String, dev.kuml.uml.UmlTransition>,
+        padding: Float,
+    ): LayoutResult {
+        val smGroupId = dev.kuml.layout.GroupId(sm.id)
+        val smGroupLayout = layoutResult.groups[smGroupId] ?: return layoutResult
+        val smFrameLeft = smGroupLayout.bounds.origin.x + padding
+        val smFrameRight = smFrameLeft + smGroupLayout.bounds.size.width
+
+        val preAssignments = umlStmComputeLabelStackAssignments(layoutResult, transitionIndex, padding)
+        var leftOverhang = 0f
+        var rightOverhang = 0f
+        for ((edgeId, route) in layoutResult.edges) {
+            val transition = transitionIndex[edgeId.value] ?: continue
+            val label = umlStmTransitionLabel(transition)
+            if (label.isEmpty()) continue
+            val shiftedRoute = shiftRoute(route, padding)
+            val (mx, _) = umlStmTransitionLabelAnchor(shiftedRoute, label, preAssignments[edgeId])
+            val halfWidth =
+                dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
+                    .estimateLabelHalfWidth(label)
+            leftOverhang = maxOf(leftOverhang, (smFrameLeft + STM_LABEL_FRAME_CLEARANCE_PX) - (mx - halfWidth))
+            rightOverhang = maxOf(rightOverhang, (mx + halfWidth) - (smFrameRight - STM_LABEL_FRAME_CLEARANCE_PX))
+        }
+        if (leftOverhang <= 0f && rightOverhang <= 0f) return layoutResult
+
+        // Shift every node/edge/nested-group by leftOverhang so nothing lands
+        // at a negative x once the frame's left edge grows outward by the
+        // same amount — the frame itself is handled separately below and
+        // must NOT receive this shift, or its left edge would move together
+        // with its contents and end up right back where it started.
+        val shiftedNodes =
+            layoutResult.nodes.mapValues { (_, nodeLayout) ->
+                nodeLayout.copy(
+                    bounds =
+                        nodeLayout.bounds.copy(
+                            origin = nodeLayout.bounds.origin.copy(x = nodeLayout.bounds.origin.x + leftOverhang),
+                        ),
+                    ports = nodeLayout.ports.mapValues { (_, p) -> p.copy(x = p.x + leftOverhang) },
+                )
+            }
+        val shiftedEdges =
+            layoutResult.edges.mapValues { (_, route) -> shiftRoute(route, dx = leftOverhang, dy = 0f) }
+        val shiftedGroups =
+            layoutResult.groups.mapValues { (groupId, groupLayout) ->
+                if (groupId == smGroupId) {
+                    // The frame's own left edge stays put; only its width grows —
+                    // by leftOverhang (to keep enclosing the now-shifted content)
+                    // plus rightOverhang (the original right-side label overflow).
+                    groupLayout.copy(
+                        bounds =
+                            groupLayout.bounds.copy(
+                                size =
+                                    groupLayout.bounds.size.copy(
+                                        width = groupLayout.bounds.size.width + leftOverhang + rightOverhang,
+                                    ),
+                            ),
+                    )
+                } else {
+                    groupLayout.copy(
+                        bounds =
+                            groupLayout.bounds.copy(
+                                origin = groupLayout.bounds.origin.copy(x = groupLayout.bounds.origin.x + leftOverhang),
+                            ),
+                    )
+                }
+            }
+        return layoutResult.copy(
+            canvas = layoutResult.canvas.copy(width = layoutResult.canvas.width + leftOverhang + rightOverhang),
+            nodes = shiftedNodes,
+            edges = shiftedEdges,
+            groups = shiftedGroups,
+        )
+    }
+
+    /**
      * Rendert ein UML STATE-Diagramm als SVG.
      *
      * Flat-layout: der [UmlStateMachine]-Rahmen wird als LayoutGroup gerendert,
@@ -972,13 +1150,13 @@ public object KumlSvgRenderer {
      */
     private fun renderUmlStateDiagram(
         diagram: KumlDiagram,
-        layoutResult: LayoutResult,
+        rawLayoutResult: LayoutResult,
         theme: KumlTheme,
         options: SvgRenderOptions,
     ): String {
         val sm =
             diagram.elements.filterIsInstance<UmlStateMachine>().firstOrNull()
-                ?: return SvgDocument.render(layoutResult, theme, options) { _, _ -> } // fallback
+                ?: return SvgDocument.render(rawLayoutResult, theme, options) { _, _ -> } // fallback
 
         // Flatten all vertices (including substates) into a lookup map
         val vertexIndex = mutableMapOf<String, dev.kuml.uml.UmlVertex>()
@@ -993,6 +1171,12 @@ public object KumlSvgRenderer {
 
         // Transition lookup by ID
         val transitionIndex = sm.transitions.associateBy { it.id }
+
+        // Widen the frame (and canvas) BEFORE computing anything padding-relative
+        // below, so every subsequent step already sees the final geometry — see
+        // umlStmWidenForLabelOverhang KDoc for why widening beats clamping here.
+        val layoutResult =
+            umlStmWidenForLabelOverhang(rawLayoutResult, sm, transitionIndex, options.paddingPx)
 
         return SvgDocument.render(layoutResult, theme, options) { nodesBuilder, edgesBuilder ->
             val padding = options.paddingPx
@@ -1076,36 +1260,20 @@ public object KumlSvgRenderer {
             // V2.x — Label-Text wird mitgegeben, damit das Clustering
             // Bounding-Box-Overlap statt reiner Euklid-Distanz nutzt
             // (siehe KDoc auf Sysml2EdgeRenderer.computeLabelStackIndices).
-            val stmStackIndices =
-                dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.computeLabelStackIndices(
-                    layoutResult.edges.entries.map { (edgeId, route) ->
-                        val transition = transitionIndex[edgeId.value]
-                        val labelText =
-                            if (transition == null) {
-                                null
-                            } else {
-                                buildList {
-                                    if (transition.trigger != null) add(transition.trigger)
-                                    if (transition.guard != null) add(transition.guard)
-                                    if (transition.effect != null) add("/ ${transition.effect}")
-                                }.joinToString(" ").ifEmpty { null }
-                            }
-                        Triple(edgeId, route, labelText)
-                    },
-                )
+            // Fix: computeLabelStackAssignments (not just the plain index) —
+            // siblings after the first need an explicit shared-baseline
+            // anchor override, see its KDoc for why the plain stack index
+            // alone under-separates labels whose natural anchors already
+            // differ (e.g. converging transitions with different route shapes).
+            // The frame was already widened for label overhang above (see
+            // umlStmWidenForLabelOverhang), so this recomputes assignments on
+            // the final, already-widened geometry — cluster membership is
+            // translation-invariant, so this agrees with the pre-pass.
+            val stmStackAssignments = umlStmComputeLabelStackAssignments(layoutResult, transitionIndex, padding)
             for ((edgeId, route) in layoutResult.edges) {
                 val transition = transitionIndex[edgeId.value] ?: continue
                 val shiftedRoute = shiftRoute(route, padding)
-
-                // Build label text: "trigger [guard] / effect"
-                val parts =
-                    buildList {
-                        if (transition.trigger != null) add(transition.trigger)
-                        // Guard is stored as-is from DSL (may already include "[...]" brackets)
-                        if (transition.guard != null) add(transition.guard)
-                        if (transition.effect != null) add("/ ${transition.effect}")
-                    }
-                val label = parts.joinToString(" ")
+                val label = umlStmTransitionLabel(transition)
 
                 val meta =
                     dev.kuml.sysml2.edge.Sysml2EdgeMetadata(
@@ -1115,26 +1283,8 @@ public object KumlSvgRenderer {
                         arrowHead = dev.kuml.sysml2.edge.Sysml2ArrowHead.OpenAngle,
                     )
 
-                // V3.x — Back-edge label repositioning: in a top-to-bottom STM
-                // the longest segment of a back-edge (e.g. Yellow→Red) is the
-                // long vertical run on the left side of the diagram.  Its
-                // midpoint sits at the y-level of an intermediate state and far
-                // to the left, which causes the label to overlap that state and
-                // protrude outside the diagram frame.  Instead we anchor the
-                // label at 8 % of the arc length from the source — this lands
-                // in the short upward stub that exits the source state, which
-                // is always in the whitespace BELOW the nearest intermediate
-                // node and ABOVE the source state, well inside the SM frame.
-                val isBackEdge =
-                    label.isNotEmpty() &&
-                        shiftedRoute.source.y > shiftedRoute.target.y + 5f
-                val backEdgeLabelAnchor: Pair<Float, Float>? =
-                    if (isBackEdge) {
-                        val a = EdgeLabelGeometry.anchorAt(shiftedRoute, 0.08f)
-                        a.x to a.y
-                    } else {
-                        null
-                    }
+                val assignment = stmStackAssignments[edgeId]
+                val anchor = umlStmTransitionLabelAnchor(shiftedRoute, label, assignment)
 
                 dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
                     .render(
@@ -1142,8 +1292,8 @@ public object KumlSvgRenderer {
                         meta,
                         theme,
                         edgesBuilder,
-                        labelStackIndex = stmStackIndices[edgeId] ?: 0,
-                        overrideLabelAnchor = backEdgeLabelAnchor,
+                        labelStackIndex = assignment?.index ?: 0,
+                        overrideLabelAnchor = anchor,
                     )
             }
 
