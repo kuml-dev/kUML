@@ -15,7 +15,7 @@ import dev.kuml.uml.UmlState
 import dev.kuml.uml.UmlStateMachine
 import dev.kuml.uml.UmlTransition
 
-/**
+/*
  * Shared fixtures/helpers for Compose UI robot tests of [OclGuardEditor] and
  * [ControlPanel] (Wave 6). Kept in one place so the two UI-test specs and
  * [ChangeGuardBridgeTest] can converge on the same traffic-light model and
@@ -49,18 +49,19 @@ internal fun buildTrafficLight(): UmlStateMachine {
         id = "traffic-light",
         name = "Traffic Light",
         vertices = listOf(initial, red, green, yellow),
-        transitions = listOf(
-            UmlTransition(id = "t-init-red", sourceId = "init", targetId = "Red"),
-            UmlTransition(id = "t-red-green", sourceId = "Red", targetId = "Green", trigger = "next"),
-            UmlTransition(id = "t-green-yellow", sourceId = "Green", targetId = "Yellow", trigger = "next"),
-            UmlTransition(
-                id = "t-yellow-red",
-                sourceId = "Yellow",
-                targetId = "Red",
-                trigger = "next",
-                metadata = mapOf(TransitionMetadataKeys.PROTECTED to KumlMetaValue.Flag(true)),
+        transitions =
+            listOf(
+                UmlTransition(id = "t-init-red", sourceId = "init", targetId = "Red"),
+                UmlTransition(id = "t-red-green", sourceId = "Red", targetId = "Green", trigger = "next"),
+                UmlTransition(id = "t-green-yellow", sourceId = "Green", targetId = "Yellow", trigger = "next"),
+                UmlTransition(
+                    id = "t-yellow-red",
+                    sourceId = "Yellow",
+                    targetId = "Red",
+                    trigger = "next",
+                    metadata = mapOf(TransitionMetadataKeys.PROTECTED to KumlMetaValue.Flag(true)),
+                ),
             ),
-        ),
     )
 }
 

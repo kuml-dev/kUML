@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.uml
 
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
@@ -11,7 +12,6 @@ import dev.kuml.uml.UmlCombinedFragment
 import dev.kuml.uml.UmlInteraction
 import dev.kuml.uml.UmlLifeline
 import dev.kuml.uml.UmlMessage
-import dev.kuml.io.svg.fmt3
 import kotlin.math.abs
 
 private const val SEQ_HEAD_HEIGHT = 40f

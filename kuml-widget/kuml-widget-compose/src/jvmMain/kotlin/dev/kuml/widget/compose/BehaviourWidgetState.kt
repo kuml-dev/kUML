@@ -36,7 +36,7 @@ public class BehaviourWidgetState(
     public var model: UmlStateMachine by mutableStateOf(initialModel)
         internal set
 
-    internal var _instance: StateMachineInstance = runtime.start(model)
+    internal var runningInstance: StateMachineInstance = runtime.start(model)
     private var initialSnapshot: StateMachineSnapshot
 
     /** Full trace of all [dev.kuml.runtime.TraceEntry]s recorded so far. */
@@ -54,8 +54,8 @@ public class BehaviourWidgetState(
     public val isScrubbing: Boolean get() = tracePosition < trace.size
 
     init {
-        initialSnapshot = runtime.snapshotFull(_instance)
-        trace = _instance.trace.toList()
+        initialSnapshot = runtime.snapshotFull(runningInstance)
+        trace = runningInstance.trace.toList()
         tracePosition = trace.size
     }
 
@@ -95,12 +95,13 @@ public class BehaviourWidgetState(
         if (isScrubbing) {
             forkAtScrubPosition()
         }
-        val event = Event(
-            name = eventName,
-            payload = JsonObject(emptyMap()),
-        )
-        runtime.step(_instance, event)
-        trace = _instance.trace.toList()
+        val event =
+            Event(
+                name = eventName,
+                payload = JsonObject(emptyMap()),
+            )
+        runtime.step(runningInstance, event)
+        trace = runningInstance.trace.toList()
         tracePosition = trace.size
     }
 
@@ -118,8 +119,8 @@ public class BehaviourWidgetState(
      * the trace, and moves the scrub position to 0.
      */
     public fun reset() {
-        _instance = runtime.restoreFrom(model, initialSnapshot, MigrationPolicy.Reject)
-        trace = _instance.trace.toList()
+        runningInstance = runtime.restoreFrom(model, initialSnapshot, MigrationPolicy.Reject)
+        trace = runningInstance.trace.toList()
         tracePosition = trace.size
     }
 
@@ -131,31 +132,33 @@ public class BehaviourWidgetState(
      */
     public fun forkAtScrubPosition() {
         val partialTrace = trace.subList(0, tracePosition)
-        val activeIds = HighlightHelpers.replayActiveVertices(
-            initialActive = initialActiveVertexIds,
-            trace = trace,
-            upToExclusive = tracePosition,
-        )
-        val forkedSnapshot = initialSnapshot.copy(
-            currentVertexIds = activeIds.toList(),
-            trace = partialTrace,
-            seqCounter = if (partialTrace.isEmpty()) 0L else partialTrace.last().seqNo + 1,
-            internalQueue = emptyList(),
-            isTerminated = false,
-        )
-        _instance = runtime.restoreFrom(model, forkedSnapshot, MigrationPolicy.Reject)
-        trace = _instance.trace.toList()
+        val activeIds =
+            HighlightHelpers.replayActiveVertices(
+                initialActive = initialActiveVertexIds,
+                trace = trace,
+                upToExclusive = tracePosition,
+            )
+        val forkedSnapshot =
+            initialSnapshot.copy(
+                currentVertexIds = activeIds.toList(),
+                trace = partialTrace,
+                seqCounter = if (partialTrace.isEmpty()) 0L else partialTrace.last().seqNo + 1,
+                internalQueue = emptyList(),
+                isTerminated = false,
+            )
+        runningInstance = runtime.restoreFrom(model, forkedSnapshot, MigrationPolicy.Reject)
+        trace = runningInstance.trace.toList()
         tracePosition = trace.size
     }
 
     /**
-     * Re-derives [trace]/[tracePosition] from the current [_instance] and moves
+     * Re-derives [trace]/[tracePosition] from the current [runningInstance] and moves
      * the scrub position back to live. Used after an in-place instance swap
      * (e.g. [changeGuard]) where the swap itself doesn't go through
      * [sendEvent]/[reset]/[forkAtScrubPosition].
      */
     internal fun syncTrace() {
-        trace = _instance.trace.toList()
+        trace = runningInstance.trace.toList()
         tracePosition = trace.size
     }
 }

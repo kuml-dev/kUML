@@ -20,9 +20,17 @@ allprojects {
     version = "0.36.0"
 }
 
-// Apply ktlint to all subprojects that use the Kotlin JVM plugin.
+// Apply ktlint to all subprojects that use a Kotlin plugin — JVM-only or
+// Multiplatform. Before this fix only "org.jetbrains.kotlin.jvm" was hooked,
+// so the ~19 kotlin.multiplatform modules (kuml-io-svg, kuml-layout-bridge,
+// kuml-kuiver, kuml-desktop, kuml-core-*, kuml-metamodel-*, etc.) silently
+// had no ktlint task at all and `check` never linted them — discovered
+// 2026-07-17 while fixing the UML-abstract-rendering bug.
 subprojects {
     pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+        apply(plugin = "org.jlleitschuh.gradle.ktlint")
+    }
+    pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
         apply(plugin = "org.jlleitschuh.gradle.ktlint")
     }
 }

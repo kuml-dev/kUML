@@ -90,11 +90,12 @@ public object ErmLayoutBridge {
         sizeProvider: SizeProvider = SizeProvider.constant(),
     ): LayoutGraph {
         val visibleIds: Set<String> =
-            diagram.elementIds.ifEmpty {
-                val entityIds = model.entities.map { it.id }
-                val viewIds = if (diagram.showViews) model.views.map { it.id } else emptyList()
-                entityIds + viewIds
-            }.toSet()
+            diagram.elementIds
+                .ifEmpty {
+                    val entityIds = model.entities.map { it.id }
+                    val viewIds = if (diagram.showViews) model.views.map { it.id } else emptyList()
+                    entityIds + viewIds
+                }.toSet()
 
         val nodes = mutableListOf<LayoutNode>()
 

@@ -22,8 +22,6 @@ import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
 import dev.kuml.layout.NodeLayout
-import dev.kuml.layout.Point
-import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.UmlContentSizeProvider
 import dev.kuml.layout.bridge.UmlLayoutBridge

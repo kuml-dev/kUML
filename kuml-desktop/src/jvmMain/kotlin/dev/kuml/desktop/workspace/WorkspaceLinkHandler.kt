@@ -33,7 +33,11 @@ class DefaultWorkspaceLinkHandler(
     private val workspace: OkfWorkspace,
     private val currentDoc: () -> OkfDocument?,
     private val onNavigate: (OkfDocument) -> Unit,
-    private val openExternal: (URI) -> Unit = { uri -> java.awt.Desktop.getDesktop().browse(uri) },
+    private val openExternal: (URI) -> Unit = { uri ->
+        java.awt.Desktop
+            .getDesktop()
+            .browse(uri)
+    },
 ) : WorkspaceLinkHandler {
     override fun onLink(target: String) {
         val scheme = schemeOf(target)

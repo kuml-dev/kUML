@@ -26,20 +26,25 @@ import dev.kuml.uml.Visibility
  * @param theme active visual theme
  */
 @Composable
-internal fun UmlClassNode(element: UmlClass, theme: KumlTheme) {
+internal fun UmlClassNode(
+    element: UmlClass,
+    theme: KumlTheme,
+) {
     Column(
-        modifier = Modifier
-            .border(theme.borders.regular, theme.colors.border)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+        modifier =
+            Modifier
+                .border(theme.borders.regular, theme.colors.border)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
         // Header — name, italicized when the class is abstract (UML 2.5)
         Text(
             text = element.name,
-            style = if (element.isAbstract) {
-                theme.typography.title.copy(fontStyle = FontStyle.Italic)
-            } else {
-                theme.typography.title
-            },
+            style =
+                if (element.isAbstract) {
+                    theme.typography.title.copy(fontStyle = FontStyle.Italic)
+                } else {
+                    theme.typography.title
+                },
             color = theme.colors.foreground,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -82,16 +87,18 @@ internal fun UmlProperty.format(): String {
 
 internal fun UmlOperation.format(): String {
     val vis = visibility.symbol()
-    val params = parameters
-        .filter { it.direction != dev.kuml.uml.ParameterDirection.RETURN }
-        .joinToString(", ") { "${it.name}: ${it.type.name}" }
+    val params =
+        parameters
+            .filter { it.direction != dev.kuml.uml.ParameterDirection.RETURN }
+            .joinToString(", ") { "${it.name}: ${it.type.name}" }
     val ret = returnType?.name?.let { ": $it" } ?: ""
     return "$vis $name($params)$ret"
 }
 
-internal fun Visibility.symbol(): String = when (this) {
-    Visibility.PUBLIC -> "+"
-    Visibility.PRIVATE -> "-"
-    Visibility.PROTECTED -> "#"
-    Visibility.PACKAGE -> "~"
-}
+internal fun Visibility.symbol(): String =
+    when (this) {
+        Visibility.PUBLIC -> "+"
+        Visibility.PRIVATE -> "-"
+        Visibility.PROTECTED -> "#"
+        Visibility.PACKAGE -> "~"
+    }

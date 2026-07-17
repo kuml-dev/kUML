@@ -40,7 +40,6 @@ import dev.kuml.renderer.theme.PlainTheme
  * @see dev.kuml.renderer.kuiver.KuiverGraphAdapter
  */
 public object KumlKuiverRenderer {
-
     /**
      * Renders a [KumlDiagram] (UML) with a pre-computed [layoutResult].
      *
@@ -61,10 +60,11 @@ public object KumlKuiverRenderer {
     ) {
         val kuiver = KuiverGraphAdapter.toKuiver(layoutResult)
         val layoutConfig = KuiverGraphAdapter.layoutConfig(layoutResult)
-        val state = rememberKuiverViewerState(
-            initialKuiver = kuiver,
-            layoutConfig = layoutConfig,
-        )
+        val state =
+            rememberKuiverViewerState(
+                initialKuiver = kuiver,
+                layoutConfig = layoutConfig,
+            )
 
         // Build a quick lookup: Kuiver node ID → KumlElement
         val elementIndex = diagram.elements.associateBy { it.id }
@@ -72,20 +72,22 @@ public object KumlKuiverRenderer {
         KuiverViewer(
             state = state,
             modifier = modifier,
-            config = KuiverViewerConfig(
-                showDebugBounds = false,
-                fitToContent = false,
-            ),
+            config =
+                KuiverViewerConfig(
+                    showDebugBounds = false,
+                    fitToContent = false,
+                ),
             nodeContent = { kuiverNode ->
                 val element = elementIndex[kuiverNode.id]
                 if (element != null) {
                     NodeContentDispatcher.render(element, theme)
                 } else {
                     GenericFallbackNode(
-                        element = object : dev.kuml.core.model.KumlElement {
-                            override val id = kuiverNode.id
-                            override val metadata = emptyMap<String, dev.kuml.core.model.KumlMetaValue>()
-                        },
+                        element =
+                            object : dev.kuml.core.model.KumlElement {
+                                override val id = kuiverNode.id
+                                override val metadata = emptyMap<String, dev.kuml.core.model.KumlMetaValue>()
+                            },
                         theme = theme,
                     )
                 }
@@ -93,9 +95,10 @@ public object KumlKuiverRenderer {
             edgeContent = { kuiverEdge, sourceOffset, targetOffset ->
                 // Edge IDs encode "sourceId--targetId"; look up the relationship by ID
                 // from the diagram if present. Fall back to a generic edge otherwise.
-                val rel = diagram.elements
-                    .filterIsInstance<dev.kuml.core.model.KumlElement>()
-                    .find { it.id == kuiverEdge.fromId + "--" + kuiverEdge.toId }
+                val rel =
+                    diagram.elements
+                        .filterIsInstance<dev.kuml.core.model.KumlElement>()
+                        .find { it.id == kuiverEdge.fromId + "--" + kuiverEdge.toId }
                 if (rel != null) {
                     EdgeContentDispatcher.render(rel, kuiverEdge, sourceOffset, targetOffset, theme)
                 } else {
@@ -126,10 +129,11 @@ public object KumlKuiverRenderer {
     ) {
         val kuiver = KuiverGraphAdapter.toKuiver(layoutResult)
         val layoutConfig = KuiverGraphAdapter.layoutConfig(layoutResult)
-        val state = rememberKuiverViewerState(
-            initialKuiver = kuiver,
-            layoutConfig = layoutConfig,
-        )
+        val state =
+            rememberKuiverViewerState(
+                initialKuiver = kuiver,
+                layoutConfig = layoutConfig,
+            )
 
         // Build lookup: element ID → C4Element
         val elementIndex = model.elements.associateBy { it.id }
@@ -138,20 +142,22 @@ public object KumlKuiverRenderer {
         KuiverViewer(
             state = state,
             modifier = modifier,
-            config = KuiverViewerConfig(
-                showDebugBounds = false,
-                fitToContent = false,
-            ),
+            config =
+                KuiverViewerConfig(
+                    showDebugBounds = false,
+                    fitToContent = false,
+                ),
             nodeContent = { kuiverNode ->
                 val element = elementIndex[kuiverNode.id]
                 if (element != null) {
                     NodeContentDispatcher.render(element, theme)
                 } else {
                     GenericFallbackNode(
-                        element = object : dev.kuml.core.model.KumlElement {
-                            override val id = kuiverNode.id
-                            override val metadata = emptyMap<String, dev.kuml.core.model.KumlMetaValue>()
-                        },
+                        element =
+                            object : dev.kuml.core.model.KumlElement {
+                                override val id = kuiverNode.id
+                                override val metadata = emptyMap<String, dev.kuml.core.model.KumlMetaValue>()
+                            },
                         theme = theme,
                     )
                 }

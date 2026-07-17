@@ -16,7 +16,7 @@ import dev.kuml.layout.Point
 import dev.kuml.layout.Rect
 import dev.kuml.renderer.theme.core.KumlTheme
 
-/**
+/*
  * ERM/Chen-notation shape renderers (V3.4.4).
  *
  * Unlike Martin/Bachman (one box per entity, attributes as rows, relationship

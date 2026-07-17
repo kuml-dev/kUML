@@ -16,7 +16,9 @@ import java.io.File
  * Hält Script-Inhalt, Render-Ergebnis, aktives Theme/Sprache und Fehlerstatus.
  * V3.0.12 ergänzt persistente AppSettings (Datei-IO, Recent-Files, Window-Geometry).
  */
-class AppState(initialSettings: AppSettings = AppSettings.DEFAULT) {
+class AppState(
+    initialSettings: AppSettings = AppSettings.DEFAULT,
+) {
     /** Aktueller kUML-Script-Quelltext im Editor. */
     var script by mutableStateOf(WELCOME_SCRIPT)
 
@@ -60,6 +62,7 @@ class AppState(initialSettings: AppSettings = AppSettings.DEFAULT) {
     var windowY by mutableStateOf(initialSettings.windowY)
 
     // V3.0.24 — AI panel
+
     /** Gibt an, ob der AI-Assistant-Panel offen ist. */
     var aiPanelOpen by mutableStateOf(initialSettings.aiPanelOpen)
 
@@ -67,6 +70,7 @@ class AppState(initialSettings: AppSettings = AppSettings.DEFAULT) {
     var aiPanelWidthPx by mutableStateOf(initialSettings.aiPanelWidthPx)
 
     // V3.6.4 — Knowledge Workspace viewer
+
     /** Kanonische Pfade der vom Nutzer explizit vertrauten Workspace-Wurzeln. */
     val trustedWorkspaces: SnapshotStateList<String> =
         mutableStateListOf(*initialSettings.trustedWorkspaces.toTypedArray())
@@ -78,7 +82,10 @@ class AppState(initialSettings: AppSettings = AppSettings.DEFAULT) {
      * Lädt Dateiinhalt in den Editor und aktualisiert Metadaten.
      * Setzt isDirty=false, aktualisiert currentFile, lastDir und recentFiles.
      */
-    fun loadFrom(file: File, content: String) {
+    fun loadFrom(
+        file: File,
+        content: String,
+    ) {
         script = content
         currentFile = file
         isDirty = false
@@ -102,22 +109,24 @@ class AppState(initialSettings: AppSettings = AppSettings.DEFAULT) {
     }
 
     /** Serialisiert den aktuellen State in persistierbare AppSettings. */
-    fun toSettings(): AppSettings = AppSettings(
-        theme = theme,
-        language = language,
-        recentFiles = recentFiles.toList(),
-        lastDir = lastDir,
-        windowWidth = windowWidth,
-        windowHeight = windowHeight,
-        windowX = windowX,
-        windowY = windowY,
-        aiPanelOpen = aiPanelOpen,
-        aiPanelWidthPx = aiPanelWidthPx,
-        trustedWorkspaces = trustedWorkspaces.toList(),
-    )
+    fun toSettings(): AppSettings =
+        AppSettings(
+            theme = theme,
+            language = language,
+            recentFiles = recentFiles.toList(),
+            lastDir = lastDir,
+            windowWidth = windowWidth,
+            windowHeight = windowHeight,
+            windowX = windowX,
+            windowY = windowY,
+            aiPanelOpen = aiPanelOpen,
+            aiPanelWidthPx = aiPanelWidthPx,
+            trustedWorkspaces = trustedWorkspaces.toList(),
+        )
 
     companion object {
-        val WELCOME_SCRIPT: String = """
+        val WELCOME_SCRIPT: String =
+            """
 import dev.kuml.uml.*
 
 classDiagram(name = "Beispiel") {
@@ -130,6 +139,6 @@ classDiagram(name = "Beispiel") {
     }
     association(source = fahrzeug, target = motor)
 }
-        """.trimIndent()
+            """.trimIndent()
     }
 }

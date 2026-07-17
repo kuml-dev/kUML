@@ -188,9 +188,10 @@ private fun renderAttributeRow(
 
     val nameX = ErmSizing.MARKER_COL_W
     val baseLine = "${attr.name ?: attr.id} : ${attr.type.render()}"
-    val suffix = buildString {
-        if (!attr.nullable) append(" NN")
-    }
+    val suffix =
+        buildString {
+            if (!attr.nullable) append(" NN")
+        }
     b.tag(
         "text",
         mapOf("class" to "kuml-body", "x" to fmt(nameX), "y" to fmt(cy)),

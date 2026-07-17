@@ -41,23 +41,26 @@ internal fun C4RelationshipEdge(
         val angle = atan2(target.y - source.y, target.x - source.x)
         val arrowLen = 12f
         val arrowAngle = 0.4f
-        val p1 = Offset(
-            target.x - arrowLen * cos(angle - arrowAngle),
-            target.y - arrowLen * sin(angle - arrowAngle),
-        )
-        val p2 = Offset(
-            target.x - arrowLen * cos(angle + arrowAngle),
-            target.y - arrowLen * sin(angle + arrowAngle),
-        )
+        val p1 =
+            Offset(
+                target.x - arrowLen * cos(angle - arrowAngle),
+                target.y - arrowLen * sin(angle - arrowAngle),
+            )
+        val p2 =
+            Offset(
+                target.x - arrowLen * cos(angle + arrowAngle),
+                target.y - arrowLen * sin(angle + arrowAngle),
+            )
         drawLine(arrowColor, p1, target, strokeWidth)
         drawLine(arrowColor, p2, target, strokeWidth)
     }
 
     // Label — description with optional technology suffix
-    val labelText = buildString {
-        append(relationship.label)
-        relationship.technology?.let { append(" [$it]") }
-    }
+    val labelText =
+        buildString {
+            append(relationship.label)
+            relationship.technology?.let { append(" [$it]") }
+        }
     Text(
         text = labelText,
         style = theme.typography.small,

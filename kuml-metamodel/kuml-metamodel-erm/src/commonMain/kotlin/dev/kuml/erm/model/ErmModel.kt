@@ -38,16 +38,13 @@ data class ErmModel(
         categories.filter { it.supertypeEntityId == entityId || entityId in it.subtypeEntityIds }
 
     /** Looks up an attribute by id across all entities. */
-    fun attributeById(id: String): ErmAttribute? =
-        entities.firstNotNullOfOrNull { entity -> entity.attributes.firstOrNull { it.id == id } }
+    fun attributeById(id: String): ErmAttribute? = entities.firstNotNullOfOrNull { entity -> entity.attributes.firstOrNull { it.id == id } }
 
     /** Looks up an index by id across all entities. */
-    fun indexById(id: String): ErmIndex? =
-        entities.firstNotNullOfOrNull { entity -> entity.indexes.firstOrNull { it.id == id } }
+    fun indexById(id: String): ErmIndex? = entities.firstNotNullOfOrNull { entity -> entity.indexes.firstOrNull { it.id == id } }
 
     /** Looks up a check constraint by id across all entities. */
-    fun checkById(id: String): ErmCheckConstraint? =
-        entities.firstNotNullOfOrNull { entity -> entity.checks.firstOrNull { it.id == id } }
+    fun checkById(id: String): ErmCheckConstraint? = entities.firstNotNullOfOrNull { entity -> entity.checks.firstOrNull { it.id == id } }
 
     /** Looks up a view by id. */
     fun viewById(id: String): ErmView? = views.firstOrNull { it.id == id }

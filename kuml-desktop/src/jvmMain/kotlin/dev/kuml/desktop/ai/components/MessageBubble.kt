@@ -19,7 +19,10 @@ import androidx.compose.ui.unit.sp
 import dev.kuml.desktop.ai.ConversationMessage
 
 @Composable
-fun MessageBubble(msg: ConversationMessage, onInspectToolArgs: (String) -> Unit) {
+fun MessageBubble(
+    msg: ConversationMessage,
+    onInspectToolArgs: (String) -> Unit,
+) {
     when (msg) {
         is ConversationMessage.User -> UserBubble(msg)
         is ConversationMessage.Assistant -> AssistantBubble(msg)
@@ -34,10 +37,11 @@ private fun UserBubble(msg: ConversationMessage.User) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(modifier = Modifier.weight(1f))
         Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp, 12.dp, 2.dp, 12.dp))
-                .background(Color(0xFF2D7A4F))
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .clip(RoundedCornerShape(12.dp, 12.dp, 2.dp, 12.dp))
+                    .background(Color(0xFF2D7A4F))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             Text(
                 text = msg.text,
@@ -52,11 +56,12 @@ private fun UserBubble(msg: ConversationMessage.User) {
 private fun AssistantBubble(msg: ConversationMessage.Assistant) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Box(
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(2.dp, 12.dp, 12.dp, 12.dp))
-                .background(Color(0xFFF0F0F0))
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(2.dp, 12.dp, 12.dp, 12.dp))
+                    .background(Color(0xFFF0F0F0))
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             Column {
                 Text(
@@ -80,9 +85,10 @@ private fun AssistantBubble(msg: ConversationMessage.Assistant) {
 @Composable
 private fun ToolResultRow(msg: ConversationMessage.ToolResult) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 16.dp, top = 2.dp, bottom = 2.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, top = 2.dp, bottom = 2.dp),
     ) {
         Text(
             text = if (msg.isError) "⚠ ${msg.resultJson}" else "↳ ${msg.resultJson.take(80)}",
@@ -95,11 +101,12 @@ private fun ToolResultRow(msg: ConversationMessage.ToolResult) {
 @Composable
 private fun ErrorBubble(msg: ConversationMessage.ErrorMessage) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFFFEEEE))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFFFEEEE))
+                .padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Column {
             Text(

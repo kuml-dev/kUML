@@ -7,10 +7,10 @@ import coil3.network.ktor3.KtorNetworkFetcherFactory
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.java.Java
 import io.ktor.client.plugins.HttpTimeout
-import java.io.File
 import okio.Path.Companion.toOkioPath
+import java.io.File
 
-/**
+/*
  * V3.1.13 — Singleton [ImageLoader] for plugin marketplace screenshots.
  *
  * Features:
@@ -25,32 +25,35 @@ import okio.Path.Companion.toOkioPath
 internal fun screenshotCacheDir(): String = "${System.getProperty("java.io.tmpdir")}${File.separator}kuml-screenshots"
 
 private val imageLoaderInstance: ImageLoader by lazy {
-    ImageLoader.Builder(
-        coil3.PlatformContext.INSTANCE,
-    ).components {
-        add(
-            KtorNetworkFetcherFactory(
-                httpClient = {
-                    HttpClient(Java) {
-                        install(HttpTimeout) {
-                            connectTimeoutMillis = 5_000
-                            requestTimeoutMillis = 15_000
-                            socketTimeoutMillis = 15_000
+    ImageLoader
+        .Builder(
+            coil3.PlatformContext.INSTANCE,
+        ).components {
+            add(
+                KtorNetworkFetcherFactory(
+                    httpClient = {
+                        HttpClient(Java) {
+                            install(HttpTimeout) {
+                                connectTimeoutMillis = 5_000
+                                requestTimeoutMillis = 15_000
+                                socketTimeoutMillis = 15_000
+                            }
                         }
-                    }
-                },
-            ),
-        )
-    }.memoryCache {
-        MemoryCache.Builder()
-            .maxSizeBytes(4L * 1024 * 1024) // 4 MB in-memory cap
-            .build()
-    }.diskCache {
-        DiskCache.Builder()
-            .directory(File(screenshotCacheDir()).toOkioPath())
-            .maxSizeBytes(10L * 1024 * 1024) // 10 MB LRU disk cache
-            .build()
-    }.build()
+                    },
+                ),
+            )
+        }.memoryCache {
+            MemoryCache
+                .Builder()
+                .maxSizeBytes(4L * 1024 * 1024) // 4 MB in-memory cap
+                .build()
+        }.diskCache {
+            DiskCache
+                .Builder()
+                .directory(File(screenshotCacheDir()).toOkioPath())
+                .maxSizeBytes(10L * 1024 * 1024) // 10 MB LRU disk cache
+                .build()
+        }.build()
 }
 
 /** Returns the shared [ImageLoader] instance for screenshot thumbnails. */

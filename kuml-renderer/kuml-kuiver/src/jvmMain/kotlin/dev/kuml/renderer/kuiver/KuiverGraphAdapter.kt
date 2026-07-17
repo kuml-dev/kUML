@@ -32,7 +32,6 @@ import dev.kuml.layout.LayoutResult
  *   so we update each node's `position` field in place.
  */
 internal object KuiverGraphAdapter {
-
     /**
      * Converts a [LayoutResult] into a [Kuiver] graph with absolute positions
      * and dimensions taken from the layout result.
@@ -40,32 +39,35 @@ internal object KuiverGraphAdapter {
      * Only nodes are populated with positions/dimensions; edges carry IDs only.
      * The Kuiver layout step is bypassed by [layoutConfig].
      */
-    internal fun toKuiver(layoutResult: LayoutResult): Kuiver = buildKuiver {
-        layoutResult.nodes.forEach { (nodeId, nodeLayout) ->
-            addNode(
-                KuiverNode(
-                    id = nodeId.value,
-                    dimensions = NodeDimensions(
-                        width = nodeLayout.bounds.size.width.dp,
-                        height = nodeLayout.bounds.size.height.dp,
+    internal fun toKuiver(layoutResult: LayoutResult): Kuiver =
+        buildKuiver {
+            layoutResult.nodes.forEach { (nodeId, nodeLayout) ->
+                addNode(
+                    KuiverNode(
+                        id = nodeId.value,
+                        dimensions =
+                            NodeDimensions(
+                                width = nodeLayout.bounds.size.width.dp,
+                                height = nodeLayout.bounds.size.height.dp,
+                            ),
+                        position =
+                            Offset(
+                                x = nodeLayout.bounds.origin.x,
+                                y = nodeLayout.bounds.origin.y,
+                            ),
                     ),
-                    position = Offset(
-                        x = nodeLayout.bounds.origin.x,
-                        y = nodeLayout.bounds.origin.y,
-                    ),
-                ),
-            )
-        }
-        layoutResult.edges.forEach { (edgeId, edgeRoute) ->
-            // Edge IDs encode "sourceId--targetId" by convention from the Layout-Bridge.
-            // In V1 we add the edge only if both node IDs are present; the display
-            // positions come from the EdgeRoute, not from Kuiver routing.
-            val parts = edgeId.value.split("--", limit = 2)
-            if (parts.size == 2) {
-                addEdge(KuiverEdge(fromId = parts[0], toId = parts[1]))
+                )
+            }
+            layoutResult.edges.forEach { (edgeId, edgeRoute) ->
+                // Edge IDs encode "sourceId--targetId" by convention from the Layout-Bridge.
+                // In V1 we add the edge only if both node IDs are present; the display
+                // positions come from the EdgeRoute, not from Kuiver routing.
+                val parts = edgeId.value.split("--", limit = 2)
+                if (parts.size == 2) {
+                    addEdge(KuiverEdge(fromId = parts[0], toId = parts[1]))
+                }
             }
         }
-    }
 
     /**
      * Returns a [LayoutConfig.Custom] that reproduces the positions already stored
@@ -87,10 +89,11 @@ internal object KuiverGraphAdapter {
                     if (nodeLayout != null) {
                         positioned.addNode(
                             node.copy(
-                                position = Offset(
-                                    x = nodeLayout.bounds.origin.x,
-                                    y = nodeLayout.bounds.origin.y,
-                                ),
+                                position =
+                                    Offset(
+                                        x = nodeLayout.bounds.origin.x,
+                                        y = nodeLayout.bounds.origin.y,
+                                    ),
                             ),
                         )
                     } else {

@@ -1,0 +1,22 @@
+root = true
+
+# ktlint config for Compose Multiplatform modules (kuml-desktop, kuml-kuiver,
+# kuml-widget-compose). @Composable-annotated functions are conventionally
+# named in PascalCase (they act like a widget/virtual-view factory) — this is
+# the official Compose style, not a naming-convention violation. Without this
+# exemption, ktlint's standard function-naming rule flags every @Composable
+# function once ktlint is wired into kotlin.multiplatform modules (fixed
+# 2026-07-17 alongside the ktlint-coverage gap, see build.gradle.kts).
+[*.{kt,kts}]
+ktlint_function_naming_ignore_when_annotated_with = Composable
+
+# Wildcard imports for androidx.compose.foundation.layout.*,
+# androidx.compose.material3.* and androidx.compose.runtime.* are the
+# established Compose-ecosystem convention (Android Studio's default import
+# settings collapse to '*' once a package contributes many symbols to a UI
+# file) — not sloppiness. ktlint's standard no-wildcard-imports rule has no
+# way to scope an exception to specific packages, so it is disabled
+# repo-wide rather than hand-expanding these into brittle, hard-to-verify
+# explicit import lists. Discovered 2026-07-17 in PluginManagerPane.kt while
+# closing the ktlint-coverage gap for kotlin.multiplatform modules.
+ktlint_standard_no-wildcard-imports = disabled

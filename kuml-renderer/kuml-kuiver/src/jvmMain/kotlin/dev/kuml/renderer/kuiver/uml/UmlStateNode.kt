@@ -24,19 +24,22 @@ import dev.kuml.uml.UmlState
  * @param theme active visual theme
  */
 @Composable
-internal fun UmlStateNode(element: UmlState, theme: KumlTheme) {
-    val stateCornerRadius = 12.dp   // V1 spec override: always 12 dp for states
+internal fun UmlStateNode(
+    element: UmlState,
+    theme: KumlTheme,
+) {
+    val stateCornerRadius = 12.dp // V1 spec override: always 12 dp for states
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .defaultMinSize(minWidth = 80.dp, minHeight = 40.dp)
-            .border(
-                width = theme.borders.regular,
-                color = theme.colors.border,
-                shape = RoundedCornerShape(stateCornerRadius),
-            )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier =
+            Modifier
+                .defaultMinSize(minWidth = 80.dp, minHeight = 40.dp)
+                .border(
+                    width = theme.borders.regular,
+                    color = theme.colors.border,
+                    shape = RoundedCornerShape(stateCornerRadius),
+                ).padding(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Text(
             text = element.name,

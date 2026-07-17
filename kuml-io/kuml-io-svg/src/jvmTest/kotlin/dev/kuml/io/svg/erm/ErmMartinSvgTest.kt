@@ -77,7 +77,11 @@ class ErmMartinSvgTest :
             val diagram = ErmDiagram(name = "Overview")
             val layout =
                 layoutOf(
-                    nodes = listOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)), "order" to Rect(Point(260f, 20f), Size(180f, 90f))),
+                    nodes =
+                        listOf(
+                            "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
+                            "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                        ),
                     edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
                 )
 
@@ -104,7 +108,11 @@ class ErmMartinSvgTest :
             val diagram = ErmDiagram(name = "Overview")
             val layout =
                 layoutOf(
-                    nodes = listOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)), "order" to Rect(Point(260f, 20f), Size(180f, 90f))),
+                    nodes =
+                        listOf(
+                            "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
+                            "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                        ),
                     edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
                 )
 
@@ -123,7 +131,12 @@ class ErmMartinSvgTest :
                     weak = true,
                     attributes =
                         listOf(
-                            ErmAttribute(id = "order_id", name = "order_id", type = ErmDataType.Uuid, foreignKey = ErmForeignKey(targetEntityId = "order")),
+                            ErmAttribute(
+                                id = "order_id",
+                                name = "order_id",
+                                type = ErmDataType.Uuid,
+                                foreignKey = ErmForeignKey(targetEntityId = "order"),
+                            ),
                         ),
                 )
             val model = ErmModel(name = "Shop", entities = listOf(order, item))
@@ -164,7 +177,8 @@ class ErmMartinSvgTest :
                     targetCardinality = Cardinality.ZERO_MANY,
                     kind = RelationshipKind.IDENTIFYING,
                 )
-            val model = ErmModel(name = "Shop", entities = listOf(customer, order, item), relationships = listOf(nonIdentifying, identifying))
+            val model =
+                ErmModel(name = "Shop", entities = listOf(customer, order, item), relationships = listOf(nonIdentifying, identifying))
             val diagram = ErmDiagram(name = "Overview")
             val layout =
                 layoutOf(
@@ -439,10 +453,12 @@ internal data class EdgeLabelInfo(
 internal fun edgeLabels(svg: String): List<EdgeLabelInfo> {
     val regex =
         Regex("""<text class="kuml-edge-label" x="([^"]+)" y="([^"]+)" text-anchor="([^"]+)">([^<]*)</text>""")
-    return regex.findAll(svg).map { m ->
-        val (x, y, anchor, text) = m.destructured
-        EdgeLabelInfo(x.toFloat(), y.toFloat(), anchor, text)
-    }.toList()
+    return regex
+        .findAll(svg)
+        .map { m ->
+            val (x, y, anchor, text) = m.destructured
+            EdgeLabelInfo(x.toFloat(), y.toFloat(), anchor, text)
+        }.toList()
 }
 
 /**

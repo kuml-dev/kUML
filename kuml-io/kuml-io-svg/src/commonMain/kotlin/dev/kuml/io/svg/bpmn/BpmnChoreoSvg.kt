@@ -15,9 +15,9 @@ import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.EdgeRoute
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.math.PI
 
 // ── Layout constants ─────────────────────────────────────────────────────────
 

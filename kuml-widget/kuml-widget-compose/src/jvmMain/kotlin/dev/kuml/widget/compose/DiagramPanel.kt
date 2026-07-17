@@ -31,12 +31,13 @@ import java.io.StringReader
  * runs [UmlLayoutBridge.toLayoutGraph] and then [ElkLayoutEngine.layout].
  */
 internal fun computeLayout(model: UmlStateMachine): LayoutResult {
-    val diagram = KumlDiagram(
-        name = model.name,
-        type = DiagramType.STATE,
-        elements = listOf(model),
-        id = model.id,
-    )
+    val diagram =
+        KumlDiagram(
+            name = model.name,
+            type = DiagramType.STATE,
+            elements = listOf(model),
+            id = model.id,
+        )
     val graph = UmlLayoutBridge.toLayoutGraph(diagram, SizeProvider.constant(120f, 60f))
     val engine = ElkLayoutEngine()
     return engine.layout(graph, LayoutHints.DEFAULT)
@@ -64,10 +65,11 @@ internal fun DiagramPanel(
             try {
                 val parser = XMLResourceDescriptor.getXMLParserClassName()
                 val factory = SAXSVGDocumentFactory(parser)
-                val doc = factory.createSVGDocument(
-                    "https://kuml.dev/widget",
-                    StringReader(svgString),
-                )
+                val doc =
+                    factory.createSVGDocument(
+                        "https://kuml.dev/widget",
+                        StringReader(svgString),
+                    )
                 canvas.setSVGDocument(doc)
             } catch (_: Exception) {
                 // Ignore parse errors — keep showing the previous document
@@ -90,15 +92,17 @@ internal fun renderStateMachineSvg(
     layoutResult: LayoutResult,
     highlightIds: Set<String>,
 ): String {
-    val diagram = KumlDiagram(
-        name = model.name,
-        type = DiagramType.STATE,
-        elements = listOf(model),
-        id = model.id,
-    )
-    val options = SvgRenderOptions(
-        highlightVertexIds = highlightIds,
-    )
+    val diagram =
+        KumlDiagram(
+            name = model.name,
+            type = DiagramType.STATE,
+            elements = listOf(model),
+            id = model.id,
+        )
+    val options =
+        SvgRenderOptions(
+            highlightVertexIds = highlightIds,
+        )
     return KumlSvgRenderer.toSvg(
         diagram = diagram,
         layoutResult = layoutResult,

@@ -8,7 +8,6 @@ import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.runtime.StateMachineRuntime
 import dev.kuml.uml.PseudostateKind
 import dev.kuml.uml.TransitionMetadataKeys
-import dev.kuml.uml.UmlFinalState
 import dev.kuml.uml.UmlPseudostate
 import dev.kuml.uml.UmlState
 import dev.kuml.uml.UmlStateMachine
@@ -31,11 +30,12 @@ import dev.kuml.widget.compose.EditPolicy
 public fun main() {
     val model = buildTrafficLightMachine()
     val runtime = StateMachineRuntime()
-    val widgetState = BehaviourWidgetState(
-        initialModel = model,
-        runtime = runtime,
-        editPolicy = EditPolicy.GuardsOnly,
-    )
+    val widgetState =
+        BehaviourWidgetState(
+            initialModel = model,
+            runtime = runtime,
+            editPolicy = EditPolicy.GuardsOnly,
+        )
 
     application {
         Window(
@@ -64,23 +64,24 @@ private fun buildTrafficLightMachine(): UmlStateMachine {
         id = "traffic-light",
         name = "Traffic Light",
         vertices = listOf(initial, red, green, yellow),
-        transitions = listOf(
-            UmlTransition(id = "t-init-red", sourceId = "init", targetId = "Red"),
-            UmlTransition(
-                id = "t-red-green",
-                sourceId = "Red",
-                targetId = "Green",
-                trigger = "next",
-                guard = "vars.ready",
+        transitions =
+            listOf(
+                UmlTransition(id = "t-init-red", sourceId = "init", targetId = "Red"),
+                UmlTransition(
+                    id = "t-red-green",
+                    sourceId = "Red",
+                    targetId = "Green",
+                    trigger = "next",
+                    guard = "vars.ready",
+                ),
+                UmlTransition(id = "t-green-yellow", sourceId = "Green", targetId = "Yellow", trigger = "next"),
+                UmlTransition(
+                    id = "t-yellow-red",
+                    sourceId = "Yellow",
+                    targetId = "Red",
+                    trigger = "next",
+                    metadata = mapOf(TransitionMetadataKeys.PROTECTED to KumlMetaValue.Flag(true)),
+                ),
             ),
-            UmlTransition(id = "t-green-yellow", sourceId = "Green", targetId = "Yellow", trigger = "next"),
-            UmlTransition(
-                id = "t-yellow-red",
-                sourceId = "Yellow",
-                targetId = "Red",
-                trigger = "next",
-                metadata = mapOf(TransitionMetadataKeys.PROTECTED to KumlMetaValue.Flag(true)),
-            ),
-        ),
     )
 }

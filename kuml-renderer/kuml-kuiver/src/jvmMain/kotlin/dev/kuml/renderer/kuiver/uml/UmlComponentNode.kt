@@ -26,11 +26,15 @@ import dev.kuml.uml.UmlComponent
  * @param theme active visual theme
  */
 @Composable
-internal fun UmlComponentNode(element: UmlComponent, theme: KumlTheme) {
+internal fun UmlComponentNode(
+    element: UmlComponent,
+    theme: KumlTheme,
+) {
     Box(
-        modifier = Modifier
-            .border(theme.borders.regular, theme.colors.border)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+        modifier =
+            Modifier
+                .border(theme.borders.regular, theme.colors.border)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
         Text(
             text = element.name,
@@ -47,7 +51,10 @@ internal fun UmlComponentNode(element: UmlComponent, theme: KumlTheme) {
 }
 
 @Composable
-private fun ComponentGlyph(modifier: Modifier, theme: KumlTheme) {
+private fun ComponentGlyph(
+    modifier: Modifier,
+    theme: KumlTheme,
+) {
     val color = theme.colors.foreground
     val strokeWidth = theme.borders.thin.value
     Canvas(modifier = modifier) {

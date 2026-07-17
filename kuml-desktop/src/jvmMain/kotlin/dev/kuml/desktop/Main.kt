@@ -24,17 +24,26 @@ fun main() {
     val appState = AppState(initial)
 
     application {
-        val windowState = rememberWindowState(
-            width = appState.windowWidth.dp,
-            height = appState.windowHeight.dp,
-            position = if (appState.windowX < 0) WindowPosition.PlatformDefault
-            else WindowPosition(appState.windowX.dp, appState.windowY.dp),
-        )
+        val windowState =
+            rememberWindowState(
+                width = appState.windowWidth.dp,
+                height = appState.windowHeight.dp,
+                position =
+                    if (appState.windowX < 0) {
+                        WindowPosition.PlatformDefault
+                    } else {
+                        WindowPosition(appState.windowX.dp, appState.windowY.dp)
+                    },
+            )
 
         // Fenster-Geometrie in AppState spiegeln
         LaunchedEffect(windowState.size, windowState.position) {
-            appState.windowWidth = windowState.size.width.value.toInt()
-            appState.windowHeight = windowState.size.height.value.toInt()
+            appState.windowWidth =
+                windowState.size.width.value
+                    .toInt()
+            appState.windowHeight =
+                windowState.size.height.value
+                    .toInt()
             (windowState.position as? WindowPosition.Absolute)?.let {
                 appState.windowX = it.x.value.toInt()
                 appState.windowY = it.y.value.toInt()

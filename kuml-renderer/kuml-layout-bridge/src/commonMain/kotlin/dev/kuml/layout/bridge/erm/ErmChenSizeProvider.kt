@@ -86,7 +86,14 @@ public class ErmChenSizeProvider(
 
     private fun viewSize(view: ErmView): Size {
         val titleW = estimateWidth("«view» ${view.name ?: view.id}", TITLE_CHAR_PX)
-        val previewW = estimateWidth(view.query.replace("\n", " ").trim().take(60), BODY_CHAR_PX)
+        val previewW =
+            estimateWidth(
+                view.query
+                    .replace("\n", " ")
+                    .trim()
+                    .take(60),
+                BODY_CHAR_PX,
+            )
         val w = maxOf(ENTITY_MIN_W, maxOf(titleW, previewW) + ENTITY_W_PAD)
         return Size(w, VIEW_H)
     }

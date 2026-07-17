@@ -20,11 +20,15 @@ import dev.kuml.uml.UmlEnumeration
  * @param theme active visual theme
  */
 @Composable
-internal fun UmlEnumNode(element: UmlEnumeration, theme: KumlTheme) {
+internal fun UmlEnumNode(
+    element: UmlEnumeration,
+    theme: KumlTheme,
+) {
     Column(
-        modifier = Modifier
-            .border(theme.borders.regular, theme.colors.border)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+        modifier =
+            Modifier
+                .border(theme.borders.regular, theme.colors.border)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
         Text(
             text = "«enumeration»",

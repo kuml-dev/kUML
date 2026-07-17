@@ -54,15 +54,21 @@ class UmlConvergingAssociationLabelsSvgTest :
     FunSpec({
 
         /** One `<text class="kuml-small" ...>` element (the coloured pass, not its halo twin). */
-        data class SmallLabel(val x: Float, val y: Float, val text: String)
+        data class SmallLabel(
+            val x: Float,
+            val y: Float,
+            val text: String,
+        )
 
         fun smallLabels(svg: String): List<SmallLabel> {
             val regex =
                 Regex("""<text class="kuml-small" x="([^"]+)" y="([^"]+)" text-anchor="middle">([^<]*)</text>""")
-            return regex.findAll(svg).map { m ->
-                val (x, y, text) = m.destructured
-                SmallLabel(x.toFloat(), y.toFloat(), text)
-            }.toList()
+            return regex
+                .findAll(svg)
+                .map { m ->
+                    val (x, y, text) = m.destructured
+                    SmallLabel(x.toFloat(), y.toFloat(), text)
+                }.toList()
         }
 
         fun distance(

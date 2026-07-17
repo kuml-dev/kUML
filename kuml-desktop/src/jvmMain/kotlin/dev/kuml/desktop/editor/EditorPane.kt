@@ -20,15 +20,16 @@ fun EditorPane(
     controller: DesktopRenderController,
     modifier: Modifier = Modifier,
 ) {
-    val textArea = remember {
-        RSyntaxTextArea().apply {
-            syntaxEditingStyle = SyntaxConstants.SYNTAX_STYLE_KOTLIN
-            antiAliasingEnabled = true
-            isCodeFoldingEnabled = true
-            tabSize = 4
-            text = state.script
+    val textArea =
+        remember {
+            RSyntaxTextArea().apply {
+                syntaxEditingStyle = SyntaxConstants.SYNTAX_STYLE_KOTLIN
+                antiAliasingEnabled = true
+                isCodeFoldingEnabled = true
+                tabSize = 4
+                text = state.script
+            }
         }
-    }
 
     // Sync editor text when state.script is changed programmatically (e.g. Open action)
     LaunchedEffect(state.script) {
@@ -38,19 +39,23 @@ fun EditorPane(
     }
 
     DisposableEffect(textArea) {
-        val listener = object : DocumentListener {
-            override fun insertUpdate(e: DocumentEvent) = onChanged()
-            override fun removeUpdate(e: DocumentEvent) = onChanged()
-            override fun changedUpdate(e: DocumentEvent) = onChanged()
-            private fun onChanged() {
-                val newScript = textArea.text
-                if (newScript != state.script) {
-                    state.isDirty = true
+        val listener =
+            object : DocumentListener {
+                override fun insertUpdate(e: DocumentEvent) = onChanged()
+
+                override fun removeUpdate(e: DocumentEvent) = onChanged()
+
+                override fun changedUpdate(e: DocumentEvent) = onChanged()
+
+                private fun onChanged() {
+                    val newScript = textArea.text
+                    if (newScript != state.script) {
+                        state.isDirty = true
+                    }
+                    state.script = newScript
+                    controller.scheduleRender(newScript)
                 }
-                state.script = newScript
-                controller.scheduleRender(newScript)
             }
-        }
         textArea.document.addDocumentListener(listener)
         onDispose { textArea.document.removeDocumentListener(listener) }
     }

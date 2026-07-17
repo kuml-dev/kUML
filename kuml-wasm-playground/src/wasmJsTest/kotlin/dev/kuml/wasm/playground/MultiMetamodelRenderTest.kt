@@ -1,8 +1,8 @@
 package dev.kuml.wasm.playground
 
 import dev.kuml.blueprint.model.BlueprintDiagramFull
-import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.blueprint.model.BlueprintLayer
+import dev.kuml.blueprint.model.BlueprintModel
 import dev.kuml.blueprint.model.JourneyStep
 import dev.kuml.blueprint.model.Phase
 import dev.kuml.bpmn.model.BpmnModel
@@ -151,7 +151,11 @@ class MultiMetamodelRenderTest {
         val svg =
             renderBpmnDiagramJson(
                 json.encodeToString(BpmnModel.serializer(), model),
-                json.encodeToString(dev.kuml.bpmn.model.BpmnDiagram.serializer(), diagram),
+                json.encodeToString(
+                    dev.kuml.bpmn.model.BpmnDiagram
+                        .serializer(),
+                    diagram,
+                ),
                 json.encodeToString(LayoutResult.serializer(), twoNodeLayout("t1", "t2")),
             )
         assertContains(svg, "<svg")
@@ -182,7 +186,11 @@ class MultiMetamodelRenderTest {
         val svg =
             renderBlueprintDiagramJson(
                 json.encodeToString(BlueprintModel.serializer(), model),
-                json.encodeToString(dev.kuml.blueprint.model.BlueprintDiagram.serializer(), diagram),
+                json.encodeToString(
+                    dev.kuml.blueprint.model.BlueprintDiagram
+                        .serializer(),
+                    diagram,
+                ),
             )
         assertContains(svg, "<svg")
     }

@@ -22,19 +22,24 @@ import dev.kuml.desktop.ai.ConversationMessage
 import dev.kuml.desktop.ai.ToolCallState
 
 @Composable
-fun ToolTraceCard(msg: ConversationMessage.ToolCall, onInspect: (String) -> Unit) {
+fun ToolTraceCard(
+    msg: ConversationMessage.ToolCall,
+    onInspect: (String) -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
-    val icon = when (msg.state) {
-        ToolCallState.RUNNING -> "⏳"
-        ToolCallState.SUCCESS -> "✅"
-        ToolCallState.FAILED -> "❌"
-    }
+    val icon =
+        when (msg.state) {
+            ToolCallState.RUNNING -> "⏳"
+            ToolCallState.SUCCESS -> "✅"
+            ToolCallState.FAILED -> "❌"
+        }
     Card(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
         Column(modifier = Modifier.padding(8.dp)) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = !expanded },
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { expanded = !expanded },
             ) {
                 Text(
                     text = "🔧 ${msg.toolName} $icon",

@@ -210,10 +210,12 @@ class ChoreographyGridLayoutTest :
                 val bottom = obstacle.origin.y + obstacle.size.height
                 val hits =
                     if (a.y == b.y) {
-                        a.y > top + eps && a.y < bottom - eps &&
+                        a.y > top + eps &&
+                            a.y < bottom - eps &&
                             maxOf(minOf(a.x, b.x), left) < minOf(maxOf(a.x, b.x), right) - eps
                     } else {
-                        a.x > left + eps && a.x < right - eps &&
+                        a.x > left + eps &&
+                            a.x < right - eps &&
                             maxOf(minOf(a.y, b.y), top) < minOf(maxOf(a.y, b.y), bottom) - eps
                     }
                 hits shouldBe false
@@ -236,7 +238,12 @@ class ChoreographyGridLayoutTest :
             val diagram = ChoreographyDiagram(name = "d", choreographyId = "c1")
             val result = ChoreographyGridLayout.layout(model(choreo), diagram)
             val loopRoute = result.edges.getValue(EdgeId("loop"))
-            val loopY = loopRoute.shouldBeInstanceOf<EdgeRoute.OrthogonalRounded>().waypoints.first().y
+            val loopY =
+                loopRoute
+                    .shouldBeInstanceOf<EdgeRoute.OrthogonalRounded>()
+                    .waypoints
+                    .first()
+                    .y
             (loopY < result.canvas.height) shouldBe true
             (
                 loopY >

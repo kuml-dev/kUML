@@ -29,22 +29,24 @@ kotlin {
         }
 
         // JVM-specific: depends on metamodel + layout-api (JVM-only modules)
-        val jvmMain = getByName("jvmMain") {
-            dependencies {
-                api(project(":kuml-renderer:kuml-layout-api"))
-                api(project(":kuml-metamodel:kuml-metamodel-uml"))
-                api(project(":kuml-metamodel:kuml-metamodel-c4"))
-                implementation(project(":kuml-core:kuml-core-model"))
+        val jvmMain =
+            getByName("jvmMain") {
+                dependencies {
+                    api(project(":kuml-renderer:kuml-layout-api"))
+                    api(project(":kuml-metamodel:kuml-metamodel-uml"))
+                    api(project(":kuml-metamodel:kuml-metamodel-c4"))
+                    implementation(project(":kuml-core:kuml-core-model"))
+                }
             }
-        }
-        val jvmTest = getByName("jvmTest") {
-            dependencies {
-                implementation(libs.kotest.runner.junit5)
-                implementation(project(":kuml-renderer:kuml-layout-api"))
-                implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
-                implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
+        val jvmTest =
+            getByName("jvmTest") {
+                dependencies {
+                    implementation(libs.kotest.runner.junit5)
+                    implementation(project(":kuml-renderer:kuml-layout-api"))
+                    implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
+                    implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
+                }
             }
-        }
     }
 }
 

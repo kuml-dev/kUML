@@ -28,7 +28,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetAddress
 import java.net.URI
-import java.util.Locale
 
 /**
  * V3.0.13 — Plugin-Manager-Dialog.
@@ -110,22 +109,26 @@ fun PluginManagerPane(onClose: () -> Unit) {
                     }
                     Spacer(Modifier.height(8.dp))
                     when (selected) {
-                        0 -> PluginSection(
-                            items = loadThemes(),
-                            emptyText = "Keine Themes geladen",
-                        )
-                        1 -> PluginSection(
-                            items = loadTransformers(),
-                            emptyText = "Keine Transformer geladen",
-                        )
-                        2 -> PluginSection(
-                            items = loadReverseEngines(),
-                            emptyText = "Keine Reverse-Engines geladen",
-                        )
-                        3 -> RegistryBrowseSection(
-                            entries = registryEntries,
-                            hasError = registryError,
-                        )
+                        0 ->
+                            PluginSection(
+                                items = loadThemes(),
+                                emptyText = "Keine Themes geladen",
+                            )
+                        1 ->
+                            PluginSection(
+                                items = loadTransformers(),
+                                emptyText = "Keine Transformer geladen",
+                            )
+                        2 ->
+                            PluginSection(
+                                items = loadReverseEngines(),
+                                emptyText = "Keine Reverse-Engines geladen",
+                            )
+                        3 ->
+                            RegistryBrowseSection(
+                                entries = registryEntries,
+                                hasError = registryError,
+                            )
                     }
                     Spacer(Modifier.weight(1f))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -287,10 +290,17 @@ private fun RegistryEntryCard(entry: PluginRegistryEntry) {
 }
 
 /** Eintrag für die Plugin-Liste. */
-data class PluginEntry(val id: String, val kind: String, val description: String)
+data class PluginEntry(
+    val id: String,
+    val kind: String,
+    val description: String,
+)
 
 @Composable
-private fun PluginSection(items: List<PluginEntry>, emptyText: String) {
+private fun PluginSection(
+    items: List<PluginEntry>,
+    emptyText: String,
+) {
     if (items.isEmpty()) {
         Text(
             text = emptyText,
@@ -331,8 +341,7 @@ private fun PluginSection(items: List<PluginEntry>, emptyText: String) {
 
 // ── Loader-Funktionen (internal für Testbarkeit) ───────────────────────────
 
-internal fun loadThemes(): List<PluginEntry> =
-    ThemeRegistry.names().map { name -> PluginEntry(name, "Theme", name) }
+internal fun loadThemes(): List<PluginEntry> = ThemeRegistry.names().map { name -> PluginEntry(name, "Theme", name) }
 
 /**
  * Lädt alle Transformer aus dem [TransformerRegistry].
@@ -356,6 +365,7 @@ internal fun loadReverseEngines(): List<PluginEntry> =
     try {
         val registryClass = Class.forName("dev.kuml.codegen.reverse.registry.ReverseEngineRegistry")
         val allMethod = registryClass.getDeclaredMethod("all")
+
         @Suppress("UNCHECKED_CAST")
         val engines = allMethod.invoke(null) as? List<*> ?: emptyList<Any>()
         engines.mapNotNull { e ->
@@ -498,8 +508,7 @@ internal fun validateScreenshotUrl(
  * deterministically with an injected resolver, without depending on live DNS
  * (which is unavailable in sandboxed CI environments).
  */
-private fun defaultResolveHost(host: String): InetAddress? =
-    runCatching { InetAddress.getByName(host) }.getOrNull()
+private fun defaultResolveHost(host: String): InetAddress? = runCatching { InetAddress.getByName(host) }.getOrNull()
 
 /** Resolves a possibly-relative screenshot path against [SCREENSHOT_BASE_URL].
  *

@@ -2,13 +2,13 @@ package dev.kuml.layout.bridge
 
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlGeneralization
 import dev.kuml.uml.UmlInclude
 import dev.kuml.uml.UmlInterfaceRealization
-import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlLink
 import dev.kuml.uml.UmlRelationship
 import dev.kuml.uml.ids.UmlIds

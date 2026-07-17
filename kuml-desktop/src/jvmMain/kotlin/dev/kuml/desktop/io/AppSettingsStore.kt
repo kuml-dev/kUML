@@ -6,19 +6,26 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 
-class AppSettingsStore(val file: Path = AppPaths.settingsFile()) {
-    private val json = Json {
-        prettyPrint = true
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+class AppSettingsStore(
+    val file: Path = AppPaths.settingsFile(),
+) {
+    private val json =
+        Json {
+            prettyPrint = true
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
-    fun load(): AppSettings = try {
-        if (!Files.exists(file)) AppSettings.DEFAULT
-        else json.decodeFromString<AppSettings>(Files.readString(file))
-    } catch (_: Exception) {
-        AppSettings.DEFAULT
-    }
+    fun load(): AppSettings =
+        try {
+            if (!Files.exists(file)) {
+                AppSettings.DEFAULT
+            } else {
+                json.decodeFromString<AppSettings>(Files.readString(file))
+            }
+        } catch (_: Exception) {
+            AppSettings.DEFAULT
+        }
 
     fun save(settings: AppSettings) {
         Files.createDirectories(file.parent)

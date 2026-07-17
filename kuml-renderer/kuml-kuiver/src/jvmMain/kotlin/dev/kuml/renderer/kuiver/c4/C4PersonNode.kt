@@ -23,7 +23,10 @@ import dev.kuml.renderer.theme.KumlTheme
  * @param theme active visual theme
  */
 @Composable
-internal fun C4PersonNode(element: C4Person, theme: KumlTheme) {
+internal fun C4PersonNode(
+    element: C4Person,
+    theme: KumlTheme,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(4.dp),
@@ -33,9 +36,10 @@ internal fun C4PersonNode(element: C4Person, theme: KumlTheme) {
             theme = theme,
         )
         Column(
-            modifier = Modifier
-                .border(theme.borders.regular, theme.colors.border)
-                .padding(horizontal = 8.dp, vertical = 4.dp),
+            modifier =
+                Modifier
+                    .border(theme.borders.regular, theme.colors.border)
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
         ) {
             Text(
                 text = element.name,

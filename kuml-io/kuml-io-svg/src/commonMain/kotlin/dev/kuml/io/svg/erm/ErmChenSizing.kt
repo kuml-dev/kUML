@@ -35,6 +35,7 @@ internal object ErmChenSizing {
     const val DEFAULT_H: Float = 80f
 
     // ── Character-width estimates ──────────────────────────────────────────
+
     /** Avg width of a 13px bold sans-serif char (entity/view title, diamond/oval labels use [BODY_CHAR_PX]). */
     const val TITLE_CHAR_PX: Float = 8.4f
 

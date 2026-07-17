@@ -56,11 +56,12 @@ internal class KumlSpecialistAgent(
         val koogPrompt = buildPrompt(history, systemPrompt)
 
         // Koog 1.0.0: execute() returns Message.Assistant directly.
-        val response = if (executorFn != null) {
-            executorFn.invoke(koogPrompt, model)
-        } else {
-            executor.execute(koogPrompt, model)
-        }
+        val response =
+            if (executorFn != null) {
+                executorFn.invoke(koogPrompt, model)
+            } else {
+                executor.execute(koogPrompt, model)
+            }
 
         // textContent() aggregates all text MessageParts.
         val assistantText = response.textContent()
@@ -76,7 +77,7 @@ internal class KumlSpecialistAgent(
             if (patchEngine != null && tc.tool in domain.allowedToolNames) {
                 val patch = runCatching { decoder.decode(tc.tool, tc.argsJson.toString()) }.getOrNull()
                 if (patch != null) {
-                    val engine = patchEngine   // local val enables smart cast inside runCatching lambda
+                    val engine = patchEngine // local val enables smart cast inside runCatching lambda
                     runCatching { engine.buffer(patch) }
                     val kind = patch::class.simpleName ?: "unknown"
                     bufferedPatchKinds += kind
@@ -96,19 +97,21 @@ internal class KumlSpecialistAgent(
         return SpecialistResult(assistantText = assistantText, bufferedPatchKinds = bufferedPatchKinds)
     }
 
-    private fun buildPrompt(history: List<ConversationMessage>, systemPrompt: String) =
-        prompt("kuml-specialist-${domain.id}") {
-            system(systemPrompt)
-            for (msg in history) {
-                when (msg) {
-                    is ConversationMessage.User -> user(msg.text)
-                    is ConversationMessage.Assistant -> assistant(msg.text)
-                    else -> {
-                        // ToolCall / ToolResult / ErrorMessage not replayed
-                    }
+    private fun buildPrompt(
+        history: List<ConversationMessage>,
+        systemPrompt: String,
+    ) = prompt("kuml-specialist-${domain.id}") {
+        system(systemPrompt)
+        for (msg in history) {
+            when (msg) {
+                is ConversationMessage.User -> user(msg.text)
+                is ConversationMessage.Assistant -> assistant(msg.text)
+                else -> {
+                    // ToolCall / ToolResult / ErrorMessage not replayed
                 }
             }
         }
+    }
 
     companion object {
         /**
@@ -116,28 +119,32 @@ internal class KumlSpecialistAgent(
          * The [baseSystemPrompt] from settings is included as context so the specialist
          * inherits any user-configured persona / constraints.
          */
-        fun domainSystemPrompt(domain: AgentDomain, baseSystemPrompt: String): String {
-            val domainScope = when (domain) {
-                AgentDomain.UML ->
-                    "You are a UML specialist. Focus exclusively on UML class diagrams, " +
-                        "interfaces, attributes, operations, associations, and generalizations. " +
-                        "Use only UML editing tools: add_class, add_interface, add_attribute, " +
-                        "add_operation, add_association, add_generalization, remove_element, rename_element."
-                AgentDomain.C4 ->
-                    "You are a C4 architecture specialist. Focus on C4 model elements: " +
-                        "persons, software systems, containers, components, and relationships. " +
-                        "Use only C4 editing tools: add_person, add_software_system, add_container, " +
-                        "add_component, add_relationship."
-                AgentDomain.SYSML2 ->
-                    "You are a SysML 2 specialist. Focus on SysML 2 elements: " +
-                        "part definitions, attribute definitions, states, transitions, use cases, " +
-                        "requirements, actions, and constraints. " +
-                        "Use only SysML 2 editing tools: add_part_def, add_attribute_def, add_state, " +
-                        "add_transition, add_use_case, add_requirement, add_action, add_constraint."
-                AgentDomain.MIXED ->
-                    "You are a multi-domain modelling assistant. You may use tools from UML, C4, " +
-                        "and SysML 2 domains as needed to fulfil the request."
-            }
+        fun domainSystemPrompt(
+            domain: AgentDomain,
+            baseSystemPrompt: String,
+        ): String {
+            val domainScope =
+                when (domain) {
+                    AgentDomain.UML ->
+                        "You are a UML specialist. Focus exclusively on UML class diagrams, " +
+                            "interfaces, attributes, operations, associations, and generalizations. " +
+                            "Use only UML editing tools: add_class, add_interface, add_attribute, " +
+                            "add_operation, add_association, add_generalization, remove_element, rename_element."
+                    AgentDomain.C4 ->
+                        "You are a C4 architecture specialist. Focus on C4 model elements: " +
+                            "persons, software systems, containers, components, and relationships. " +
+                            "Use only C4 editing tools: add_person, add_software_system, add_container, " +
+                            "add_component, add_relationship."
+                    AgentDomain.SYSML2 ->
+                        "You are a SysML 2 specialist. Focus on SysML 2 elements: " +
+                            "part definitions, attribute definitions, states, transitions, use cases, " +
+                            "requirements, actions, and constraints. " +
+                            "Use only SysML 2 editing tools: add_part_def, add_attribute_def, add_state, " +
+                            "add_transition, add_use_case, add_requirement, add_action, add_constraint."
+                    AgentDomain.MIXED ->
+                        "You are a multi-domain modelling assistant. You may use tools from UML, C4, " +
+                            "and SysML 2 domains as needed to fulfil the request."
+                }
             return "$domainScope\n\n$baseSystemPrompt".trim()
         }
     }

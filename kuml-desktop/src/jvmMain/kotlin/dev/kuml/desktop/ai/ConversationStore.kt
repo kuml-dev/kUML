@@ -12,12 +12,15 @@ data class ConversationMeta(
     val preview: String?,
 )
 
-class ConversationStore(val baseDir: File) {
-    private val json = Json {
-        prettyPrint = true
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
+class ConversationStore(
+    val baseDir: File,
+) {
+    private val json =
+        Json {
+            prettyPrint = true
+            ignoreUnknownKeys = true
+            encodeDefaults = true
+        }
 
     fun save(conv: Conversation) {
         baseDir.mkdirs()
@@ -53,12 +56,16 @@ class ConversationStore(val baseDir: File) {
                 ConversationMeta(
                     sessionId = c.sessionId,
                     updatedAt = c.updatedAt,
-                    preview = c.messages.filterIsInstance<ConversationMessage.User>().firstOrNull()?.text?.take(60),
+                    preview =
+                        c.messages
+                            .filterIsInstance<ConversationMessage.User>()
+                            .firstOrNull()
+                            ?.text
+                            ?.take(60),
                 )
             }
 
     companion object {
-        fun default(): ConversationStore =
-            ConversationStore(File(System.getProperty("user.home"), ".kuml/ai-sessions"))
+        fun default(): ConversationStore = ConversationStore(File(System.getProperty("user.home"), ".kuml/ai-sessions"))
     }
 }

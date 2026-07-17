@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
@@ -8,7 +9,6 @@ import dev.kuml.sysml2.ActionDefinition
 import dev.kuml.sysml2.ActionPin
 import dev.kuml.sysml2.ActivityNodeKind
 import dev.kuml.sysml2.PinDirection
-import dev.kuml.io.svg.fmt3
 
 /**
  * Rendert eine SysML-2-[ActionDefinition] als Activity-Diagramm-Knoten

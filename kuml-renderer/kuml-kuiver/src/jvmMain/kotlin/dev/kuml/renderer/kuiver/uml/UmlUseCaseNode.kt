@@ -24,23 +24,27 @@ import dev.kuml.uml.UmlUseCase
  * @param theme active visual theme
  */
 @Composable
-internal fun UmlUseCaseNode(element: UmlUseCase, theme: KumlTheme) {
+internal fun UmlUseCaseNode(
+    element: UmlUseCase,
+    theme: KumlTheme,
+) {
     val borderColor = theme.colors.border
     val strokeWidth = theme.borders.regular.value
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .defaultMinSize(minWidth = 90.dp, minHeight = 48.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .drawBehind {
-                drawOval(
-                    color = borderColor,
-                    topLeft = Offset.Zero,
-                    size = Size(size.width, size.height),
-                    style = Stroke(width = strokeWidth),
-                )
-            },
+        modifier =
+            Modifier
+                .defaultMinSize(minWidth = 90.dp, minHeight = 48.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .drawBehind {
+                    drawOval(
+                        color = borderColor,
+                        topLeft = Offset.Zero,
+                        size = Size(size.width, size.height),
+                        style = Stroke(width = strokeWidth),
+                    )
+                },
     ) {
         Text(
             text = element.name,

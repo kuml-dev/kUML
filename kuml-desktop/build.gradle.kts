@@ -17,59 +17,59 @@ kotlin {
         }
         val jvmMain =
             getByName("jvmMain") {
-            dependencies {
-                implementation(project(":kuml-core:kuml-core-script"))
-                // V3.6.4 — Knowledge Workspace viewer: OKF workspace scanner (transitively
-                // brings kuml-docs:kuml-markdown's KumlCodeBlock via its `api` dependency)
-                implementation(project(":kuml-docs:kuml-workspace"))
-                implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
-                implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
-                implementation(project(":kuml-metamodel:kuml-metamodel-sysml2"))
-                implementation(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN desktop render
-                implementation(project(":kuml-renderer:kuml-layout-api"))
-                implementation(project(":kuml-renderer:kuml-layout-bridge"))
-                implementation(project(":kuml-renderer:kuml-layout-elk"))
-                implementation(project(":kuml-renderer:kuml-layout-grid"))
-                implementation(project(":kuml-renderer:kuml-themes"))
-                implementation(project(":kuml-renderer:kuml-themes-core"))
-                implementation(project(":kuml-io:kuml-io-svg"))
-                implementation(libs.batik.swing)
-                implementation(compose.desktop.currentOs)
-                implementation(libs.kotlinx.coroutines.core)
-                implementation(libs.kotlinx.serialization.json)
-                implementation(libs.kotlin.scripting.common)
-                implementation(libs.kotlin.scripting.jvm)
-                implementation(libs.kotlin.scripting.jvm.host)
-                implementation(libs.kotlin.reflect)
-                implementation("com.fifesoft:rsyntaxtextarea:3.5.3")
-                // V3.0.24 — AI panel integration
-                implementation(project(":kuml-ai:kuml-ai-core"))
-                implementation(project(":kuml-ai:kuml-ai-tools"))
-                // V3.0.25 — DSL serializer (UmlModelDslPrinter)
-                implementation(project(":kuml-cli"))
-                // V3.0.13 — Plugin Manager: explizite Dependency für TransformerRegistry
-                implementation(project(":kuml-codegen:kuml-codegen-m2m"))
-                // V3.1.11 — Plugin update-badge: UpdateCheckService + UpdateCheckResult
-                implementation(project(":kuml-plugin-loader"))
-                // Koog agents runtime (für AIAgent / PromptExecutor)
-                implementation(libs.koog.agents.jvm)
-                // V3.1.13 — Plugin marketplace screenshots (Coil 3 async image + disk cache)
-                implementation(libs.coil.compose)
-                implementation(libs.coil.network.ktor)
-                implementation(libs.ktor.client.core)
-                implementation(libs.ktor.client.java)
-                // V3.6.4 — Knowledge Workspace viewer: read-only Markdown rendering (M3)
-                implementation(libs.markdown.renderer.m3)
+                dependencies {
+                    implementation(project(":kuml-core:kuml-core-script"))
+                    // V3.6.4 — Knowledge Workspace viewer: OKF workspace scanner (transitively
+                    // brings kuml-docs:kuml-markdown's KumlCodeBlock via its `api` dependency)
+                    implementation(project(":kuml-docs:kuml-workspace"))
+                    implementation(project(":kuml-metamodel:kuml-metamodel-uml"))
+                    implementation(project(":kuml-metamodel:kuml-metamodel-c4"))
+                    implementation(project(":kuml-metamodel:kuml-metamodel-sysml2"))
+                    implementation(project(":kuml-metamodel:kuml-metamodel-bpmn")) // V3.1.6 — BPMN desktop render
+                    implementation(project(":kuml-renderer:kuml-layout-api"))
+                    implementation(project(":kuml-renderer:kuml-layout-bridge"))
+                    implementation(project(":kuml-renderer:kuml-layout-elk"))
+                    implementation(project(":kuml-renderer:kuml-layout-grid"))
+                    implementation(project(":kuml-renderer:kuml-themes"))
+                    implementation(project(":kuml-renderer:kuml-themes-core"))
+                    implementation(project(":kuml-io:kuml-io-svg"))
+                    implementation(libs.batik.swing)
+                    implementation(compose.desktop.currentOs)
+                    implementation(libs.kotlinx.coroutines.core)
+                    implementation(libs.kotlinx.serialization.json)
+                    implementation(libs.kotlin.scripting.common)
+                    implementation(libs.kotlin.scripting.jvm)
+                    implementation(libs.kotlin.scripting.jvm.host)
+                    implementation(libs.kotlin.reflect)
+                    implementation("com.fifesoft:rsyntaxtextarea:3.5.3")
+                    // V3.0.24 — AI panel integration
+                    implementation(project(":kuml-ai:kuml-ai-core"))
+                    implementation(project(":kuml-ai:kuml-ai-tools"))
+                    // V3.0.25 — DSL serializer (UmlModelDslPrinter)
+                    implementation(project(":kuml-cli"))
+                    // V3.0.13 — Plugin Manager: explizite Dependency für TransformerRegistry
+                    implementation(project(":kuml-codegen:kuml-codegen-m2m"))
+                    // V3.1.11 — Plugin update-badge: UpdateCheckService + UpdateCheckResult
+                    implementation(project(":kuml-plugin-loader"))
+                    // Koog agents runtime (für AIAgent / PromptExecutor)
+                    implementation(libs.koog.agents.jvm)
+                    // V3.1.13 — Plugin marketplace screenshots (Coil 3 async image + disk cache)
+                    implementation(libs.coil.compose)
+                    implementation(libs.coil.network.ktor)
+                    implementation(libs.ktor.client.core)
+                    implementation(libs.ktor.client.java)
+                    // V3.6.4 — Knowledge Workspace viewer: read-only Markdown rendering (M3)
+                    implementation(libs.markdown.renderer.m3)
+                }
             }
-        }
         val jvmTest =
             getByName("jvmTest") {
-            dependencies {
-                implementation(libs.kotest.runner.junit5)
-                implementation(libs.kotest.assertions.core)
-                implementation(libs.kotlinx.coroutines.test)
+                dependencies {
+                    implementation(libs.kotest.runner.junit5)
+                    implementation(libs.kotest.assertions.core)
+                    implementation(libs.kotlinx.coroutines.test)
+                }
             }
-        }
     }
 }
 

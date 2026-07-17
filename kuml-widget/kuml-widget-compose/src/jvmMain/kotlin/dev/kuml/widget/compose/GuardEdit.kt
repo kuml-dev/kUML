@@ -23,7 +23,9 @@ public sealed interface PatchOutcome {
     public data object NeedsConfirmation : PatchOutcome
 
     /** The edit was rejected; [message] is a human-readable reason. */
-    public data class Rejected(public val message: String) : PatchOutcome
+    public data class Rejected(
+        public val message: String,
+    ) : PatchOutcome
 }
 
 /** A guard edit awaiting user confirmation because its target transition is protected. */
@@ -63,15 +65,16 @@ public fun BehaviourWidgetState.changeGuard(
         return PatchOutcome.Rejected("cannot edit a guard while scrubbing; return to live first")
     }
 
-    val result = runtime.applyPatch(
-        instance = _instance,
-        patch = ModelPatch.ChangeGuard(transitionId, newOcl),
-        policy = MigrationPolicy.Reject,
-        confirmed = confirmed,
-    )
+    val result =
+        runtime.applyPatch(
+            instance = runningInstance,
+            patch = ModelPatch.ChangeGuard(transitionId, newOcl),
+            policy = MigrationPolicy.Reject,
+            confirmed = confirmed,
+        )
     return when (result) {
         is PatchResult.Applied -> {
-            _instance = result.instance
+            runningInstance = result.instance
             model = result.model
             syncTrace()
             PatchOutcome.Applied

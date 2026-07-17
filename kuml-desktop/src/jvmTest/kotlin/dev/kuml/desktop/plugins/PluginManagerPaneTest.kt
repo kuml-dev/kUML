@@ -18,161 +18,174 @@ import io.kotest.matchers.string.shouldNotBeBlank
  * Kein Compose-Test-Framework nötig — die Lade-Funktionen sind `internal`
  * und direkt testbar.
  */
-class PluginManagerPaneTest : FunSpec({
+class PluginManagerPaneTest :
+    FunSpec({
 
-    // ── PluginEntry data class ─────────────────────────────────────────────
+        // ── PluginEntry data class ─────────────────────────────────────────────
 
-    test("PluginEntry speichert id, kind und description korrekt") {
-        val entry = PluginEntry(id = "jpa", kind = "Transformer", description = "UML zu JPA")
-        entry.id shouldBe "jpa"
-        entry.kind shouldBe "Transformer"
-        entry.description shouldBe "UML zu JPA"
-    }
-
-    test("PluginEntry mit leerem description ist gültig") {
-        val entry = PluginEntry(id = "plain", kind = "Theme", description = "")
-        entry.id shouldNotBe null
-        entry.description shouldBe ""
-    }
-
-    test("PluginEntry equals und hashCode sind strukturell korrekt (data class)") {
-        val a = PluginEntry("id1", "Theme", "desc")
-        val b = PluginEntry("id1", "Theme", "desc")
-        a shouldBe b
-        a.hashCode() shouldBe b.hashCode()
-    }
-
-    // ── loadTransformers() ─────────────────────────────────────────────────
-
-    test("loadTransformers() gibt Liste zurück — kein Crash auch wenn Registry leer") {
-        // TransformerRegistry enthält im Test-Classpath evtl. keine Provider
-        val transformers = loadTransformers()
-        transformers shouldNotBe null
-        // Liste darf leer sein — darf aber nicht null sein oder werfen
-    }
-
-    test("loadTransformers() liefert nur Einträge mit nicht-leerem id") {
-        val transformers = loadTransformers()
-        transformers.forEach { entry ->
-            entry.id.shouldNotBeBlank()
+        test("PluginEntry speichert id, kind und description korrekt") {
+            val entry = PluginEntry(id = "jpa", kind = "Transformer", description = "UML zu JPA")
+            entry.id shouldBe "jpa"
             entry.kind shouldBe "Transformer"
+            entry.description shouldBe "UML zu JPA"
         }
-    }
 
-    test("loadTransformers() registrierter Transformer erscheint in der Liste") {
-        TransformerRegistry.clear()
-        // Minimaler Stub-Transformer
-        val stubTransformer = object : dev.kuml.codegen.m2m.KumlTransformer<Any, Any> {
-            override val id = "test-stub"
-            override val description = "Stub für Unit-Test"
-            override fun transform(
-                source: Any,
-                ctx: dev.kuml.codegen.m2m.TransformContext,
-            ) = dev.kuml.codegen.m2m.TransformResult.Success(
-                output = Unit,
-                trace = dev.kuml.codegen.m2m.TransformTrace(),
-            )
+        test("PluginEntry mit leerem description ist gültig") {
+            val entry = PluginEntry(id = "plain", kind = "Theme", description = "")
+            entry.id shouldNotBe null
+            entry.description shouldBe ""
         }
-        TransformerRegistry.register(stubTransformer)
-        try {
-            val entries = loadTransformers()
-            entries.map { it.id } shouldBe listOf("test-stub")
-            entries.first().description shouldBe "Stub für Unit-Test"
-        } finally {
+
+        test("PluginEntry equals und hashCode sind strukturell korrekt (data class)") {
+            val a = PluginEntry("id1", "Theme", "desc")
+            val b = PluginEntry("id1", "Theme", "desc")
+            a shouldBe b
+            a.hashCode() shouldBe b.hashCode()
+        }
+
+        // ── loadTransformers() ─────────────────────────────────────────────────
+
+        test("loadTransformers() gibt Liste zurück — kein Crash auch wenn Registry leer") {
+            // TransformerRegistry enthält im Test-Classpath evtl. keine Provider
+            val transformers = loadTransformers()
+            transformers shouldNotBe null
+            // Liste darf leer sein — darf aber nicht null sein oder werfen
+        }
+
+        test("loadTransformers() liefert nur Einträge mit nicht-leerem id") {
+            val transformers = loadTransformers()
+            transformers.forEach { entry ->
+                entry.id.shouldNotBeBlank()
+                entry.kind shouldBe "Transformer"
+            }
+        }
+
+        test("loadTransformers() registrierter Transformer erscheint in der Liste") {
             TransformerRegistry.clear()
+            // Minimaler Stub-Transformer
+            val stubTransformer =
+                object : dev.kuml.codegen.m2m.KumlTransformer<Any, Any> {
+                    override val id = "test-stub"
+                    override val description = "Stub für Unit-Test"
+
+                    override fun transform(
+                        source: Any,
+                        ctx: dev.kuml.codegen.m2m.TransformContext,
+                    ) = dev.kuml.codegen.m2m.TransformResult.Success(
+                        output = Unit,
+                        trace =
+                            dev.kuml.codegen.m2m
+                                .TransformTrace(),
+                    )
+                }
+            TransformerRegistry.register(stubTransformer)
+            try {
+                val entries = loadTransformers()
+                entries.map { it.id } shouldBe listOf("test-stub")
+                entries.first().description shouldBe "Stub für Unit-Test"
+            } finally {
+                TransformerRegistry.clear()
+            }
         }
-    }
 
-    // ── loadReverseEngines() ───────────────────────────────────────────────
+        // ── loadReverseEngines() ───────────────────────────────────────────────
 
-    test("loadReverseEngines() gibt Liste zurück — kein Crash wenn Klasse fehlt (Reflection-Fallback)") {
-        // Im Test-Classpath ist ReverseEngineRegistry evtl. nicht vorhanden →
-        // die Reflection-basierte Implementierung muss gracefully emptyList() zurückgeben
-        val engines = loadReverseEngines()
-        engines shouldNotBe null
-    }
+        test("loadReverseEngines() gibt Liste zurück — kein Crash wenn Klasse fehlt (Reflection-Fallback)") {
+            // Im Test-Classpath ist ReverseEngineRegistry evtl. nicht vorhanden →
+            // die Reflection-basierte Implementierung muss gracefully emptyList() zurückgeben
+            val engines = loadReverseEngines()
+            engines shouldNotBe null
+        }
 
-    // ── loadThemes() ───────────────────────────────────────────────────────
+        // ── loadThemes() ───────────────────────────────────────────────────────
 
-    test("loadThemes() liefert Themes wenn ThemeRegistry befüllt ist") {
-        ThemeRegistry.clear()
-        // Stub-Provider registrieren
-        ThemeRegistry.register(object : dev.kuml.renderer.theme.core.KumlThemeProvider {
-            override val name = "test-theme"
-            override fun theme(): dev.kuml.renderer.theme.core.KumlTheme =
-                dev.kuml.renderer.theme.core.PlainTheme()
-        })
-        try {
-            val themes = loadThemes()
-            themes.shouldNotBeEmpty()
-            themes.first().id shouldBe "test-theme"
-            themes.first().kind shouldBe "Theme"
-        } finally {
+        test("loadThemes() liefert Themes wenn ThemeRegistry befüllt ist") {
             ThemeRegistry.clear()
-        }
-    }
+            // Stub-Provider registrieren
+            ThemeRegistry.register(
+                object : dev.kuml.renderer.theme.core.KumlThemeProvider {
+                    override val name = "test-theme"
 
-    test("loadThemes() gibt leere Liste zurück wenn Registry leer") {
-        ThemeRegistry.clear()
-        loadThemes().shouldBeEmpty()
-    }
-
-    test("loadThemes() sortiert Themes alphabetisch (via ThemeRegistry.names())") {
-        ThemeRegistry.clear()
-        listOf("zebra", "alpha", "mango").forEach { name ->
-            ThemeRegistry.register(object : dev.kuml.renderer.theme.core.KumlThemeProvider {
-                override val name = name
-                override fun theme(): dev.kuml.renderer.theme.core.KumlTheme =
-                    dev.kuml.renderer.theme.core.PlainTheme()
-            })
+                    override fun theme(): dev.kuml.renderer.theme.core.KumlTheme =
+                        dev.kuml.renderer.theme.core
+                            .PlainTheme()
+                },
+            )
+            try {
+                val themes = loadThemes()
+                themes.shouldNotBeEmpty()
+                themes.first().id shouldBe "test-theme"
+                themes.first().kind shouldBe "Theme"
+            } finally {
+                ThemeRegistry.clear()
+            }
         }
-        try {
-            val ids = loadThemes().map { it.id }
-            ids shouldBe listOf("alpha", "mango", "zebra")
-        } finally {
+
+        test("loadThemes() gibt leere Liste zurück wenn Registry leer") {
             ThemeRegistry.clear()
+            loadThemes().shouldBeEmpty()
         }
-    }
 
-    // ── V3.1.12: registryTabLabels() ──────────────────────────────────────────
+        test("loadThemes() sortiert Themes alphabetisch (via ThemeRegistry.names())") {
+            ThemeRegistry.clear()
+            listOf("zebra", "alpha", "mango").forEach { name ->
+                ThemeRegistry.register(
+                    object : dev.kuml.renderer.theme.core.KumlThemeProvider {
+                        override val name = name
 
-    test("registryTabLabels() contains 'Registry' as the 4th tab") {
-        val tabs = registryTabLabels()
-        tabs shouldContain "Registry"
-    }
+                        override fun theme(): dev.kuml.renderer.theme.core.KumlTheme =
+                            dev.kuml.renderer.theme.core
+                                .PlainTheme()
+                    },
+                )
+            }
+            try {
+                val ids = loadThemes().map { it.id }
+                ids shouldBe listOf("alpha", "mango", "zebra")
+            } finally {
+                ThemeRegistry.clear()
+            }
+        }
 
-    test("registryTabLabels() has exactly 4 tabs") {
-        registryTabLabels().size shouldBe 4
-    }
+        // ── V3.1.12: registryTabLabels() ──────────────────────────────────────────
 
-    test("registryTabLabels() preserves order: Themes, Transformers, Reverse-Engines, Registry") {
-        registryTabLabels() shouldBe listOf("Themes", "Transformers", "Reverse-Engines", "Registry")
-    }
+        test("registryTabLabels() contains 'Registry' as the 4th tab") {
+            val tabs = registryTabLabels()
+            tabs shouldContain "Registry"
+        }
 
-    // ── V3.1.12: registryCardSubtitle() ──────────────────────────────────────
+        test("registryTabLabels() has exactly 4 tabs") {
+            registryTabLabels().size shouldBe 4
+        }
 
-    test("registryCardSubtitle: rated entry shows stars and rating line") {
-        val entry = makeRegistryEntry(rating = 4.3, ratingCount = 12)
-        val subtitle = registryCardSubtitle(entry)
-        subtitle shouldContain "★"
-        subtitle shouldContain "4.3/5.0"
-        subtitle shouldContain "12 ratings"
-    }
+        test("registryTabLabels() preserves order: Themes, Transformers, Reverse-Engines, Registry") {
+            registryTabLabels() shouldBe listOf("Themes", "Transformers", "Reverse-Engines", "Registry")
+        }
 
-    test("registryCardSubtitle: unrated entry shows empty stars and 'no ratings yet'") {
-        val entry = makeRegistryEntry(rating = null, ratingCount = 0)
-        val subtitle = registryCardSubtitle(entry)
-        subtitle shouldContain "☆☆☆☆☆"
-        subtitle shouldContain "no ratings yet"
-    }
+        // ── V3.1.12: registryCardSubtitle() ──────────────────────────────────────
 
-    test("registryCardSubtitle: 5.0 rating with 1 rating uses singular form") {
-        val entry = makeRegistryEntry(rating = 5.0, ratingCount = 1)
-        val subtitle = registryCardSubtitle(entry)
-        subtitle shouldContain "5.0/5.0"
-        subtitle shouldContain "1 rating"
-    }
-})
+        test("registryCardSubtitle: rated entry shows stars and rating line") {
+            val entry = makeRegistryEntry(rating = 4.3, ratingCount = 12)
+            val subtitle = registryCardSubtitle(entry)
+            subtitle shouldContain "★"
+            subtitle shouldContain "4.3/5.0"
+            subtitle shouldContain "12 ratings"
+        }
+
+        test("registryCardSubtitle: unrated entry shows empty stars and 'no ratings yet'") {
+            val entry = makeRegistryEntry(rating = null, ratingCount = 0)
+            val subtitle = registryCardSubtitle(entry)
+            subtitle shouldContain "☆☆☆☆☆"
+            subtitle shouldContain "no ratings yet"
+        }
+
+        test("registryCardSubtitle: 5.0 rating with 1 rating uses singular form") {
+            val entry = makeRegistryEntry(rating = 5.0, ratingCount = 1)
+            val subtitle = registryCardSubtitle(entry)
+            subtitle shouldContain "5.0/5.0"
+            subtitle shouldContain "1 rating"
+        }
+    })
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 

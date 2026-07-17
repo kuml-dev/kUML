@@ -16,7 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun InputPane(isRunning: Boolean, onSend: (String) -> Unit, onStop: () -> Unit) {
+fun InputPane(
+    isRunning: Boolean,
+    onSend: (String) -> Unit,
+    onStop: () -> Unit,
+) {
     var text by remember { mutableStateOf("") }
     Row(verticalAlignment = Alignment.Bottom) {
         OutlinedTextField(

@@ -34,18 +34,19 @@ class ChangeGuardBridgeTest :
                 id = "traffic-light",
                 name = "Traffic Light",
                 vertices = listOf(initial, red, green, yellow),
-                transitions = listOf(
-                    UmlTransition(id = "t-init-red", sourceId = "init", targetId = "Red"),
-                    UmlTransition(id = "t-red-green", sourceId = "Red", targetId = "Green", trigger = "next"),
-                    UmlTransition(id = "t-green-yellow", sourceId = "Green", targetId = "Yellow", trigger = "next"),
-                    UmlTransition(
-                        id = "t-yellow-red",
-                        sourceId = "Yellow",
-                        targetId = "Red",
-                        trigger = "next",
-                        metadata = mapOf(TransitionMetadataKeys.PROTECTED to KumlMetaValue.Flag(true)),
+                transitions =
+                    listOf(
+                        UmlTransition(id = "t-init-red", sourceId = "init", targetId = "Red"),
+                        UmlTransition(id = "t-red-green", sourceId = "Red", targetId = "Green", trigger = "next"),
+                        UmlTransition(id = "t-green-yellow", sourceId = "Green", targetId = "Yellow", trigger = "next"),
+                        UmlTransition(
+                            id = "t-yellow-red",
+                            sourceId = "Yellow",
+                            targetId = "Red",
+                            trigger = "next",
+                            metadata = mapOf(TransitionMetadataKeys.PROTECTED to KumlMetaValue.Flag(true)),
+                        ),
                     ),
-                ),
             )
         }
 

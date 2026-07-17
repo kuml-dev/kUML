@@ -17,30 +17,32 @@ class DesktopRenderController(
 
     fun scheduleRender(script: String) {
         debounceJob?.cancel()
-        debounceJob = scope.launch {
-            delay(debounceMs)
-            state.isRendering = true
-            try {
-                val result = withContext(Dispatchers.IO) {
-                    DesktopRenderPipeline.render(script, state.theme)
-                }
-                when (result) {
-                    is DesktopRenderResult.Svg -> {
-                        state.lastSvg = result.svg
-                        state.lastError = null
+        debounceJob =
+            scope.launch {
+                delay(debounceMs)
+                state.isRendering = true
+                try {
+                    val result =
+                        withContext(Dispatchers.IO) {
+                            DesktopRenderPipeline.render(script, state.theme)
+                        }
+                    when (result) {
+                        is DesktopRenderResult.Svg -> {
+                            state.lastSvg = result.svg
+                            state.lastError = null
+                        }
+                        is DesktopRenderResult.Error -> {
+                            state.lastError = result.message
+                        }
                     }
-                    is DesktopRenderResult.Error -> {
-                        state.lastError = result.message
-                    }
+                } catch (e: Exception) {
+                    // CancellationException NIEMALS verschlucken — bricht Structured Concurrency
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    state.lastError = "Unerwarteter Fehler: ${e.message ?: e.javaClass.simpleName}"
+                } finally {
+                    state.isRendering = false
                 }
-            } catch (e: Exception) {
-                // CancellationException NIEMALS verschlucken — bricht Structured Concurrency
-                if (e is kotlinx.coroutines.CancellationException) throw e
-                state.lastError = "Unerwarteter Fehler: ${e.message ?: e.javaClass.simpleName}"
-            } finally {
-                state.isRendering = false
             }
-        }
     }
 
     fun cancel() {

@@ -19,12 +19,16 @@ import dev.kuml.renderer.theme.KumlTheme
  * when the model contains future element types.
  */
 @Composable
-internal fun GenericFallbackNode(element: KumlElement, theme: KumlTheme) {
+internal fun GenericFallbackNode(
+    element: KumlElement,
+    theme: KumlTheme,
+) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .border(theme.borders.thin, theme.colors.muted)
-            .padding(8.dp),
+        modifier =
+            Modifier
+                .border(theme.borders.thin, theme.colors.muted)
+                .padding(8.dp),
     ) {
         Text(
             text = "?${element::class.simpleName}",

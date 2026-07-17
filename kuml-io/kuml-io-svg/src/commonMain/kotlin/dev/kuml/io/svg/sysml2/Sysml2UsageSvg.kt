@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
 import dev.kuml.layout.Point
@@ -28,7 +29,6 @@ import dev.kuml.sysml2.StateUsage
 import dev.kuml.sysml2.Sysml2Usage
 import dev.kuml.sysml2.TransitionUsage
 import dev.kuml.sysml2.UseCaseUsage
-import dev.kuml.io.svg.fmt3
 
 /**
  * Rendert SysML-2 Usages als IBD-Boxen (V2.0.6).

@@ -32,7 +32,10 @@ private fun stubExecutor(): KumlAiExecutor {
  * Build a Message.Assistant containing a single MessagePart.Tool.Call.
  * Koog 1.0.0: tool calls are MessagePart.Tool.Call inside Message.Assistant.parts.
  */
-private fun assistantWithToolCall(tool: String, argsJson: String): Message.Assistant =
+private fun assistantWithToolCall(
+    tool: String,
+    argsJson: String,
+): Message.Assistant =
     AssistantMessageBuilder()
         .addToolCall(MessagePart.Tool.Call(id = "tc-${tool.hashCode().toUInt()}", tool = tool, args = argsJson))
         .build()
@@ -42,164 +45,176 @@ private suspend fun PatchApplyEngine.drainPatchIds(): List<String> = pendingPatc
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-class AgentRunnerToolExecutionTest : FunSpec({
+class AgentRunnerToolExecutionTest :
+    FunSpec({
 
-    fun makeRunner(
-        editingContext: AgentEditingContext,
-        engine: PatchApplyEngine,
-        response: Message.Assistant,
-    ): AgentRunner {
-        return AgentRunner(
-            executor = stubExecutor(),
-            providerId = "ollama",
-            modelId = "llama3.2",
-            editingContext = editingContext,
-            patchEngine = engine,
-            executorFn = { _: Prompt, _: LLModel -> response },
-        )
-    }
+        fun makeRunner(
+            editingContext: AgentEditingContext,
+            engine: PatchApplyEngine,
+            response: Message.Assistant,
+        ): AgentRunner =
+            AgentRunner(
+                executor = stubExecutor(),
+                providerId = "ollama",
+                modelId = "llama3.2",
+                editingContext = editingContext,
+                patchEngine = engine,
+                executorFn = { _: Prompt, _: LLModel -> response },
+            )
 
-    test("add_class tool call emits PatchBuffered and buffers AddElement patch") {
-        val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
-        val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
-        val runner = makeRunner(
-            ctx, engine,
-            assistantWithToolCall("add_class", """{"name":"Order"}"""),
-        )
-        val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
+        test("add_class tool call emits PatchBuffered and buffers AddElement patch") {
+            val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
+            val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
+            val runner =
+                makeRunner(
+                    ctx,
+                    engine,
+                    assistantWithToolCall("add_class", """{"name":"Order"}"""),
+                )
+            val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
 
-        val patched = events.filterIsInstance<AgentEvent.PatchBuffered>()
-        patched shouldHaveSize 1
-        patched.first().kind shouldBe "AddElement"
+            val patched = events.filterIsInstance<AgentEvent.PatchBuffered>()
+            patched shouldHaveSize 1
+            patched.first().kind shouldBe "AddElement"
 
-        val ids = engine.drainPatchIds()
-        ids shouldHaveSize 1
-    }
+            val ids = engine.drainPatchIds()
+            ids shouldHaveSize 1
+        }
 
-    test("add_attribute tool call buffers UpdateAttribute patch") {
-        val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
-        val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
-        val runner = makeRunner(
-            ctx, engine,
-            assistantWithToolCall("add_attribute", """{"classifierIdOrName":"Order","name":"id","type":"Long"}"""),
-        )
-        val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
+        test("add_attribute tool call buffers UpdateAttribute patch") {
+            val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
+            val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
+            val runner =
+                makeRunner(
+                    ctx,
+                    engine,
+                    assistantWithToolCall("add_attribute", """{"classifierIdOrName":"Order","name":"id","type":"Long"}"""),
+                )
+            val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
 
-        val patched = events.filterIsInstance<AgentEvent.PatchBuffered>()
-        patched shouldHaveSize 1
-        patched.first().kind shouldBe "UpdateAttribute"
+            val patched = events.filterIsInstance<AgentEvent.PatchBuffered>()
+            patched shouldHaveSize 1
+            patched.first().kind shouldBe "UpdateAttribute"
 
-        val ids = engine.drainPatchIds()
-        ids shouldHaveSize 1
-    }
+            val ids = engine.drainPatchIds()
+            ids shouldHaveSize 1
+        }
 
-    test("unknown tool does not emit PatchBuffered but emits ToolCallStart and ToolCallEnd") {
-        val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
-        val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
-        val runner = makeRunner(
-            ctx, engine,
-            assistantWithToolCall("list_elements", """{}"""),
-        )
-        val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
+        test("unknown tool does not emit PatchBuffered but emits ToolCallStart and ToolCallEnd") {
+            val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
+            val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
+            val runner =
+                makeRunner(
+                    ctx,
+                    engine,
+                    assistantWithToolCall("list_elements", """{}"""),
+                )
+            val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
 
-        val patched = events.filterIsInstance<AgentEvent.PatchBuffered>()
-        patched shouldHaveSize 0
+            val patched = events.filterIsInstance<AgentEvent.PatchBuffered>()
+            patched shouldHaveSize 0
 
-        events.filterIsInstance<AgentEvent.ToolCallStart>() shouldHaveSize 1
-        events.filterIsInstance<AgentEvent.ToolCallEnd>() shouldHaveSize 1
-    }
+            events.filterIsInstance<AgentEvent.ToolCallStart>() shouldHaveSize 1
+            events.filterIsInstance<AgentEvent.ToolCallEnd>() shouldHaveSize 1
+        }
 
-    test("decodePatch with broken JSON does not crash — returns null gracefully") {
-        // decodePatch is tested directly (does not go through Message.Assistant creation)
-        val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
-        val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
-        val runner = AgentRunner(
-            executor = stubExecutor(),
-            providerId = "ollama",
-            modelId = "llama3.2",
-            editingContext = ctx,
-            patchEngine = engine,
-        )
-        // broken JSON → decodePatch should return null without throwing
-        val patch = runner.decodePatch("add_class", """{INVALID""")
-        patch shouldBe null
-    }
+        test("decodePatch with broken JSON does not crash — returns null gracefully") {
+            // decodePatch is tested directly (does not go through Message.Assistant creation)
+            val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
+            val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
+            val runner =
+                AgentRunner(
+                    executor = stubExecutor(),
+                    providerId = "ollama",
+                    modelId = "llama3.2",
+                    editingContext = ctx,
+                    patchEngine = engine,
+                )
+            // broken JSON → decodePatch should return null without throwing
+            val patch = runner.decodePatch("add_class", """{INVALID""")
+            patch shouldBe null
+        }
 
-    test("multiple tool calls in one response emit one PatchBuffered per decodable call") {
-        val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
-        val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
-        // Build a single Message.Assistant with three tool calls
-        val multiToolResponse = AssistantMessageBuilder()
-            .addToolCall(MessagePart.Tool.Call(id = "tc1", tool = "add_class", args = """{"name":"Order"}"""))
-            .addToolCall(MessagePart.Tool.Call(id = "tc2", tool = "add_class", args = """{"name":"Item"}"""))
-            .addToolCall(MessagePart.Tool.Call(id = "tc3", tool = "list_elements", args = """{}"""))
-            .build()
-        val runner = AgentRunner(
-            executor = stubExecutor(),
-            providerId = "ollama",
-            modelId = "llama3.2",
-            editingContext = ctx,
-            patchEngine = engine,
-            executorFn = { _: Prompt, _: LLModel -> multiToolResponse },
-        )
-        val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
+        test("multiple tool calls in one response emit one PatchBuffered per decodable call") {
+            val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
+            val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
+            // Build a single Message.Assistant with three tool calls
+            val multiToolResponse =
+                AssistantMessageBuilder()
+                    .addToolCall(MessagePart.Tool.Call(id = "tc1", tool = "add_class", args = """{"name":"Order"}"""))
+                    .addToolCall(MessagePart.Tool.Call(id = "tc2", tool = "add_class", args = """{"name":"Item"}"""))
+                    .addToolCall(MessagePart.Tool.Call(id = "tc3", tool = "list_elements", args = """{}"""))
+                    .build()
+            val runner =
+                AgentRunner(
+                    executor = stubExecutor(),
+                    providerId = "ollama",
+                    modelId = "llama3.2",
+                    editingContext = ctx,
+                    patchEngine = engine,
+                    executorFn = { _: Prompt, _: LLModel -> multiToolResponse },
+                )
+            val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
 
-        val patched = events.filterIsInstance<AgentEvent.PatchBuffered>()
-        patched shouldHaveSize 2
+            val patched = events.filterIsInstance<AgentEvent.PatchBuffered>()
+            patched shouldHaveSize 2
 
-        val ids = engine.drainPatchIds()
-        ids shouldHaveSize 2
-    }
+            val ids = engine.drainPatchIds()
+            ids shouldHaveSize 2
+        }
 
-    test("without patchEngine (null) V3.0.24 behavior is preserved — no PatchBuffered events") {
-        val runner = AgentRunner(
-            executor = stubExecutor(),
-            providerId = "ollama",
-            modelId = "llama3.2",
-            editingContext = null,
-            patchEngine = null,
-            executorFn = { _: Prompt, _: LLModel ->
-                assistantWithToolCall("add_class", """{"name":"Order"}""")
-            },
-        )
-        val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
+        test("without patchEngine (null) V3.0.24 behavior is preserved — no PatchBuffered events") {
+            val runner =
+                AgentRunner(
+                    executor = stubExecutor(),
+                    providerId = "ollama",
+                    modelId = "llama3.2",
+                    editingContext = null,
+                    patchEngine = null,
+                    executorFn = { _: Prompt, _: LLModel ->
+                        assistantWithToolCall("add_class", """{"name":"Order"}""")
+                    },
+                )
+            val events = runner.runConversation(listOf(ConversationMessage.User("u1", 1L, "test"))).toList()
 
-        events.filterIsInstance<AgentEvent.PatchBuffered>() shouldHaveSize 0
-        // ToolCallStart/End still emitted (V3.0.24 trace behavior preserved)
-        events.filterIsInstance<AgentEvent.ToolCallStart>() shouldHaveSize 1
-        events.filterIsInstance<AgentEvent.ToolCallEnd>() shouldHaveSize 1
-    }
+            events.filterIsInstance<AgentEvent.PatchBuffered>() shouldHaveSize 0
+            // ToolCallStart/End still emitted (V3.0.24 trace behavior preserved)
+            events.filterIsInstance<AgentEvent.ToolCallStart>() shouldHaveSize 1
+            events.filterIsInstance<AgentEvent.ToolCallEnd>() shouldHaveSize 1
+        }
 
-    // ── decodePatch unit tests ─────────────────────────────────────────────────
+        // ── decodePatch unit tests ─────────────────────────────────────────────────
 
-    test("decodePatch: add_class returns AddElement with correct elementKind") {
-        val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
-        val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
-        val runner = AgentRunner(
-            executor = stubExecutor(),
-            providerId = "ollama",
-            modelId = "llama3.2",
-            editingContext = ctx,
-            patchEngine = engine,
-        )
-        val patch = runner.decodePatch("add_class", """{"name":"Customer"}""")
-        patch.shouldNotBeNull()
-        patch.shouldBeInstanceOf<ModelPatch.AddElement>()
-        patch.elementKind shouldBe "uml.class"
-        patch.name shouldBe "Customer"
-    }
+        test("decodePatch: add_class returns AddElement with correct elementKind") {
+            val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
+            val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
+            val runner =
+                AgentRunner(
+                    executor = stubExecutor(),
+                    providerId = "ollama",
+                    modelId = "llama3.2",
+                    editingContext = ctx,
+                    patchEngine = engine,
+                )
+            val patch = runner.decodePatch("add_class", """{"name":"Customer"}""")
+            patch.shouldNotBeNull()
+            patch.shouldBeInstanceOf<ModelPatch.AddElement>()
+            patch.elementKind shouldBe "uml.class"
+            patch.name shouldBe "Customer"
+        }
 
-    test("decodePatch: unknown tool returns null") {
-        val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
-        val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
-        val runner = AgentRunner(
-            executor = stubExecutor(),
-            providerId = "ollama",
-            modelId = "llama3.2",
-            editingContext = ctx,
-            patchEngine = engine,
-        )
-        val patch = runner.decodePatch("render_diagram", """{}""")
-        patch shouldBe null
-    }
-})
+        test("decodePatch: unknown tool returns null") {
+            val ctx = AgentEditingContext(AnyKumlModel.emptyUml())
+            val engine = PatchApplyEngine(context = ctx, traceSink = NoopAiTraceSink)
+            val runner =
+                AgentRunner(
+                    executor = stubExecutor(),
+                    providerId = "ollama",
+                    modelId = "llama3.2",
+                    editingContext = ctx,
+                    patchEngine = engine,
+                )
+            val patch = runner.decodePatch("render_diagram", """{}""")
+            patch shouldBe null
+        }
+    })

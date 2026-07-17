@@ -25,27 +25,45 @@ import kotlinx.coroutines.flow.flow
  * instances. C4/SysML2 tool calls will be traced but not buffered as patches.
  * This gap is documented in the CHANGELOG.
  */
-enum class AgentDomain(val id: String, val allowedToolNames: Set<String>) {
+enum class AgentDomain(
+    val id: String,
+    val allowedToolNames: Set<String>,
+) {
     UML(
         "uml",
         setOf(
-            "add_class", "add_interface", "add_attribute", "add_operation",
-            "add_association", "add_generalization", "remove_element", "rename_element",
+            "add_class",
+            "add_interface",
+            "add_attribute",
+            "add_operation",
+            "add_association",
+            "add_generalization",
+            "remove_element",
+            "rename_element",
             "set_current_diagram",
         ),
     ),
     C4(
         "c4",
         setOf(
-            "add_person", "add_software_system", "add_container",
-            "add_component", "add_relationship",
+            "add_person",
+            "add_software_system",
+            "add_container",
+            "add_component",
+            "add_relationship",
         ),
     ),
     SYSML2(
         "sysml2",
         setOf(
-            "add_part_def", "add_attribute_def", "add_state", "add_transition",
-            "add_use_case", "add_requirement", "add_action", "add_constraint",
+            "add_part_def",
+            "add_attribute_def",
+            "add_state",
+            "add_transition",
+            "add_use_case",
+            "add_requirement",
+            "add_action",
+            "add_constraint",
         ),
     ),
     MIXED(
@@ -101,66 +119,73 @@ class KumlAgentOrchestrator(
     internal val decoder: PatchDecoder = PatchDecoder(editingContext)
     private val registry = ProviderRegistry.builtIns()
 
-    fun runConversation(history: List<ConversationMessage>): Flow<AgentEvent> = flow {
-        try {
-            val model = resolveModel() ?: run {
-                emit(
-                    AgentEvent.Error(
-                        IllegalArgumentException("Cannot resolve model '$modelId' for provider '$providerId'"),
-                    ),
-                )
-                return@flow
+    fun runConversation(history: List<ConversationMessage>): Flow<AgentEvent> =
+        flow {
+            try {
+                val model =
+                    resolveModel() ?: run {
+                        emit(
+                            AgentEvent.Error(
+                                IllegalArgumentException("Cannot resolve model '$modelId' for provider '$providerId'"),
+                            ),
+                        )
+                        return@flow
+                    }
+
+                // ── Step 1: Routing ────────────────────────────────────────────────
+                val routingPrompt = buildRoutingPrompt(history)
+                val routingResponse = executeStep(routingPrompt, model)
+
+                val (domain, routingReason) = extractDomain(routingResponse)
+                emit(AgentEvent.OrchestratorRouted(domain.id, routingReason))
+
+                // ── Step 2: Specialist ─────────────────────────────────────────────
+                emit(AgentEvent.SpecialistStarted(domain.id))
+
+                val specialist =
+                    KumlSpecialistAgent(
+                        domain = domain,
+                        executor = executor,
+                        model = model,
+                        providerId = providerId,
+                        modelId = modelId,
+                        editingContext = editingContext,
+                        patchEngine = patchEngine,
+                        decoder = decoder,
+                        executorFn = executorFn,
+                    )
+                val specialistResult = specialist.run(history) { emit(it) }
+
+                // ── Step 3: Synthesis ──────────────────────────────────────────────
+                val synthesisPrompt =
+                    buildSynthesisPrompt(
+                        history = history,
+                        domain = domain,
+                        specialistText = specialistResult.assistantText,
+                        patchKinds = specialistResult.bufferedPatchKinds,
+                    )
+                val synthesisResponse = executeStep(synthesisPrompt, model)
+
+                // Koog 1.0.0: textContent() aggregates all text parts.
+                val synthText = synthesisResponse.textContent()
+                if (synthText.isNotBlank()) {
+                    emit(AgentEvent.AssistantDelta(synthText, providerId, modelId))
+                }
+
+                emit(AgentEvent.Done)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emit(AgentEvent.Error(e))
             }
-
-            // ── Step 1: Routing ────────────────────────────────────────────────
-            val routingPrompt = buildRoutingPrompt(history)
-            val routingResponse = executeStep(routingPrompt, model)
-
-            val (domain, routingReason) = extractDomain(routingResponse)
-            emit(AgentEvent.OrchestratorRouted(domain.id, routingReason))
-
-            // ── Step 2: Specialist ─────────────────────────────────────────────
-            emit(AgentEvent.SpecialistStarted(domain.id))
-
-            val specialist = KumlSpecialistAgent(
-                domain = domain,
-                executor = executor,
-                model = model,
-                providerId = providerId,
-                modelId = modelId,
-                editingContext = editingContext,
-                patchEngine = patchEngine,
-                decoder = decoder,
-                executorFn = executorFn,
-            )
-            val specialistResult = specialist.run(history) { emit(it) }
-
-            // ── Step 3: Synthesis ──────────────────────────────────────────────
-            val synthesisPrompt = buildSynthesisPrompt(
-                history = history,
-                domain = domain,
-                specialistText = specialistResult.assistantText,
-                patchKinds = specialistResult.bufferedPatchKinds,
-            )
-            val synthesisResponse = executeStep(synthesisPrompt, model)
-
-            // Koog 1.0.0: textContent() aggregates all text parts.
-            val synthText = synthesisResponse.textContent()
-            if (synthText.isNotBlank()) {
-                emit(AgentEvent.AssistantDelta(synthText, providerId, modelId))
-            }
-
-            emit(AgentEvent.Done)
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            emit(AgentEvent.Error(e))
         }
-    }
 
     // ── Private helpers ────────────────────────────────────────────────────────
 
-    private suspend fun executeStep(koogPrompt: Prompt, model: LLModel): Message.Assistant =
+    private suspend fun executeStep(
+        koogPrompt: Prompt,
+        model: LLModel,
+    ): Message.Assistant =
         if (executorFn != null) {
             executorFn.invoke(koogPrompt, model)
         } else {
@@ -202,9 +227,10 @@ class KumlAgentOrchestrator(
      */
     private fun extractDomain(response: Message.Assistant): Pair<AgentDomain, String> {
         // Try tool call first — Koog 1.0.0: tool calls are in response.parts
-        val routeCall = response.parts
-            .filterIsInstance<MessagePart.Tool.Call>()
-            .firstOrNull { it.tool == "route_to_specialist" }
+        val routeCall =
+            response.parts
+                .filterIsInstance<MessagePart.Tool.Call>()
+                .firstOrNull { it.tool == "route_to_specialist" }
         if (routeCall != null) {
             val args = routeCall.argsJson
             val domainStr = runCatching { args["domain"]?.toString()?.trim('"') }.getOrNull() ?: ""
@@ -214,12 +240,13 @@ class KumlAgentOrchestrator(
 
         // Fallback: scan assistant text for a domain keyword
         val text = response.textContent().lowercase()
-        val domainFromText = when {
-            "sysml" in text || "sysml2" in text -> AgentDomain.SYSML2
-            " c4 " in text || "c4model" in text -> AgentDomain.C4
-            "uml" in text -> AgentDomain.UML
-            else -> AgentDomain.MIXED
-        }
+        val domainFromText =
+            when {
+                "sysml" in text || "sysml2" in text -> AgentDomain.SYSML2
+                " c4 " in text || "c4model" in text -> AgentDomain.C4
+                "uml" in text -> AgentDomain.UML
+                else -> AgentDomain.MIXED
+            }
         return domainFromText to "inferred from assistant text"
     }
 
@@ -235,11 +262,12 @@ class KumlAgentOrchestrator(
             user(it.text)
         }
         // Provide specialist output as context
-        val patchSummary = if (patchKinds.isEmpty()) {
-            "No model patches were produced."
-        } else {
-            "Patches buffered: ${patchKinds.joinToString(", ")}."
-        }
+        val patchSummary =
+            if (patchKinds.isEmpty()) {
+                "No model patches were produced."
+            } else {
+                "Patches buffered: ${patchKinds.joinToString(", ")}."
+            }
         assistant(
             "I routed your request to the ${domain.id.uppercase()} specialist. " +
                 "Specialist output: $specialistText\n$patchSummary\n" +
@@ -249,7 +277,8 @@ class KumlAgentOrchestrator(
     }
 
     companion object {
-        private val ROUTING_SYSTEM_PROMPT = """
+        private val ROUTING_SYSTEM_PROMPT =
+            """
             You are a routing agent for kUML, a multi-domain modelling tool.
             Your job is to classify the user's modelling request into one of four specialist domains:
             - uml: UML class diagrams, interfaces, attributes, operations, associations, generalizations
@@ -261,15 +290,16 @@ class KumlAgentOrchestrator(
               { "domain": "<uml|c4|sysml2|mixed>", "reason": "<one sentence>" }
 
             If you cannot determine the domain, use "mixed".
-        """.trimIndent()
+            """.trimIndent()
 
-        private val SYNTHESIS_SYSTEM_PROMPT = """
+        private val SYNTHESIS_SYSTEM_PROMPT =
+            """
             You are a synthesis agent for kUML. A domain specialist has processed the user's request.
             Your job is to provide a concise, friendly summary of what was done:
             - What elements were added or modified (from the patch kinds list)
             - Any relevant explanation of the changes
             - Next steps the user might want to take
             Keep the response brief (2-4 sentences).
-        """.trimIndent()
+            """.trimIndent()
     }
 }

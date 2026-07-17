@@ -12,12 +12,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun AiFooter(tokensIn: Int, tokensOut: Int, costUsd: Double, budgetUsd: Double?) {
+fun AiFooter(
+    tokensIn: Int,
+    tokensOut: Int,
+    costUsd: Double,
+    budgetUsd: Double?,
+) {
     val overBudget = budgetUsd != null && costUsd > budgetUsd
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 2.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 2.dp),
     ) {
         Text(
             text = "↑$tokensIn ↓$tokensOut",

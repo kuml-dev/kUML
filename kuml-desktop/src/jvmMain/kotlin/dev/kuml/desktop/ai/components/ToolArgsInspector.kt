@@ -16,7 +16,10 @@ import androidx.compose.ui.window.Dialog
 import kotlinx.serialization.json.Json
 
 @Composable
-fun ToolArgsInspector(argsJson: String, onDismiss: () -> Unit) {
+fun ToolArgsInspector(
+    argsJson: String,
+    onDismiss: () -> Unit,
+) {
     Dialog(onDismissRequest = onDismiss) {
         Surface(shape = RoundedCornerShape(8.dp)) {
             Column(modifier = Modifier.padding(16.dp)) {

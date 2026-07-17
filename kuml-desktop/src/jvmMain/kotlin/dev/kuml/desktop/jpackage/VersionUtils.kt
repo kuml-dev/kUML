@@ -13,8 +13,8 @@ package dev.kuml.desktop.jpackage
  * - "1.0.0"  → "1.0.0" (unverändert)
  * - "2.1.3"  → "2.1.3" (unverändert)
  */
-public fun versionForJpackage(projectVersion: String): String {
-    return if (projectVersion.startsWith("0.")) {
+public fun versionForJpackage(projectVersion: String): String =
+    if (projectVersion.startsWith("0.")) {
         val rest = projectVersion.removePrefix("0.")
         val parts = rest.split(".")
         val minor = parts.getOrElse(0) { "0" }
@@ -23,4 +23,3 @@ public fun versionForJpackage(projectVersion: String): String {
     } else {
         projectVersion
     }
-}

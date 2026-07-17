@@ -19,11 +19,15 @@ import dev.kuml.uml.UmlInterface
  * @param theme active visual theme
  */
 @Composable
-internal fun UmlInterfaceNode(element: UmlInterface, theme: KumlTheme) {
+internal fun UmlInterfaceNode(
+    element: UmlInterface,
+    theme: KumlTheme,
+) {
     Column(
-        modifier = Modifier
-            .border(theme.borders.regular, theme.colors.border)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+        modifier =
+            Modifier
+                .border(theme.borders.regular, theme.colors.border)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
     ) {
         Text(
             text = "«interface»",

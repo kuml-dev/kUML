@@ -9,7 +9,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import dev.kuml.renderer.theme.KumlTheme
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlConnector
@@ -198,14 +197,16 @@ private fun DrawScope.drawOpenArrow(
     val angle = atan2(target.y - source.y, target.x - source.x)
     val arrowLen = 12f
     val arrowAngle = 0.4f
-    val p1 = Offset(
-        target.x - arrowLen * cos(angle - arrowAngle),
-        target.y - arrowLen * sin(angle - arrowAngle),
-    )
-    val p2 = Offset(
-        target.x - arrowLen * cos(angle + arrowAngle),
-        target.y - arrowLen * sin(angle + arrowAngle),
-    )
+    val p1 =
+        Offset(
+            target.x - arrowLen * cos(angle - arrowAngle),
+            target.y - arrowLen * sin(angle - arrowAngle),
+        )
+    val p2 =
+        Offset(
+            target.x - arrowLen * cos(angle + arrowAngle),
+            target.y - arrowLen * sin(angle + arrowAngle),
+        )
     drawLine(color, p1, target, strokeWidth)
     drawLine(color, p2, target, strokeWidth)
 }
@@ -219,14 +220,16 @@ private fun DrawScope.drawHollowTriangle(
     val angle = atan2(target.y - source.y, target.x - source.x)
     val arrowLen = 14f
     val arrowAngle = 0.4f
-    val p1 = Offset(
-        target.x - arrowLen * cos(angle - arrowAngle),
-        target.y - arrowLen * sin(angle - arrowAngle),
-    )
-    val p2 = Offset(
-        target.x - arrowLen * cos(angle + arrowAngle),
-        target.y - arrowLen * sin(angle + arrowAngle),
-    )
+    val p1 =
+        Offset(
+            target.x - arrowLen * cos(angle - arrowAngle),
+            target.y - arrowLen * sin(angle - arrowAngle),
+        )
+    val p2 =
+        Offset(
+            target.x - arrowLen * cos(angle + arrowAngle),
+            target.y - arrowLen * sin(angle + arrowAngle),
+        )
     // Outline of the triangle (no fill)
     drawLine(color, target, p1, strokeWidth)
     drawLine(color, target, p2, strokeWidth)

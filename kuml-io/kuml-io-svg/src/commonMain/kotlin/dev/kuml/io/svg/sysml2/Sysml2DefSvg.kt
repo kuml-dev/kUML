@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.kerml.KermlFeature
 import dev.kuml.layout.NodeLayout
@@ -18,7 +19,6 @@ import dev.kuml.sysml2.RequirementDefinition
 import dev.kuml.sysml2.StateDefinition
 import dev.kuml.sysml2.Sysml2Definition
 import dev.kuml.sysml2.UseCaseDefinition
-import dev.kuml.io.svg.fmt3
 
 /**
  * Rendert SysML-2 Definitionen als BDD-Boxen.

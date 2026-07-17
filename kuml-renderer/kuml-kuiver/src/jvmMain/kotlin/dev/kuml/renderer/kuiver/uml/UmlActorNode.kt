@@ -22,7 +22,10 @@ import dev.kuml.uml.UmlActor
  * @param theme active visual theme
  */
 @Composable
-internal fun UmlActorNode(element: UmlActor, theme: KumlTheme) {
+internal fun UmlActorNode(
+    element: UmlActor,
+    theme: KumlTheme,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(4.dp),
@@ -40,7 +43,10 @@ internal fun UmlActorNode(element: UmlActor, theme: KumlTheme) {
 }
 
 @Composable
-internal fun StickFigure(modifier: Modifier, theme: KumlTheme) {
+internal fun StickFigure(
+    modifier: Modifier,
+    theme: KumlTheme,
+) {
     val color = theme.colors.foreground
     Canvas(modifier = modifier) {
         val w = size.width

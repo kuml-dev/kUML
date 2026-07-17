@@ -205,8 +205,18 @@ class ErmSerializationTest :
                     ErmCategory("cat", "n", "e1", listOf("e2")),
                 )
             elements.forEach { element ->
-                val encoded = json.encodeToString(dev.kuml.erm.model.ErmElement.serializer(), element)
-                val decoded = json.decodeFromString(dev.kuml.erm.model.ErmElement.serializer(), encoded)
+                val encoded =
+                    json.encodeToString(
+                        dev.kuml.erm.model.ErmElement
+                            .serializer(),
+                        element,
+                    )
+                val decoded =
+                    json.decodeFromString(
+                        dev.kuml.erm.model.ErmElement
+                            .serializer(),
+                        encoded,
+                    )
                 decoded shouldBe element
             }
         }

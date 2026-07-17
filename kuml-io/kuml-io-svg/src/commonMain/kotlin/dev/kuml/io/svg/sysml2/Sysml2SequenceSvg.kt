@@ -1,6 +1,7 @@
 package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.LayoutResult
 import dev.kuml.layout.NodeId
@@ -11,7 +12,6 @@ import dev.kuml.sysml2.ExecutionSpecificationUsage
 import dev.kuml.sysml2.LifelineDefinition
 import dev.kuml.sysml2.MessageKind
 import dev.kuml.sysml2.MessageUsage
-import dev.kuml.io.svg.fmt3
 import kotlin.math.abs
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -331,8 +331,7 @@ internal fun renderMessage(
  * Strichen zwischen `alt`-Operanden bzw. der Frame-Umrandung. Ohne weißen
  * Hintergrund kreuzen diese Linien das Text-Glyphen-Innere, was die
  * Lesbarkeit massiv reduziert.
- */
-/**
+ *
  * @param maxWidth Optional maximum rendered width in pixels. When the estimated text
  *   width exceeds this value, SVG `textLength` + `lengthAdjust="spacingAndGlyphs"` are
  *   added so the browser compresses glyphs to fit. The white background rect is also
@@ -583,10 +582,12 @@ internal fun renderExecutionSpec(
     val headBottom = lifelineLayout.bounds.origin.y + SEQ_RENDERER_HEAD_HEIGHT
     // Apply the same fragment-header offset the messages use so the activation
     // bar stays aligned with the message arrows that start/end it.
-    val yStart = headBottom + (execSpec.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-        sysml2SeqRowOffset(execSpec.startSeqNo, operandStartSeqs)
-    val yEnd = headBottom + (execSpec.endSeqNo + 1.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-        sysml2SeqRowOffset(execSpec.endSeqNo, operandStartSeqs)
+    val yStart =
+        headBottom + (execSpec.startSeqNo + 0.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+            sysml2SeqRowOffset(execSpec.startSeqNo, operandStartSeqs)
+    val yEnd =
+        headBottom + (execSpec.endSeqNo + 1.5f) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+            sysml2SeqRowOffset(execSpec.endSeqNo, operandStartSeqs)
     val w = EXEC_SPEC_WIDTH
     val h = (yEnd - yStart).coerceAtLeast(SEQ_RENDERER_MESSAGE_ROW_HEIGHT / 2f)
 
@@ -658,10 +659,12 @@ internal fun renderCombinedFragment(
     // The first message of this fragment (operand 0) is pushed down by exactly
     // one SYSML2_FRAGMENT_HEADER_BAND, which opens the clear corridor between the
     // pentagon/guard row and that first arrow.
-    val firstMsgY = headBottom + (minStartSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-        sysml2SeqRowOffset(minStartSeqNo, operandStartSeqs)
-    val lastMsgY = headBottom + (maxEndSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-        sysml2SeqRowOffset(maxEndSeqNo, operandStartSeqs)
+    val firstMsgY =
+        headBottom + (minStartSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+            sysml2SeqRowOffset(minStartSeqNo, operandStartSeqs)
+    val lastMsgY =
+        headBottom + (maxEndSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+            sysml2SeqRowOffset(maxEndSeqNo, operandStartSeqs)
     val frameY = firstMsgY - SYSML2_FRAGMENT_HEADER_BAND - 13f
     val frameBottom = lastMsgY + FRAGMENT_BOTTOM_OUTSET
     val frameH = frameBottom - frameY
@@ -741,10 +744,12 @@ internal fun renderCombinedFragment(
                 // separator one band + 12 px above that first arrow, clamped below
                 // the previous operand's last message so empty operands (startSeqNo
                 // reused) never collide with it.
-                val opFirstMsgY = headBottom + (operand.startSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-                    sysml2SeqRowOffset(operand.startSeqNo, operandStartSeqs)
-                val prevBottomY = headBottom + (prevEndSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
-                    sysml2SeqRowOffset(prevEndSeqNo, operandStartSeqs) + FRAGMENT_BOTTOM_OUTSET
+                val opFirstMsgY =
+                    headBottom + (operand.startSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+                        sysml2SeqRowOffset(operand.startSeqNo, operandStartSeqs)
+                val prevBottomY =
+                    headBottom + (prevEndSeqNo + 1) * SEQ_RENDERER_MESSAGE_ROW_HEIGHT +
+                        sysml2SeqRowOffset(prevEndSeqNo, operandStartSeqs) + FRAGMENT_BOTTOM_OUTSET
                 val naturalSepY = opFirstMsgY - SYSML2_FRAGMENT_HEADER_BAND - 12f
                 val sepY = maxOf(naturalSepY, prevBottomY + 8f)
                 tag(
@@ -955,9 +960,7 @@ internal const val SYSML2_FRAGMENT_HEADER_BAND: Float = 24f
  * Combined-Fragments hinweg. Jeder Eintrag steht für ein oberhalb dieser Zeile
  * eingefügtes [SYSML2_FRAGMENT_HEADER_BAND].
  */
-internal fun sysml2OperandStartSeqs(
-    fragments: List<dev.kuml.sysml2.CombinedFragmentUsage>,
-): List<Int> =
+internal fun sysml2OperandStartSeqs(fragments: List<dev.kuml.sysml2.CombinedFragmentUsage>): List<Int> =
     fragments
         .flatMap { frag -> frag.operands }
         .map { op -> op.startSeqNo }

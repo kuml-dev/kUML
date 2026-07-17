@@ -62,7 +62,10 @@ class CommentDslTest :
                 classDiagram(name = "Order Domain") {
                     comment(text = "Line one\nLine two")
                 }
-            diagram.elements.filterIsInstance<UmlComment>().first().body shouldBe "Line one\nLine two"
+            diagram.elements
+                .filterIsInstance<UmlComment>()
+                .first()
+                .body shouldBe "Line one\nLine two"
         }
 
         test(name = "explicit id overrides the auto-derived comment id") {
@@ -70,7 +73,10 @@ class CommentDslTest :
                 classDiagram(name = "Order Domain") {
                     comment(text = "text", id = "myNote")
                 }
-            diagram.elements.filterIsInstance<UmlComment>().first().id shouldBe "myNote"
+            diagram.elements
+                .filterIsInstance<UmlComment>()
+                .first()
+                .id shouldBe "myNote"
         }
 
         // ── Sequence diagram ──────────────────────────────────────────────────────

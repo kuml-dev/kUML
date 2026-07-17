@@ -1,10 +1,10 @@
 package dev.kuml.io.svg.sysml2
 
 import dev.kuml.io.svg.SvgBuilder
+import dev.kuml.io.svg.fmt3
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.GroupLayout
 import dev.kuml.sysml2.ActivityPartitionDefinition
-import dev.kuml.io.svg.fmt3
 
 /**
  * Renders a SysML-2 [ActivityPartitionDefinition] as a swimlane container

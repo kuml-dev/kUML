@@ -17,8 +17,18 @@ import io.kotest.matchers.shouldBe
 class ErmLayoutBridgeTest :
     FunSpec({
 
-        val customer = ErmEntity(id = "customer", name = "Customer", attributes = listOf(ErmAttribute(id = "customer_id", name = "id", type = ErmDataType.Uuid, primaryKey = true)))
-        val order = ErmEntity(id = "order", name = "Order", attributes = listOf(ErmAttribute(id = "order_id", name = "id", type = ErmDataType.Uuid, primaryKey = true)))
+        val customer =
+            ErmEntity(
+                id = "customer",
+                name = "Customer",
+                attributes = listOf(ErmAttribute(id = "customer_id", name = "id", type = ErmDataType.Uuid, primaryKey = true)),
+            )
+        val order =
+            ErmEntity(
+                id = "order",
+                name = "Order",
+                attributes = listOf(ErmAttribute(id = "order_id", name = "id", type = ErmDataType.Uuid, primaryKey = true)),
+            )
         val rel =
             ErmRelationship(
                 id = "rel_places",

@@ -24,7 +24,10 @@ import dev.kuml.desktop.ai.components.ProviderModelPicker
 import kotlinx.coroutines.launch
 
 @Composable
-fun AiPanel(state: AiPanelState, modifier: Modifier = Modifier) {
+fun AiPanel(
+    state: AiPanelState,
+    modifier: Modifier = Modifier,
+) {
     LaunchedEffect(Unit) { state.reloadSettings() }
     val messages by state.messages.collectAsState()
     val pendingPatches by state.pendingPatches.collectAsState()

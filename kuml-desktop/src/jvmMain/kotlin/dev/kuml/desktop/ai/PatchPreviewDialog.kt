@@ -32,7 +32,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
-import dev.kuml.ai.tools.patch.PatchDiff
 
 @Composable
 fun PatchPreviewDialog(
@@ -108,7 +107,8 @@ private fun PatchPreviewCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(color = MaterialTheme.colors.primaryVariant, shape = MaterialTheme.shapes.small) {
                     Text(
-                        view.kind, color = Color.White,
+                        view.kind,
+                        color = Color.White,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         fontSize = 11.sp,
                     )
@@ -161,7 +161,11 @@ private fun PatchPreviewCard(
 }
 
 @Composable
-private fun DiffBox(label: String, text: String, modifier: Modifier) {
+private fun DiffBox(
+    label: String,
+    text: String,
+    modifier: Modifier,
+) {
     Column(modifier) {
         Text(label, style = MaterialTheme.typography.caption, color = Color.Gray)
         Surface(
@@ -186,18 +190,20 @@ private fun DiffBox(label: String, text: String, modifier: Modifier) {
 // ── Pure logic helpers (testable without Compose) ─────────────────────────────
 
 /** Maps a change kind to its prefix string. Used by [PatchPreviewCard] and tests. */
-internal fun kindPrefix(kind: String): String = when (kind) {
-    "added" -> "[+]"
-    "removed" -> "[-]"
-    else -> "[~]"
-}
+internal fun kindPrefix(kind: String): String =
+    when (kind) {
+        "added" -> "[+]"
+        "removed" -> "[-]"
+        else -> "[~]"
+    }
 
 /** Maps a change kind to its display color. Used by [PatchPreviewCard] and tests. */
-internal fun kindColor(kind: String): Color = when (kind) {
-    "added" -> Color(0xFF2e7d32)
-    "removed" -> Color(0xFFc62828)
-    else -> Color(0xFF1565c0)
-}
+internal fun kindColor(kind: String): Color =
+    when (kind) {
+        "added" -> Color(0xFF2e7d32)
+        "removed" -> Color(0xFFc62828)
+        else -> Color(0xFF1565c0)
+    }
 
 /** Footer warning text — defined as a val for testability. */
 internal val FOOTER_WARNING_TEXT: String =

@@ -31,9 +31,9 @@ import dev.kuml.desktop.ai.AiPanelState
 import dev.kuml.desktop.editor.EditorPane
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.io.AppSettingsStore
-import dev.kuml.desktop.plugins.PluginManagerPane
 import dev.kuml.desktop.io.FileMenu
 import dev.kuml.desktop.io.UnsavedChoice
+import dev.kuml.desktop.plugins.PluginManagerPane
 import dev.kuml.desktop.preview.PreviewPane
 import dev.kuml.desktop.render.DesktopRenderController
 import dev.kuml.desktop.state.rememberAppSettingsBinding
@@ -118,12 +118,13 @@ fun FrameWindowScope.MainWindow(
             state.markSaved(file)
             true
         } else {
-            val chosen = FileMenu.chooseSave(
-                parent = windowHandle,
-                initialDir = state.lastDir?.let { File(it) },
-                suggestedName = "diagram.kuml.kts",
-                strings = strings,
-            )
+            val chosen =
+                FileMenu.chooseSave(
+                    parent = windowHandle,
+                    initialDir = state.lastDir?.let { File(it) },
+                    suggestedName = "diagram.kuml.kts",
+                    strings = strings,
+                )
             if (chosen != null) {
                 FileMenu.writeScript(chosen, state.script)
                 state.markSaved(chosen)
@@ -141,7 +142,9 @@ fun FrameWindowScope.MainWindow(
         }
         val choice = FileMenu.confirmUnsaved(parent = windowHandle, strings = strings)
         when (choice) {
-            UnsavedChoice.SAVE -> { if (saveCurrentFile()) action() }
+            UnsavedChoice.SAVE -> {
+                if (saveCurrentFile()) action()
+            }
             UnsavedChoice.DISCARD -> action()
             UnsavedChoice.CANCEL -> { /* do nothing */ }
         }
@@ -158,11 +161,12 @@ fun FrameWindowScope.MainWindow(
             })
             Item(strings.menuFileOpen, onClick = {
                 confirmUnsavedAndThen {
-                    val file = FileMenu.chooseOpen(
-                        parent = windowHandle,
-                        initialDir = state.lastDir?.let { File(it) },
-                        strings = strings,
-                    )
+                    val file =
+                        FileMenu.chooseOpen(
+                            parent = windowHandle,
+                            initialDir = state.lastDir?.let { File(it) },
+                            strings = strings,
+                        )
                     if (file != null) {
                         state.loadFrom(file, FileMenu.readScript(file))
                         state.isDirty = false
@@ -171,11 +175,12 @@ fun FrameWindowScope.MainWindow(
             })
             Item(strings.menuFileOpenWorkspace, onClick = {
                 confirmUnsavedAndThen {
-                    val dir = FileMenu.chooseOpenDirectory(
-                        parent = windowHandle,
-                        initialDir = state.lastDir?.let { File(it) },
-                        strings = strings,
-                    )
+                    val dir =
+                        FileMenu.chooseOpenDirectory(
+                            parent = windowHandle,
+                            initialDir = state.lastDir?.let { File(it) },
+                            strings = strings,
+                        )
                     if (dir != null) openWorkspaceDirectory(dir)
                 }
             })
@@ -184,12 +189,13 @@ fun FrameWindowScope.MainWindow(
             }
             Item(strings.menuFileSave, onClick = { saveCurrentFile() })
             Item(strings.menuFileSaveAs, onClick = {
-                val chosen = FileMenu.chooseSave(
-                    parent = windowHandle,
-                    initialDir = state.lastDir?.let { File(it) },
-                    suggestedName = state.currentFile?.name ?: "diagram.kuml.kts",
-                    strings = strings,
-                )
+                val chosen =
+                    FileMenu.chooseSave(
+                        parent = windowHandle,
+                        initialDir = state.lastDir?.let { File(it) },
+                        suggestedName = state.currentFile?.name ?: "diagram.kuml.kts",
+                        strings = strings,
+                    )
                 if (chosen != null) {
                     FileMenu.writeScript(chosen, state.script)
                     state.markSaved(chosen)
@@ -354,12 +360,13 @@ fun FrameWindowScope.MainWindow(
 @Composable
 private fun StatusBar(state: AppState) {
     val strings = Strings.forLanguage(state.language)
-    val (text, color) = when {
-        state.lastError != null -> state.lastError!! to Color(0xFFCC0000)
-        state.isRendering -> strings.statusRendering to Color.Gray
-        state.lastSvg.isNotBlank() -> strings.statusReady to Color(0xFF228822)
-        else -> strings.statusNoDiagram to Color.Gray
-    }
+    val (text, color) =
+        when {
+            state.lastError != null -> state.lastError!! to Color(0xFFCC0000)
+            state.isRendering -> strings.statusRendering to Color.Gray
+            state.lastSvg.isNotBlank() -> strings.statusReady to Color(0xFF228822)
+            else -> strings.statusNoDiagram to Color.Gray
+        }
     HorizontalDivider()
     Text(
         text = text,

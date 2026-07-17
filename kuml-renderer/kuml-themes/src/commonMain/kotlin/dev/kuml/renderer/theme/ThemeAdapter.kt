@@ -84,4 +84,6 @@ private fun dev.kuml.renderer.theme.core.KumlTypography.toCompose(): ComposeKuml
         stereotype = stereotype.toCompose(),
     )
 
-private val Float.dp get() = androidx.compose.ui.unit.Dp(this)
+private val Float.dp get() =
+    androidx.compose.ui.unit
+        .Dp(this)

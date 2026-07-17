@@ -15,23 +15,31 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun rememberAppSettingsBinding(state: AppState, store: AppSettingsStore) {
+fun rememberAppSettingsBinding(
+    state: AppState,
+    store: AppSettingsStore,
+) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var saveJob by remember { mutableStateOf<Job?>(null) }
 
     LaunchedEffect(
-        state.theme, state.language,
+        state.theme,
+        state.language,
         state.recentFiles.toList(),
         state.lastDir,
-        state.windowWidth, state.windowHeight, state.windowX, state.windowY,
+        state.windowWidth,
+        state.windowHeight,
+        state.windowX,
+        state.windowY,
         state.trustedWorkspaces.toList(),
     ) {
         saveJob?.cancel()
-        saveJob = scope.launch {
-            delay(500)
-            withContext(Dispatchers.IO) {
-                store.save(state.toSettings())
+        saveJob =
+            scope.launch {
+                delay(500)
+                withContext(Dispatchers.IO) {
+                    store.save(state.toSettings())
+                }
             }
-        }
     }
 }

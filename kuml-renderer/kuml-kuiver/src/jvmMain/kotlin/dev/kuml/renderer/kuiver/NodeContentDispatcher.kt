@@ -44,17 +44,18 @@ import dev.kuml.uml.UmlUseCase
  * ```
  */
 internal object NodeContentDispatcher {
-
     /**
      * Returns the simple class name of the incoming element — used in tests to
      * verify that every element type has a dispatch path without running Compose.
      */
-    internal fun dispatchKey(element: KumlElement): String =
-        element::class.simpleName ?: "Unknown"
+    internal fun dispatchKey(element: KumlElement): String = element::class.simpleName ?: "Unknown"
 
     /** Renders the appropriate node Composable for [element]. */
     @Composable
-    internal fun render(element: KumlElement, theme: KumlTheme) {
+    internal fun render(
+        element: KumlElement,
+        theme: KumlTheme,
+    ) {
         when (element) {
             is UmlClass -> UmlClassNode(element, theme)
             is UmlInterface -> UmlInterfaceNode(element, theme)

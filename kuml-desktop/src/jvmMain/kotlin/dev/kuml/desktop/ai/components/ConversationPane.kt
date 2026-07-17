@@ -15,7 +15,10 @@ import androidx.compose.ui.unit.dp
 import dev.kuml.desktop.ai.ConversationMessage
 
 @Composable
-fun ConversationPane(messages: List<ConversationMessage>, modifier: Modifier) {
+fun ConversationPane(
+    messages: List<ConversationMessage>,
+    modifier: Modifier,
+) {
     val listState = rememberLazyListState()
     var inspectArgs by remember { mutableStateOf<String?>(null) }
 

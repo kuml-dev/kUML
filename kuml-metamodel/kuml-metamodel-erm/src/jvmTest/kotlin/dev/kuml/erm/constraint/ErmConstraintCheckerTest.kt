@@ -11,7 +11,6 @@ import dev.kuml.erm.model.RelationshipKind
 import io.kotest.core.spec.style.StringSpec
 import io.kotest.matchers.booleans.shouldBeTrue
 import io.kotest.matchers.collections.shouldBeEmpty
-import io.kotest.matchers.shouldBe
 
 /**
  * Constraint-checker tests for V3.4.1 — one positive and one negative case
@@ -87,7 +86,8 @@ class ErmConstraintCheckerTest :
         }
         "weak entity with identifying relationship → no rule-3 error" {
             val m = validEcommerceSchema()
-            errors(m).none { it.message.contains("has no primary key") || it.message.contains("not the target of an identifying") }
+            errors(m)
+                .none { it.message.contains("has no primary key") || it.message.contains("not the target of an identifying") }
                 .shouldBeTrue()
         }
 
@@ -222,7 +222,13 @@ class ErmConstraintCheckerTest :
 
         // ── 10. index attribute references ──
         "index with no attributes → error" {
-            val m = ermModel("x") { entity("A") { id(); index() } }
+            val m =
+                ermModel("x") {
+                    entity("A") {
+                        id()
+                        index()
+                    }
+                }
             errors(m).any { it.message.contains("has no attributes") }.shouldBeTrue()
         }
         "index referencing attribute of a different entity → error" {
@@ -235,25 +241,42 @@ class ErmConstraintCheckerTest :
                             ErmEntity(
                                 id = "e1",
                                 name = "B",
-                                attributes = listOf(dev.kuml.erm.model.ErmAttribute("a1", "col", ErmDataType.Text)),
-                                indexes = listOf(dev.kuml.erm.model.ErmIndex("i0", "bad", listOf("not-mine"))),
+                                attributes =
+                                    listOf(
+                                        dev.kuml.erm.model
+                                            .ErmAttribute("a1", "col", ErmDataType.Text),
+                                    ),
+                                indexes =
+                                    listOf(
+                                        dev.kuml.erm.model
+                                            .ErmIndex("i0", "bad", listOf("not-mine")),
+                                    ),
                             ),
                         ),
                 )
             errors(m).any { it.message.contains("which is not part of entity") }.shouldBeTrue()
         }
         "index referencing own attributes → no rule-10 error" {
-            errors(validEcommerceSchema()).none { it.message.contains("has no attributes") || it.message.contains("not part of entity") }
+            errors(validEcommerceSchema())
+                .none { it.message.contains("has no attributes") || it.message.contains("not part of entity") }
                 .shouldBeTrue()
         }
 
         // ── 11. view query non-blank / referenced entities exist ──
         "view with blank query → error" {
-            val m = ermModel("x") { entity("A") { id() }; view(name = "v", query = "") }
+            val m =
+                ermModel("x") {
+                    entity("A") { id() }
+                    view(name = "v", query = "")
+                }
             errors(m).any { it.message.contains("empty query") }.shouldBeTrue()
         }
         "view referencing unknown entity → warning" {
-            val m = ermModel("x") { entity("A") { id() }; view(name = "v", query = "SELECT 1", references = listOf("nope")) }
+            val m =
+                ermModel("x") {
+                    entity("A") { id() }
+                    view(name = "v", query = "SELECT 1", references = listOf("nope"))
+                }
             warnings(m).any { it.message.contains("references unknown entity") }.shouldBeTrue()
         }
         "view with valid query and references → no rule-11 violation" {
@@ -267,7 +290,11 @@ class ErmConstraintCheckerTest :
                 ErmModel(
                     name = "x",
                     entities = listOf(ErmEntity(id = "e0", name = "A")),
-                    diagrams = listOf(dev.kuml.erm.model.ErmDiagram(name = "D", elementIds = listOf("nope"))),
+                    diagrams =
+                        listOf(
+                            dev.kuml.erm.model
+                                .ErmDiagram(name = "D", elementIds = listOf("nope")),
+                        ),
                 )
             errors(m).any { it.message.contains("references unknown element") }.shouldBeTrue()
         }
@@ -305,8 +332,16 @@ class ErmConstraintCheckerTest :
                             ErmEntity(
                                 id = "e0",
                                 name = "A",
-                                attributes = listOf(dev.kuml.erm.model.ErmAttribute("a0", "col", ErmDataType.Text)),
-                                checks = listOf(dev.kuml.erm.model.ErmCheckConstraint(id = "c0", name = "bad", expression = "")),
+                                attributes =
+                                    listOf(
+                                        dev.kuml.erm.model
+                                            .ErmAttribute("a0", "col", ErmDataType.Text),
+                                    ),
+                                checks =
+                                    listOf(
+                                        dev.kuml.erm.model
+                                            .ErmCheckConstraint(id = "c0", name = "bad", expression = ""),
+                                    ),
                             ),
                         ),
                 )
@@ -405,9 +440,10 @@ class ErmConstraintCheckerTest :
                     val person = entity("Person") { }
                     category(supertype = party, subtypes = listOf(person), discriminator = "not-an-attr")
                 }
-            errors(m).any {
-                it.message.contains("discriminatorAttributeId") && it.message.contains("is not an attribute of supertype")
-            }.shouldBeTrue()
+            errors(m)
+                .any {
+                    it.message.contains("discriminatorAttributeId") && it.message.contains("is not an attribute of supertype")
+                }.shouldBeTrue()
         }
         "category discriminator resolving on the supertype → no rule-19 error" {
             val m =

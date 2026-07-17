@@ -111,7 +111,14 @@ public class ErmContentSizeProvider
 
         private fun viewSize(view: ErmView): Size {
             val titleW = estimateWidth("«view» ${view.name ?: view.id}", TITLE_CHAR_PX)
-            val previewW = estimateWidth(view.query.replace("\n", " ").trim().take(60), SMALL_CHAR_PX)
+            val previewW =
+                estimateWidth(
+                    view.query
+                        .replace("\n", " ")
+                        .trim()
+                        .take(60),
+                    SMALL_CHAR_PX,
+                )
             val w = maxOf(DEFAULT_W, maxOf(titleW, previewW) + 2 * PAD_X)
             val h = maxOf(DEFAULT_H, TITLE_ROW_H + DIVIDER_GAP + ROW_H + BOX_BOTTOM_PAD)
             val (wExtra, hExtra) = connectionPuffer(view.id)

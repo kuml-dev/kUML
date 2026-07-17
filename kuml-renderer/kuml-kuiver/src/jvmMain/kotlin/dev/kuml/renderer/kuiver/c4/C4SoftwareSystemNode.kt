@@ -26,15 +26,18 @@ import dev.kuml.renderer.theme.KumlTheme
  * @param theme active visual theme
  */
 @Composable
-internal fun C4SoftwareSystemNode(element: C4SoftwareSystem, theme: KumlTheme) {
+internal fun C4SoftwareSystemNode(
+    element: C4SoftwareSystem,
+    theme: KumlTheme,
+) {
     Column(
-        modifier = Modifier
-            .border(
-                width = theme.borders.thick,
-                color = theme.colors.border,
-                shape = RoundedCornerShape(theme.borders.cornerRadius),
-            )
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+        modifier =
+            Modifier
+                .border(
+                    width = theme.borders.thick,
+                    color = theme.colors.border,
+                    shape = RoundedCornerShape(theme.borders.cornerRadius),
+                ).padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Text(
             text = "[Software System]",

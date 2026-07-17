@@ -7,9 +7,9 @@ import dev.kuml.io.svg.fmt2
 import dev.kuml.io.svg.xmlEscapeAttr
 import dev.kuml.layout.NodeLayout
 import dev.kuml.renderer.theme.core.KumlTheme
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
-import kotlin.math.PI
 
 private const val BPMN_GATEWAY_SHAPE_H = 50f
 

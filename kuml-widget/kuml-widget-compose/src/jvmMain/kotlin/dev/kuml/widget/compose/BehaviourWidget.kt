@@ -39,9 +39,10 @@ public fun BehaviourWidget(
     // as when the highlighted vertices change.
     val layoutResult = remember(state.model) { computeLayout(state.model) }
     val highlightIds = state.currentHighlightIds()
-    val svg = remember(state.model, highlightIds, layoutResult) {
-        renderStateMachineSvg(state.model, layoutResult, highlightIds)
-    }
+    val svg =
+        remember(state.model, highlightIds, layoutResult) {
+            renderStateMachineSvg(state.model, layoutResult, highlightIds)
+        }
 
     Column(modifier = modifier.fillMaxSize()) {
         Row(modifier = Modifier.weight(1f).fillMaxWidth()) {

@@ -4,7 +4,6 @@ import io.kotest.matchers.shouldNotBe
 import kotlin.test.Test
 
 class PlainThemeTest {
-
     @Test
     fun `PlainTheme provides non-null instances for all theme slots`() {
         // colors

@@ -87,7 +87,11 @@ class ErmIdef1xSvgTest :
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.IDEF1X)
             val layout =
                 layoutOf(
-                    nodes = listOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)), "order" to Rect(Point(260f, 20f), Size(180f, 90f))),
+                    nodes =
+                        listOf(
+                            "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
+                            "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                        ),
                     edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
                 )
 
@@ -115,7 +119,11 @@ class ErmIdef1xSvgTest :
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.IDEF1X)
             val layout =
                 layoutOf(
-                    nodes = listOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)), "order" to Rect(Point(260f, 20f), Size(180f, 90f))),
+                    nodes =
+                        listOf(
+                            "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
+                            "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                        ),
                     edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
                 )
 
@@ -222,7 +230,11 @@ class ErmIdef1xSvgTest :
             val diagram = ErmDiagram(name = "Overview", notation = ErmNotation.IDEF1X)
             val layout =
                 layoutOf(
-                    nodes = listOf("customer" to Rect(Point(20f, 20f), Size(180f, 90f)), "order" to Rect(Point(260f, 20f), Size(180f, 90f))),
+                    nodes =
+                        listOf(
+                            "customer" to Rect(Point(20f, 20f), Size(180f, 90f)),
+                            "order" to Rect(Point(260f, 20f), Size(180f, 90f)),
+                        ),
                     edges = listOf("rel1" to EdgeRoute.Direct(Point(200f, 65f), Point(260f, 65f))),
                 )
 

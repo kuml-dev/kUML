@@ -20,15 +20,24 @@ import kotlinx.serialization.json.jsonPrimitive
  * but their decode paths return null because ModelPatch subtypes for those domains
  * are not yet implemented. This is called out in the CHANGELOG.
  */
-internal class PatchDecoder(private val editingContext: AgentEditingContext?) {
+internal class PatchDecoder(
+    private val editingContext: AgentEditingContext?,
+) {
+    private val lenientJson =
+        Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
 
-    private val lenientJson = Json { ignoreUnknownKeys = true; isLenient = true }
-
-    fun decode(toolName: String, argsJson: String): ModelPatch? {
+    fun decode(
+        toolName: String,
+        argsJson: String,
+    ): ModelPatch? {
         val diagramId = editingContext?.currentDiagramId
-        val args: JsonObject = runCatching {
-            lenientJson.parseToJsonElement(argsJson) as? JsonObject
-        }.getOrNull() ?: return null
+        val args: JsonObject =
+            runCatching {
+                lenientJson.parseToJsonElement(argsJson) as? JsonObject
+            }.getOrNull() ?: return null
 
         fun str(key: String): String? = runCatching { args[key]?.jsonPrimitive?.content }.getOrNull()
 
@@ -42,10 +51,11 @@ internal class PatchDecoder(private val editingContext: AgentEditingContext?) {
                     elementKind = "uml.class",
                     elementId = name.toCandidateId(),
                     name = name,
-                    payload = buildMap {
-                        str("stereotype")?.let { put("stereotype", it) }
-                        str("isAbstract")?.let { put("isAbstract", it) }
-                    },
+                    payload =
+                        buildMap {
+                            str("stereotype")?.let { put("stereotype", it) }
+                            str("isAbstract")?.let { put("isAbstract", it) }
+                        },
                 )
             }
             "add_interface" -> {
@@ -68,7 +78,7 @@ internal class PatchDecoder(private val editingContext: AgentEditingContext?) {
                     appliedAt = ModelPatch.nowIso(),
                     diagramId = diagramId,
                     ownerId = ownerId,
-                    attributeId = "${ownerId}_${attrName}",
+                    attributeId = "${ownerId}_$attrName",
                     field = "add_attribute",
                     newValue = "$attrName: $attrType",
                 )
@@ -94,7 +104,7 @@ internal class PatchDecoder(private val editingContext: AgentEditingContext?) {
                     appliedAt = ModelPatch.nowIso(),
                     diagramId = diagramId,
                     relationshipKind = "uml.association",
-                    relationshipId = "${sourceId}_assoc_${targetId}",
+                    relationshipId = "${sourceId}_assoc_$targetId",
                     sourceId = sourceId,
                     targetId = targetId,
                 )
@@ -107,7 +117,7 @@ internal class PatchDecoder(private val editingContext: AgentEditingContext?) {
                     appliedAt = ModelPatch.nowIso(),
                     diagramId = diagramId,
                     relationshipKind = "uml.generalization",
-                    relationshipId = "${specificId}_gen_${generalId}",
+                    relationshipId = "${specificId}_gen_$generalId",
                     sourceId = specificId,
                     targetId = generalId,
                 )
@@ -143,7 +153,6 @@ internal class PatchDecoder(private val editingContext: AgentEditingContext?) {
     }
 
     companion object {
-        fun String.toCandidateId(): String =
-            this.lowercase().replace(Regex("[^a-z0-9]"), "_").trimEnd('_')
+        fun String.toCandidateId(): String = this.lowercase().replace(Regex("[^a-z0-9]"), "_").trimEnd('_')
     }
 }

@@ -798,7 +798,6 @@ public object KumlSvgRenderer {
         }
     }
 
-
     private fun renderUmlSequence(
         diagram: KumlDiagram,
         layoutResult: LayoutResult,
@@ -912,7 +911,8 @@ public object KumlSvgRenderer {
             //     would paint over the guard's own background rect + text (the guard
             //     sits inside the fragment, not just on its border). See
             //     renderUmlCombinedFragments doc comment.
-            dev.kuml.io.svg.uml.renderUmlGuardLabels(fragmentRenderResult.guardLabels, nodesBuilder)
+            dev.kuml.io.svg.uml
+                .renderUmlGuardLabels(fragmentRenderResult.guardLabels, nodesBuilder)
 
             // 4. Render messages directly into the edges layer — they paint
             //    last (after the entire nodes layer), so arrows always sit on
@@ -1306,8 +1306,6 @@ public object KumlSvgRenderer {
         return renderSysml2Synthetic(synthetic, layoutResult, theme, options, BddEdgeAdapter(model, diagram), typeLabel = "bdd")
     }
 
-    /** [toSvg]-Variante für SysML 2 BDDs, schreibt direkt auf Platte. */
-
     /**
      * Rendert ein SysML-2-IBD als SVG (V2.0.6).
      *
@@ -1341,8 +1339,6 @@ public object KumlSvgRenderer {
         val enrichedLayout = Sysml2LayoutBridge.enrichIbdPortPositions(model, diagram, layoutResult)
         return renderSysml2Synthetic(synthetic, enrichedLayout, theme, options, IbdEdgeAdapter(model, diagram), typeLabel = "ibd")
     }
-
-    /** [toSvg]-Variante für SysML 2 IBDs, schreibt direkt auf Platte. */
 
     /**
      * Rendert ein SysML-2 UC-Diagramm als SVG (V2.0.7).
@@ -1382,8 +1378,6 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(synthetic, layoutResult, theme, options, UcEdgeAdapter(diagram), typeLabel = "use case")
     }
-
-    /** [toSvg]-Variante für SysML 2 UC-Diagramme, schreibt direkt auf Platte. */
 
     /**
      * Rendert ein SysML-2 REQ-Diagramm als SVG (V2.0.8).
@@ -1431,8 +1425,6 @@ public object KumlSvgRenderer {
         return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ReqEdgeAdapter(diagram), typeLabel = "requirement")
     }
 
-    /** [toSvg]-Variante für SysML 2 REQ-Diagramme, schreibt direkt auf Platte. */
-
     /**
      * Rendert ein SysML-2 STM-Diagramm als SVG (V2.0.9).
      *
@@ -1472,8 +1464,6 @@ public object KumlSvgRenderer {
             )
         return renderSysml2Synthetic(synthetic, layoutResult, theme, options, StmEdgeAdapter(model, diagram), typeLabel = "state machine")
     }
-
-    /** [toSvg]-Variante für SysML 2 STM-Diagramme, schreibt direkt auf Platte. */
 
     /**
      * Rendert ein SysML-2 ACT-Diagramm als SVG (V2.0.10).
@@ -1711,8 +1701,6 @@ public object KumlSvgRenderer {
         }
     }
 
-    /** [toSvg]-Variante für SysML 2 ACT-Diagramme, schreibt direkt auf Platte. */
-
     /**
      * Rendert ein SysML-2 SEQ-Diagramm als SVG (V2.0.11).
      *
@@ -1788,7 +1776,9 @@ public object KumlSvgRenderer {
         // Offset wird an ALLE seqNo→Y-Konsumenten durchgereicht (Messages,
         // Execution Specs, Fragment-Frames UND den Create-Kopf-Offset), damit
         // Pfeile, Aktivierungs-Bars und Rahmen synchron bleiben.
-        val operandStartSeqs = dev.kuml.io.svg.sysml2.sysml2OperandStartSeqs(fragments)
+        val operandStartSeqs =
+            dev.kuml.io.svg.sysml2
+                .sysml2OperandStartSeqs(fragments)
         val createOffsetById: Map<String, Float> =
             messages
                 .asSequence()
@@ -1797,7 +1787,8 @@ public object KumlSvgRenderer {
                     it.targetLifelineId to
                         (it.seqNo + 1) *
                         dev.kuml.io.svg.sysml2.SYSML2_SEQ_MESSAGE_ROW_HEIGHT +
-                        dev.kuml.io.svg.sysml2.sysml2SeqRowOffset(it.seqNo, operandStartSeqs)
+                        dev.kuml.io.svg.sysml2
+                            .sysml2SeqRowOffset(it.seqNo, operandStartSeqs)
                 }
 
         // V3.0.x: Wenn Fragments existieren, ragt der Frame FRAGMENT_PADDING
@@ -1918,8 +1909,6 @@ public object KumlSvgRenderer {
         }
     }
 
-    /** [toSvg]-Variante für SysML 2 SEQ-Diagramme, schreibt direkt auf Platte. */
-
     /**
      * Rendert ein SysML-2 PAR-Diagramm als SVG (V2.0.12) — die schließende
      * achte Welle der SysML-2-Diagramm-Typ-Serie.
@@ -1961,8 +1950,6 @@ public object KumlSvgRenderer {
         return renderSysml2Synthetic(synthetic, layoutResult, theme, options, ParEdgeAdapter(model, diagram), typeLabel = "parametric")
     }
 
-    /** [toSvg]-Variante für SysML 2 PAR-Diagramme, schreibt direkt auf Platte. */
-
     /**
      * Rendert ein Blueprint / Journey-Map-Diagramm als SVG-String (V3.1.24).
      *
@@ -1980,8 +1967,6 @@ public object KumlSvgRenderer {
         diagram: BlueprintDiagram,
         theme: KumlTheme = PlainTheme(),
     ): String = renderBlueprintJourney(model, diagram, theme)
-
-    /** [toSvg]-Variante für Blueprint-Diagramme, schreibt direkt auf Platte. */
 
     /**
      * Rendert ein ERM-Diagramm (V3.4.2) als SVG.
@@ -2318,8 +2303,14 @@ public object KumlSvgRenderer {
         val padding = options.paddingPx
 
         val dependentEntityIds: Set<String> =
-            model.entities.filter { it.weak }.map { it.id }.toSet() +
-                model.relationships.filter { it.kind == RelationshipKind.IDENTIFYING }.map { it.targetEntityId }.toSet() +
+            model.entities
+                .filter { it.weak }
+                .map { it.id }
+                .toSet() +
+                model.relationships
+                    .filter { it.kind == RelationshipKind.IDENTIFYING }
+                    .map { it.targetEntityId }
+                    .toSet() +
                 model.categories.flatMap { it.subtypeEntityIds }.toSet()
 
         // Label stacking only considers real relationship edges — category
@@ -3431,8 +3422,6 @@ public object KumlSvgRenderer {
         }
     }
 
-    /** [toSvg]-Variante für BPMN-Collaboration-Diagramme, schreibt direkt auf Platte. */
-
     /**
      * Rendert ein BPMN-Choreografie-Diagramm als SVG.
      *
@@ -3458,8 +3447,6 @@ public object KumlSvgRenderer {
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): String = renderBpmnChoreography(model, diagram, layoutResult, theme, options)
 
-    /** [toSvg]-Variante für BPMN-Choreografie-Diagramme, schreibt direkt auf Platte. */
-
     /**
      * Rendert ein BPMN-Conversation-Diagramm als SVG.
      *
@@ -3483,8 +3470,6 @@ public object KumlSvgRenderer {
         theme: KumlTheme = PlainTheme(),
         options: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): String = renderBpmnConversation(model, diagram, layoutResult, theme, options)
-
-    /** [toSvg]-Variante für BPMN-Conversation-Diagramme, schreibt direkt auf Platte. */
 
     /**
      * Dedizierter Render-Pfad für BPMN-Choreografie-Diagramme.

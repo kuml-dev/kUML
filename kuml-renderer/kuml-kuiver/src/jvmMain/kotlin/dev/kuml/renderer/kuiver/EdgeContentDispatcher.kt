@@ -42,13 +42,11 @@ import dev.kuml.uml.UmlInterfaceRealization
  * ```
  */
 internal object EdgeContentDispatcher {
-
     /**
      * Returns the simple class name of the incoming relationship — used in tests
      * without Compose runtime.
      */
-    internal fun dispatchKey(element: KumlElement): String =
-        element::class.simpleName ?: "Unknown"
+    internal fun dispatchKey(element: KumlElement): String = element::class.simpleName ?: "Unknown"
 
     /**
      * Renders the edge Composable matching [relationship].

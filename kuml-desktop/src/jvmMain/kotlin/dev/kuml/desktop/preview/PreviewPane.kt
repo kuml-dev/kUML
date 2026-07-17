@@ -29,9 +29,10 @@ fun PreviewPane(
 
     LaunchedEffect(state.lastSvg) {
         if (state.lastSvg.isNotBlank()) {
-            val doc: SVGDocument? = withContext(Dispatchers.IO) {
-                parseSvg(state.lastSvg)
-            }
+            val doc: SVGDocument? =
+                withContext(Dispatchers.IO) {
+                    parseSvg(state.lastSvg)
+                }
             if (doc != null) {
                 SwingUtilities.invokeLater { canvas.setSVGDocument(doc) }
             }

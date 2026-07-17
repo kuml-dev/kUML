@@ -33,8 +33,8 @@ import dev.kuml.io.svg.uml.renderUmlActivityNode
 import dev.kuml.io.svg.uml.renderUmlActor
 import dev.kuml.io.svg.uml.renderUmlArtifact
 import dev.kuml.io.svg.uml.renderUmlClass
-import dev.kuml.io.svg.uml.renderUmlComment
 import dev.kuml.io.svg.uml.renderUmlCollaboration
+import dev.kuml.io.svg.uml.renderUmlComment
 import dev.kuml.io.svg.uml.renderUmlComponent
 import dev.kuml.io.svg.uml.renderUmlEnum
 import dev.kuml.io.svg.uml.renderUmlFinalState

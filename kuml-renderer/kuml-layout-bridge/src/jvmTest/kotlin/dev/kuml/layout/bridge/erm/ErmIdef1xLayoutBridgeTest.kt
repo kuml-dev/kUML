@@ -99,8 +99,12 @@ class ErmIdef1xLayoutBridgeTest :
             graph.nodes shouldHaveSize 4
             val circleId = NodeId(ErmIdef1xLayoutBridge.CATEGORY_NODE_PREFIX + "category_0")
             graph.nodes.map { it.id } shouldContain circleId
-            graph.nodes.first { it.id == circleId }.intrinsicSize.width shouldBe ErmIdef1xLayoutBridge.CATEGORY_CIRCLE_SIZE
-            graph.nodes.first { it.id == circleId }.intrinsicSize.height shouldBe ErmIdef1xLayoutBridge.CATEGORY_CIRCLE_SIZE
+            graph.nodes
+                .first { it.id == circleId }
+                .intrinsicSize.width shouldBe ErmIdef1xLayoutBridge.CATEGORY_CIRCLE_SIZE
+            graph.nodes
+                .first { it.id == circleId }
+                .intrinsicSize.height shouldBe ErmIdef1xLayoutBridge.CATEGORY_CIRCLE_SIZE
 
             val supEdge = graph.edges.first { it.id == EdgeId(ErmIdef1xLayoutBridge.CATEGORY_EDGE_SUP_PREFIX + "category_0") }
             supEdge.source.nodeId shouldBe NodeId("party")

@@ -99,7 +99,11 @@ public class ErmConstraintChecker {
             }
 
             // Identifying relationships, keyed by target (child) entity — used by rules 3 and 9.
-            val identifyingTargets = model.relationships.filter { it.kind == RelationshipKind.IDENTIFYING }.map { it.targetEntityId }.toSet()
+            val identifyingTargets =
+                model.relationships
+                    .filter { it.kind == RelationshipKind.IDENTIFYING }
+                    .map { it.targetEntityId }
+                    .toSet()
 
             // Category subtypes — exempt from rule 3's primary-key requirement (they inherit the supertype's key).
             val categorySubtypeIds = model.categories.flatMap { it.subtypeEntityIds }.toSet()

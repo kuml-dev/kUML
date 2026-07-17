@@ -11,18 +11,37 @@ private data class ModelPrice(
 )
 
 @Serializable
-private data class ProviderPricing(val id: String, val models: List<ModelPrice>)
+private data class ProviderPricing(
+    val id: String,
+    val models: List<ModelPrice>,
+)
 
 @Serializable
-private data class PricingSchema(val schemaVersion: Int, val providers: List<ProviderPricing>)
+private data class PricingSchema(
+    val schemaVersion: Int,
+    val providers: List<ProviderPricing>,
+)
 
-class PricingTable private constructor(private val schema: PricingSchema) {
+class PricingTable private constructor(
+    private val schema: PricingSchema,
+) {
     fun modelsForProvider(providerId: String): List<String> =
-        schema.providers.firstOrNull { it.id == providerId }?.models?.map { it.id } ?: emptyList()
+        schema.providers
+            .firstOrNull { it.id == providerId }
+            ?.models
+            ?.map { it.id } ?: emptyList()
 
-    fun costUsd(providerId: String, modelId: String, tokensIn: Int, tokensOut: Int): Double {
-        val m = schema.providers.firstOrNull { it.id == providerId }
-            ?.models?.firstOrNull { it.id == modelId } ?: return 0.0
+    fun costUsd(
+        providerId: String,
+        modelId: String,
+        tokensIn: Int,
+        tokensOut: Int,
+    ): Double {
+        val m =
+            schema.providers
+                .firstOrNull { it.id == providerId }
+                ?.models
+                ?.firstOrNull { it.id == modelId } ?: return 0.0
         return (tokensIn * m.inputPer1kTokens + tokensOut * m.outputPer1kTokens) / 1000.0
     }
 
@@ -30,10 +49,12 @@ class PricingTable private constructor(private val schema: PricingSchema) {
         private val json = Json { ignoreUnknownKeys = true }
 
         fun loadFromResources(): PricingTable {
-            val text = PricingTable::class.java
-                .getResourceAsStream("/dev/kuml/desktop/ai/pricing.json")
-                ?.bufferedReader()?.readText()
-                ?: return PricingTable(PricingSchema(1, emptyList()))
+            val text =
+                PricingTable::class.java
+                    .getResourceAsStream("/dev/kuml/desktop/ai/pricing.json")
+                    ?.bufferedReader()
+                    ?.readText()
+                    ?: return PricingTable(PricingSchema(1, emptyList()))
             return PricingTable(json.decodeFromString(text))
         }
 

@@ -25,19 +25,23 @@ import dev.kuml.renderer.theme.KumlTheme
  * @param theme active visual theme
  */
 @Composable
-internal fun C4ContainerNode(element: C4Container, theme: KumlTheme) {
-    val technologyLabel = element.technology
-        ?.let { "[Container: $it]" }
-        ?: "[Container]"
+internal fun C4ContainerNode(
+    element: C4Container,
+    theme: KumlTheme,
+) {
+    val technologyLabel =
+        element.technology
+            ?.let { "[Container: $it]" }
+            ?: "[Container]"
 
     Column(
-        modifier = Modifier
-            .border(
-                width = theme.borders.regular,
-                color = theme.colors.border,
-                shape = RoundedCornerShape(theme.borders.cornerRadius),
-            )
-            .padding(horizontal = 10.dp, vertical = 6.dp),
+        modifier =
+            Modifier
+                .border(
+                    width = theme.borders.regular,
+                    color = theme.colors.border,
+                    shape = RoundedCornerShape(theme.borders.cornerRadius),
+                ).padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Text(
             text = technologyLabel,
