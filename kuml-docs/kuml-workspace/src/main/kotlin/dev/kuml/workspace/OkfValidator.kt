@@ -144,7 +144,15 @@ public object OkfValidator {
             if (target.contains("://") || target.startsWith("mailto:") || target.startsWith("#")) continue
             val withoutAnchor = target.substringBefore('#')
             if (!withoutAnchor.endsWith(".md")) continue
-            val resolved = File(doc.file.parentFile, withoutAnchor).normalize()
+            // A leading "/" is workspace-root-relative, matching WorkspaceGraphIndex.resolveTarget
+            // and DefaultWorkspaceLinkHandler.resolveInternal — otherwise File(parent, "/x") silently
+            // concatenates under the document's own directory instead of the workspace root.
+            val resolved =
+                if (withoutAnchor.startsWith("/")) {
+                    File(root, withoutAnchor.removePrefix("/")).normalize()
+                } else {
+                    File(doc.file.parentFile, withoutAnchor).normalize()
+                }
             if (!resolved.exists()) {
                 findings +=
                     OkfFinding(

@@ -1,6 +1,7 @@
 package dev.kuml.workspace
 
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldContain
 import io.kotest.matchers.collections.shouldNotContain
 import io.kotest.matchers.shouldBe
 import java.io.File
@@ -70,6 +71,39 @@ class OkfValidatorTest :
             val strictFinding = strict.single { it.code == "OKF-W-002" }
             lenientFinding.severity shouldBe OkfSeverity.WARNING
             strictFinding.severity shouldBe OkfSeverity.ERROR
+
+            root.deleteRecursively()
+        }
+
+        test("a root-absolute link ('/...') from a nested document resolves against the workspace root, not OKF-E-005") {
+            val root = tempWorkspace()
+            File(root, "notes").mkdir()
+            File(root, "notes/target.md").writeText("Target.")
+            File(root, "notes/source.md").writeText(
+                """
+                |[link](/notes/target.md)
+                """.trimMargin(),
+            )
+
+            val ws = WorkspaceScanner.scan(root)
+            val findings = OkfValidator.validate(ws)
+            findings.map { it.code } shouldNotContain "OKF-E-005"
+
+            root.deleteRecursively()
+        }
+
+        test("a broken root-absolute link ('/...') from a nested document is still reported as OKF-E-005") {
+            val root = tempWorkspace()
+            File(root, "notes").mkdir()
+            File(root, "notes/source.md").writeText(
+                """
+                |[link](/notes/missing.md)
+                """.trimMargin(),
+            )
+
+            val ws = WorkspaceScanner.scan(root)
+            val findings = OkfValidator.validate(ws)
+            findings.map { it.code } shouldContain "OKF-E-005"
 
             root.deleteRecursively()
         }
