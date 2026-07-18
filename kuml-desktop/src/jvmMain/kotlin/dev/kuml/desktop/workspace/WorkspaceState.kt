@@ -9,6 +9,7 @@ import dev.kuml.desktop.render.DesktopRenderResult
 import dev.kuml.workspace.OkfDocument
 import dev.kuml.workspace.OkfType
 import dev.kuml.workspace.OkfWorkspace
+import dev.kuml.workspace.WorkspaceGraphIndex
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -29,6 +30,13 @@ class WorkspaceState(
 ) {
     /** Documents sorted by relativePath (matches [dev.kuml.workspace.WorkspaceScanner]'s order). */
     val documents: List<OkfDocument> = workspace.documents.sortedBy { it.relativePath }
+
+    /**
+     * Bidirectional cross-link index (ADR-0011 FT-6), built once per opened workspace —
+     * the document set is immutable for the lifetime of a [WorkspaceState] (Knowledge
+     * Workspace viewer is read-only), so there is nothing to invalidate it on.
+     */
+    val graphIndex: WorkspaceGraphIndex = WorkspaceGraphIndex.build(workspace)
 
     var selected by mutableStateOf<OkfDocument?>(null)
         private set

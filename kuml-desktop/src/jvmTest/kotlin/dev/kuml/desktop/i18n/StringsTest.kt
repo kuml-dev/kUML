@@ -67,4 +67,21 @@ class StringsTest :
 
         test("EN workspaceUnknownMessage is non-empty") { Strings.EN.workspaceUnknownMessage.isNotEmpty() shouldBe true }
         test("DE workspaceUnknownMessage is non-empty") { Strings.DE.workspaceUnknownMessage.isNotEmpty() shouldBe true }
+
+        // --- Workspace tree type-badge tooltips (retroactive UI/UX-team review) ---
+        test("EN workspaceBadgeDiagram is non-empty") { Strings.EN.workspaceBadgeDiagram.isNotEmpty() shouldBe true }
+        test("DE workspaceBadgeDiagram is non-empty") { Strings.DE.workspaceBadgeDiagram.isNotEmpty() shouldBe true }
+        test("EN and DE differ on workspaceBadgeDiagram") { Strings.EN.workspaceBadgeDiagram shouldNotBe Strings.DE.workspaceBadgeDiagram }
+
+        test("EN workspaceBadgeProse is non-empty") { Strings.EN.workspaceBadgeProse.isNotEmpty() shouldBe true }
+        test("DE workspaceBadgeProse is non-empty") { Strings.DE.workspaceBadgeProse.isNotEmpty() shouldBe true }
+        test("EN and DE differ on workspaceBadgeProse") { Strings.EN.workspaceBadgeProse shouldNotBe Strings.DE.workspaceBadgeProse }
+
+        test("EN workspaceBadgeUnknown is non-empty") { Strings.EN.workspaceBadgeUnknown.isNotEmpty() shouldBe true }
+        test("DE workspaceBadgeUnknown is non-empty") { Strings.DE.workspaceBadgeUnknown.isNotEmpty() shouldBe true }
+        test("EN and DE differ on workspaceBadgeUnknown") { Strings.EN.workspaceBadgeUnknown shouldNotBe Strings.DE.workspaceBadgeUnknown }
+
+        test("EN workspaceBacklinksLabel is non-empty") { Strings.EN.workspaceBacklinksLabel.isNotEmpty() shouldBe true }
+        test("DE workspaceBacklinksLabel is non-empty") { Strings.DE.workspaceBacklinksLabel.isNotEmpty() shouldBe true }
+        test("EN and DE differ on workspaceBacklinksLabel") { Strings.EN.workspaceBacklinksLabel shouldNotBe Strings.DE.workspaceBacklinksLabel }
     })
