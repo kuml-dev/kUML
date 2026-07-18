@@ -83,5 +83,8 @@ class StringsTest :
 
         test("EN workspaceBacklinksLabel is non-empty") { Strings.EN.workspaceBacklinksLabel.isNotEmpty() shouldBe true }
         test("DE workspaceBacklinksLabel is non-empty") { Strings.DE.workspaceBacklinksLabel.isNotEmpty() shouldBe true }
-        test("EN and DE differ on workspaceBacklinksLabel") { Strings.EN.workspaceBacklinksLabel shouldNotBe Strings.DE.workspaceBacklinksLabel }
+        test("EN and DE differ on workspaceBacklinksLabel") {
+            Strings.EN.workspaceBacklinksLabel shouldNotBe
+                Strings.DE.workspaceBacklinksLabel
+        }
     })
