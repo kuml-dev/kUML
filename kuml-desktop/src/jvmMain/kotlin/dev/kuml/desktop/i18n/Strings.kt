@@ -68,6 +68,10 @@ data class Strings(
     val previewProseEmpty: String,
     val previewErmUnsupported: String,
     val previewNotTrusted: String,
+    val workspaceBadgeDiagram: String,
+    val workspaceBadgeProse: String,
+    val workspaceBadgeUnknown: String,
+    val workspaceBacklinksLabel: String,
 ) {
     companion object {
         val DE =
@@ -137,6 +141,10 @@ data class Strings(
                 previewErmUnsupported =
                     "ERM-Rendering wird noch nicht unterstützt — geplant für kUML V3.4.2.",
                 previewNotTrusted = "Workspace nicht vertraut — Rendering deaktiviert",
+                workspaceBadgeDiagram = "Enthält ein Diagramm",
+                workspaceBadgeProse = "Prosa oder Sammlung, kein Diagramm",
+                workspaceBadgeUnknown = "Unbekannter Dokumenttyp",
+                workspaceBacklinksLabel = "Verlinkt von:",
             )
 
         val EN =
@@ -206,6 +214,10 @@ data class Strings(
                 previewErmUnsupported =
                     "ERM rendering is not yet supported — planned for kUML V3.4.2.",
                 previewNotTrusted = "Workspace not trusted — rendering disabled",
+                workspaceBadgeDiagram = "Contains a diagram",
+                workspaceBadgeProse = "Prose or collection, no diagram",
+                workspaceBadgeUnknown = "Unknown document type",
+                workspaceBacklinksLabel = "Linked from:",
             )
 
         fun forLanguage(lang: String): Strings = if (lang == "de") DE else EN

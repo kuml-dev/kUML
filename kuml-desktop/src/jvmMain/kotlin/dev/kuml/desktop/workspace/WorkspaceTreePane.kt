@@ -1,5 +1,7 @@
 package dev.kuml.desktop.workspace
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.TooltipArea
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
@@ -9,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -18,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.kuml.desktop.i18n.Strings
 import dev.kuml.workspace.OkfDocument
 import dev.kuml.workspace.OkfType
 
@@ -31,6 +36,7 @@ fun WorkspaceTreePane(
     documents: List<OkfDocument>,
     selected: OkfDocument?,
     onSelect: (OkfDocument) -> Unit,
+    strings: Strings,
     modifier: Modifier = Modifier,
 ) {
     val groups: Map<String, List<OkfDocument>> =
@@ -54,7 +60,7 @@ fun WorkspaceTreePane(
                 }
             }
             items(docs, key = { it.relativePath }) { doc ->
-                DocumentRow(doc = doc, isSelected = doc == selected, onClick = { onSelect(doc) })
+                DocumentRow(doc = doc, isSelected = doc == selected, onClick = { onSelect(doc) }, strings = strings)
             }
         }
     }
@@ -65,6 +71,7 @@ private fun DocumentRow(
     doc: OkfDocument,
     isSelected: Boolean,
     onClick: () -> Unit,
+    strings: Strings,
 ) {
     val bg = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
     Row(
@@ -75,7 +82,7 @@ private fun DocumentRow(
                 .clickable(onClick = onClick)
                 .padding(horizontal = 10.dp, vertical = 5.dp),
     ) {
-        TypeBadge(doc.type)
+        TypeBadge(type = doc.type, strings = strings)
         Text(
             text = doc.file.name,
             fontSize = 12.sp,
@@ -86,14 +93,38 @@ private fun DocumentRow(
     }
 }
 
-/** Small text badge indicating whether a document carries a diagram, or is prose/collection. */
+/**
+ * Small text badge indicating whether a document carries a diagram, or is
+ * prose/collection. The glyph alone (◆/▤/?) isn't self-explanatory and, per
+ * the design-team review, must not rely on color alone to carry meaning
+ * (a11y) — [TooltipArea] surfaces the same distinction as text on hover.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun RowScope.TypeBadge(type: OkfType?) {
-    val (glyph, color) =
+private fun RowScope.TypeBadge(
+    type: OkfType?,
+    strings: Strings,
+) {
+    val (glyph, color, description) =
         when {
-            type == null -> "?" to Color.Gray
-            type.requiresKumlBlock -> "◆" to Color(0xFF1565C0)
-            else -> "▤" to Color(0xFF757575)
+            type == null -> Triple("?", Color.Gray, strings.workspaceBadgeUnknown)
+            type.requiresKumlBlock -> Triple("◆", Color(0xFF1565C0), strings.workspaceBadgeDiagram)
+            else -> Triple("▤", Color(0xFF757575), strings.workspaceBadgeProse)
         }
-    Text(text = glyph, fontSize = 11.sp, color = color)
+    TooltipArea(tooltip = {
+        Surface(
+            shape = RoundedCornerShape(4.dp),
+            color = MaterialTheme.colorScheme.inverseSurface,
+            modifier = Modifier.padding(4.dp),
+        ) {
+            Text(
+                text = description,
+                color = MaterialTheme.colorScheme.inverseOnSurface,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+        }
+    }) {
+        Text(text = glyph, fontSize = 11.sp, color = color)
+    }
 }

@@ -39,12 +39,16 @@ fun KnowledgeWorkspaceScreen(
             documents = state.documents,
             selected = state.selected,
             onSelect = { doc -> scope.launch { state.select(doc, themeName, strings) } },
+            strings = strings,
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
         HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
         MarkdownDocPane(
             doc = state.selected,
             linkHandler = linkHandler,
+            backlinks = state.selected?.let { state.graphIndex.backlinks(it) }.orEmpty(),
+            onNavigateBacklink = { doc -> scope.launch { state.select(doc, themeName, strings) } },
+            strings = strings,
             modifier = Modifier.weight(2f).fillMaxHeight(),
         )
         HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))

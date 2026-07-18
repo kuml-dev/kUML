@@ -1,6 +1,7 @@
 package dev.kuml.desktop.workspace
 
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -15,6 +16,11 @@ import java.io.File
  * selected/rendered — i.e. before any ` ```kuml ` block in the workspace is
  * evaluated. [onDecline] must leave the workspace unopened (return to the
  * previous single-file view); only [onTrust] proceeds to open it.
+ *
+ * [onTrust] renders as a filled [Button] rather than a [TextButton]: this is a
+ * consequential, security-relevant choice (it gates arbitrary script
+ * execution), so it gets the same visual weight Material reserves for a
+ * primary affirmative action instead of looking equal to [onDecline].
  */
 @Composable
 fun TrustDialog(
@@ -28,7 +34,7 @@ fun TrustDialog(
         title = { Text(strings.workspaceTrustTitle) },
         text = { Text(strings.workspaceTrustMessage.format(root.absolutePath)) },
         confirmButton = {
-            TextButton(onClick = onTrust) { Text(strings.workspaceTrustAccept) }
+            Button(onClick = onTrust) { Text(strings.workspaceTrustAccept) }
         },
         dismissButton = {
             TextButton(onClick = onDecline) { Text(strings.workspaceTrustDecline) }

@@ -3,6 +3,7 @@ package dev.kuml.desktop.workspace
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.workspace.WorkspaceScanner
 import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.collections.shouldBeEmpty
 import io.kotest.matchers.nulls.shouldNotBeNull
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
@@ -119,6 +120,20 @@ class WorkspaceStateTest :
                 val workspace = WorkspaceScanner.scan(root)
                 val state = WorkspaceState(workspace)
                 state.documents.map { it.relativePath } shouldBe state.documents.map { it.relativePath }.sorted()
+            } finally {
+                root.deleteRecursively()
+            }
+        }
+
+        test("graphIndex is built eagerly and has no entries for a workspace with no cross-links") {
+            val root = writeSampleWorkspace()
+            try {
+                val workspace = WorkspaceScanner.scan(root)
+                val state = WorkspaceState(workspace)
+                val doc = state.documents.first { it.relativePath == "index.md" }
+
+                state.graphIndex.outgoing(doc).shouldBeEmpty()
+                state.graphIndex.backlinks(doc).shouldBeEmpty()
             } finally {
                 root.deleteRecursively()
             }
