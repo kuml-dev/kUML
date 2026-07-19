@@ -21,6 +21,10 @@ package dev.kuml.io.svg
  *   ein `<rect>` über die gesamte ViewBox mit der Theme-Hintergrundfarbe
  *   gezeichnet — verhindert dass die Host-Fläche (z. B. Obsidian Dark) zwischen
  *   Knoten durchscheint. Default: `true` (V3.0.11).
+ * @property watermark Wenn `true`, wird unten rechts ein kleines,
+ *   theme-konformes „Powered by kUML"-Label eingeblendet und die Canvas
+ *   entsprechend vergrößert. Default: `false` — opt-in, unabhängig von der
+ *   immer aktiven Attributions-XML-Kommentarzeile (siehe [SvgDocument.render]).
  */
 public data class SvgRenderOptions(
     public val prettyPrint: Boolean = true,
@@ -35,6 +39,11 @@ public data class SvgRenderOptions(
     // V3.0.11 — Canvas-Background gegen transparenten SVG-Hintergrund auf
     // dunklen Host-Flächen (Obsidian Dark, Browser Dark Mode etc.).
     public val paintCanvasBackground: Boolean = true,
+    // "Powered by kUML" branding — opt-in visible watermark. Off by default on
+    // every surface (CLI, Gradle plugin, MCP) because `DEFAULT` is the no-arg
+    // constructor. See SvgDocument.render for the always-on attribution comment,
+    // which is independent of this flag.
+    public val watermark: Boolean = false,
 ) {
     public companion object {
         /** Standard-Optionen: Pretty-Print an, XML-Deklaration an, 16 px Padding, Theme-Kommentar an. */

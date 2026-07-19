@@ -4,6 +4,7 @@ import dev.kuml.c4.model.C4Diagram
 import dev.kuml.c4.model.C4Model
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.io.svg.KumlSvgRenderer
+import dev.kuml.io.svg.SvgRenderOptions
 import dev.kuml.layout.LayoutResult
 import dev.kuml.renderer.theme.core.KumlTheme
 import dev.kuml.renderer.theme.core.PlainTheme
@@ -64,6 +65,9 @@ public object KumlPngRenderer {
      * @param layoutResult berechnete Positionen und Routing-Pfade
      * @param theme visuelles Theme; Standard: [PlainTheme]
      * @param options Render-Optionen; Standard: [PngRenderOptions.DEFAULT]
+     * @param svgOptions SVG-Render-Optionen für die interne SVG-Zwischenstufe
+     *   (z.B. `watermark` für die "Powered by kUML"-Wasserzeichen-Funktion);
+     *   Standard: [SvgRenderOptions.DEFAULT]
      * @return PNG-Byte-Array
      */
     public fun toPng(
@@ -71,8 +75,9 @@ public object KumlPngRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme = PlainTheme(),
         options: PngRenderOptions = PngRenderOptions.DEFAULT,
+        svgOptions: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): ByteArray {
-        val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme)
+        val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme, svgOptions)
         return toPng(svg, options)
     }
 
@@ -86,6 +91,8 @@ public object KumlPngRenderer {
      * @param layoutResult berechnete Positionen und Routing-Pfade
      * @param theme visuelles Theme; Standard: [PlainTheme]
      * @param options Render-Optionen; Standard: [PngRenderOptions.DEFAULT]
+     * @param svgOptions SVG-Render-Optionen für die interne SVG-Zwischenstufe;
+     *   Standard: [SvgRenderOptions.DEFAULT]
      * @return PNG-Byte-Array
      */
     public fun toPng(
@@ -94,8 +101,9 @@ public object KumlPngRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme = PlainTheme(),
         options: PngRenderOptions = PngRenderOptions.DEFAULT,
+        svgOptions: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): ByteArray {
-        val svg = KumlSvgRenderer.toSvg(diagram, model, layoutResult, theme)
+        val svg = KumlSvgRenderer.toSvg(diagram, model, layoutResult, theme, svgOptions)
         return toPng(svg, options)
     }
 
@@ -129,6 +137,8 @@ public object KumlPngRenderer {
      *   [dev.kuml.layout.bridge.Sysml2LayoutBridge]
      * @param theme visuelles Theme; Standard: [PlainTheme]
      * @param options Render-Optionen; Standard: [PngRenderOptions.DEFAULT]
+     * @param svgOptions SVG-Render-Optionen für die interne SVG-Zwischenstufe;
+     *   Standard: [SvgRenderOptions.DEFAULT]
      * @return PNG-Byte-Array (beginnt mit den PNG-Magic-Bytes `89 50 4E 47 ...`)
      */
     public fun toPng(
@@ -137,17 +147,18 @@ public object KumlPngRenderer {
         layoutResult: LayoutResult,
         theme: KumlTheme = PlainTheme(),
         options: PngRenderOptions = PngRenderOptions.DEFAULT,
+        svgOptions: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): ByteArray {
         val svg =
             when (diagram) {
-                is BdDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
-                is IbdDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
-                is UcDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
-                is ReqDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
-                is StmDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
-                is ActDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
-                is SeqDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
-                is ParDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme)
+                is BdDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
+                is IbdDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
+                is UcDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
+                is ReqDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
+                is StmDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
+                is ActDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
+                is SeqDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
+                is ParDiagram -> KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, svgOptions)
             }
         return toPng(svg, options)
     }
@@ -167,6 +178,8 @@ public object KumlPngRenderer {
      * @param out Zieldatei-Pfad
      * @param theme visuelles Theme; Standard: [PlainTheme]
      * @param options Render-Optionen; Standard: [PngRenderOptions.DEFAULT]
+     * @param svgOptions SVG-Render-Optionen für die interne SVG-Zwischenstufe;
+     *   Standard: [SvgRenderOptions.DEFAULT]
      * @return die geschriebene [File]
      */
     public fun toPngFile(
@@ -176,8 +189,9 @@ public object KumlPngRenderer {
         out: Path,
         theme: KumlTheme = PlainTheme(),
         options: PngRenderOptions = PngRenderOptions.DEFAULT,
+        svgOptions: SvgRenderOptions = SvgRenderOptions.DEFAULT,
     ): File {
-        val bytes = toPng(model, diagram, layoutResult, theme, options)
+        val bytes = toPng(model, diagram, layoutResult, theme, options, svgOptions)
         val file = out.toFile()
         file.parentFile?.mkdirs()
         file.writeBytes(bytes)

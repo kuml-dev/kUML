@@ -180,7 +180,11 @@ internal fun renderBlueprintJourney(
             }
         }
     }
-    return b.toString()
+    // "Powered by kUML" branding — this renderer bypasses SvgDocument.render's
+    // `<svg>` assembly entirely (deterministic grid geometry, no LayoutResult),
+    // so the always-on attribution comment must be prepended explicitly here
+    // to keep the same "every SVG this project emits carries it" guarantee.
+    return SvgDocument.attributionComment() + b.toString()
 }
 
 /** Per-layer band tint (distinct Shostack-layer styling, V3.1.24). */
