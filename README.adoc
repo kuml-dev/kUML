@@ -753,10 +753,8 @@ kuml-lang-support/     ✅  Editor-agnostic completion/rename/diagnostics/CLI-lo
 
 kuml-language-server/  ✅  LSP4J-based Language Server: diagnostics via CLI subprocess,
                            full 38-item DSL completion catalogue (v0.29.0)
-
-kuml-vscode-plugin/    ✅  VS Code extension
-                           TextMate grammar + DSL snippets + kUML: Render to SVG
-                           LSP client + live-preview webview (v0.29.0)
+                           Consumed by kuml-jetbrains and by the VS Code extension, which
+                           lives in its own repository: https://github.com/kuml-dev/kuml-vscode
 
 kuml-llm/
   kuml-llm-core        ✅  LlmBackend interface

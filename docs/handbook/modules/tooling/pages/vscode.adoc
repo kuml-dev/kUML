@@ -9,11 +9,13 @@ Language Server, no Kotlin extension dependency, no JVM startup cost just for ed
 
 *Extensions sidebar → Search "kUML" → Install.*
 
-Or install a local `.vsix` distribution built from source:
+Or install a local `.vsix` distribution built from source (the extension lives in its
+own repository, https://github.com/kuml-dev/kuml-vscode):
 
 [source,bash]
 ----
-cd kuml-vscode-plugin
+git clone git@github.com:kuml-dev/kuml-vscode.git
+cd kuml-vscode
 npm install
 npm run package
 # → kuml-vscode-0.X.Y.vsix
