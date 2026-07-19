@@ -51,3 +51,12 @@ $nestedMcpBatLauncher = Join-Path $toolsDir "kuml-$version\mcp\bin\kuml-mcp.bat"
 if (Test-Path $nestedMcpBatLauncher) {
   New-Item "$nestedMcpBatLauncher.ignore" -ItemType File -Force | Out-Null
 }
+
+# kuml-lsp (2026-07-19): same double-shim situation as kuml-mcp above — the
+# zip ships kuml-$version\bin\kuml-lsp.bat (thin top-level wrapper Chocolatey
+# should shim) and kuml-$version\lsp\bin\kuml-lsp.bat (the real installDist
+# launcher it CALLs into). Ignore the nested one for the same reason.
+$nestedLspBatLauncher = Join-Path $toolsDir "kuml-$version\lsp\bin\kuml-lsp.bat"
+if (Test-Path $nestedLspBatLauncher) {
+  New-Item "$nestedLspBatLauncher.ignore" -ItemType File -Force | Out-Null
+}

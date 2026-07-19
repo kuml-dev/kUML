@@ -366,6 +366,30 @@ val bundleMcpInstallDist =
         into(imageDir.map { it.dir("mcp") })
     }
 
+// Step A3: copy the kuml-lsp installDist tree into its own subdir (2026-07-19 —
+// closes the "kuml-lsp isn't shipped anywhere" gap; see
+// docs/handbook and the Distribution-und-Packaging vault note).
+//
+// Same rationale as bundleMcpInstallDist above: kuml-lsp shares several jars
+// with kuml-cli/kuml-mcp (kuml-core-dsl, kuml-metamodel-*, ...) but not
+// necessarily the same version/classpath ordering, so a separate lsp/
+// subdirectory with the complete, self-contained kuml-lsp installDist tree
+// avoids the Sync dedup problem entirely, at the cost of a few duplicated
+// jars in the zip. bin/kuml-lsp is then a thin wrapper that simply execs
+// into lsp/bin/kuml-lsp — mirrors bin/kuml-mcp exactly.
+val bundleLspInstallDist =
+    tasks.register<Sync>("bundleLspInstallDist") {
+        group = "distribution"
+        description = "Copies the kuml-lsp installDist tree into the runtime-image lsp/ subdir."
+        dependsOn(":kuml-language-server:installDist")
+        // Same race-avoidance reasoning as bundleMcpInstallDist's mustRunAfter:
+        // all three Sync tasks write under imageDir and would race on each
+        // other's pre-clean step under org.gradle.parallel=true.
+        mustRunAfter(bundleInstallDist, bundleMcpInstallDist)
+        from(project(":kuml-language-server").layout.buildDirectory.dir("install/kuml-lsp"))
+        into(imageDir.map { it.dir("lsp") })
+    }
+
 // Step B: copy the jlink JRE under runtime/.
 val bundleJlinkRuntime =
     tasks.register<Sync>("bundleJlinkRuntime") {
@@ -487,7 +511,7 @@ tasks.register("bundledImage") {
     group = "distribution"
     description =
         "Assembles a self-contained kuml runtime image: installDist + jlink JRE + patched launcher."
-    dependsOn("bundleInstallDist", "bundleJlinkRuntime", bundleMcpInstallDist)
+    dependsOn("bundleInstallDist", "bundleJlinkRuntime", bundleMcpInstallDist, bundleLspInstallDist)
 
     val launcherPath: String =
         imageDir
@@ -540,6 +564,33 @@ tasks.register("bundledImage") {
             .asFile
             .resolve("bin/kuml-mcp.bat")
             .absolutePath
+    // kuml-lsp (2026-07-19) — installDist launcher living under lsp/bin/, plus the
+    // thin wrapper script at bin/kuml-lsp that end users (and Homebrew) invoke.
+    // Mirrors the kuml-mcp paths above exactly.
+    val lspLauncherPath: String =
+        imageDir
+            .get()
+            .asFile
+            .resolve("lsp/bin/kuml-lsp")
+            .absolutePath
+    val lspWrapperPath: String =
+        imageDir
+            .get()
+            .asFile
+            .resolve("bin/kuml-lsp")
+            .absolutePath
+    val lspBatLauncherPath: String =
+        imageDir
+            .get()
+            .asFile
+            .resolve("lsp/bin/kuml-lsp.bat")
+            .absolutePath
+    val lspBatWrapperPath: String =
+        imageDir
+            .get()
+            .asFile
+            .resolve("bin/kuml-lsp.bat")
+            .absolutePath
     outputs.files(
         launcherPath,
         batLauncherPath,
@@ -547,6 +598,10 @@ tasks.register("bundledImage") {
         mcpWrapperPath,
         mcpBatLauncherPath,
         mcpBatWrapperPath,
+        lspLauncherPath,
+        lspWrapperPath,
+        lspBatLauncherPath,
+        lspBatWrapperPath,
     )
 
     doLast(
@@ -730,6 +785,116 @@ tasks.register("bundledImage") {
                         "",
                     )
                 mcpBatWrapper.writeText(mcpBatWrapperLines.joinToString("\r\n"))
+
+                // ── kuml-lsp launcher (2026-07-19) ────────────────────────────────
+                // Same self-containment fix as bin/kuml-mcp above, applied to the
+                // kuml-lsp installDist launcher under lsp/bin/. APP_HOME here
+                // resolves to the lsp/ directory itself (one level below the
+                // image root), so the bundled JRE is reached via ../runtime
+                // rather than ./runtime — identical layout to mcp/.
+                val lspLauncher = File(lspLauncherPath)
+                require(lspLauncher.isFile) { "Expected kuml-lsp installDist launcher at $lspLauncher" }
+                val lspSource = lspLauncher.readText()
+                require(lspSource.contains(marker)) {
+                    "kuml-lsp launcher format unexpected — could not find Java-detection marker. " +
+                        "Inspect $lspLauncher and adjust patcher."
+                }
+                val lspPatched =
+                    lspSource.replace(
+                        marker,
+                        """
+                        |# kUML bundled runtime: always use the JRE shipped under runtime/
+                        |# one level above this launcher (lsp/bin/kuml-lsp -> ../../runtime),
+                        |# regardless of the user's JAVA_HOME / PATH.
+                        |JAVA_HOME="${'$'}APP_HOME/../runtime"
+                        |export JAVA_HOME
+                        |
+                        |$marker
+                        """.trimMargin(),
+                    )
+                lspLauncher.writeText(lspPatched)
+                lspLauncher.setExecutable(true)
+
+                // ── bin/kuml-lsp wrapper ────────────────────────────────────────
+                // Thin exec wrapper so end users (and the Homebrew formula)
+                // invoke a single top-level bin/kuml-lsp, matching bin/kuml and
+                // bin/kuml-mcp's location, without duplicating kuml-lsp's jars
+                // into lib/.
+                val lspWrapper = File(lspWrapperPath)
+                lspWrapper.parentFile.mkdirs()
+                val lspWrapperLines =
+                    listOf(
+                        "#!/bin/sh",
+                        "# kUML bundled runtime: thin wrapper delegating to the kuml-lsp",
+                        "# installDist launcher bundled under lsp/bin/. Generated by the",
+                        "# :kuml-cli:bundledImage Gradle task -- do not edit by hand.",
+                        "#",
+                        "# Resolve \$0 through symlinks (Homebrew installs this file as a",
+                        "# symlink at \$HOMEBREW_PREFIX/bin/kuml-lsp pointing into libexec/bin/),",
+                        "# the same way the Gradle `application` plugin's own generated",
+                        "# launchers do, so ../lsp/bin/kuml-lsp resolves relative to the real",
+                        "# file location rather than the symlink's directory.",
+                        "app_path=\$0",
+                        "while",
+                        "    dir=\${app_path%\"\${app_path##*/}\"}",
+                        "    [ -h \"\$app_path\" ]",
+                        "do",
+                        "    ls=\$( ls -ld \"\$app_path\" )",
+                        "    link=\${ls#*' -> '}",
+                        "    case \$link in",
+                        "      /*)   app_path=\$link ;;",
+                        "      *)    app_path=\$dir\$link ;;",
+                        "    esac",
+                        "done",
+                        "DIR=\$( cd -P \"\${dir:-./}\" > /dev/null && pwd )",
+                        "exec \"\$DIR/../lsp/bin/kuml-lsp\" \"\$@\"",
+                        "",
+                    )
+                lspWrapper.writeText(lspWrapperLines.joinToString("\n"))
+                lspWrapper.setExecutable(true)
+
+                // ── kuml-lsp Windows launcher (lsp/bin/kuml-lsp.bat) ───────────
+                // Same self-containment fix as kuml-mcp.bat above, applied to the
+                // kuml-lsp installDist Windows launcher under lsp/bin/. %APP_HOME%
+                // here resolves to lsp\, one level below the image root, so the
+                // bundled JRE is reached via ..\runtime rather than .\runtime.
+                val lspBatLauncher = File(lspBatLauncherPath)
+                require(lspBatLauncher.isFile) { "Expected kuml-lsp installDist Windows launcher at $lspBatLauncher" }
+                val lspBatSource = lspBatLauncher.readText()
+                require(lspBatSource.contains(batMarker)) {
+                    "kuml-lsp Windows launcher format unexpected — could not find Java-detection marker. " +
+                        "Inspect $lspBatLauncher and adjust patcher."
+                }
+                val lspBatPatched =
+                    lspBatSource.replace(
+                        batMarker,
+                        "@rem kUML bundled runtime: always use the JRE shipped under runtime\\\r\n" +
+                            "@rem one level above this launcher (lsp\\bin\\kuml-lsp.bat -> ..\\..\\runtime),\r\n" +
+                            "@rem regardless of the user's JAVA_HOME / PATH.\r\n" +
+                            "set JAVA_HOME=%APP_HOME%\\..\\runtime\r\n" +
+                            "\r\n" +
+                            batMarker,
+                    )
+                lspBatLauncher.writeText(lspBatPatched)
+                WindowsClasspathFix.explodeIfNeeded(lspBatLauncher)
+
+                // ── bin/kuml-lsp.bat wrapper ─────────────────────────────────────
+                // Windows counterpart of the bin/kuml-lsp sh wrapper above: a
+                // thin CALL into the real launcher under lsp\bin\, so
+                // Chocolatey's auto-shim step exposes a `kuml-lsp` command at
+                // the same top-level bin\ location as `kuml` and `kuml-mcp`.
+                val lspBatWrapper = File(lspBatWrapperPath)
+                lspBatWrapper.parentFile.mkdirs()
+                val lspBatWrapperLines =
+                    listOf(
+                        "@rem kUML bundled runtime: thin wrapper delegating to the kuml-lsp",
+                        "@rem installDist launcher bundled under lsp\\bin\\. Generated by the",
+                        "@rem :kuml-cli:bundledImage Gradle task -- do not edit by hand.",
+                        "@echo off",
+                        "call \"%~dp0..\\lsp\\bin\\kuml-lsp.bat\" %*",
+                        "",
+                    )
+                lspBatWrapper.writeText(lspBatWrapperLines.joinToString("\r\n"))
             }
         },
     )
@@ -1078,6 +1243,15 @@ tasks.register<Zip>("runtimeZip") {
                     // kuml-mcp wrapper (V3.2.13) and its bundled installDist launcher.
                     p.endsWith("/bin/kuml-mcp") ||
                     p.endsWith("/mcp/bin/kuml-mcp") ||
+                    // kuml-lsp wrapper (2026-07-19) and its bundled installDist launcher —
+                    // same reasoning as kuml-mcp above. Missing this entry doesn't fail the
+                    // build (the imageDir copy already has 0755 via setExecutable(true) in
+                    // bundledImage), but it silently ships bin/kuml-lsp and lsp/bin/kuml-lsp
+                    // as non-executable (0644) in the zip itself — direct-download users
+                    // hit "Permission denied", masked for Homebrew users only because the
+                    // formula's own explicit chmod papers over it.
+                    p.endsWith("/bin/kuml-lsp") ||
+                    p.endsWith("/lsp/bin/kuml-lsp") ||
                     // All JDK binaries shipped with the bundled runtime.
                     p.contains("/runtime/bin/") ||
                     // jlink's helper executable, lives outside runtime/bin.
