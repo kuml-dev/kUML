@@ -4,6 +4,98 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.37.0] — 2026-07-19
+
+### Added
+
+**`kuml-lsp` now shipped in the runtime zip (Homebrew, GitHub release, Chocolatey)**
+
+`kuml-language-server` has been a fully working Gradle module (`./gradlew
+:kuml-language-server:installDist`) for a while, but it was never wired into any actual
+distribution channel — not Homebrew, not the GitHub release zip, not Chocolatey, and
+deliberately not Maven Central (it ships as a distZip, like `kuml-web`/`kuml-cli`, never
+a Maven artifact). Every real-world install of the `kuml-vscode` extension (or any other
+LSP client) hit `ENOENT: spawn kuml-lsp` unless the user happened to have a local kUML
+repo clone with a Gradle build lying around. Bundled the same way `kuml-mcp` was
+(V3.2.13): a `lsp/` subtree in the runtime image plus a thin `bin/kuml-lsp` wrapper
+(and Windows `.bat` counterpart), same `JAVA_HOME` patching, same duplicated-jars
+trade-off. The Homebrew formula installs and smoke-tests it identically to `kuml-mcp`.
+
+**`kuml-vscode` extracted into its own repository**
+
+The VS Code extension (TypeScript/npm) lived inside the Kotlin/Gradle monorepo as
+`kuml-vscode-plugin/`, inconsistent with the already-established pattern of
+`obsidian-kuml` living in its own repo. Extracted with full git history via `git subtree
+split` to [`kuml-dev/kuml-vscode`](https://github.com/kuml-dev/kuml-vscode) — own
+npm/vsce release cadence, independent of the core kUML version numbers going forward.
+
+### Fixed
+
+**VS Code handbook page described a stale v0.1.0-era extension**
+
+The handbook's VS Code page still said "no Language Server" and listed diagnostics,
+completion, and live-preview as "V2 — not yet built", even though `kuml-vscode` v0.2.0
+had already shipped a `kuml-lsp` LSP client and a live-preview webview. Rewritten against
+the real feature set: a Requirements section for the two external binaries it depends on,
+all 7 actual settings instead of 3, the live-preview's dual HTTP/CLI render strategy, and
+the extension's actual current scope boundary instead of the outdated one.
+
+**`kuml-lsp` process leak on client disconnect**
+
+The language server never exited on its own once its input stream reached EOF (the
+signal a client sends when it disconnects, e.g. VS Code closing the language client) —
+`lsp4j`'s dispatch machinery keeps non-daemon threads alive past
+`launcher.startListening().get()` returning, so the process just kept running. Every
+editor session could leave a `kuml-lsp` zombie behind. Fixed with an explicit
+`exitProcess(0)` once listening ends.
+
+**`runtimeZip` shipped `kuml-lsp`/`kuml-mcp`-adjacent executables without their exec bit**
+
+The `isExecutable` allowlist that `runtimeZip` uses to preserve Unix permissions inside
+the generated zip (Gradle's `Zip` task defaults everything to 0644) wasn't extended for
+the new `lsp/` paths when they were added, so `bin/kuml-lsp` and `lsp/bin/kuml-lsp` would
+have shipped non-executable in the zip itself — masked for Homebrew users only because
+the formula applies its own explicit `chmod`, but broken for anyone downloading the zip
+directly. Caught by an independent review pass before release, not by manual testing
+(which ran against the local build staging directory, not the actual zip artifact).
+
+**Chocolatey installer double-shim risk for `kuml-lsp`**
+
+`chocolateyInstall.ps1` only suppressed the duplicate Chocolatey shim that would
+otherwise be created for `kuml-mcp`'s nested `.bat` launcher; added the equivalent
+`.ignore` marker for `lsp/bin/kuml-lsp.bat`.
+
+**OKF Workspaces: root-absolute links falsely flagged as broken**
+
+`OkfValidator.checkLinks` resolved every Markdown link relative to the source document's
+own directory, including root-absolute targets like `/notes/foo.md` — `File(parent,
+child)` doesn't override an absolute-looking child, so it silently concatenated under the
+wrong directory instead of the workspace root. This produced false-positive `OKF-E-005`
+findings for links that `WorkspaceGraphIndex` and `DefaultWorkspaceLinkHandler` already
+resolved correctly (both already special-case a leading `/` as root-relative).
+
+### Changed
+
+**Desktop: retroactive UI/UX design-team pass on Knowledge Workspace screens**
+
+`TrustDialog`'s Trust action is now a filled primary button instead of a plain text
+button, since it gates arbitrary script execution and deserves the visual weight
+Material reserves for a consequential affirmative action. `WorkspaceModeChooserDialog`
+now visually distinguishes Knowledge Workspace (ADR-0011's declared "hero mode", filled
+primary button) from Engineering mode (secondary outlined button) — previously both
+looked like identical plain text buttons. `WorkspaceTreePane`'s diagram/prose/unknown
+type-badge glyphs now carry a hover tooltip explaining what they mean.
+
+**OKF Workspaces ADR-0011 FT-6: cross-link resolver + knowledge-graph index**
+
+New `WorkspaceGraphIndex` in `kuml-docs:kuml-workspace` builds a bidirectional link index
+(outgoing links and backlinks) over a scanned workspace, resolving Markdown links the
+same way `OkfValidator` and `DefaultWorkspaceLinkHandler` already do. `kuml-desktop` now
+builds this index once per opened workspace and shows a "Linked from" backlinks footer in
+the document pane — the first time the ADR's "indexed automatically, navigable in both
+directions" property is actually visible; previously only forward navigation via link
+clicks existed.
+
 ## [0.36.1] — 2026-07-17
 
 ### Fixed

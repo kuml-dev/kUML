@@ -17,7 +17,7 @@ plugins {
 
 allprojects {
     group = "dev.kuml"
-    version = "0.36.1"
+    version = "0.37.0"
 }
 
 // Apply ktlint to all subprojects that use a Kotlin plugin — JVM-only or
