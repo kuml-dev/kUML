@@ -158,10 +158,19 @@ internal object SvgDocument {
             val ty = theme.typography.small
             val x = fmt(canvasW - padding)
             val y = fmt(canvasH - WATERMARK_GAP_PX)
-            val fill = theme.colors.muted.toHex()
+            // Escape every theme-derived value with the renderer's standard XML
+            // utilities, exactly as every other node/text emitter in this module
+            // does. `colors.muted.toHex()` is structurally safe (`#RRGGBB`) and
+            // `WATERMARK_TEXT` is a compile-time literal, but the theme's
+            // `typography.small.family` is a free-form String — escaping it here
+            // keeps the choke point injection-proof regardless of where a future
+            // theme string originates (defense in depth, same convention as
+            // `xmlEscapeAttr`/`xmlEscapeContent` throughout the renderer).
+            val fill = xmlEscapeAttr(theme.colors.muted.toHex())
+            val family = xmlEscapeAttr(ty.family)
             val text =
-                """<text x="$x" y="$y" text-anchor="end" font-family="${ty.family}" """ +
-                    """font-size="${fmt(ty.sizePt)}" fill="$fill">$WATERMARK_TEXT</text>"""
+                """<text x="$x" y="$y" text-anchor="end" font-family="$family" """ +
+                    """font-size="${fmt(ty.sizePt)}" fill="$fill">${xmlEscapeContent(WATERMARK_TEXT)}</text>"""
             root.append(if (p) "  $text\n" else text)
         }
 
