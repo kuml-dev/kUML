@@ -15,6 +15,7 @@ kuml workspace init [--name <name>] [--mode knowledge|engineering]   # scaffold 
 kuml workspace info <dir>                     # mode + document inventory
 kuml workspace validate <dir>                 # structural OKF conformance checks
 kuml workspace render <dir>                   # render every ```kuml block to SVG/PNG
+kuml workspace convert <src> --to okf|kts     # convert between OKF notes and .kuml.kts scripts
 ----
 
 `init` takes its target from the `--output` option (default `./<slug>`), *not* a positional
@@ -73,6 +74,96 @@ The `knowledge`-mode scaffold produces this tree:
 ├── models/domain-classes.md    # type: UmlClassDiagram
 └── glossary/index.md           # type: Glossary
 ----
+
+== `kuml workspace convert`
+
+`kuml workspace convert` converts between OKF knowledge-workspace notes and bare
+`.kuml.kts` engineering scripts (FT-7). The two formats share identical DSL text — an
+OKF ` ```kuml ` block's source is byte-for-byte a valid standalone `.kuml.kts` body
+(the same fact `kuml workspace render` relies on). "Convert" is therefore a text
+wrap/unwrap plus frontmatter synthesis/stripping operation, not a model
+re-serialization.
+
+[source,bash]
+----
+kuml workspace convert ./scripts --to okf --output ./vault/models   # engineering -> knowledge
+kuml workspace convert ./vault --to kts --output ./scripts          # knowledge -> engineering
+----
+
+[cols="1,3"]
+|===
+| Option | Meaning
+
+| `<src>`
+| A single file or a directory. For `--to okf` this is `.kuml.kts` script(s); for
+  `--to kts` this is OKF Markdown note(s).
+
+| `--to okf\|kts`
+| Required. `okf` wraps each `.kuml.kts` script as an OKF Markdown note. `kts` extracts
+  each ` ```kuml ` block as a bare script.
+
+| `--output <dir>`
+| Output directory. Defaults to a sibling `<src>-okf` / `<src>-kts` for a directory
+  source, or the current directory for a single-file source.
+
+| `--force`
+| Overwrite an output file that already exists (default: skip it and report it under
+  `skipped`).
+
+| `--strict`
+| Escalate `OKF-C-002` (multi-block split) and `OKF-C-003` (un-mappable diagram type)
+  from WARNING to ERROR and exit with a non-zero code if any finding was reported.
+
+| `-o text\|json`
+| Report output format, matching `info`/`validate`/`render`'s convention.
+|===
+
+=== Directionality of losslessness
+
+This is the one property to internalise before relying on `convert` for a real
+workflow:
+
+* **`kts -> okf -> kts` is lossless** for the DSL text. Wrapping adds only frontmatter
+  and an H1 heading; extracting discards exactly that and nothing else, recovering the
+  original script byte-for-byte (modulo trailing-newline normalisation — the wrapped
+  block always carries exactly one trailing newline before the closing fence,
+  regardless of how many the source had).
+* **`okf -> kts -> okf` is *not* lossless.** The reverse round trip drops the original
+  prose, the note's own `title:`/`tags:`/other frontmatter, and any non-diagram document
+  (`Concept`, `Article`, `Glossary`, `KumlWorkspace` index, ...) entirely — only the
+  diagram DSL survives. The regenerated note's `title:` and heading come from the
+  diagram's own name, not the original note's `title:`.
+
+Keep prose-authored knowledge in the vault as the source of truth; use `convert` to
+pull diagrams out for engineering-side editing, not as a way to shuttle whole documents
+back and forth.
+
+=== Type mapping and unmappable diagram kinds
+
+`--to okf` evaluates each `.kuml.kts` script (the only way to know its *concrete*
+diagram kind) and maps it to an OKF `type:` value. Most UML, C4, SysML 2, BPMN,
+Blueprint and ERM diagram kinds have a vocabulary entry (see the type tables below).
+A few UML 2.x and C4 diagram kinds do not (e.g. `packageDiagram`, `objectDiagram`,
+`deploymentDiagram`, C4's `SystemLandscapeDiagram`/`DeploymentDiagram`/`DynamicDiagram`)
+— `convert` does not fabricate a vocabulary entry for these; it writes a deterministic
+custom `type:` (e.g. `UmlPackageDiagram`) and reports `OKF-C-003`.
+
+A script that declares multiple diagrams in one model only yields its *first* diagram
+on `--to okf` — the same "first diagram" behaviour as `kuml render`.
+
+=== Multi-block documents
+
+Consistent with `OKF-W-004` ("one file = one diagram"), a knowledge document with more
+than one ` ```kuml ` block is split by `--to kts` into `<stem>-1.kuml.kts`,
+`<stem>-2.kuml.kts`, ... (1-based) and reported as `OKF-C-002`.
+
+=== Trust model
+
+`--to kts` is pure text extraction and never evaluates anything — converting a
+knowledge document to a script never runs its diagram code. `--to okf` evaluates every
+`.kuml.kts` script to determine its concrete diagram kind, inheriting the same
+arbitrary-code-execution trust model as `kuml render` / `kuml workspace render`: only
+run it over scripts you already trust.
 
 == The `.kuml-workspace.toml` marker
 
@@ -234,6 +325,18 @@ error by default — custom types are allowed — but see `--strict-vocabulary` 
 | `OKF-E-005` | ERROR | A relative Markdown link to a `.md` target that does not exist.
 | `OKF-W-006` | WARNING | The workspace root has no `index.md` with `type: KumlWorkspace`.
 | `OKF-E-007` | ERROR | A ```kuml block failed to render (`kuml workspace render` only).
+|===
+
+`kuml workspace convert` (FT-7) reports its own, disjoint code space:
+
+[cols="1,1,3"]
+|===
+| Code | Severity | Meaning
+
+| `OKF-C-001` | (skip, not a finding) | A knowledge document has no ```kuml block — nothing to extract (`--to kts`).
+| `OKF-C-002` | WARNING (or ERROR under `--strict`) | A document has more than one ```kuml block; split into `<stem>-1`, `<stem>-2`, ... (`--to kts`).
+| `OKF-C-003` | WARNING (or ERROR under `--strict`) | The diagram's kind has no OKF vocabulary entry; wrote a custom `type:` (`--to okf`).
+| `OKF-C-004` | ERROR | A `.kuml.kts` script failed to evaluate, or an output file could not be written.
 |===
 
 `OKF-W-002` findings include a *did-you-mean* suggestion (Levenshtein distance ≤ 3
