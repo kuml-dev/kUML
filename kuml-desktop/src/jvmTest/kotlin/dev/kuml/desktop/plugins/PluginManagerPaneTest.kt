@@ -1,6 +1,7 @@
 package dev.kuml.desktop.plugins
 
 import dev.kuml.codegen.m2m.TransformerRegistry
+import dev.kuml.desktop.i18n.Strings
 import dev.kuml.plugin.loader.registry.PluginRegistryEntry
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import io.kotest.core.spec.style.FunSpec
@@ -148,18 +149,23 @@ class PluginManagerPaneTest :
         }
 
         // ── V3.1.12: registryTabLabels() ──────────────────────────────────────────
+        // V3.7.x — routed through Strings (design-review P5); signature now takes Strings.
 
-        test("registryTabLabels() contains 'Registry' as the 4th tab") {
-            val tabs = registryTabLabels()
+        test("registryTabLabels(EN) contains 'Registry' as the 4th tab") {
+            val tabs = registryTabLabels(Strings.EN)
             tabs shouldContain "Registry"
         }
 
-        test("registryTabLabels() has exactly 4 tabs") {
-            registryTabLabels().size shouldBe 4
+        test("registryTabLabels(EN) has exactly 4 tabs") {
+            registryTabLabels(Strings.EN).size shouldBe 4
         }
 
-        test("registryTabLabels() preserves order: Themes, Transformers, Reverse-Engines, Registry") {
-            registryTabLabels() shouldBe listOf("Themes", "Transformers", "Reverse-Engines", "Registry")
+        test("registryTabLabels(EN) preserves order: Themes, Transformers, Reverse-Engines, Registry") {
+            registryTabLabels(Strings.EN) shouldBe listOf("Themes", "Transformers", "Reverse-Engines", "Registry")
+        }
+
+        test("registryTabLabels(DE) uses the German 'Transformer' label but keeps the rest") {
+            registryTabLabels(Strings.DE) shouldBe listOf("Themes", "Transformer", "Reverse-Engines", "Registry")
         }
 
         // ── V3.1.12: registryCardSubtitle() ──────────────────────────────────────

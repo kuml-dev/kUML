@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.kuml.desktop.AppState
+import dev.kuml.desktop.editor.EditorActions
 import dev.kuml.desktop.editor.EditorPane
 import dev.kuml.desktop.io.FileMenu
 import dev.kuml.desktop.preview.PreviewPane
@@ -31,21 +32,30 @@ import java.io.File
  * loads it into [state] via [AppState.loadFrom] — exactly the normal File → Open
  * flow — so the existing [DesktopRenderController]/debounce/render pipeline picks
  * it up unchanged.
+ *
+ * Selecting a different file first runs it through [confirmUnsavedAndThen] (P1,
+ * design review) — the same unsaved-changes guard used everywhere else in the app
+ * (File → New/Open/Quit) — so unsaved edits in the currently-open file are no
+ * longer silently discarded when the user clicks another entry in the tree.
  */
 @Composable
 fun EngineeringWorkspaceScreen(
     state: AppState,
     controller: DesktopRenderController,
     scriptFiles: List<File>,
+    confirmUnsavedAndThen: (() -> Unit) -> Unit,
     modifier: Modifier = Modifier,
+    onEditorReady: (EditorActions) -> Unit = {},
 ) {
     Row(modifier = modifier.fillMaxWidth().fillMaxHeight()) {
         EngineeringFileTreePane(
             files = scriptFiles,
             selected = state.currentFile,
             onSelect = { file ->
-                state.loadFrom(file, FileMenu.readScript(file))
-                state.isDirty = false
+                confirmUnsavedAndThen {
+                    state.loadFrom(file, FileMenu.readScript(file))
+                    state.isDirty = false
+                }
             },
             modifier = Modifier.weight(1f).fillMaxHeight(),
         )
@@ -54,6 +64,7 @@ fun EngineeringWorkspaceScreen(
             state = state,
             controller = controller,
             modifier = Modifier.weight(2f).fillMaxHeight(),
+            onEditorReady = onEditorReady,
         )
         HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
         PreviewPane(

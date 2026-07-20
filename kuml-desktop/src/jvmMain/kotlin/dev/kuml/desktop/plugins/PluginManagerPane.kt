@@ -16,6 +16,7 @@ import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.rememberDialogState
 import coil3.compose.AsyncImage
 import dev.kuml.codegen.m2m.TransformerRegistry
+import dev.kuml.desktop.i18n.Strings
 import dev.kuml.plugin.loader.registry.KeyStatus
 import dev.kuml.plugin.loader.registry.PluginRegistryClient
 import dev.kuml.plugin.loader.registry.PluginRegistryEntry
@@ -39,7 +40,10 @@ import java.net.URI
  * - Registry (V3.1.12) — Browse available plugins from plugins.kuml.dev
  */
 @Composable
-fun PluginManagerPane(onClose: () -> Unit) {
+fun PluginManagerPane(
+    strings: Strings,
+    onClose: () -> Unit,
+) {
     // Lazy update-badge fetch: fires once when the pane opens, off the UI thread.
     // On registry failure the badge stays null — silent graceful degradation.
     var updateBadge by remember { mutableStateOf<String?>(null) }
@@ -67,7 +71,7 @@ fun PluginManagerPane(onClose: () -> Unit) {
 
     DialogWindow(
         onCloseRequest = onClose,
-        title = "Plugin Manager",
+        title = strings.pluginManagerTitle,
         state = rememberDialogState(width = 700.dp, height = 500.dp),
     ) {
         MaterialTheme {
@@ -78,7 +82,7 @@ fun PluginManagerPane(onClose: () -> Unit) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "Geladene Erweiterungen",
+                            text = strings.pluginManagerHeadline,
                             style = MaterialTheme.typography.headlineSmall,
                         )
                         if (updateBadge != null) {
@@ -97,7 +101,7 @@ fun PluginManagerPane(onClose: () -> Unit) {
                     }
                     Spacer(Modifier.height(12.dp))
                     var selected by remember { mutableStateOf(0) }
-                    val tabs = registryTabLabels()
+                    val tabs = registryTabLabels(strings)
                     PrimaryTabRow(selectedTabIndex = selected) {
                         tabs.forEachIndexed { i, title ->
                             Tab(
@@ -112,27 +116,28 @@ fun PluginManagerPane(onClose: () -> Unit) {
                         0 ->
                             PluginSection(
                                 items = loadThemes(),
-                                emptyText = "Keine Themes geladen",
+                                emptyText = strings.pluginManagerNoThemes,
                             )
                         1 ->
                             PluginSection(
                                 items = loadTransformers(),
-                                emptyText = "Keine Transformer geladen",
+                                emptyText = strings.pluginManagerNoTransformers,
                             )
                         2 ->
                             PluginSection(
                                 items = loadReverseEngines(),
-                                emptyText = "Keine Reverse-Engines geladen",
+                                emptyText = strings.pluginManagerNoReverseEngines,
                             )
                         3 ->
                             RegistryBrowseSection(
                                 entries = registryEntries,
                                 hasError = registryError,
+                                strings = strings,
                             )
                     }
                     Spacer(Modifier.weight(1f))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Button(onClick = onClose) { Text("Schließen") }
+                        Button(onClick = onClose) { Text(strings.dialogClose) }
                     }
                 }
             }
@@ -141,7 +146,13 @@ fun PluginManagerPane(onClose: () -> Unit) {
 }
 
 /** Returns the ordered tab label list for the Plugin Manager. Extracted for testability. */
-internal fun registryTabLabels(): List<String> = listOf("Themes", "Transformers", "Reverse-Engines", "Registry")
+internal fun registryTabLabels(strings: Strings): List<String> =
+    listOf(
+        strings.pluginManagerTabThemes,
+        strings.pluginManagerTabTransformers,
+        strings.pluginManagerTabReverseEngines,
+        strings.pluginManagerTabRegistry,
+    )
 
 // ── Registry Browse Tab (V3.1.12) ─────────────────────────────────────────────
 
@@ -149,6 +160,7 @@ internal fun registryTabLabels(): List<String> = listOf("Themes", "Transformers"
 private fun RegistryBrowseSection(
     entries: List<PluginRegistryEntry>?,
     hasError: Boolean,
+    strings: Strings,
 ) {
     when {
         entries == null -> {
@@ -158,7 +170,7 @@ private fun RegistryBrowseSection(
         }
         hasError || entries.isEmpty() -> {
             val msg =
-                if (hasError) "Registry nicht erreichbar" else "Keine Plugins in der Registry"
+                if (hasError) strings.pluginManagerRegistryUnreachable else strings.pluginManagerRegistryEmpty
             Text(
                 text = msg,
                 style = MaterialTheme.typography.bodySmall,
@@ -168,7 +180,7 @@ private fun RegistryBrowseSection(
         else -> {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(entries, key = { it.id }) { entry ->
-                    RegistryEntryCard(entry)
+                    RegistryEntryCard(entry = entry, strings = strings)
                 }
             }
         }
@@ -176,7 +188,10 @@ private fun RegistryBrowseSection(
 }
 
 @Composable
-private fun RegistryEntryCard(entry: PluginRegistryEntry) {
+private fun RegistryEntryCard(
+    entry: PluginRegistryEntry,
+    strings: Strings,
+) {
     var expanded by remember { mutableStateOf(false) }
     var fullScreenUrl by remember { mutableStateOf<String?>(null) }
     val allReviews = entry.reviews.sortedByDescending { it.date }
@@ -250,9 +265,9 @@ private fun RegistryEntryCard(entry: PluginRegistryEntry) {
                     TextButton(onClick = { expanded = !expanded }) {
                         Text(
                             if (expanded) {
-                                "Weniger anzeigen"
+                                strings.pluginManagerShowLess
                             } else {
-                                "Alle Reviews anzeigen (${allReviews.size})"
+                                strings.pluginManagerShowAllReviews.format(allReviews.size)
                             },
                         )
                     }
@@ -266,7 +281,7 @@ private fun RegistryEntryCard(entry: PluginRegistryEntry) {
     if (url != null) {
         DialogWindow(
             onCloseRequest = { fullScreenUrl = null },
-            title = "Screenshot",
+            title = strings.pluginManagerScreenshotTitle,
             state = rememberDialogState(width = 900.dp, height = 650.dp),
         ) {
             MaterialTheme {
@@ -280,7 +295,7 @@ private fun RegistryEntryCard(entry: PluginRegistryEntry) {
                             modifier = Modifier.fillMaxSize(),
                         )
                         Box(Modifier.align(Alignment.TopEnd).padding(8.dp)) {
-                            Button(onClick = { fullScreenUrl = null }) { Text("Schließen") }
+                            Button(onClick = { fullScreenUrl = null }) { Text(strings.dialogClose) }
                         }
                     }
                 }
