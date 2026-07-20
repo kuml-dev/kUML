@@ -485,8 +485,8 @@ An ERM model can be authored directly (`ermModel { … }`) or derived from an ex
 | `kuml reverse`
 | Reconstruct a UML class diagram from existing source code (`--lang java\|kotlin\|auto`, JavaParser / Kotlin Compiler PSI, optional `--transformer <id>`, V3.0.9), or an ERM model from existing SQL DDL (`--format sql --sql-dialect postgres`, JSqlParser-based, V3.4.9). `kuml reverse --format sql` prints the recovered model as `ermModel { }` DSL source.
 
-| `kuml workspace init\|info\|validate\|render`
-| _Experimental spike (ADR-0011)._ Treat an Obsidian-vault-style directory of Markdown files with YAML frontmatter and embedded ` ```kuml ` blocks as an Open Knowledge Format (OKF) workspace: `init` scaffolds a new workspace (`--name`, `--mode knowledge\|engineering`, `--output`), `info <dir>` summarises documents by type, `validate <dir>` checks frontmatter/structure, `render <dir>` renders the embedded diagrams to SVG.
+| `kuml workspace init\|info\|validate\|render\|convert`
+| Treat an Obsidian-vault-style directory of Markdown files with YAML frontmatter and embedded ` ```kuml ` blocks as an Open Knowledge Format (OKF) workspace (ADR-0011): `init` scaffolds a new workspace (`--name`, `--mode knowledge\|engineering`, `--output`), `info <dir>` summarises documents by type, `validate <dir>` checks frontmatter/structure, `render <dir>` renders the embedded diagrams to SVG, `convert <src> --to okf\|kts` (v0.38.0) wraps/unwraps a workspace note ⇔ a bare `.kuml.kts` script.
 
 | `kuml markdown`
 | Render `kuml`-fenced code blocks in a Markdown file to inline SVG, linked SVG, or linked PNG.
