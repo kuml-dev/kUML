@@ -33,6 +33,8 @@ kotlin {
                     implementation(project(":kuml-renderer:kuml-themes"))
                     implementation(project(":kuml-renderer:kuml-themes-core"))
                     implementation(project(":kuml-io:kuml-io-svg"))
+                    // P3, design review — PNG export (Export PNG… in the File menu)
+                    implementation(project(":kuml-io:kuml-io-png"))
                     implementation(libs.batik.swing)
                     implementation(compose.desktop.currentOs)
                     implementation(libs.kotlinx.coroutines.core)

@@ -1,0 +1,107 @@
+= Obsidian Sync
+:description: Using an Obsidian vault as an OKF knowledge workspace — the wikilink caveat, frontmatter compatibility, and bridging to engineering scripts with `kuml workspace convert`.
+
+An https://obsidian.md[Obsidian] vault and an xref:knowledge-workspaces.adoc[OKF knowledge
+workspace] are, by construction, the same shape of thing: a directory tree of Markdown
+files, each with a YAML frontmatter block and body prose. This page covers what carries
+over cleanly, what does not, and the recommended workflow for treating a vault (or a
+subfolder of one) as a `kuml workspace` root.
+
+== Why OKF looks like Obsidian
+
+OKF is deliberately a plain directory of Markdown + YAML frontmatter + ` ```kuml `
+fences — nothing Obsidian-specific was required to arrive at that shape, but the
+overlap is not a coincidence either: frontmatter `type:`/`title:`/`tags:` map directly
+onto Obsidian *properties*, and the community plugin
+https://github.com/kuml-dev/obsidian-kuml[`obsidian-kuml`] renders ` ```kuml ` fences to
+SVG live inside the vault, the same fences `kuml workspace validate`/`render` read on
+the CLI side.
+
+== Recommended workflow
+
+Point `kuml workspace` commands directly at the vault (or a subfolder of it):
+
+[source,bash]
+----
+kuml workspace validate ~/ObsidianVault/03\ Bereiche/kUML
+kuml workspace render   ~/ObsidianVault/03\ Bereiche/kUML --mirror -o .kuml-out
+----
+
+Add `.kuml-out/` (or whatever `--output` directory you choose) to the vault's
+`.gitignore` — the scanner already skips hidden directories and any directory named in
+a render's `excludeDirs`, so a second `render` run over the same root does not re-scan
+its own mirrored output. The everyday loop is: edit diagrams and prose in Obsidian →
+`kuml workspace validate` to catch structural issues (missing `type:`, orphaned
+````kuml` blocks, dead links) → `kuml workspace render --mirror` when you need a
+GitHub-renderable export (e.g. publishing a subset of the vault).
+
+== The wikilink caveat
+
+This is the headline caveat, and it is real, not theoretical: kUML's link checker only
+recognises Markdown-form links, `[text](target.md)`. Obsidian's `\[[wikilinks]]` are
+**not parsed at all** by the workspace scanner — neither the `OKF-E-005` link-integrity
+check nor the workspace's backlink index see them. A vault written purely in
+`\[[wikilinks]]` has cross-links that are, from kUML's point of view, invisible: broken
+wikilinks are silently never flagged, and no backlink graph is built from them.
+
+Recommendation: turn wikilinks off for content you want kUML to also understand.
+In Obsidian: *Settings → Files & Links → New link format* → *Relative path to file*,
+and turn *Use \[[Wikilinks]]* off. Obsidian then writes ordinary
+`[text](path/to/file.md)` links, which both Obsidian itself and
+`kuml workspace validate`/the backlink index read identically. The trade-off is
+Obsidian's own wikilink conveniences (rename-safe links, unresolved-link highlighting
+independent of relative paths) — decide per-vault whether that is worth it, or split
+prose (wikilinks fine) from any workspace subtree you actually run `kuml workspace`
+against (Markdown-form links required).
+
+== Frontmatter compatibility
+
+kUML's frontmatter parser understands a small YAML subset: scalar `key: value` pairs,
+plus a `tags:` list in either inline (`tags: [a, b]`) or block (`tags:` / `- a`) form.
+Obsidian properties beyond that — nested maps, Obsidian's typed properties (numbers,
+checkboxes, dates-as-objects) — are simply not read by kUML; they neither break
+anything nor get validated. Keep `type:` itself to a plain scalar drawn from the OKF
+vocabulary (or accept an `OKF-W-002` warning for a custom type, escalated to an error
+under `--strict-vocabulary` — see xref:knowledge-workspaces.adoc[Knowledge Workspaces]).
+
+== Callouts
+
+Obsidian callouts (`> [!note]`, `> [!warning]`, ...) are ordinary body prose as far as
+the workspace scanner is concerned — it never inspects body content past frontmatter,
+`type:`, links, and ` ```kuml ` fences. They pass through untouched; use them freely.
+
+== Diagram authoring parity
+
+The same DSL text renders identically whether it is displayed inline by `obsidian-kuml`
+inside Obsidian, or rendered by `kuml workspace render` on the CLI — they read the same
+` ```kuml ` fence. Keep to one fence per note (`OKF-W-004`, "one file = one diagram");
+a note with more than one fence still renders in Obsidian but is flagged on the CLI
+side and is exactly the case `kuml workspace convert --to kts` splits into numbered
+files (see below).
+
+== Bridging to an engineering repo
+
+Use xref:knowledge-workspaces.adoc#_kuml_workspace_convert[`kuml workspace convert`]
+to move diagrams between a vault and a plain engineering repo of `.kuml.kts` scripts:
+
+[source,bash]
+----
+# Lift a folder of scripts into vault-ready notes:
+kuml workspace convert ./scripts --to okf --output ~/ObsidianVault/03\ Bereiche/kUML/models
+
+# Pull diagrams back out of the vault for IDE-side editing:
+kuml workspace convert ~/ObsidianVault/03\ Bereiche/kUML --to kts --output ./scripts
+----
+
+Remember the round-trip guarantee is one-directional: `.kuml.kts -> OKF note -> .kuml.kts`
+recovers the script exactly, but `OKF note -> .kuml.kts -> OKF note` drops the vault
+note's own prose, `title:`/`tags:`, and any non-diagram note entirely. Treat the vault
+as the durable source of truth for anything beyond the raw diagram DSL.
+
+== Trust model
+
+Rendering executes the DSL inside every ` ```kuml ` block — the same arbitrary-code-
+execution trust model as `kuml render` and the rest of `kuml workspace`. Only point
+`kuml workspace render`/`convert --to okf` at a vault (or vault subtree) you already
+trust; this is unchanged by the vault being an Obsidian vault rather than a plain
+directory.

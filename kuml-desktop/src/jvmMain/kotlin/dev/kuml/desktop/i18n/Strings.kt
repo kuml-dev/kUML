@@ -38,6 +38,11 @@ data class Strings(
     val dialogIoError: String,
     val aboutTitle: String,
     val aboutBody: String,
+    val dialogClose: String,
+    // V3.7.x — Export (design-review P3)
+    val menuFileExportSvg: String,
+    val menuFileExportPng: String,
+    val dialogExportTitle: String,
     // V3.0.24 — AI panel strings
     val menuAi: String,
     val aiPanelTitle: String,
@@ -72,6 +77,22 @@ data class Strings(
     val workspaceBadgeProse: String,
     val workspaceBadgeUnknown: String,
     val workspaceBacklinksLabel: String,
+    // V3.7.x — Plugin Manager i18n (design-review P5)
+    val pluginManagerHeadline: String,
+    val pluginManagerTabThemes: String,
+    val pluginManagerTabTransformers: String,
+    val pluginManagerTabReverseEngines: String,
+    val pluginManagerTabRegistry: String,
+    val pluginManagerNoThemes: String,
+    val pluginManagerNoTransformers: String,
+    val pluginManagerNoReverseEngines: String,
+    val pluginManagerRegistryUnreachable: String,
+    val pluginManagerRegistryEmpty: String,
+    val pluginManagerShowLess: String,
+    val pluginManagerShowAllReviews: String,
+    val pluginManagerScreenshotTitle: String,
+    // V3.7.x — AI input placeholder i18n (design-review P5)
+    val aiInputPlaceholder: String,
 ) {
     companion object {
         val DE =
@@ -109,6 +130,10 @@ data class Strings(
                 dialogIoError = "Fehler beim Lesen/Schreiben der Datei",
                 aboutTitle = "Über kUML Desktop",
                 aboutBody = "kUML Desktop — die native Desktop-App für die kUML-Modellierungssprache.\nhttps://kuml.dev",
+                dialogClose = "Schließen",
+                menuFileExportSvg = "SVG exportieren…",
+                menuFileExportPng = "PNG exportieren…",
+                dialogExportTitle = "Diagramm exportieren",
                 menuAi = "KI",
                 aiPanelTitle = "AI Assistant",
                 aiSend = "Senden",
@@ -145,6 +170,20 @@ data class Strings(
                 workspaceBadgeProse = "Prosa oder Sammlung, kein Diagramm",
                 workspaceBadgeUnknown = "Unbekannter Dokumenttyp",
                 workspaceBacklinksLabel = "Verlinkt von:",
+                pluginManagerHeadline = "Geladene Erweiterungen",
+                pluginManagerTabThemes = "Themes",
+                pluginManagerTabTransformers = "Transformer",
+                pluginManagerTabReverseEngines = "Reverse-Engines",
+                pluginManagerTabRegistry = "Registry",
+                pluginManagerNoThemes = "Keine Themes geladen",
+                pluginManagerNoTransformers = "Keine Transformer geladen",
+                pluginManagerNoReverseEngines = "Keine Reverse-Engines geladen",
+                pluginManagerRegistryUnreachable = "Registry nicht erreichbar",
+                pluginManagerRegistryEmpty = "Keine Plugins in der Registry",
+                pluginManagerShowLess = "Weniger anzeigen",
+                pluginManagerShowAllReviews = "Alle Reviews anzeigen (%d)",
+                pluginManagerScreenshotTitle = "Screenshot",
+                aiInputPlaceholder = "Modell beschreiben…",
             )
 
         val EN =
@@ -182,6 +221,10 @@ data class Strings(
                 dialogIoError = "Error reading/writing file",
                 aboutTitle = "About kUML Desktop",
                 aboutBody = "kUML Desktop — the native desktop app for the kUML modelling language.\nhttps://kuml.dev",
+                dialogClose = "Close",
+                menuFileExportSvg = "Export SVG…",
+                menuFileExportPng = "Export PNG…",
+                dialogExportTitle = "Export Diagram",
                 menuAi = "AI",
                 aiPanelTitle = "AI Assistant",
                 aiSend = "Send",
@@ -218,6 +261,20 @@ data class Strings(
                 workspaceBadgeProse = "Prose or collection, no diagram",
                 workspaceBadgeUnknown = "Unknown document type",
                 workspaceBacklinksLabel = "Linked from:",
+                pluginManagerHeadline = "Loaded Extensions",
+                pluginManagerTabThemes = "Themes",
+                pluginManagerTabTransformers = "Transformers",
+                pluginManagerTabReverseEngines = "Reverse-Engines",
+                pluginManagerTabRegistry = "Registry",
+                pluginManagerNoThemes = "No themes loaded",
+                pluginManagerNoTransformers = "No transformers loaded",
+                pluginManagerNoReverseEngines = "No reverse engines loaded",
+                pluginManagerRegistryUnreachable = "Registry unreachable",
+                pluginManagerRegistryEmpty = "No plugins in the registry",
+                pluginManagerShowLess = "Show less",
+                pluginManagerShowAllReviews = "Show all reviews (%d)",
+                pluginManagerScreenshotTitle = "Screenshot",
+                aiInputPlaceholder = "Describe your model…",
             )
 
         fun forLanguage(lang: String): Strings = if (lang == "de") DE else EN

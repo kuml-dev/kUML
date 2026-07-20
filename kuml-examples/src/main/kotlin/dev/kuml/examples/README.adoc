@@ -85,6 +85,11 @@ This directory contains runnable kUML example scripts demonstrating the full fea
 | PZB Datenbank-Schema (Exposed-Tabellen)
 | Class
 | Reales 19-Tabellen-Exposed-Schema des PZB-Projekts. Dient als anspruchsvolles Renderer-Test-Fixture (abstrakte Basisklasse, viele Generalisations-Kanten zu einem gemeinsamen Parent, parallele FK-Kanten zwischen identischen Klassen-Paaren, mehrere Self-Loops über `optReference parent → self`, `1`- und `0..1`-Multiplicities)
+
+| `desktop/`
+| kuml-desktop itself (self-referential dogfooding)
+| Use Case
+| `kuml-desktop-use-cases.kuml.kts` models the actors and implemented use cases of the `kuml-desktop` application (editing/rendering, AI-assisted modeling, knowledge-workspace browsing, plugin discovery); actor generalization plus `«include»`/`«extend»` relationships between use cases
 |===
 
 == Runnable Categories

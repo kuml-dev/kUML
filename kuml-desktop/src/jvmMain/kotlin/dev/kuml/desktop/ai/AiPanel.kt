@@ -21,11 +21,13 @@ import dev.kuml.desktop.ai.components.AiFooter
 import dev.kuml.desktop.ai.components.ConversationPane
 import dev.kuml.desktop.ai.components.InputPane
 import dev.kuml.desktop.ai.components.ProviderModelPicker
+import dev.kuml.desktop.i18n.Strings
 import kotlinx.coroutines.launch
 
 @Composable
 fun AiPanel(
     state: AiPanelState,
+    strings: Strings,
     modifier: Modifier = Modifier,
 ) {
     LaunchedEffect(Unit) { state.reloadSettings() }
@@ -50,6 +52,7 @@ fun AiPanel(
         Spacer(Modifier.height(6.dp))
         InputPane(
             isRunning = state.isRunning,
+            strings = strings,
             onSend = { state.send(it) },
             onStop = { state.stop() },
         )

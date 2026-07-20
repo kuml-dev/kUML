@@ -87,4 +87,54 @@ class StringsTest :
             Strings.EN.workspaceBacklinksLabel shouldNotBe
                 Strings.DE.workspaceBacklinksLabel
         }
+
+        // --- Design-review pass: Export (P3), dialogClose (P6), Plugin Manager i18n (P5),
+        //     AI input placeholder (P5) ---
+
+        test("EN menuFileExportSvg is non-empty") { Strings.EN.menuFileExportSvg.isNotEmpty() shouldBe true }
+        test("DE menuFileExportSvg is non-empty") { Strings.DE.menuFileExportSvg.isNotEmpty() shouldBe true }
+        test("EN and DE differ on menuFileExportSvg") { Strings.EN.menuFileExportSvg shouldNotBe Strings.DE.menuFileExportSvg }
+
+        test("EN menuFileExportPng is non-empty") { Strings.EN.menuFileExportPng.isNotEmpty() shouldBe true }
+        test("DE menuFileExportPng is non-empty") { Strings.DE.menuFileExportPng.isNotEmpty() shouldBe true }
+
+        test("EN dialogExportTitle is non-empty") { Strings.EN.dialogExportTitle.isNotEmpty() shouldBe true }
+        test("DE dialogExportTitle is non-empty") { Strings.DE.dialogExportTitle.isNotEmpty() shouldBe true }
+
+        test("EN dialogClose is non-empty") { Strings.EN.dialogClose.isNotEmpty() shouldBe true }
+        test("DE dialogClose is non-empty") { Strings.DE.dialogClose.isNotEmpty() shouldBe true }
+        test("EN and DE differ on dialogClose") { Strings.EN.dialogClose shouldNotBe Strings.DE.dialogClose }
+
+        test("EN pluginManagerHeadline is non-empty") { Strings.EN.pluginManagerHeadline.isNotEmpty() shouldBe true }
+        test("DE pluginManagerHeadline is non-empty") { Strings.DE.pluginManagerHeadline.isNotEmpty() shouldBe true }
+        test("EN and DE differ on pluginManagerHeadline") {
+            Strings.EN.pluginManagerHeadline shouldNotBe Strings.DE.pluginManagerHeadline
+        }
+
+        test("EN pluginManagerTabTransformers is 'Transformers'") {
+            Strings.EN.pluginManagerTabTransformers shouldBe "Transformers"
+        }
+        test("DE pluginManagerTabTransformers is 'Transformer'") {
+            Strings.DE.pluginManagerTabTransformers shouldBe "Transformer"
+        }
+
+        test("EN pluginManagerRegistryUnreachable is non-empty") {
+            Strings.EN.pluginManagerRegistryUnreachable.isNotEmpty() shouldBe true
+        }
+        test("DE pluginManagerRegistryUnreachable is non-empty") {
+            Strings.DE.pluginManagerRegistryUnreachable.isNotEmpty() shouldBe true
+        }
+
+        test("EN pluginManagerShowAllReviews contains a %d placeholder") {
+            Strings.EN.pluginManagerShowAllReviews shouldContain "%d"
+        }
+        test("DE pluginManagerShowAllReviews contains a %d placeholder") {
+            Strings.DE.pluginManagerShowAllReviews shouldContain "%d"
+        }
+
+        test("EN aiInputPlaceholder is non-empty") { Strings.EN.aiInputPlaceholder.isNotEmpty() shouldBe true }
+        test("DE aiInputPlaceholder is non-empty") { Strings.DE.aiInputPlaceholder.isNotEmpty() shouldBe true }
+        test("EN and DE differ on aiInputPlaceholder") {
+            Strings.EN.aiInputPlaceholder shouldNotBe Strings.DE.aiInputPlaceholder
+        }
     })

@@ -13,6 +13,7 @@ import dev.kuml.core.script.ScriptEvaluationException
 import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.io.png.PngRenderOptions
 import dev.kuml.io.svg.KumlSvgRenderer
+import dev.kuml.io.svg.SvgRenderOptions
 import dev.kuml.layout.LayoutHints
 import dev.kuml.layout.bridge.C4ContentSizeProvider
 import dev.kuml.layout.bridge.C4LayoutBridge
@@ -148,15 +149,24 @@ internal object GradlePipeline {
             ?: error("Unknown theme '$name'. Registered themes: ${ThemeRegistry.names()}")
     }
 
-    /** Render an extracted diagram to SVG (string). */
+    /**
+     * Render an extracted diagram to SVG (string).
+     *
+     * @param watermark "Powered by kUML" opt-in visible watermark; default `false`.
+     *   Blueprint diagrams are the one exception — see the KDoc on the
+     *   CLI's `RenderPipeline.renderBlueprint` for why that renderer has no
+     *   [SvgRenderOptions] plumbing at all.
+     */
     internal fun renderSvg(
         extracted: ExtractedDiagram,
         theme: KumlTheme,
-    ): String =
-        when (extracted) {
+        watermark: Boolean = false,
+    ): String {
+        val svgOptions = SvgRenderOptions(watermark = watermark)
+        return when (extracted) {
             is ExtractedDiagram.Uml -> {
                 val layout = layoutEngine.layout(UmlLayoutBridge.toLayoutGraph(extracted.diagram), umlHintsFor(extracted.diagram))
-                KumlSvgRenderer.toSvg(extracted.diagram, layout, theme)
+                KumlSvgRenderer.toSvg(extracted.diagram, layout, theme, svgOptions)
             }
             is ExtractedDiagram.C4 -> {
                 val sizeProvider = C4ContentSizeProvider(extracted.model)
@@ -165,7 +175,7 @@ internal object GradlePipeline {
                         C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model, sizeProvider),
                         LayoutHints.DEFAULT,
                     )
-                KumlSvgRenderer.toSvg(extracted.diagram, extracted.model, layout, theme)
+                KumlSvgRenderer.toSvg(extracted.diagram, extracted.model, layout, theme, svgOptions)
             }
             is ExtractedDiagram.Sysml2 ->
                 when (val diagram = extracted.diagram) {
@@ -175,7 +185,7 @@ internal object GradlePipeline {
                                 Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                     }
                     is IbdDiagram -> {
                         val layout =
@@ -183,7 +193,7 @@ internal object GradlePipeline {
                                 Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                     }
                     is UcDiagram -> {
                         val layout =
@@ -191,7 +201,7 @@ internal object GradlePipeline {
                                 Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                     }
                     is ReqDiagram -> {
                         val layout =
@@ -199,7 +209,7 @@ internal object GradlePipeline {
                                 Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                     }
                     is StmDiagram -> {
                         val layout =
@@ -207,7 +217,7 @@ internal object GradlePipeline {
                                 Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                     }
                     is ActDiagram -> {
                         val layout =
@@ -215,7 +225,7 @@ internal object GradlePipeline {
                                 Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                     }
                     is SeqDiagram -> {
                         val layout =
@@ -223,7 +233,7 @@ internal object GradlePipeline {
                                 Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                     }
                     is ParDiagram -> {
                         val layout =
@@ -231,7 +241,7 @@ internal object GradlePipeline {
                                 Sysml2LayoutBridge.toLayoutGraph(extracted.model, diagram),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                     }
                 }
             is ExtractedDiagram.Bpmn -> {
@@ -246,7 +256,7 @@ internal object GradlePipeline {
                                 BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlSvgRenderer.toSvg(kumlDiagram, layout, theme)
+                        KumlSvgRenderer.toSvg(kumlDiagram, layout, theme, svgOptions)
                     }
                     is CollaborationDiagram -> {
                         val layout =
@@ -254,12 +264,12 @@ internal object GradlePipeline {
                                 BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                     }
                     is ChoreographyDiagram -> {
                         // V3.2.2 — Choreography bypasses ELK entirely: deterministic custom grid layout.
                         val layout = ChoreographyGridLayout.layout(extracted.model, diagram)
-                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                     }
                     is ConversationDiagram -> {
                         val layout =
@@ -267,11 +277,14 @@ internal object GradlePipeline {
                                 BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                     }
                 }
             }
-            // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
+            // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid. No
+            // SvgRenderOptions plumbing exists for this renderer (see KDoc above),
+            // so `watermark` has no effect here; the always-on attribution comment
+            // is still emitted (BlueprintGridSvg calls SvgDocument.attributionComment()).
             is ExtractedDiagram.Blueprint -> KumlSvgRenderer.toSvg(extracted.model, extracted.diagram)
             // V3.4.1: ERM rendering is out of scope — planned for V3.4.2.
             is ExtractedDiagram.Erm ->
@@ -280,18 +293,26 @@ internal object GradlePipeline {
                         "V3.4.1 unterstützt für ERM-Skripte nur `kuml validate`.",
                 )
         }
+    }
 
-    /** Render an extracted diagram to PNG bytes. */
+    /**
+     * Render an extracted diagram to PNG bytes.
+     *
+     * @param watermark "Powered by kUML" opt-in visible watermark; default `false`.
+     *   See [renderSvg]'s KDoc for the Blueprint exception.
+     */
     internal fun renderPng(
         extracted: ExtractedDiagram,
         theme: KumlTheme,
         widthPx: Int,
+        watermark: Boolean = false,
     ): ByteArray {
         val options = PngRenderOptions(widthPx = widthPx)
+        val svgOptions = SvgRenderOptions(watermark = watermark)
         return when (extracted) {
             is ExtractedDiagram.Uml -> {
                 val layout = layoutEngine.layout(UmlLayoutBridge.toLayoutGraph(extracted.diagram), umlHintsFor(extracted.diagram))
-                KumlPngRenderer.toPng(extracted.diagram, layout, theme, options)
+                KumlPngRenderer.toPng(extracted.diagram, layout, theme, options, svgOptions)
             }
             is ExtractedDiagram.C4 -> {
                 val sizeProvider = C4ContentSizeProvider(extracted.model)
@@ -300,7 +321,7 @@ internal object GradlePipeline {
                         C4LayoutBridge.toLayoutGraph(extracted.diagram, extracted.model, sizeProvider),
                         LayoutHints.DEFAULT,
                     )
-                KumlPngRenderer.toPng(extracted.diagram, extracted.model, layout, theme, options)
+                KumlPngRenderer.toPng(extracted.diagram, extracted.model, layout, theme, options, svgOptions)
             }
             // V2.0.4 (BDD) / V2.0.6 (IBD): PNG-Export für SysML 2 ist V2.x.
             // Spiegelt das CLI-Verhalten in `RenderPipeline.renderSysml2`.
@@ -320,7 +341,7 @@ internal object GradlePipeline {
                                 BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
                                 LayoutHints.DEFAULT,
                             )
-                        KumlPngRenderer.toPng(kumlDiagram, layout, theme, options)
+                        KumlPngRenderer.toPng(kumlDiagram, layout, theme, options, svgOptions)
                     }
                     is CollaborationDiagram -> {
                         val layout =
@@ -328,13 +349,13 @@ internal object GradlePipeline {
                                 BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
                                 LayoutHints.DEFAULT,
                             )
-                        val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                         KumlPngRenderer.toPng(svg, options)
                     }
                     is ChoreographyDiagram -> {
                         // V3.2.2 — Choreography bypasses ELK entirely: deterministic custom grid layout.
                         val layout = ChoreographyGridLayout.layout(extracted.model, diagram)
-                        val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                         KumlPngRenderer.toPng(svg, options)
                     }
                     is ConversationDiagram -> {
@@ -343,12 +364,14 @@ internal object GradlePipeline {
                                 BpmnLayoutBridge.toLayoutGraph(extracted.model, diagram, BpmnContentSizeProvider(extracted.model)),
                                 LayoutHints.DEFAULT,
                             )
-                        val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme)
+                        val svg = KumlSvgRenderer.toSvg(extracted.model, diagram, layout, theme, svgOptions)
                         KumlPngRenderer.toPng(svg, options)
                     }
                 }
             }
-            // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid.
+            // V3.1.24: Blueprint / Journey-Map — no ELK, deterministic grid. No
+            // SvgRenderOptions plumbing exists for this renderer, so `watermark`
+            // has no effect here (same exception documented on [renderSvg]).
             is ExtractedDiagram.Blueprint -> {
                 val svg = KumlSvgRenderer.toSvg(extracted.model, extracted.diagram)
                 KumlPngRenderer.toPng(svg, options)

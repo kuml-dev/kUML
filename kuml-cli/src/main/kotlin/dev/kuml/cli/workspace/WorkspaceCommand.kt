@@ -23,17 +23,20 @@ import java.io.File
 
 // Single shared pretty-printing Json instance (see ValidateCommand's `kumlPrettyJson` for the
 // same rationale: constructing a new Json {} per call is flagged by the serialization plugin).
-private val okfPrettyJson = Json { prettyPrint = true }
+// Internal (not private) so WorkspaceConvertCommand.kt can reuse the same instance + JSON DTOs
+// instead of duplicating them.
+internal val okfPrettyJson = Json { prettyPrint = true }
 
 /**
- * The `kuml workspace` subcommand group — inspect, validate and render OKF
- * knowledge workspaces (ADR-0011, FT-1 feasibility spike).
+ * The `kuml workspace` subcommand group — inspect, validate, render and convert
+ * OKF knowledge workspaces (ADR-0011, FT-1 feasibility spike).
  *
  * Sub-subcommands:
  * - `init`     — scaffold a new OKF knowledge workspace (V3.6.2, FT-4).
  * - `info`     — scan a workspace and print its mode + document inventory.
  * - `validate` — run [OkfValidator]'s structural conformance checks.
  * - `render`   — render every ```kuml block through the full [dev.kuml.cli.RenderPipeline].
+ * - `convert`  — convert between OKF notes and bare `.kuml.kts` scripts (FT-7).
  */
 internal class WorkspaceCommand : CliktCommand(name = "workspace") {
     init {
@@ -42,6 +45,7 @@ internal class WorkspaceCommand : CliktCommand(name = "workspace") {
             WorkspaceInfoCommand(),
             WorkspaceValidateCommand(),
             WorkspaceRenderCommand(),
+            WorkspaceConvertCommand(),
         )
     }
 
@@ -165,8 +169,9 @@ private data class WorkspaceValidateJson(
     val findings: List<OkfFindingJson>,
 )
 
+// Internal (not private): reused by WorkspaceConvertCommand.kt's JSON report shape.
 @Serializable
-private data class OkfFindingJson(
+internal data class OkfFindingJson(
     val code: String,
     val severity: String,
     val file: String,
@@ -175,7 +180,7 @@ private data class OkfFindingJson(
     val suggestion: String? = null,
 )
 
-private fun OkfFinding.toJson(): OkfFindingJson =
+internal fun OkfFinding.toJson(): OkfFindingJson =
     OkfFindingJson(
         code = code,
         severity = if (severity == OkfSeverity.ERROR) "error" else "warning",

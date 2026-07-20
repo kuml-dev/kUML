@@ -1,5 +1,6 @@
 package dev.kuml.desktop
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -20,14 +22,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyShortcut
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogWindow
 import androidx.compose.ui.window.FrameWindowScope
 import androidx.compose.ui.window.MenuBar
+import androidx.compose.ui.window.rememberDialogState
 import dev.kuml.ai.vault.ApiKeyVault
 import dev.kuml.desktop.ai.AiPanel
 import dev.kuml.desktop.ai.AiPanelState
+import dev.kuml.desktop.editor.EditorActions
 import dev.kuml.desktop.editor.EditorPane
 import dev.kuml.desktop.i18n.Strings
 import dev.kuml.desktop.io.AppSettingsStore
@@ -45,6 +52,7 @@ import dev.kuml.desktop.workspace.TrustDialog
 import dev.kuml.desktop.workspace.WorkspaceModeChooserDialog
 import dev.kuml.desktop.workspace.WorkspaceState
 import dev.kuml.desktop.workspace.WorkspaceTrust
+import dev.kuml.io.png.KumlPngRenderer
 import dev.kuml.renderer.theme.core.ThemeRegistry
 import dev.kuml.workspace.OkfWorkspace
 import dev.kuml.workspace.WorkspaceMode
@@ -70,6 +78,11 @@ fun FrameWindowScope.MainWindow(
     val controller = remember(scope) { DesktopRenderController(state, scope) }
     val aiState = remember { AiPanelState(appState = state, scope = scope, vault = vault) }
     var showPluginManager by remember { mutableStateOf(false) }
+    // P6, design review — About dialog (the strings already existed, the dialog didn't).
+    var showAboutDialog by remember { mutableStateOf(false) }
+    // P2, design review — handle to the currently-mounted EditorPane's undo/redo, so the
+    // Edit menu can wire real Undo/Redo instead of the previous `/* V3.0.11 */` no-ops.
+    var editorActions by remember { mutableStateOf<EditorActions?>(null) }
 
     // V3.6.4 — Knowledge Workspace viewer: pending dialogs gate opening a workspace.
     var pendingTrustWorkspace by remember { mutableStateOf<OkfWorkspace?>(null) }
@@ -141,14 +154,16 @@ fun FrameWindowScope.MainWindow(
             return
         }
         val choice = FileMenu.confirmUnsaved(parent = windowHandle, strings = strings)
-        when (choice) {
-            UnsavedChoice.SAVE -> {
-                if (saveCurrentFile()) action()
-            }
-            UnsavedChoice.DISCARD -> action()
-            UnsavedChoice.CANCEL -> { /* do nothing */ }
+        val saveSucceeded = choice == UnsavedChoice.SAVE && saveCurrentFile()
+        if (FileMenu.shouldProceedAfterUnsavedChoice(choice, saveSucceeded)) {
+            action()
         }
     }
+
+    // P2, design review — Undo/Redo/Find are only meaningful while an EditorPane is
+    // actually mounted (null or Engineering workspace mode, not the read-only Knowledge
+    // workspace viewer).
+    val showsEditor = state.openWorkspace !is OpenWorkspace.Knowledge
 
     MenuBar {
         Menu(strings.menuFile) {
@@ -202,6 +217,46 @@ fun FrameWindowScope.MainWindow(
                 }
             })
             Separator()
+            // P3, design review — Export the rendered diagram. Disabled until something has
+            // actually been rendered; SVG export is zero-dependency (state.lastSvg is already
+            // an in-memory SVG string), PNG goes through the existing kuml-io-png renderer.
+            Item(
+                strings.menuFileExportSvg,
+                enabled = state.lastSvg.isNotBlank(),
+                onClick = {
+                    val chosen =
+                        FileMenu.chooseExport(
+                            parent = windowHandle,
+                            initialDir = state.lastDir?.let { File(it) },
+                            suggestedName = "${FileMenu.exportBaseName(state.currentFile)}.svg",
+                            description = "SVG image (*.svg)",
+                            extension = "svg",
+                            strings = strings,
+                        )
+                    if (chosen != null) {
+                        FileMenu.writeScript(chosen, state.lastSvg)
+                    }
+                },
+            )
+            Item(
+                strings.menuFileExportPng,
+                enabled = state.lastSvg.isNotBlank(),
+                onClick = {
+                    val chosen =
+                        FileMenu.chooseExport(
+                            parent = windowHandle,
+                            initialDir = state.lastDir?.let { File(it) },
+                            suggestedName = "${FileMenu.exportBaseName(state.currentFile)}.png",
+                            description = "PNG image (*.png)",
+                            extension = "png",
+                            strings = strings,
+                        )
+                    if (chosen != null) {
+                        FileMenu.writeBytes(chosen, KumlPngRenderer.toPng(svg = state.lastSvg))
+                    }
+                },
+            )
+            Separator()
             Menu(strings.menuFileRecent) {
                 if (state.recentFiles.isEmpty()) {
                     Item(strings.menuFileRecentEmpty, enabled = false, onClick = {})
@@ -228,10 +283,24 @@ fun FrameWindowScope.MainWindow(
             })
         }
         Menu(strings.menuEdit) {
-            Item(strings.menuEditUndo, onClick = { /* V3.0.11 */ })
-            Item(strings.menuEditRedo, onClick = { /* V3.0.11 */ })
+            // P2, design review — wired to RSyntaxTextArea's built-in undo manager
+            // (EditorPane.EditorActions) instead of the previous no-op placeholders.
+            Item(
+                strings.menuEditUndo,
+                enabled = showsEditor && (editorActions?.canUndo?.value ?: false),
+                shortcut = KeyShortcut(key = Key.Z, ctrl = true),
+                onClick = { editorActions?.undo?.invoke() },
+            )
+            Item(
+                strings.menuEditRedo,
+                enabled = showsEditor && (editorActions?.canRedo?.value ?: false),
+                shortcut = KeyShortcut(key = Key.Z, ctrl = true, shift = true),
+                onClick = { editorActions?.redo?.invoke() },
+            )
             Separator()
-            Item(strings.menuEditFind, onClick = { /* V3.0.11 */ })
+            // P6, design review — Find/Replace isn't implemented yet; disabled rather than a
+            // clickable no-op so the menu doesn't claim a capability it doesn't have.
+            Item(strings.menuEditFind, enabled = false, onClick = {})
         }
         Menu(strings.menuView) {
             val themeNames = remember { ThemeRegistry.names().ifEmpty { listOf("plain", "dark", "blueprint") } }
@@ -246,8 +315,22 @@ fun FrameWindowScope.MainWindow(
             }
         }
         Menu(strings.menuHelp) {
-            Item(strings.menuHelpDocs, onClick = { /* open https://kuml.dev/docs */ })
-            Item(strings.menuHelpAbout, onClick = { /* V3.0.12: About-Dialog */ })
+            // P6, design review — actually opens the docs site instead of doing nothing.
+            Item(
+                strings.menuHelpDocs,
+                onClick = {
+                    runCatching {
+                        if (java.awt.Desktop.isDesktopSupported()) {
+                            java.awt.Desktop
+                                .getDesktop()
+                                .browse(java.net.URI("https://kuml.dev/docs"))
+                        }
+                    }
+                },
+            )
+            // P6, design review — the About text already existed in Strings; only the
+            // dialog to show it was missing.
+            Item(strings.menuHelpAbout, onClick = { showAboutDialog = true })
         }
         // V3.0.24 — AI panel menu
         Menu(strings.menuAi) {
@@ -282,6 +365,8 @@ fun FrameWindowScope.MainWindow(
                                 state = state,
                                 controller = controller,
                                 scriptFiles = ws.scriptFiles,
+                                confirmUnsavedAndThen = { action -> confirmUnsavedAndThen(action) },
+                                onEditorReady = { editorActions = it },
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
                             )
                         null -> {
@@ -289,6 +374,7 @@ fun FrameWindowScope.MainWindow(
                                 state = state,
                                 controller = controller,
                                 modifier = Modifier.weight(1f).fillMaxHeight(),
+                                onEditorReady = { editorActions = it },
                             )
                             HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
                             PreviewPane(
@@ -302,6 +388,7 @@ fun FrameWindowScope.MainWindow(
                         HorizontalDivider(modifier = Modifier.fillMaxHeight().width(1.dp))
                         AiPanel(
                             state = aiState,
+                            strings = strings,
                             modifier = Modifier.width(state.aiPanelWidthPx.dp).fillMaxHeight(),
                         )
                     }
@@ -314,7 +401,12 @@ fun FrameWindowScope.MainWindow(
 
     // V3.0.13 — Plugin Manager Dialog (conditionally visible)
     if (showPluginManager) {
-        PluginManagerPane(onClose = { showPluginManager = false })
+        PluginManagerPane(strings = strings, onClose = { showPluginManager = false })
+    }
+
+    // P6, design review — About dialog.
+    if (showAboutDialog) {
+        AboutDialog(strings = strings, onClose = { showAboutDialog = false })
     }
 
     // V3.6.4 — Knowledge Workspace viewer: trust gate, shown BEFORE any document
@@ -376,4 +468,35 @@ private fun StatusBar(state: AppState) {
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp),
     )
+}
+
+/**
+ * About dialog (P6, design review) — `strings.aboutTitle`/`aboutBody` already existed;
+ * `Help → About` previously did nothing (`/* V3.0.12: About-Dialog */`) because no dialog
+ * was ever built to show them.
+ */
+@Composable
+private fun AboutDialog(
+    strings: Strings,
+    onClose: () -> Unit,
+) {
+    DialogWindow(
+        onCloseRequest = onClose,
+        title = strings.aboutTitle,
+        state = rememberDialogState(width = 420.dp, height = 220.dp),
+    ) {
+        MaterialTheme {
+            Surface(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(16.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(strings.aboutBody)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        Button(onClick = onClose) { Text(strings.dialogClose) }
+                    }
+                }
+            }
+        }
+    }
 }

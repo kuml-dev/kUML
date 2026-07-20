@@ -41,6 +41,13 @@ public abstract class KumlRenderTask
         @get:Input
         public abstract val widthPx: Property<Int>
 
+        // "Powered by kUML" branding — opt-in visible watermark. Declared
+        // `@Input` (not just read at execution time) so a second run after
+        // flipping this property re-renders instead of staying UP-TO-DATE
+        // with the stale (no-watermark) output.
+        @get:Input
+        public abstract val watermark: Property<Boolean>
+
         init {
             group = "kuml"
             description = "Rendere alle *.kuml.kts-Skripte zu SVG/PNG."
@@ -78,8 +85,8 @@ public abstract class KumlRenderTask
                         throw GradleException("kumlRender: ${ex.message}", ex)
                     }
                 when (fmt) {
-                    "svg" -> outFile.writeText(GradlePipeline.renderSvg(extracted, theme))
-                    "png" -> outFile.writeBytes(GradlePipeline.renderPng(extracted, theme, widthPx.get()))
+                    "svg" -> outFile.writeText(GradlePipeline.renderSvg(extracted, theme, watermark.get()))
+                    "png" -> outFile.writeBytes(GradlePipeline.renderPng(extracted, theme, widthPx.get(), watermark.get()))
                 }
                 rendered++
                 logger.lifecycle("kumlRender: ${script.name} -> ${outFile.path}")

@@ -49,6 +49,7 @@ public class KumlPlugin : Plugin<Project> {
             t.format.convention(ext.format)
             t.theme.convention(ext.theme)
             t.widthPx.convention(ext.widthPx)
+            t.watermark.convention(ext.watermark)
         }
 
         project.tasks.register("kumlGenerate", KumlGenerateTask::class.java) { t ->
