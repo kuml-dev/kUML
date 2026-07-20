@@ -4,6 +4,44 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.40.0] — 2026-07-20
+
+### Changed
+
+**Desktop: design-team review action list implemented (P1-P3, P5-P6)**
+
+Following the kuml-desktop UI/UX design-team review (Susan Kare, Larry Tesler, Bill
+Atkinson, Alan Kay, Don Norman, Jef Raskin, Dieter Rams, Jony Ive, Scott Forstall,
+Matias Duarte, Julie Zhuo; final review by Steve Jobs), the approved action list was
+worked in priority order:
+
+- **P1 — unsaved-changes guard on file-tree navigation.** Engineering workspace
+  file-tree selection now runs through the same `confirmUnsavedAndThen` guard already
+  used by File → New/Open/Quit, instead of calling `AppState.loadFrom` directly.
+  Clicking another file in the tree while the current file has unsaved edits now
+  prompts Save/Discard/Cancel instead of silently discarding them.
+- **P2 — real Undo/Redo.** Edit → Undo/Redo now drive RSyntaxTextArea's built-in undo
+  manager (previously no-op placeholders), with `Ctrl+Z` / `Ctrl+Shift+Z` accelerators
+  and menu items whose enabled state reactively reflects real undo/redo availability.
+- **P3 — SVG/PNG export.** File menu gains *Export SVG…* (writes the in-memory SVG
+  string directly) and *Export PNG…* (via the existing `kuml-io-png` renderer). Both
+  are disabled until a diagram has actually been rendered (gated on `state.lastSvg`).
+- **P4 — preview zoom/fit strip.** The preview pane gets a Zoom In / Zoom Out /
+  Reset 100% / Fit control strip driving the SVG viewer's rendering transform
+  directly, implemented as a pure `zoomedTransform` function over `AffineTransform`.
+- **P5 — i18n cleanup.** Plugin Manager and the AI input placeholder are now routed
+  through the `Strings` i18n system instead of hardcoded German literals mixed with
+  English tab labels.
+- **P6 — Help menu.** Help → About now shows a dialog (the strings already existed);
+  Help → Documentation opens `kuml.dev/docs` in the system browser; Find… is disabled
+  rather than a clickable no-op until search is actually implemented.
+
+P7 (active theme/language checkmarks) and P8 (AI icon-button tooltips/labels, bundled
+with the still-missing AI settings/API-key dialog) were deferred per the design
+review's own prioritization. New pure-function unit tests (`FileMenuTest`,
+`PreviewPaneTest`) cover the extracted guard/export/zoom logic, following the existing
+convention of testing pure logic rather than full Compose rendering.
+
 ## [0.39.0] — 2026-07-20
 
 ### Added
