@@ -4,6 +4,57 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.39.0] — 2026-07-20
+
+### Added
+
+**`kuml workspace convert` — bridge between OKF knowledge notes and `.kuml.kts` scripts (FT-7)**
+
+A new subcommand, `kuml workspace convert <src> --to okf|kts`, converts between OKF
+knowledge-workspace Markdown notes and bare `.kuml.kts` engineering scripts. The two
+formats share identical DSL text — an OKF ` ```kuml ` block's source is byte-for-byte a
+valid standalone `.kuml.kts` body — so "convert" is a text wrap/unwrap plus frontmatter
+synthesis/stripping operation, not a model re-serialization:
+
+- `--to okf` wraps a `.kuml.kts` script's source in an OKF Markdown note, evaluating it
+  once (`OkfTypeMapper`) to resolve the concrete diagram kind so the note's `type:`
+  frontmatter is accurate rather than guessed.
+- `--to kts` extracts every ` ```kuml ` block back into a standalone script, purely as
+  text — no script evaluation on this path.
+- `kts -> okf -> kts` round-trips the DSL text losslessly (modulo trailing-newline
+  normalisation); `okf -> kts -> okf` is lossy by design and documented as such — prose,
+  `title:`/`tags:` frontmatter, and non-diagram documents (`Concept`, `Article`,
+  `Glossary`, …) do not survive the reverse direction.
+- New finding codes `OKF-C-001`..`OKF-C-004` cover skipped prose documents, multi-block
+  splits, un-mappable diagram kinds, and evaluation/write failures, with `--strict`
+  escalating warnings to errors and a non-zero exit code.
+- `--force` (overwrite existing output), `--output <dir>` (default: sibling
+  `<src>-okf`/`<src>-kts` for a directory source), and `-o text|json` report output
+  match the existing `workspace info`/`validate`/`render` conventions.
+- Path-traversal defenses (`sanitizeStem` + `resolveWithin`) mirror the existing
+  `WorkspaceRenderer` posture on both conversion directions.
+
+Pure text mechanics (`OkfConverter`, `ConvertReport`) live in `kuml-docs:kuml-workspace`
+to keep that module free of `kuml-core-script`/metamodel dependencies; the diagram-type
+mapping (`OkfTypeMapper`) and the `WorkspaceConvertCommand` wiring live in `kuml-cli`,
+which already evaluates scripts for `render`/`validate`.
+
+**Obsidian Sync handbook page (FT-9)**
+
+A new handbook page (`docs/handbook/modules/tooling/pages/obsidian-sync.adoc`)
+documents using an Obsidian vault as an OKF knowledge workspace: why OKF's plain
+Markdown + YAML frontmatter + ` ```kuml ` shape overlaps with Obsidian by construction,
+the recommended `kuml workspace validate`/`render --mirror` loop, the wikilink caveat
+(`kuml workspace` only parses Markdown-form links, `[text](path)`, not Obsidian
+`[[wikilinks]]`), frontmatter compatibility, and how `kuml workspace convert` bridges a
+vault to a plain engineering repository of scripts. The `knowledge-workspaces.adoc`
+finding-code table is updated with the new `OKF-C-00x` codes, and the new page is
+registered in `tooling/nav.adoc`.
+
+> **Out of scope for this release**: FT-8, a separate `kuml-dev/kuml-okf-types`
+> schema-repository for the OKF vocabulary, has not been started and remains a future
+> wave.
+
 ## [0.38.0] — 2026-07-19
 
 ### Added
