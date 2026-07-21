@@ -54,7 +54,7 @@ class ExampleCatalogTest :
         }
 
         test("find returns multiple examples for uml component") {
-            ExampleCatalog.find(language = "uml", diagramType = "component") shouldHaveSize 2
+            ExampleCatalog.find(language = "uml", diagramType = "component") shouldHaveSize 3
         }
 
         test("find returns multiple examples for uml profile") {

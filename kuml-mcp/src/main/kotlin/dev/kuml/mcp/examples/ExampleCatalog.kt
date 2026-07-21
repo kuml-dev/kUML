@@ -301,6 +301,24 @@ internal object ExampleCatalog {
                         "e-commerce schema — entities, FKs, self-reference, identifying/weak entity, " +
                         "multiple FKs to one table, views, indexes and check constraints.",
             ),
+            CuratedExample(
+                fileName = "40 UML Component – kUML Plugin API.md",
+                language = "uml",
+                diagramType = "component",
+                description =
+                    "UML component diagram of the kUML plugin API itself — kUML Core requiring " +
+                        "three SPIs (theme, renderer, codegen) over separate ports, each provided by " +
+                        "an independent plugin component.",
+            ),
+            CuratedExample(
+                fileName = "41 UML Activity – Order Fulfillment (Objektfluss).md",
+                language = "uml",
+                diagramType = "activity",
+                description =
+                    "UML activity diagram of order fulfillment using object flow — object nodes and " +
+                        "objectFlow edges show which data objects pass between actions, not just " +
+                        "control-flow order.",
+            ),
         )
 
     /** Distinct languages in catalog order: uml, c4, sysml2, bpmn, blueprint, erm. */

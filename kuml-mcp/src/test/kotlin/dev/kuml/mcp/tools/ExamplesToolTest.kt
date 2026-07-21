@@ -60,7 +60,7 @@ class ExamplesToolTest :
         test("multi-example diagram type returns all matching scripts") {
             val result = ExamplesTool.call(args("language" to "uml", "diagramType" to "component"))
             val parsed = json.parseToJsonElement(result[0].text!!).jsonObject
-            parsed["examples"]!!.jsonArray shouldHaveSize 2
+            parsed["examples"]!!.jsonArray shouldHaveSize 3
         }
 
         test("blueprint journey and service-blueprint are distinct types") {
