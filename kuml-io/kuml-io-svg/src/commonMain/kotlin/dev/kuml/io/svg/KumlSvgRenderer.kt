@@ -830,8 +830,34 @@ public object KumlSvgRenderer {
                 options
             }
 
+        // V3.x — self-call labels overflowing the right frame edge. renderUmlSelfCall
+        // (UmlSequenceSvg) draws a self-message's label unconstrained — no maxWidth clamp,
+        // unlike a normal cross-lifeline message, which is compressed to fit between its two
+        // lifeline columns. A long self-call label on the rightmost lifeline (e.g.
+        // "docker compose up -d --remove-orphans") can therefore extend past
+        // `layoutResult.canvas.width`, exactly where the outer diagram frame's right edge
+        // sits — the label gets visually clipped by the SVG viewBox. Grow the canvas (not the
+        // lifeline's own header box — see umlSelfCallRightExtent KDoc for why that would
+        // distort it disproportionately) to the widest such extent, same "grow the canvas for
+        // chrome" philosophy as the fragment-padding bump above.
+        val selfCallRightExtent =
+            interaction.messages
+                .filter { it.fromLifelineId == it.toLifelineId }
+                .mapNotNull { msg ->
+                    val lifelineLayout = layoutResult.nodes[dev.kuml.layout.NodeId(msg.fromLifelineId)] ?: return@mapNotNull null
+                    val cx = lifelineLayout.bounds.origin.x + lifelineLayout.bounds.size.width / 2f
+                    dev.kuml.io.svg.uml
+                        .umlSelfCallRightExtent(cx, msg.label)
+                }.maxOrNull() ?: 0f
+        val effectiveLayoutResult =
+            if (selfCallRightExtent > layoutResult.canvas.width) {
+                layoutResult.copy(canvas = layoutResult.canvas.copy(width = selfCallRightExtent))
+            } else {
+                layoutResult
+            }
+
         return SvgDocument.render(
-            layoutResult,
+            effectiveLayoutResult,
             theme,
             effectiveOptions,
             frameName = diagram.name,

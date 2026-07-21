@@ -412,6 +412,31 @@ private fun renderUmlSelfCall(
 }
 
 /**
+ * Rechter X-Extent eines Self-Call-Labels (in Layout-Koordinaten, VOR dem
+ * Padding-Shift, den `KumlSvgRenderer.renderUmlSequence` beim Rendern anwendet).
+ *
+ * [renderUmlSelfCall] zeichnet das Label ab `cx + SELF_CALL_W + 4f` OHNE
+ * `maxWidth`-Clamp — anders als ein normales Cross-Lifeline-Message-Label
+ * (siehe [renderUmlMessage]), das per `textLength`/`lengthAdjust` auf den
+ * verfügbaren Abstand zwischen zwei Lifeline-Spalten komprimiert wird. Ein
+ * langes Self-Call-Label auf der rechtesten Lifeline (z. B.
+ * `"docker compose up -d --remove-orphans"`) kann daher weit über
+ * `layoutResult.canvas.width` hinausreichen und wird vom SVG-`viewBox`
+ * abgeschnitten, weil die äußere Diagramm-Umrandung ([DiagramFrameSvg])
+ * exakt an der Canvas-Kante endet.
+ *
+ * `KumlSvgRenderer.renderUmlSequence` ruft diese Funktion für jeden Self-Call
+ * auf und wächst — falls nötig — den Canvas auf das Maximum dieser Extents,
+ * statt die Lifeline-Box selbst zu verbreitern (das würde die Kopf-Box
+ * unproportional aufblasen, da `cx` die BOX-Mitte ist: jedes zusätzliche
+ * Pixel Breite verschiebt `cx` nur um ein halbes Pixel nach rechts).
+ */
+internal fun umlSelfCallRightExtent(
+    cx: Float,
+    label: String,
+): Float = cx + SELF_CALL_W + 4f + label.length * BODY_CHAR_WIDTH
+
+/**
  * A guard label (e.g. `[k ≤ 3]`, `[kompiliert]`) queued for later rendering.
  *
  * Guard labels are collected instead of drawn immediately by [renderUmlFragment]
