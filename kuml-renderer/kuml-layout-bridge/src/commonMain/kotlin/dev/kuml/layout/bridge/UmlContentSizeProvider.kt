@@ -7,6 +7,7 @@ import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlActivityNode
 import dev.kuml.uml.UmlActivityNodeKind
+import dev.kuml.uml.UmlArtifact
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComment
@@ -22,6 +23,7 @@ import dev.kuml.uml.UmlInstanceValue
 import dev.kuml.uml.UmlInterface
 import dev.kuml.uml.UmlInterfaceRealization
 import dev.kuml.uml.UmlLink
+import dev.kuml.uml.UmlNode
 import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlProperty
@@ -109,6 +111,12 @@ public class UmlContentSizeProvider
                         out[e.id] = componentSize(e)
                         collect(e.nestedComponents, out)
                     }
+                    is UmlNode -> {
+                        out[e.id] = deploymentNodeSize(e)
+                        collect(e.children, out)
+                        e.artifacts.forEach { out[it.id] = deploymentArtifactSize(it) }
+                    }
+                    is UmlArtifact -> out[e.id] = deploymentArtifactSize(e)
                     is UmlActivityNode ->
                         when (e.kind) {
                             UmlActivityNodeKind.ACTION, UmlActivityNodeKind.OBJECT -> out[e.id] = activityActionSize(e)
@@ -346,6 +354,56 @@ public class UmlContentSizeProvider
             val measured = estimateLabelWidth(node.name, charPx = TITLE_CHAR_PX).toFloat() + BOX_H_PADDING
             val w = maxOf(UmlLayoutBridge.ACTIVITY_ACTION_WIDTH, measured)
             return Size(w, UmlLayoutBridge.ACTIVITY_ACTION_HEIGHT)
+        }
+
+        /**
+         * Größe eines `UmlNode`-Knotens (Deployment-Diagramm: node / device /
+         * executionEnvironment).
+         *
+         * [dev.kuml.io.svg.uml.renderUmlNode] zeichnet einen zentrierten, einzeiligen
+         * `«device»`/`«executionEnvironment»`-Stereotyp-Header (nur für diese beiden
+         * `nodeKind`s) gefolgt vom Namen — beides ohne Wort-Wrap.
+         *
+         * Vor diesem Fix fiel [UmlNode] durch den `else`-Zweig in [collect] und
+         * Blatt-Knoten (keine Kinder/Artefakte) erhielten immer `DEFAULT_W × DEFAULT_H`
+         * (160 × 80) — lange Server-Titel wie
+         * `"netcup VPS 1000 G12 (Debian 13, 159.195.157.203)"` (~50 Zeichen → ~444 px)
+         * liefen weit über die Box hinaus.
+         *
+         * Wird auch für **Compound**-Knoten (mit Kindern/Artefakten) berechnet: dort
+         * fließt derselbe Wert als [dev.kuml.layout.LayoutGroup.minSize] in
+         * [UmlLayoutBridge.addDeploymentNode] ein und garantiert, dass der eigene
+         * zentrierte Titel-Header in den Rahmen passt, selbst wenn die enthaltenen
+         * Kinder/Artefakte schmaler wären — analog zum bestehenden Muster für
+         * expandierte BPMN-Sub-Prozesse
+         * ([dev.kuml.layout.bridge.bpmn.BpmnContentSizeProvider]).
+         */
+        private fun deploymentNodeSize(n: UmlNode): Size {
+            val stereoLine =
+                when (n.nodeKind) {
+                    "device" -> "«device»"
+                    "executionEnvironment" -> "«executionEnvironment»"
+                    else -> ""
+                }
+            val w = boxWidth(nameLine = n.name, stereoLine = stereoLine, bodyLines = emptyList())
+            return Size(w, DEFAULT_H)
+        }
+
+        /**
+         * Größe eines `UmlArtifact`-Knotens (Deployment-Diagramm).
+         *
+         * [dev.kuml.io.svg.uml.renderUmlArtifact] zeichnet immer einen zentrierten
+         * `«artifact»`-Header gefolgt vom Namen, beides einzeilig ohne Wort-Wrap.
+         *
+         * Vor diesem Fix rief [collect] [sizeOf] für Artefakte gar nicht erst auf —
+         * jedes Artefakt bekam unabhängig vom Namen die feste Konstante
+         * [UmlLayoutBridge.DEPLOYMENT_ARTIFACT_SIZE] (120 × 52). Namen wie
+         * `"GHCR Images (kuml-render, kuml-portal)"` (~39 Zeichen → ~352 px) liefen
+         * weit über die Box hinaus.
+         */
+        private fun deploymentArtifactSize(a: UmlArtifact): Size {
+            val w = boxWidth(nameLine = a.name, stereoLine = "«artifact»", bodyLines = emptyList())
+            return Size(w, UmlLayoutBridge.DEPLOYMENT_ARTIFACT_SIZE.height)
         }
 
         private fun interfaceSize(i: UmlInterface): Size {

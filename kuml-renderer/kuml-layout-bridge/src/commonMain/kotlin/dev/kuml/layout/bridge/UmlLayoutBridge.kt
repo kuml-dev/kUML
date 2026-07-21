@@ -101,10 +101,16 @@ public object UmlLayoutBridge {
      */
     internal val STATE_MACHINE_GROUP_INSETS: Insets = Insets(top = 60f, right = 16f, bottom = 24f, left = 16f)
 
-    /** Intrinsische Größe eines UML-Artefakts innerhalb eines Deployment-Nodes.
+    /** Default-/Fallback-Größe eines UML-Artefakts (Deployment-Diagramm).
      *
      * Passend zu `renderUmlArtifact`: «artifact»-Label bei y=20, Name bei y=36,
-     * dog-eared rectangle füllt die gesamte Box.
+     * dog-eared rectangle füllt die gesamte Box. Seit dem Content-aware-Sizing-Fix
+     * (Titel-Overflow bei langen Artefakt-Namen) wird die Breite pro Artefakt über
+     * `UmlContentSizeProvider.deploymentArtifactSize()` gemessen — nur die Höhe
+     * hier bleibt die feste Referenz (analog `BpmnLayoutBridge.DEFAULT_TASK_SIZE`,
+     * dessen `.height` `BpmnContentSizeProvider.taskBoxSize()` genauso spiegelt).
+     * Ohne einen Content-aware [SizeProvider] (z. B. `SizeProvider.constant()` in
+     * Tests) bleibt `.width` weiterhin die bisherige Default-Breite für Artefakte.
      */
     internal val DEPLOYMENT_ARTIFACT_SIZE: Size = Size(120f, 52f)
 
@@ -611,6 +617,10 @@ public object UmlLayoutBridge {
             )
         } else {
             // Compound node — becomes a LayoutGroup so ELK positions children inside.
+            // minSize floors the frame at the node's own title/stereotype width so the
+            // centred header (drawn by renderUmlNode across the full frame width) still
+            // fits even when the nested children/artifacts alone would lay out narrower —
+            // same pattern as the expanded-BpmnSubProcess frame in BpmnLayoutBridge.
             val groupId = GroupId(node.id)
             groups.add(
                 LayoutGroup(
@@ -618,6 +628,7 @@ public object UmlLayoutBridge {
                     parent = parentGroupId,
                     padding = DEPLOYMENT_NODE_GROUP_INSETS,
                     layoutAsCompound = true,
+                    minSize = sizeProvider.sizeOf(node.id, "UmlNode"),
                 ),
             )
             // Nested child UmlNodes — handled recursively (supports arbitrary depth).
@@ -635,7 +646,7 @@ public object UmlLayoutBridge {
                 nodes.add(
                     LayoutNode(
                         id = NodeId(artifact.id),
-                        intrinsicSize = DEPLOYMENT_ARTIFACT_SIZE,
+                        intrinsicSize = sizeProvider.sizeOf(artifact.id, "UmlArtifact"),
                         hints = HintsReader.read(artifact.metadata),
                         groupId = groupId,
                     ),
