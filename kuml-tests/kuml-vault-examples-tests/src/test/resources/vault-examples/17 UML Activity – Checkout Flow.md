@@ -53,11 +53,12 @@ activityDiagram(name = "Checkout") {
 ## Mögliche Erweiterungen
 
 - **Parallele Pfade**: `forkNode()` + `joinNode()` für Versand und Rechnungsstellung parallel
-- **Object Flow**: `objectFlow(from = …, to = …)` für Datenfluss statt Kontrollfluss
+- **Object Flow**: siehe [[41 UML Activity – Order Fulfillment (Objektfluss)]] — eigenes Beispiel, da Objektfluss-Knoten (`objectNode`) und -Kanten (`edge(objectFlow = true)`) den Fokus eigenständig verdienen
 - **Partitions (Swimlanes)**: `partition("Customer") { … }` für Verantwortungsbereiche
 
 ## Verwandte Beispiele
 
+- [[41 UML Activity – Order Fulfillment (Objektfluss)]] — gleicher Diagrammtyp, Fokus auf Objektfluss statt Kontrollfluss
 - [[07 SysML 2 ACT – Order Processing]] — SysML-2-Pendant mit Swimlanes
 - [[18 UML State Machine – Order Lifecycle]] — Zustandssicht statt Ablaufsicht
 - [[22 UML Interaction Overview – Order Process]] — Aktivitäten verlinken Sub-Interaktionen

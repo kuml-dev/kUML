@@ -38,7 +38,7 @@ dependencies {
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
     // Script compilation is memory-intensive
-    jvmArgs("-Xmx1g")
+    jvmArgs("-Xmx2g")
     // Declare sample-output as an explicit task output so that:
     //   • Gradle build cache stores SVGs/PNGs/index alongside test results
     //   • `clean` removes it correctly (it is inside build/ anyway, but the

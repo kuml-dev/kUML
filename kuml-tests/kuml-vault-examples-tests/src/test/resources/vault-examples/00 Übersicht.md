@@ -163,7 +163,8 @@ Der [Playground auf kuml.dev](https://kuml.dev/playground) speist seine Beispiel
 | 32 | [[32 BPMN Collaboration – Customer und Supplier]] | `bpmn-collaboration-customer-supplier` |
 | 36 | [[36 BPMN Conversation – PdV Kommunikation]] | `bpmn-conversation-pdv` *(noch kein Playground-Eintrag — V3.2.3 neu)* |
 | 38 | [[38 UML Profil – Exposed]] | `uml-profile-exposed` **und** `uml-profile-exposed-psm` (Profil-Definition + renderbares PSM-Beispiel) |
-| 39 | [[39 ERM Martin – E-Commerce Schema]] | *(noch kein Playground-Eintrag — V3.4 neu)* |
+| 39 | [[39 ERM Martin – E-Commerce Schema]] | `erm-martin-ecommerce`, `erm-bachman-ecommerce`, `erm-chen-ecommerce`, `erm-idef1x-ecommerce` (alle vier Notationen seit 2026-07-11 im Playground) |
+| 40 | [[40 UML Component – kUML Plugin API]] | *(noch kein Playground-Eintrag — Lücke; aus [[02 Projekte/kUML Präsentation Deutsch|Präsentation]] extrahiert, 2026-07-12)* |
 
 ### Playground-Keys ohne Vault-Anker
 
@@ -192,6 +193,7 @@ Audit-Ergebnis vom 2026-07-02: Alle 28 klassischen Diagrammtypen (UML 14, C4 6, 
 | BPMN | `dataStore`/`dataObject`/`dataAssociation`, `callActivity`, `standardLoop`, `GatewayType.EVENT_BASED`/`PARALLEL`/`COMPLEX` | fehlte | [[30 BPMN Process – Order Fulfillment]] |
 | BPMN | `multiInstance`, `subProcess(transactional = true)`, `subProcess(triggeredByEvent = true)` | fehlte | [[31 BPMN Process – Sub-Process Loop]] |
 | BPMN | `lane`, `blackBoxPool` | fehlte | [[32 BPMN Collaboration – Customer und Supplier]] |
+| UML | `objectNode`, `edge(objectFlow = true)` (Activity) | nur in Prosa erwähnt (»Mögliche Erweiterungen«) | [[41 UML Activity – Order Fulfillment (Objektfluss)]] (2026-07-21, nach Audit-Datum ergänzt) |
 
 **Bewusst nicht geschlossen** (Out of scope laut Wellenspezifikation V3.2.18 bzw. objektiv nicht sinnvoll):
 
@@ -199,6 +201,7 @@ Audit-Ergebnis vom 2026-07-02: Alle 28 klassischen Diagrammtypen (UML 14, C4 6, 
 - Handbuch-Referenz (`docs/handbook/modules/reference/pages/sysml2.adoc`) beschreibt teils eine **andere, nicht implementierte** SysML-2-API (`blockDef`/`valueProperty`/`composition`/`requirement`/`derives`/`satisfies` statt der tatsächlichen `partDef`/`attribute`/`part`/`requirementDef`/`derive`/`satisfy`). Das ist Doku-Drift, nicht Beispiel-Drift — Korrektur gehört zu V3.2.19 (Handbuch-Update), nicht zu diesem Audit.
 - Journey- und Blueprint-Beispiele ([[33 Blueprint – PdV Mitglieder-Journey]], [[34 User Journey – PdV Mitglieder-Journey]]) wurden nicht auditiert — sie gehören nicht zu den vier in der Wellenspezifikation genannten Kernsprachen (UML/SysML 2/C4/BPMN).
 - Neue Diagrammtypen und Handbuch-Einbettung sind laut Wellenspezifikation explizit out of scope (→ V3.2.19).
+- `comment()` (UML-Notiz) für Aktivitätsdiagramme — **strukturell nicht möglich, nicht nur unbeworben.** Direkt am Renderer verifiziert (2026-07-21): `comment()` in einem `activityDiagram { … }`-Block lässt das gesamte Skript fehlschlagen (nicht nur „wird nicht angezeigt"). Laut `CommentDsl.kt` ist die DSL-Funktion bewusst nur für Klassen-, Sequenz- und State-Machine-Diagramme implementiert (einzige Typen mit Renderer-/Layout-Bridge-Anbindung für `UmlComment`/`UmlCommentLink`). Kein Vault-Beispiel für Activity+Comment anlegen, bis das im Kern erweitert wird.
 
 **CI-Verifikation**: `./gradlew clean :kuml-tests:kuml-vault-examples-tests:test` — 44 Tests, 0 Failures (Stand 2026-07-02).
 

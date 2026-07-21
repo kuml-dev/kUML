@@ -144,7 +144,7 @@ Verkettet über `TransformChain<KumlDiagram, KumlDiagram, List<GeneratedFile>>(U
 
 ## Ausblick — ERM (V3.4)
 
-Der hier gezeigte Dual-Annotations-Mechanismus (`«Table»` + `«Entity»` nebeneinander, damit `kuml-gen-sql` den Tabellennamen erkennt) ist ein bewusster Workaround, kein Zielzustand. [[02 Projekte/kUML V3.4]] löst ihn durch ein eigenständiges **ERM-Metamodell** ab: `kuml-transform-uml-to-erm` übernimmt die Rolle von `UmlToExposedPsmTransformer`, aber mit einem typisierten ERM-PSM statt einem doppelt-stereotypisierten UML-PSM — inklusive eigener Notationen (Martin/Bachman/Chen/IDEF1X) und direktem Renderpfad für Views/Indizes/Check-Constraints, die im UML-basierten PSM heute keinen Platz haben.
+Der hier gezeigte Dual-Annotations-Mechanismus (`«Table»` + `«Entity»` nebeneinander, damit `kuml-gen-sql` den Tabellennamen erkennt) ist ein bewusster Workaround, kein Zielzustand. [[06 Archiv/kUML V3.4]] löst ihn durch ein eigenständiges **ERM-Metamodell** ab: `kuml-transform-uml-to-erm` übernimmt die Rolle von `UmlToExposedPsmTransformer`, aber mit einem typisierten ERM-PSM statt einem doppelt-stereotypisierten UML-PSM — inklusive eigener Notationen (Martin/Bachman/Chen/IDEF1X) und direktem Renderpfad für Views/Indizes/Check-Constraints, die im UML-basierten PSM heute keinen Platz haben.
 
 ## Mögliche Erweiterungen
 
@@ -159,5 +159,5 @@ Der hier gezeigte Dual-Annotations-Mechanismus (`«Table»` + `«Entity»` neben
 - [[01 UML Klasse – Order Domain]] — Klassendiagramm ohne Profil-Anreicherung
 - [[03 Bereiche/kUML/ADR/ADR-0016 UML-zu-Exposed-Pipeline (MDA-Persistenzschicht)]] — vollständige Entscheidung + Umsetzungsstand
 - [[03 Bereiche/kUML/ADR/ADR-0017 DSL-Vollständigkeit gegenüber unterstützten Metamodell-Standards]] — Grundsatzentscheidung zur hier gefundenen DSL-Lücke
-- [[02 Projekte/kUML V3.4]] — ERM als Nachfolger des Dual-Annotations-Workarounds
+- [[06 Archiv/kUML V3.4]] — ERM als Nachfolger des Dual-Annotations-Workarounds
 - [[03 Bereiche/kUML/Profile System]] — technische Referenz aller Built-in-Profile

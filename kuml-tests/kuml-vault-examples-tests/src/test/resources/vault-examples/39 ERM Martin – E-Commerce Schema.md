@@ -294,8 +294,8 @@ ermModel("E-Commerce Schema") {
 
 ## Diagramm (Chen)
 
-> [!bug] Bekannter Renderer-Bug bei dichten Modellen (entdeckt 2026-07-10)
-> Für dieses Modell (8 Entitäten, 12 Beziehungen) legt der `ErmChenLayoutBridge` alle Knoten in **eine einzige, ca. 5100×512px breite Zeile** statt sie vertikal zu verteilen — Ergebnis ist ein kaum lesbares, extrem breites Diagramm. Bachman, Martin und IDEF1X sind von diesem Problem **nicht** betroffen; `--layout=grid` als CLI-Override ändert nichts an den Maßen. Der Block ist trotzdem hier eingebunden (vollständige Notations-Abdeckung + Dokumentation des Bugs), aber Vorsicht bei der visuellen Interpretation. Tracking: [[02 Projekte/kUML V3.4#Bekannte Probleme|kUML V3.4]].
+> [!success] Renderer-Bug gefixt (entdeckt 2026-07-10, gefixt 2026-07-11)
+> Für dieses Modell (8 Entitäten, 12 Beziehungen) legte der `ErmChenLayoutBridge` alle Knoten in **eine einzige, ca. 5100×512px breite Zeile** statt sie vertikal zu verteilen. Root Cause: die Beziehungskanten zeigten beide vom Diamanten weg (`diamond → sourceEntity`/`diamond → targetEntity`) statt einer echten `sourceEntity → diamond → targetEntity`-Kette — dadurch degenerierte ELKs Layer-Zuweisung unabhängig von der Modellgröße auf exakt 3 Layer. Fix: Kantenrichtung analog zum IDEF1X-Muster gedreht, Kardinalitäts-Label-Platzierung im Renderer nachgezogen, neuer Dichte-Regressionstest ergänzt. Review + Security-Audit ohne kritische Findings. Nach `master` gesquasht (`3f88781`), noch nicht released/getaggt. Details: [[06 Archiv/kUML V3.4#Bekannte Probleme|kUML V3.4]].
 
 ```kuml
 ermModel("E-Commerce Schema") {
@@ -590,12 +590,13 @@ Anders als bei UML-basierten Persistenz-Workarounds (vgl. [[38 UML Profil – Ex
 ## Mögliche Erweiterungen
 
 - **IDEF1X-Subtyp-Cluster (`category(...)`)**: Wurde hier bewusst **nicht** eingebaut, weil es kein Martin/Bachman/Chen-Konstrukt ist und das Modell notationsübergreifend gleich bleiben soll — siehe `kuml-io-svg`-Tests für `ErmIdef1xCategorySvg` für ein eigenständiges Subtyp/Supertyp-Beispiel.
-- **`kuml reverse --format sql`**: Seit V3.4.9 kann dasselbe Modell auch aus echtem SQL-DDL rekonstruiert werden (SQL → ERM-DSL-Quelltext) — siehe [[02 Projekte/kUML V3.4]].
+- **`kuml reverse --format sql`**: Seit V3.4.9 kann dasselbe Modell auch aus echtem SQL-DDL rekonstruiert werden (SQL → ERM-DSL-Quelltext) — siehe [[06 Archiv/kUML V3.4]].
 - **`kuml generate --plugin sql`**: Der ERM-zu-SQL-Codegenerator (V3.4.7, PostgreSQL-Dialekt zuerst) erzeugt aus genau diesem Modell direkt `CREATE TABLE`-Statements inkl. FK/Index/Check.
-- **Chen-Renderer-Bug**: siehe Warnhinweis im Abschnitt „Diagramm (Chen)" oben — bei diesem dichten Modell (8 Entitäten, 12 Beziehungen) quetscht `ErmChenLayoutBridge` alles in eine einzige, extrem breite Zeile statt vertikal zu verteilen. Fix noch offen, siehe [[02 Projekte/kUML V3.4#Bekannte Probleme]].
+- **Chen-Renderer-Bug**: siehe Hinweis im Abschnitt „Diagramm (Chen)" oben — bei diesem dichten Modell (8 Entitäten, 12 Beziehungen) quetschte `ErmChenLayoutBridge` alles in eine einzige, extrem breite Zeile statt vertikal zu verteilen. **Gefixt am 2026-07-11**, nach `master` gesquasht (`3f88781`), noch nicht getaggt/released, siehe [[06 Archiv/kUML V3.4#Bekannte Probleme]].
+- **Vault-Chen-PNG rendert leer (Folgefehler)**: Das im `kuml-vault-examples-tests`-Modul erzeugte Chen-PNG dieses Beispiels zeigte nur den Diagrammrahmen, weil der Test-Renderer unabhängig von der Notation immer den generischen Martin/Bachman-Layout-Graphen baute. **Gefixt am 2026-07-11** (Commit `82e369e`), siehe [[06 Archiv/kUML V3.4#Bekannte Probleme]]. Zugleich wurde die PNG-Sample-Output-Auflösung verdoppelt (2400→4800px).
 
 ## Verwandte Beispiele
 
 - [[38 UML Profil – Exposed]] — der ältere UML-Dual-Annotations-Workaround (`«Table»`/`«Entity»`), den das ERM-Metamodell ablöst
 - [[03 Bereiche/kUML/Bewertung kUML vs PlantUML vs Mermaid (DB-Modellierung)]] — Vergleichsbewertung, für die dieses neutrale Schema als Webseiten-Beispiel gedacht ist
-- [[02 Projekte/kUML V3.4]] — Projekt-Tracking der ERM-Welle (Metamodell, DSL, Renderer, Transformer, Reverse-Engineering)
+- [[06 Archiv/kUML V3.4]] — Projekt-Tracking der ERM-Welle (Metamodell, DSL, Renderer, Transformer, Reverse-Engineering)
