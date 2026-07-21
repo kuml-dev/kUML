@@ -4,6 +4,23 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+**Comment/Note support extended to all remaining UML diagram types**
+
+`comment(text = ..., anchors = ...)` — introduced in V0.23.1 for class, sequence, and
+state-machine diagrams — now works on every other UML diagram type as well: component,
+use-case, object, package, deployment, profile, composite-structure, activity,
+communication, timing, and interaction-overview. The metamodel (`UmlComment`,
+`UmlCommentLink`) and the renderer/layout-bridge support for them were already generic
+across diagram types; the only gap was that nine of the diagram builders' internal
+`addRelationship` guards rejected `UmlCommentLink` outright. Those guards are now
+opened up, so free-standing notes and dashed anchor lines render exactly like they
+already did on class diagrams — no new DSL surface was needed, since all twelve
+diagram types share the single `UmlModelScope.comment()` overload.
+
 ## [0.38.0] — 2026-07-20
 
 > Bundled release: the branding, OKF, and desktop-UI waves below were originally cut

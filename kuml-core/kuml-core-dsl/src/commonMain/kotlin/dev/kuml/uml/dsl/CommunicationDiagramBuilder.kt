@@ -5,6 +5,8 @@ import dev.kuml.core.model.CommunicationDiagramConfig
 import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.profile.KumlProfile
+import dev.kuml.uml.UmlComment
+import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlElement
 import dev.kuml.uml.UmlInstanceSpecification
 import dev.kuml.uml.UmlInstanceValue
@@ -48,7 +50,7 @@ public class CommunicationDiagramBuilder(
     }
 
     override fun addRelationship(relationship: UmlRelationship) {
-        require(relationship is UmlLink) {
+        require(relationship is UmlLink || relationship is UmlCommentLink) {
             "[$name] ${relationship::class.simpleName} is not a valid relationship for a communication diagram."
         }
         elements += relationship
@@ -56,14 +58,12 @@ public class CommunicationDiagramBuilder(
     }
 
     /**
-     * Adds a [dev.kuml.uml.UmlComment] (UML note) to this diagram.
+     * Adds a [UmlComment] (UML note) to this diagram.
      *
-     * Comment/Note support (V0.23.1) currently targets class, sequence, and
-     * state-machine diagrams — see `UmlModelScope.addComment` KDoc. This diagram
-     * type accepts the call for interface completeness but the `comment()` DSL
-     * function is not documented/promoted for this diagram type.
+     * Comment/Note support (V0.23.1+) is available for all UML diagram types
+     * — see `UmlModelScope.addComment` KDoc.
      */
-    override fun addComment(comment: dev.kuml.uml.UmlComment) {
+    override fun addComment(comment: UmlComment) {
         elements += comment
         takenIds += comment.id
     }

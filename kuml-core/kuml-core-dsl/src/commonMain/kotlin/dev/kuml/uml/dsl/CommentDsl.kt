@@ -6,28 +6,30 @@ import dev.kuml.uml.UmlNamedElement
 import dev.kuml.uml.ids.UmlIds
 
 // ─────────────────────────────────────────────────────────────────────────────
-// UML Comment / Note (V0.23.1).
+// UML Comment / Note (V0.23.1, extended to all UML diagram types thereafter).
 //
-// Scope: Class, Sequence, and State Machine diagrams only — the three
-// overloads below are extension functions on [UmlModelScope],
-// [UmlInteractionScope], and [UmlStateMachineScope] respectively. Other
-// diagram types (BPMN, SysML 2, C4, Component, Use Case, Activity, Object,
-// Deployment, Package, Profile, Composite Structure, Communication, Timing,
-// Interaction-Overview, …) do NOT get a `comment()` DSL function — the
-// underlying `UmlComment`/`UmlCommentLink` metamodel types exist everywhere
-// (registered in `UmlSerializersModule`), but only the three diagram types
-// above have renderer + layout-bridge support (see `UmlLayoutBridge`,
-// `NodeRendererDispatcher`, `EdgeRendererDispatcher`).
+// Scope: all UML diagram types except BPMN, SysML 2, C4, and ERM. Sequence
+// and state-machine diagrams get their own dedicated overloads below (via
+// [UmlInteractionScope] and [UmlStateMachineScope]); every other UML diagram
+// type — Class, Component, Use Case, Object, Package, Deployment, Profile,
+// Composite Structure, Activity, Communication, Timing, Interaction-Overview
+// — shares the single [UmlModelScope] overload, since all of their builders
+// implement that common scope interface. The underlying
+// `UmlComment`/`UmlCommentLink` metamodel types have generic renderer +
+// layout-bridge support (see `UmlLayoutBridge`, `NodeRendererDispatcher`,
+// `EdgeRendererDispatcher`) that is not tied to a specific diagram type.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Adds a free-text [UmlComment] (UML note) to a class diagram or UML model,
- * optionally anchored to one or more elements via dashed [UmlCommentLink]s.
+ * Adds a free-text [UmlComment] (UML note) to a UML model, optionally
+ * anchored to one or more elements via dashed [UmlCommentLink]s.
  *
- * Scope (V0.23.1): class diagrams (this overload, via [UmlModelScope]),
- * sequence diagrams (see the [UmlInteractionScope] overload), and
- * state-machine diagrams (see the [UmlStateMachineScope] overload). Other
- * diagram types do not have this DSL function.
+ * Scope: shared by every diagram builder that implements [UmlModelScope] —
+ * Class, Component, Use Case, Object, Package, Deployment, Profile,
+ * Composite Structure, Activity, Communication, Timing, and
+ * Interaction-Overview diagrams all get this overload. Sequence diagrams use
+ * the [UmlInteractionScope] overload and state-machine diagrams use the
+ * [UmlStateMachineScope] overload instead.
  *
  * ```kotlin
  * classDiagram(name = "Order Domain") {

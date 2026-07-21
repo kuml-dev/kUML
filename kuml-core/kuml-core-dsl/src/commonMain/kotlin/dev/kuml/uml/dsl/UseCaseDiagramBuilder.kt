@@ -10,6 +10,8 @@ import dev.kuml.core.model.UseCaseDiagramConfig
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlActor
 import dev.kuml.uml.UmlAssociation
+import dev.kuml.uml.UmlComment
+import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlElement
 import dev.kuml.uml.UmlExtend
 import dev.kuml.uml.UmlGeneralization
@@ -73,14 +75,12 @@ class UseCaseDiagramBuilder(
     }
 
     /**
-     * Adds a [dev.kuml.uml.UmlComment] (UML note) to this diagram.
+     * Adds a [UmlComment] (UML note) to this diagram.
      *
-     * Comment/Note support (V0.23.1) currently targets class, sequence, and
-     * state-machine diagrams — see `UmlModelScope.addComment` KDoc. This diagram
-     * type accepts the call for interface completeness but the `comment()` DSL
-     * function is not documented/promoted for this diagram type.
+     * Comment/Note support (V0.23.1+) is available for all UML diagram types
+     * — see `UmlModelScope.addComment` KDoc.
      */
-    override fun addComment(comment: dev.kuml.uml.UmlComment) {
+    override fun addComment(comment: UmlComment) {
         elements += comment
         takenIds += comment.id
     }
@@ -104,14 +104,20 @@ class UseCaseDiagramBuilder(
     /**
      * Rejects relationship types that do not belong in a use-case diagram.
      *
-     * Accepted: [UmlAssociation], [UmlInclude], [UmlExtend], [UmlGeneralization].
+     * Accepted: [UmlAssociation], [UmlInclude], [UmlExtend], [UmlGeneralization],
+     * [UmlCommentLink].
      * Rejected: everything else.
      */
     private fun requireUseCaseDiagramRelationship(rel: UmlRelationship) {
-        val ok = rel is UmlAssociation || rel is UmlInclude || rel is UmlExtend || rel is UmlGeneralization
+        val ok =
+            rel is UmlAssociation ||
+                rel is UmlInclude ||
+                rel is UmlExtend ||
+                rel is UmlGeneralization ||
+                rel is UmlCommentLink
         require(ok) {
             "[$name] ${rel::class.simpleName} is not a valid relationship for a use-case diagram. " +
-                "Allowed: UmlAssociation, UmlInclude, UmlExtend, UmlGeneralization."
+                "Allowed: UmlAssociation, UmlInclude, UmlExtend, UmlGeneralization, UmlCommentLink."
         }
     }
 

@@ -7,6 +7,8 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.KumlMetaValue
 import dev.kuml.profile.KumlProfile
+import dev.kuml.uml.UmlComment
+import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -66,14 +68,12 @@ class ComponentDiagramBuilder(
     }
 
     /**
-     * Adds a [dev.kuml.uml.UmlComment] (UML note) to this diagram.
+     * Adds a [UmlComment] (UML note) to this diagram.
      *
-     * Comment/Note support (V0.23.1) currently targets class, sequence, and
-     * state-machine diagrams — see `UmlModelScope.addComment` KDoc. This diagram
-     * type accepts the call for interface completeness but the `comment()` DSL
-     * function is not documented/promoted for this diagram type.
+     * Comment/Note support (V0.23.1+) is available for all UML diagram types
+     * — see `UmlModelScope.addComment` KDoc.
      */
-    override fun addComment(comment: dev.kuml.uml.UmlComment) {
+    override fun addComment(comment: UmlComment) {
         elements += comment
         takenIds += comment.id
     }
@@ -87,10 +87,10 @@ class ComponentDiagramBuilder(
     }
 
     private fun requireComponentDiagramRelationship(rel: UmlRelationship) {
-        val ok = rel is UmlConnector || rel is UmlInterfaceRealization || rel is UmlDependency
+        val ok = rel is UmlConnector || rel is UmlInterfaceRealization || rel is UmlDependency || rel is UmlCommentLink
         require(ok) {
             "[$name] ${rel::class.simpleName} is not a valid relationship for a component diagram. " +
-                "Allowed: UmlConnector, UmlInterfaceRealization, UmlDependency."
+                "Allowed: UmlConnector, UmlInterfaceRealization, UmlDependency, UmlCommentLink."
         }
     }
 

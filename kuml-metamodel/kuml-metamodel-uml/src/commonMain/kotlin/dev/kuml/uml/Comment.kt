@@ -31,16 +31,18 @@ import kotlinx.serialization.Serializable
 //    [UmlComment] with no [UmlCommentLink] referencing it — no special case
 //    needed.
 //
-// Scope (V0.23.1): rendering support covers UML class diagrams (full ELK-
-// routed dashed anchor lines, like any other relationship), sequence
-// diagrams, and state-machine diagrams (direct-render dashed connector,
-// analogous to how those two diagram types already bypass ELK edge routing
-// for their own native elements). BPMN, SysML 2, C4, and other UML diagram
-// types (object, package, component, deployment, use-case, activity, …) are
-// NOT yet wired up in the renderer — [UmlComment] instances placed there are
-// silently ignored by the layout bridge and renderer dispatch `else`
-// branches, exactly like any other not-yet-supported element. This is a
-// known, intentional limitation — see the kUML CHANGELOG entry for V0.23.1.
+// Scope (V0.23.1, extended thereafter): rendering support covers UML class
+// diagrams (full ELK-routed dashed anchor lines, like any other
+// relationship), sequence diagrams, and state-machine diagrams (direct-render
+// dashed connector, analogous to how those two diagram types already bypass
+// ELK edge routing for their own native elements) — and, since the diagram
+// builders' `addRelationship` guards were opened up for [UmlCommentLink], all
+// remaining UML diagram types (object, package, component, deployment,
+// use-case, activity, composite-structure, communication, timing,
+// interaction-overview, profile) as well: the layout bridge and renderer
+// dispatch handle [UmlComment]/[UmlCommentLink] generically, independent of
+// diagram type. Only BPMN, SysML 2, C4, and ERM remain out of scope — see the
+// kUML CHANGELOG for details.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**

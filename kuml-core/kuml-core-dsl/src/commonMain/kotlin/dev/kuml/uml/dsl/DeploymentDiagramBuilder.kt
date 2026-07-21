@@ -6,6 +6,8 @@ import dev.kuml.core.model.DiagramType
 import dev.kuml.core.model.KumlDiagram
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlArtifact
+import dev.kuml.uml.UmlComment
+import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlElement
 import dev.kuml.uml.UmlNamedElement
@@ -49,7 +51,7 @@ public class DeploymentDiagramBuilder(
 
     override fun addRelationship(relationship: UmlRelationship) {
         when (relationship) {
-            is UmlDependency -> {}
+            is UmlDependency, is UmlCommentLink -> {}
             else ->
                 require(false) {
                     "[$name] ${relationship::class.simpleName} is not a valid relationship for a deployment diagram."
@@ -60,14 +62,12 @@ public class DeploymentDiagramBuilder(
     }
 
     /**
-     * Adds a [dev.kuml.uml.UmlComment] (UML note) to this diagram.
+     * Adds a [UmlComment] (UML note) to this diagram.
      *
-     * Comment/Note support (V0.23.1) currently targets class, sequence, and
-     * state-machine diagrams — see `UmlModelScope.addComment` KDoc. This diagram
-     * type accepts the call for interface completeness but the `comment()` DSL
-     * function is not documented/promoted for this diagram type.
+     * Comment/Note support (V0.23.1+) is available for all UML diagram types
+     * — see `UmlModelScope.addComment` KDoc.
      */
-    override fun addComment(comment: dev.kuml.uml.UmlComment) {
+    override fun addComment(comment: UmlComment) {
         elements += comment
         takenIds += comment.id
     }

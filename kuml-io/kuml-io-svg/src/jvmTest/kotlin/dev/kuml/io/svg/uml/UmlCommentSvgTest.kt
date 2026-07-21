@@ -14,9 +14,12 @@ import dev.kuml.layout.Rect
 import dev.kuml.layout.Size
 import dev.kuml.layout.bridge.UmlCommentLayout
 import dev.kuml.renderer.theme.core.PlainTheme
+import dev.kuml.uml.UmlActivityNode
+import dev.kuml.uml.UmlActivityNodeKind
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlComment
 import dev.kuml.uml.UmlCommentLink
+import dev.kuml.uml.UmlTimingLifeline
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.string.shouldContain
 import io.kotest.matchers.string.shouldNotContain
@@ -151,5 +154,81 @@ class UmlCommentSvgTest :
 
             svg shouldNotContain "<img src=x onerror=alert(1)>"
             svg shouldContain "&quot;&gt;&lt;img"
+        }
+
+        test("renders a UmlCommentLink on an activity diagram as a dashed line (generic comment support)") {
+            val action = UmlActivityNode(id = "a1", name = "Ship Order", kind = UmlActivityNodeKind.ACTION)
+            val comment = UmlComment(id = "c1", body = "Triggers the carrier integration.")
+            val link = UmlCommentLink(id = "link1", commentId = "c1", annotatedElementId = "a1")
+            val diagram =
+                KumlDiagram(
+                    name = "Order Fulfillment",
+                    type = DiagramType.ACTIVITY,
+                    elements = listOf(action, comment, link),
+                )
+            val commentSize = UmlCommentLayout.sizeOf(comment)
+            val layoutResult =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(400f, 200f),
+                    nodes =
+                        mapOf(
+                            NodeId("a1") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(120f, 80f))),
+                            NodeId("c1") to NodeLayout(bounds = Rect(Point(200f, 40f), commentSize)),
+                        ),
+                    edges =
+                        mapOf(
+                            EdgeId("link1") to
+                                EdgeRoute.Direct(
+                                    source = Point(140f, 80f),
+                                    target = Point(200f, 60f),
+                                ),
+                        ),
+                    groups = emptyMap(),
+                )
+
+            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+
+            svg shouldContain "class=\"kuml-comment\""
+            svg shouldContain "class=\"kuml-edge-dashed\""
+        }
+
+        test("renders a UmlCommentLink on a timing diagram as a dashed line (generic comment support)") {
+            val lifeline = UmlTimingLifeline(id = "l1", name = "Signal", states = listOf("low", "high"))
+            val comment = UmlComment(id = "c1", body = "Rises on trigger.")
+            val link = UmlCommentLink(id = "link1", commentId = "c1", annotatedElementId = "l1")
+            val diagram =
+                KumlDiagram(
+                    name = "Signal Timing",
+                    type = DiagramType.TIMING,
+                    elements = listOf(lifeline, comment, link),
+                )
+            val commentSize = UmlCommentLayout.sizeOf(comment)
+            val layoutResult =
+                LayoutResult(
+                    engineId = LayoutEngineId("test"),
+                    seed = 1L,
+                    canvas = Size(400f, 200f),
+                    nodes =
+                        mapOf(
+                            NodeId("l1") to NodeLayout(bounds = Rect(Point(20f, 40f), Size(120f, 80f))),
+                            NodeId("c1") to NodeLayout(bounds = Rect(Point(200f, 40f), commentSize)),
+                        ),
+                    edges =
+                        mapOf(
+                            EdgeId("link1") to
+                                EdgeRoute.Direct(
+                                    source = Point(140f, 80f),
+                                    target = Point(200f, 60f),
+                                ),
+                        ),
+                    groups = emptyMap(),
+                )
+
+            val svg = KumlSvgRenderer.toSvg(diagram, layoutResult, PlainTheme())
+
+            svg shouldContain "class=\"kuml-comment\""
+            svg shouldContain "class=\"kuml-edge-dashed\""
         }
     })

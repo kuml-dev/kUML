@@ -6,6 +6,8 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.core.model.PackageDiagramConfig
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlClass
+import dev.kuml.uml.UmlComment
+import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlDependency
 import dev.kuml.uml.UmlElement
 import dev.kuml.uml.UmlEnumeration
@@ -58,14 +60,12 @@ public class PackageDiagramBuilder(
     }
 
     /**
-     * Adds a [dev.kuml.uml.UmlComment] (UML note) to this diagram.
+     * Adds a [UmlComment] (UML note) to this diagram.
      *
-     * Comment/Note support (V0.23.1) currently targets class, sequence, and
-     * state-machine diagrams — see `UmlModelScope.addComment` KDoc. This diagram
-     * type accepts the call for interface completeness but the `comment()` DSL
-     * function is not documented/promoted for this diagram type.
+     * Comment/Note support (V0.23.1+) is available for all UML diagram types
+     * — see `UmlModelScope.addComment` KDoc.
      */
-    override fun addComment(comment: dev.kuml.uml.UmlComment) {
+    override fun addComment(comment: UmlComment) {
         elements += comment
         takenIds += comment.id
     }
@@ -136,6 +136,7 @@ public class PackageDiagramBuilder(
         val rejected =
             when (rel) {
                 is UmlDependency -> null // ✓
+                is UmlCommentLink -> null // ✓
                 is dev.kuml.uml.UmlLink -> "UmlLink (use objectDiagram { })"
                 is dev.kuml.uml.UmlInclude -> "UmlInclude (use useCaseDiagram { })"
                 is dev.kuml.uml.UmlExtend -> "UmlExtend (use useCaseDiagram { })"

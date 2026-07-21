@@ -7,6 +7,8 @@ import dev.kuml.core.model.KumlDiagram
 import dev.kuml.profile.KumlProfile
 import dev.kuml.uml.UmlClass
 import dev.kuml.uml.UmlCollaboration
+import dev.kuml.uml.UmlComment
+import dev.kuml.uml.UmlCommentLink
 import dev.kuml.uml.UmlComponent
 import dev.kuml.uml.UmlConnector
 import dev.kuml.uml.UmlDependency
@@ -52,7 +54,7 @@ public class CompositeStructureDiagramBuilder(
 
     override fun addRelationship(relationship: UmlRelationship) {
         when (relationship) {
-            is UmlConnector, is UmlDependency, is UmlInterfaceRealization -> { /* ✓ */ }
+            is UmlConnector, is UmlDependency, is UmlInterfaceRealization, is UmlCommentLink -> { /* ✓ */ }
             else ->
                 require(false) {
                     "[$name] ${relationship::class.simpleName} is not a valid relationship for a composite-structure diagram."
@@ -63,14 +65,12 @@ public class CompositeStructureDiagramBuilder(
     }
 
     /**
-     * Adds a [dev.kuml.uml.UmlComment] (UML note) to this diagram.
+     * Adds a [UmlComment] (UML note) to this diagram.
      *
-     * Comment/Note support (V0.23.1) currently targets class, sequence, and
-     * state-machine diagrams — see `UmlModelScope.addComment` KDoc. This diagram
-     * type accepts the call for interface completeness but the `comment()` DSL
-     * function is not documented/promoted for this diagram type.
+     * Comment/Note support (V0.23.1+) is available for all UML diagram types
+     * — see `UmlModelScope.addComment` KDoc.
      */
-    override fun addComment(comment: dev.kuml.uml.UmlComment) {
+    override fun addComment(comment: UmlComment) {
         elements += comment
         takenIds += comment.id
     }
