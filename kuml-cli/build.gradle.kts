@@ -1385,13 +1385,48 @@ tasks.register("universalImage") {
     // Windows classpath fix (independent of whether a JRE is bundled — see
     // WindowsClasspathFix above) and the kuml-mcp/kuml-lsp thin wrappers are
     // still needed.
-    val batLauncherPath = universalImageDir.get().asFile.resolve("bin/kuml.bat").absolutePath
-    val mcpBatLauncherPath = universalImageDir.get().asFile.resolve("mcp/bin/kuml-mcp.bat").absolutePath
-    val mcpWrapperPath = universalImageDir.get().asFile.resolve("bin/kuml-mcp").absolutePath
-    val mcpBatWrapperPath = universalImageDir.get().asFile.resolve("bin/kuml-mcp.bat").absolutePath
-    val lspBatLauncherPath = universalImageDir.get().asFile.resolve("lsp/bin/kuml-lsp.bat").absolutePath
-    val lspWrapperPath = universalImageDir.get().asFile.resolve("bin/kuml-lsp").absolutePath
-    val lspBatWrapperPath = universalImageDir.get().asFile.resolve("bin/kuml-lsp.bat").absolutePath
+    val batLauncherPath =
+        universalImageDir
+            .get()
+            .asFile
+            .resolve("bin/kuml.bat")
+            .absolutePath
+    val mcpBatLauncherPath =
+        universalImageDir
+            .get()
+            .asFile
+            .resolve("mcp/bin/kuml-mcp.bat")
+            .absolutePath
+    val mcpWrapperPath =
+        universalImageDir
+            .get()
+            .asFile
+            .resolve("bin/kuml-mcp")
+            .absolutePath
+    val mcpBatWrapperPath =
+        universalImageDir
+            .get()
+            .asFile
+            .resolve("bin/kuml-mcp.bat")
+            .absolutePath
+    val lspBatLauncherPath =
+        universalImageDir
+            .get()
+            .asFile
+            .resolve("lsp/bin/kuml-lsp.bat")
+            .absolutePath
+    val lspWrapperPath =
+        universalImageDir
+            .get()
+            .asFile
+            .resolve("bin/kuml-lsp")
+            .absolutePath
+    val lspBatWrapperPath =
+        universalImageDir
+            .get()
+            .asFile
+            .resolve("bin/kuml-lsp.bat")
+            .absolutePath
 
     outputs.files(
         batLauncherPath,
