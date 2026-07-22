@@ -41,7 +41,10 @@ public class BlueprintLayoutBridge {
     ): BlueprintLayout {
         val labelW = BlueprintGridConstants.LABEL_COLUMN_WIDTH
         val colW = BlueprintGridConstants.COLUMN_WIDTH
-        val rowH = BlueprintGridConstants.ROW_HEIGHT
+        // Content-aware — mirrors BlueprintGeometry (kuml-io-svg) so the cell
+        // rectangles this bridge exposes (LaTeX renderer, MCP tools) match
+        // what the SVG renderer actually draws.
+        val rowH = BlueprintGridConstants.contentAwareRowHeight(model)
         val pad = BlueprintGridConstants.PADDING
         val headerH = BlueprintGridConstants.HEADER_HEIGHT
         val emotionH = BlueprintGridConstants.EMOTION_BAND_HEIGHT

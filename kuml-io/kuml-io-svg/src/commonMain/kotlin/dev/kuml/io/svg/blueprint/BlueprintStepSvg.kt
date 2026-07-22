@@ -51,7 +51,12 @@ internal fun wrapText(
  * [wrapText] + `<tspan>` so long titles like "Beschließt Aufnahme im
  * Vorstand" no longer overflow the card. V3.1.28 uses an asymmetric top/bottom
  * margin (8 px top, 24 px bottom) so Shostack separator-line captions have a
- * clear 24 px zone between the card border and the separator line.
+ * clear 24 px zone between the card border and the separator line. Fix:
+ * the title block used to be vertically re-centered by shifting the first
+ * line up for 2+ line titles, which pushed 3+ line titles above the card's
+ * top border; the first line is now always anchored at y+20, and
+ * [BlueprintGridConstants.contentAwareRowHeight] grows [cellH] so the card
+ * always has room below for however many lines a title wraps to.
  */
 internal fun SvgBuilder.renderStepCard(
     step: JourneyStep,
@@ -84,10 +89,14 @@ internal fun SvgBuilder.renderStepCard(
 
         // Wrap title text to avoid horizontal overflow (V3.1.27).
         val lines = wrapText(step.name ?: step.id, textWidth)
-        val textBlockH = (lines.size - 1) * TITLE_LINE_HEIGHT
-        // First-line baseline: y+20 for single line; shift up by half the
-        // extra block height so multi-line titles stay in the upper third.
-        val firstLineY = y + 20.0 - textBlockH / 2.0
+        // First-line baseline: always y+20, regardless of line count (fix).
+        // The previous version shifted this up by half the wrapped block's
+        // extra height to "center" multi-line titles — for 3+ lines that
+        // pushed the first baseline above the card's top border. Top-
+        // anchoring is safe now that the card height itself is content-aware
+        // (see BlueprintGridConstants.contentAwareRowHeight), so it always
+        // has room below for however many lines a title wraps to.
+        val firstLineY = y + 20.0
 
         if (lines.size == 1) {
             tag(

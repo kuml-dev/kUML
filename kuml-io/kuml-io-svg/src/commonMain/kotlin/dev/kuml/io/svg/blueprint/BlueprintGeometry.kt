@@ -31,7 +31,13 @@ internal class BlueprintGeometry(
 ) {
     val labelColumnWidth = BlueprintGridConstants.LABEL_COLUMN_WIDTH
     val columnWidth = BlueprintGridConstants.COLUMN_WIDTH
-    val rowHeight = BlueprintGridConstants.ROW_HEIGHT
+
+    /**
+     * Content-aware — grows past [BlueprintGridConstants.ROW_HEIGHT] when a
+     * step title wraps onto enough lines to need more room (fix: cards used
+     * to overflow their fixed-height border for 3+ line titles).
+     */
+    val rowHeight = BlueprintGridConstants.contentAwareRowHeight(model)
     val cardMarginTop = BlueprintGridConstants.CARD_MARGIN_TOP
     val cardMarginBottom = BlueprintGridConstants.CARD_MARGIN_BOTTOM
     val emotionBandHeight = BlueprintGridConstants.EMOTION_BAND_HEIGHT
