@@ -56,8 +56,11 @@ updates are approved automatically.
 === SDKMAN! (coming soon)
 
 SDKMAN! is the JVM-ecosystem package manager (`kotlin`, `gradle`, `maven`, `springboot`, …).
-kUML is published as a `PLATFORM_SPECIFIC` candidate with jlink-bundled JREs per platform —
-no Java install required on the host.
+kUML is published as a single `UNIVERSAL` candidate — one archive for every platform, no
+bundled JRE — the same shape every other JVM candidate on SDKMAN! uses. **Requires an
+active Java 21+** (`sdk install java` if you don't already have one); SDKMAN!'s whole
+purpose is managing that for you, so kUML relies on it here instead of shipping its own
+runtime the way the Homebrew/Chocolatey/direct-download channels do.
 
 [NOTE]
 ====
@@ -72,6 +75,10 @@ Once the candidate is published, installation will work like this:
 
 [source,bash]
 ----
+# Make sure a Java 21+ is active first (skip if you already have one):
+sdk install java 21.0.10-tem
+sdk use java 21.0.10-tem
+
 # Install the latest stable kUML:
 sdk install kuml
 
@@ -82,8 +89,8 @@ sdk install kuml {kuml-version}
 sdk use kuml {kuml-version}
 ----
 
-Planned platforms: Apple Silicon (`MAC_ARM64`), Intel Mac (`MAC_OSX`), Linux x64 (`LINUX_64`).
-Windows support is on the V2.x roadmap.
+Because the candidate is `UNIVERSAL`, this works identically on macOS, Linux, and Windows
+(via WSL or Git Bash) — there is no per-platform gating.
 
 === Direct download
 

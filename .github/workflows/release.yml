@@ -22,6 +22,8 @@ jobs:
     outputs:
       version: ${{ steps.ver.outputs.version }}
       release_url_base: ${{ steps.url_base.outputs.url }}
+      universal_dist_url: ${{ steps.url_base.outputs.url }}/${{ steps.universal.outputs.filename }}
+      universal_dist_sha256: ${{ steps.universal.outputs.sha256 }}
     steps:
       - name: Checkout (full history for changelog)
         uses: actions/checkout@v4
@@ -103,8 +105,29 @@ jobs:
       - name: Locate distZip
         id: dist
         run: |
-          DIST_ZIP=$(ls kuml-cli/build/distributions/kuml-*.zip | grep -v runtime | head -n1)
+          DIST_ZIP=$(ls kuml-cli/build/distributions/kuml-*.zip | grep -v runtime | grep -v universal | head -n1)
           echo "dist_zip=$DIST_ZIP" >> $GITHUB_OUTPUT
+
+      # Build once here (JVM bytecode is platform-agnostic, same reasoning as
+      # distZip above) rather than in the per-OS package-runtime matrix below.
+      # This is a SEPARATE artefact from both distZip (no kuml-mcp/kuml-lsp,
+      # no Windows classpath fix) and the bundled-JRE runtimeZip (built per
+      # platform in package-runtime) — it exists only for the SDKMAN! channel,
+      # whose whole purpose is JDK version management via `sdk use java`, so
+      # it ships without a bundled runtime and relies on JAVA_HOME/PATH like
+      # every other JVM candidate there (kotlin, gradle, scala, ...). See
+      # :kuml-cli:universalDist in kuml-cli/build.gradle.kts for the rationale
+      # and the sdkman-release job below for where this gets published.
+      - name: Build CLI universal dist (SDKMAN!, no bundled JRE)
+        run: ./gradlew :kuml-cli:universalDist
+
+      - name: Locate + checksum universal dist
+        id: universal
+        run: |
+          UNIVERSAL_ZIP=$(ls kuml-cli/build/distributions/kuml-universal-*.zip | head -n1)
+          echo "zip=$UNIVERSAL_ZIP" >> $GITHUB_OUTPUT
+          echo "filename=$(basename "$UNIVERSAL_ZIP")" >> $GITHUB_OUTPUT
+          echo "sha256=$(sha256sum "$UNIVERSAL_ZIP" | awk '{print $1}')" >> $GITHUB_OUTPUT
 
       - name: Generate changelog
         id: changelog
@@ -115,26 +138,29 @@ jobs:
         env:
           OUTPUT: CHANGELOG_RELEASE.md
 
-      - name: Create or update GitHub Release (with distZip only — runtime zips added by matrix jobs)
+      - name: Create or update GitHub Release (with distZip + universal dist — runtime zips added by matrix jobs)
         # gh CLI ships on all GitHub-hosted runners and uses GITHUB_TOKEN directly,
         # avoiding the "Requires authentication" finalize bug in softprops/action-gh-release@v2.
         # Idempotent across re-runs: if a release for this tag already exists
         # (e.g. a stale draft from a prior failed run, or a successful prior run
         # that we're re-running due to a downstream failure), we update notes
-        # and upload the distZip with --clobber instead of failing.
+        # and upload the distZip/universal-dist with --clobber instead of failing.
+        # The universal dist must be a release asset (not just a job artefact) —
+        # the sdkman-release job below needs a public download URL to hand to
+        # SDKMAN!'s vendor API, computed from release_url_base + this filename.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ github.ref_name }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "::notice::Release $TAG already exists — updating notes + uploading distZip with --clobber"
+            echo "::notice::Release $TAG already exists — updating notes + uploading distZip/universal dist with --clobber"
             gh release edit "$TAG" --draft=false --notes-file CHANGELOG_RELEASE.md
-            gh release upload "$TAG" "${{ steps.dist.outputs.dist_zip }}" --clobber
+            gh release upload "$TAG" "${{ steps.dist.outputs.dist_zip }}" "${{ steps.universal.outputs.zip }}" --clobber
           else
             gh release create "$TAG" \
               --title "$TAG" \
               --notes-file CHANGELOG_RELEASE.md \
-              "${{ steps.dist.outputs.dist_zip }}"
+              "${{ steps.dist.outputs.dist_zip }}" "${{ steps.universal.outputs.zip }}"
           fi
 
       - name: Strip leading 'v' from tag
@@ -737,14 +763,24 @@ jobs:
             }
 
   # ─────────────────────────────────────────────────────────────────────────
-  # Job 4 (V2.0.5): release each platform-specific runtime to SDKMAN!.
+  # Job 4: release the universal (no-bundled-JRE) build to SDKMAN! as a
+  # single `distribution: UNIVERSAL` candidate — the same shape every other
+  # JVM candidate there uses (kotlin, gradle, scala, kotlin-toolchain, ...).
   #
-  # SDKMAN! is the second-class distribution channel for kUML (Homebrew is
-  # the first). Independent of `dispatch-tap` on purpose — Homebrew and
-  # SDKMAN! issues should not cascade. Each leg consumes its own
-  # `runtime-sha-<target>` artefact (uploaded by the `package-runtime`
-  # matrix) and POSTs to https://vendors.sdkman.io via the official
-  # SDKMAN! Release Action.
+  # Reworked 2026-07-22 from a 5-platform matrix that published the
+  # bundled-JRE runtimeZip (same artefact as Chocolatey/Homebrew) per
+  # platform. That duplicated the ~56 MB jlink runtime image five times over
+  # for a channel whose whole purpose is JDK version management — SDKMAN!
+  # users already have a JDK active via `sdk use java`, so the bundled
+  # runtime was pure overhead there, and the SDKMAN! candidate DB has no
+  # "depends_on java" field to declare that requirement formally (verified
+  # against sdkman-db-migrations: a Candidate/Version entry is just
+  # candidate/name/description/url/distribution, nothing else). One
+  # universal artefact — built once in the `build` job above — replaces the
+  # 5-leg matrix entirely; no `needs: package-runtime` dependency anymore.
+  #
+  # Independent of `dispatch-tap` on purpose — Homebrew and SDKMAN! issues
+  # should not cascade.
   #
   # Skips silently when `SDKMAN_CONSUMER_KEY` is not set — that's the
   # gating signal for "vendor onboarding not finished yet". The summary
@@ -752,30 +788,14 @@ jobs:
   #
   # See [[03 Bereiche/kUML/SDKMAN-Onboarding]] in the maintainer's vault
   # for the org-side onboarding checklist (GPG key, db-migrations PR,
-  # credential email).
+  # credential email), and the candidate description requirement — "Requires
+  # Java 21+ (`sdk install java`)" — this UNIVERSAL distribution now implies.
   # ─────────────────────────────────────────────────────────────────────────
   sdkman-release:
-    name: SDKMAN! release (${{ matrix.target }})
-    needs: [build, package-runtime]
-    # Don't gate on `dispatch-tap` — Homebrew + SDKMAN! are independent.
-    # Run on incomplete matrices so partial publishes still happen (each
-    # leg is platform-specific anyway).
+    name: SDKMAN! release (universal)
+    needs: build
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: darwin-arm64
-            sdkman_platform: MAC_ARM64
-          - target: darwin-x86_64
-            sdkman_platform: MAC_OSX
-          - target: linux-x86_64
-            sdkman_platform: LINUX_64
-          - target: windows-x86_64
-            sdkman_platform: WINDOWS_64
-          - target: linux-aarch64
-            sdkman_platform: LINUX_ARM64
     steps:
       - name: Detect token presence
         id: gate
@@ -784,69 +804,41 @@ jobs:
         run: |
           echo "has_token=$HAS_KEY" >> $GITHUB_OUTPUT
           if [ "$HAS_KEY" != "true" ]; then
-            echo "::notice::SDKMAN_CONSUMER_KEY not set — skipping SDKMAN! release for ${{ matrix.target }} (vendor onboarding not finished)."
+            echo "::notice::SDKMAN_CONSUMER_KEY not set — skipping SDKMAN! release (vendor onboarding not finished)."
           fi
 
-      - name: Download platform artefact
+      - name: Release universal build to SDKMAN!
         if: steps.gate.outputs.has_token == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: runtime-sha-${{ matrix.target }}
-          path: sha-payload
-
-      - name: Read url + sha256 for this platform
-        if: steps.gate.outputs.has_token == 'true'
-        id: read
-        shell: bash
-        run: |
-          ENV_FILE="sha-payload/${{ matrix.target }}.env"
-          if [ ! -f "$ENV_FILE" ]; then
-            echo "::error::Platform artefact for ${{ matrix.target }} missing — package-runtime leg likely failed. Skipping SDKMAN! publish for this platform."
-            echo "available=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          # shellcheck source=/dev/null
-          source "$ENV_FILE"
-          {
-            echo "url=$url"
-            echo "sha256=$sha256"
-            echo "available=true"
-          } >> $GITHUB_OUTPUT
-
-      - name: Release ${{ matrix.target }} to SDKMAN!
-        if: steps.gate.outputs.has_token == 'true' && steps.read.outputs.available == 'true'
         uses: sdkman/sdkman-release-action@v0.2.0
         with:
           consumer-key: ${{ secrets.SDKMAN_CONSUMER_KEY }}
           consumer-token: ${{ secrets.SDKMAN_CONSUMER_TOKEN }}
           candidate: kuml
           version: ${{ needs.build.outputs.version }}
-          url: ${{ steps.read.outputs.url }}
-          platform: ${{ matrix.sdkman_platform }}
-          checksum-sha-256: ${{ steps.read.outputs.sha256 }}
+          url: ${{ needs.build.outputs.universal_dist_url }}
+          platform: UNIVERSAL
+          checksum-sha-256: ${{ needs.build.outputs.universal_dist_sha256 }}
 
       - name: Summary
         if: ${{ always() }}
         env:
           VERSION: ${{ needs.build.outputs.version }}
-          TARGET: ${{ matrix.target }}
-          SDKMAN_PLATFORM: ${{ matrix.sdkman_platform }}
           HAS_TOKEN: ${{ steps.gate.outputs.has_token }}
-          ARTEFACT_AVAILABLE: ${{ steps.read.outputs.available }}
+          UNIVERSAL_URL: ${{ needs.build.outputs.universal_dist_url }}
         run: |
           {
-            echo "### SDKMAN! release — \`$TARGET\` ($SDKMAN_PLATFORM)"
+            echo "### SDKMAN! release — universal"
             echo ""
             if [ "$HAS_TOKEN" != "true" ]; then
               echo "⏭  Skipped — \`SDKMAN_CONSUMER_KEY\` is not set."
               echo ""
               echo "Finish the vendor-onboarding checklist (see \`03 Bereiche/kUML/SDKMAN-Onboarding\` in the maintainer vault), set both secrets via \`gh secret set SDKMAN_CONSUMER_KEY\` and \`gh secret set SDKMAN_CONSUMER_TOKEN\`, then re-run this workflow."
-            elif [ "$ARTEFACT_AVAILABLE" != "true" ]; then
-              echo "⚠ Skipped — runtime artefact for \`$TARGET\` is missing. Check the \`package-runtime\` matrix leg."
             else
-              echo "✅ Published kuml \`$VERSION\` for \`$SDKMAN_PLATFORM\` to SDKMAN!."
+              echo "✅ Published kuml \`$VERSION\` (UNIVERSAL, no bundled JRE — requires an active Java 21+) to SDKMAN!."
               echo ""
-              echo "Verify with: \`sdk install kuml $VERSION\` on a $TARGET machine."
+              echo "Artefact: $UNIVERSAL_URL"
+              echo ""
+              echo "Verify with: \`sdk install kuml $VERSION\` on any platform with Java 21+ active."
             fi
           } >> $GITHUB_STEP_SUMMARY
 

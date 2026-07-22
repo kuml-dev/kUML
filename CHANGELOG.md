@@ -21,6 +21,21 @@ opened up, so free-standing notes and dashed anchor lines render exactly like th
 already did on class diagrams — no new DSL surface was needed, since all twelve
 diagram types share the single `UmlModelScope.comment()` overload.
 
+### Changed
+
+**SDKMAN! candidate switched to a universal (no-bundled-JRE) distribution**
+
+The SDKMAN! release (still pending vendor onboarding) now ships a single `UNIVERSAL`
+candidate instead of five platform-specific archives, matching how every other JVM
+candidate there (`kotlin`, `gradle`, `scala`, `kotlin-toolchain`, …) is distributed.
+Chocolatey, Homebrew, and direct-download keep their self-contained jlink runtime
+bundle unchanged; SDKMAN! specifically relies on the user's own active Java 21+
+(`sdk install java`) instead of duplicating a ~56 MB bundled JRE five times over — a
+channel whose entire purpose is already managing the JDK for the user. New
+`:kuml-cli:universalDist` Gradle task builds the JAVA_HOME/PATH-based image once
+(no per-OS matrix needed); `release.yml`'s `sdkman-release` job is a single
+`platform: UNIVERSAL` publish instead of a 5-leg matrix.
+
 ## [0.38.0] — 2026-07-20
 
 > Bundled release: the branding, OKF, and desktop-UI waves below were originally cut

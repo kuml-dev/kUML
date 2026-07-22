@@ -1314,3 +1314,230 @@ tasks.register("notarizeRuntimeZip") {
         },
     )
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SDKMAN! "universal" distribution — a JAVA_HOME/PATH-based image with NO
+// bundled JRE, matching how every other JVM candidate on SDKMAN! (kotlin,
+// gradle, scala, kotlin-toolchain, ...) ships: distribution = UNIVERSAL, one
+// archive for every platform, the user's active `sdk use java` supplies the
+// runtime. Rationale: SDKMAN!'s whole purpose is JDK version management, so
+// bundling our own ~56 MB jlink runtime image (see bundledImage/runtimeZip
+// above) five times over — once per platform — duplicates something the
+// channel already manages for the user and inflates every download for no
+// benefit there. Chocolatey/Homebrew/direct-download keep the self-contained
+// bundledImage/runtimeZip; this is a separate, additional artefact only for
+// the SDKMAN! channel.
+//
+// Deliberately a SEPARATE staging directory and zip from bundledImage/
+// runtimeZip — the two serve different distribution channels and must not
+// share (or race on) the same imageDir.
+//
+// Tasks:
+//   :kuml-cli:universalImage → build/image/kuml-universal/ (installDist, no JRE)
+//   :kuml-cli:universalDist  → build/distributions/kuml-universal-<version>.zip
+// ─────────────────────────────────────────────────────────────────────────────
+
+val universalImageDir = layout.buildDirectory.dir("image/kuml-universal")
+
+val bundleUniversalInstallDist =
+    tasks.register<Sync>("bundleUniversalInstallDist") {
+        group = "distribution"
+        description = "Copies the installDist tree into the universal (JAVA_HOME-based) image staging dir."
+        dependsOn("installDist")
+        from(layout.buildDirectory.dir("install/kuml"))
+        into(universalImageDir)
+    }
+
+val bundleUniversalMcpInstallDist =
+    tasks.register<Sync>("bundleUniversalMcpInstallDist") {
+        group = "distribution"
+        description = "Copies the kuml-mcp installDist tree into the universal image's mcp/ subdir."
+        dependsOn(":kuml-mcp:installDist")
+        // Same race-avoidance reasoning as bundleMcpInstallDist's mustRunAfter above —
+        // both Sync tasks write under universalImageDir and would race on each
+        // other's pre-clean step under org.gradle.parallel=true.
+        mustRunAfter(bundleUniversalInstallDist)
+        from(project(":kuml-mcp").layout.buildDirectory.dir("install/kuml-mcp"))
+        into(universalImageDir.map { it.dir("mcp") })
+    }
+
+val bundleUniversalLspInstallDist =
+    tasks.register<Sync>("bundleUniversalLspInstallDist") {
+        group = "distribution"
+        description = "Copies the kuml-lsp installDist tree into the universal image's lsp/ subdir."
+        dependsOn(":kuml-language-server:installDist")
+        mustRunAfter(bundleUniversalInstallDist, bundleUniversalMcpInstallDist)
+        from(project(":kuml-language-server").layout.buildDirectory.dir("install/kuml-lsp"))
+        into(universalImageDir.map { it.dir("lsp") })
+    }
+
+tasks.register("universalImage") {
+    group = "distribution"
+    description =
+        "Assembles the JAVA_HOME-based 'universal' kuml image for SDKMAN! -- installDist + " +
+        "kuml-mcp/kuml-lsp wrappers + Windows classpath fix, no bundled JRE."
+    dependsOn(bundleUniversalInstallDist, bundleUniversalMcpInstallDist, bundleUniversalLspInstallDist)
+
+    // Unlike bundledImage, the Unix launchers (bin/kuml, mcp/bin/kuml-mcp,
+    // lsp/bin/kuml-lsp) need NO patching at all — Gradle's `application`-plugin
+    // launcher already resolves JAVA_HOME (falling back to `java` on PATH) on
+    // its own, which is exactly the SDKMAN! "UNIVERSAL" contract. Only the
+    // Windows classpath fix (independent of whether a JRE is bundled — see
+    // WindowsClasspathFix above) and the kuml-mcp/kuml-lsp thin wrappers are
+    // still needed.
+    val batLauncherPath = universalImageDir.get().asFile.resolve("bin/kuml.bat").absolutePath
+    val mcpBatLauncherPath = universalImageDir.get().asFile.resolve("mcp/bin/kuml-mcp.bat").absolutePath
+    val mcpWrapperPath = universalImageDir.get().asFile.resolve("bin/kuml-mcp").absolutePath
+    val mcpBatWrapperPath = universalImageDir.get().asFile.resolve("bin/kuml-mcp.bat").absolutePath
+    val lspBatLauncherPath = universalImageDir.get().asFile.resolve("lsp/bin/kuml-lsp.bat").absolutePath
+    val lspWrapperPath = universalImageDir.get().asFile.resolve("bin/kuml-lsp").absolutePath
+    val lspBatWrapperPath = universalImageDir.get().asFile.resolve("bin/kuml-lsp.bat").absolutePath
+
+    outputs.files(
+        batLauncherPath,
+        mcpBatLauncherPath,
+        mcpWrapperPath,
+        mcpBatWrapperPath,
+        lspBatLauncherPath,
+        lspWrapperPath,
+        lspBatWrapperPath,
+    )
+
+    doLast(
+        object : Action<Task> {
+            override fun execute(task: Task) {
+                // ── Windows classpath fix — same ~8191-char cmd.exe ceiling as
+                // bundledImage hits, independent of whether a JRE is bundled. ──
+                val batLauncher = File(batLauncherPath)
+                require(batLauncher.isFile) { "Expected installDist Windows launcher at $batLauncher" }
+                WindowsClasspathFix.explodeIfNeeded(batLauncher)
+
+                val mcpBatLauncher = File(mcpBatLauncherPath)
+                require(mcpBatLauncher.isFile) { "Expected kuml-mcp installDist Windows launcher at $mcpBatLauncher" }
+                WindowsClasspathFix.explodeIfNeeded(mcpBatLauncher)
+
+                val lspBatLauncher = File(lspBatLauncherPath)
+                require(lspBatLauncher.isFile) { "Expected kuml-lsp installDist Windows launcher at $lspBatLauncher" }
+                WindowsClasspathFix.explodeIfNeeded(lspBatLauncher)
+
+                // ── bin/kuml-mcp + bin/kuml-mcp.bat thin wrappers — identical to
+                // bundledImage's (they only ever exec relative to their own
+                // resolved location and never reference a runtime/ path, so no
+                // adjustment is needed for the no-bundled-JRE case). ──
+                val mcpWrapper = File(mcpWrapperPath)
+                mcpWrapper.parentFile.mkdirs()
+                mcpWrapper.writeText(
+                    listOf(
+                        "#!/bin/sh",
+                        "# kUML universal (SDKMAN!) image: thin wrapper delegating to the",
+                        "# kuml-mcp installDist launcher bundled under mcp/bin/. Generated by",
+                        "# the :kuml-cli:universalImage Gradle task -- do not edit by hand.",
+                        "#",
+                        "# Resolve \$0 through symlinks, same as the Gradle `application`",
+                        "# plugin's own generated launchers, so ../mcp/bin/kuml-mcp resolves",
+                        "# relative to the real file location rather than a symlink's directory.",
+                        "app_path=\$0",
+                        "while",
+                        "    dir=\${app_path%\"\${app_path##*/}\"}",
+                        "    [ -h \"\$app_path\" ]",
+                        "do",
+                        "    ls=\$( ls -ld \"\$app_path\" )",
+                        "    link=\${ls#*' -> '}",
+                        "    case \$link in",
+                        "      /*)   app_path=\$link ;;",
+                        "      *)    app_path=\$dir\$link ;;",
+                        "    esac",
+                        "done",
+                        "DIR=\$( cd -P \"\${dir:-./}\" > /dev/null && pwd )",
+                        "exec \"\$DIR/../mcp/bin/kuml-mcp\" \"\$@\"",
+                        "",
+                    ).joinToString("\n"),
+                )
+                mcpWrapper.setExecutable(true)
+
+                val mcpBatWrapper = File(mcpBatWrapperPath)
+                mcpBatWrapper.parentFile.mkdirs()
+                mcpBatWrapper.writeText(
+                    listOf(
+                        "@rem kUML universal (SDKMAN!) image: thin wrapper delegating to the",
+                        "@rem kuml-mcp installDist launcher bundled under mcp\\bin\\. Generated by",
+                        "@rem the :kuml-cli:universalImage Gradle task -- do not edit by hand.",
+                        "@echo off",
+                        "call \"%~dp0..\\mcp\\bin\\kuml-mcp.bat\" %*",
+                        "",
+                    ).joinToString("\r\n"),
+                )
+
+                // ── bin/kuml-lsp + bin/kuml-lsp.bat thin wrappers ──
+                val lspWrapper = File(lspWrapperPath)
+                lspWrapper.parentFile.mkdirs()
+                lspWrapper.writeText(
+                    listOf(
+                        "#!/bin/sh",
+                        "# kUML universal (SDKMAN!) image: thin wrapper delegating to the",
+                        "# kuml-lsp installDist launcher bundled under lsp/bin/. Generated by",
+                        "# the :kuml-cli:universalImage Gradle task -- do not edit by hand.",
+                        "#",
+                        "app_path=\$0",
+                        "while",
+                        "    dir=\${app_path%\"\${app_path##*/}\"}",
+                        "    [ -h \"\$app_path\" ]",
+                        "do",
+                        "    ls=\$( ls -ld \"\$app_path\" )",
+                        "    link=\${ls#*' -> '}",
+                        "    case \$link in",
+                        "      /*)   app_path=\$link ;;",
+                        "      *)    app_path=\$dir\$link ;;",
+                        "    esac",
+                        "done",
+                        "DIR=\$( cd -P \"\${dir:-./}\" > /dev/null && pwd )",
+                        "exec \"\$DIR/../lsp/bin/kuml-lsp\" \"\$@\"",
+                        "",
+                    ).joinToString("\n"),
+                )
+                lspWrapper.setExecutable(true)
+
+                val lspBatWrapper = File(lspBatWrapperPath)
+                lspBatWrapper.parentFile.mkdirs()
+                lspBatWrapper.writeText(
+                    listOf(
+                        "@rem kUML universal (SDKMAN!) image: thin wrapper delegating to the",
+                        "@rem kuml-lsp installDist launcher bundled under lsp\\bin\\. Generated by",
+                        "@rem the :kuml-cli:universalImage Gradle task -- do not edit by hand.",
+                        "@echo off",
+                        "call \"%~dp0..\\lsp\\bin\\kuml-lsp.bat\" %*",
+                        "",
+                    ).joinToString("\r\n"),
+                )
+            }
+        },
+    )
+}
+
+tasks.register<Zip>("universalDist") {
+    group = "distribution"
+    description = "Zips the universal (JAVA_HOME-based) kuml image for SDKMAN! release distribution."
+    dependsOn("universalImage")
+    archiveBaseName.set("kuml-universal")
+    archiveVersion.set(version.toString())
+
+    // Same executable-bit handling as runtimeZip above (Gradle's Zip task
+    // defaults to 0644 for every entry) — just without the runtime/bin/*
+    // JDK-binaries case, since there is no bundled runtime here.
+    from(universalImageDir) {
+        into("kuml-${project.version}")
+        eachFile {
+            val p = relativePath.pathString
+            val isExecutable =
+                p.endsWith("/bin/kuml") ||
+                    p.endsWith("/bin/kuml-mcp") ||
+                    p.endsWith("/mcp/bin/kuml-mcp") ||
+                    p.endsWith("/bin/kuml-lsp") ||
+                    p.endsWith("/lsp/bin/kuml-lsp")
+            permissions {
+                unix(if (isExecutable) "0755" else "0644")
+            }
+        }
+    }
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+}
