@@ -7,6 +7,7 @@ import dev.kuml.uml.AppliedStereotype
 import dev.kuml.uml.UmlActivityEdge
 import dev.kuml.uml.UmlActivityNode
 import dev.kuml.uml.UmlActivityNodeKind
+import dev.kuml.uml.UmlActor
 import dev.kuml.uml.UmlArtifact
 import dev.kuml.uml.UmlAssociation
 import dev.kuml.uml.UmlClass
@@ -28,6 +29,7 @@ import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlProperty
 import dev.kuml.uml.UmlStereotype
+import dev.kuml.uml.UmlUseCase
 import dev.kuml.uml.Visibility
 
 /**
@@ -117,6 +119,8 @@ public class UmlContentSizeProvider
                         e.artifacts.forEach { out[it.id] = deploymentArtifactSize(it) }
                     }
                     is UmlArtifact -> out[e.id] = deploymentArtifactSize(e)
+                    is UmlActor -> out[e.id] = actorSize(e)
+                    is UmlUseCase -> out[e.id] = usecaseSize(e)
                     is UmlActivityNode ->
                         when (e.kind) {
                             UmlActivityNodeKind.ACTION, UmlActivityNodeKind.OBJECT -> out[e.id] = activityActionSize(e)
@@ -406,6 +410,43 @@ public class UmlContentSizeProvider
             return Size(w, UmlLayoutBridge.DEPLOYMENT_ARTIFACT_SIZE.height)
         }
 
+        /**
+         * Größe eines `UmlActor`-Knotens (Use-Case-Diagramm) — Strichmännchen mit
+         * zentriertem, einzeiligem Namen darunter
+         * ([dev.kuml.io.svg.uml.renderUmlActor]).
+         *
+         * Vor diesem Fix fiel [UmlActor] durch den `else`-Zweig in [collect] und
+         * bekam immer `DEFAULT_W × DEFAULT_H` (160 × 80) — lange Actor-Namen wie
+         * `"Payment Provider (BOG iPay / TBC Pay)"` (38 Zeichen → ~251 px) liefen
+         * über die Box hinaus, auch wenn das ohne sichtbaren Box-Rahmen (nur das
+         * Strichmännchen selbst hat eine Umrandung) weniger sofort auffällt als
+         * bei Use-Case-Ellipsen oder Klassenboxen.
+         */
+        private fun actorSize(a: UmlActor): Size {
+            val nameW = estimateLabelWidth(a.name, charPx = BODY_CHAR_PX)
+            return Size(maxOf(DEFAULT_W, nameW.toFloat() + BOX_H_PADDING), DEFAULT_H)
+        }
+
+        /**
+         * Größe eines `UmlUseCase`-Knotens — Ellipse mit zentriertem, einzeiligem
+         * Namen ([dev.kuml.io.svg.uml.renderUmlUseCase]). Analog zum SysML-2-
+         * Pendant (`Sysml2LayoutBridge.UC_ELLIPSE_H_PAD`, kuml-layout-bridge):
+         * eine Ellipse erreicht ihre volle Breite nur exakt auf der vertikalen
+         * Mitte, daher braucht Text dort mehr Randabstand als eine Rechteck-Box —
+         * sonst wirkt er, als würde er die gekrümmte Kontur berühren oder
+         * überschreiten.
+         *
+         * Vor diesem Fix fiel [UmlUseCase] durch den `else`-Zweig in [collect] und
+         * bekam immer `DEFAULT_W × DEFAULT_H` (160 × 80) — lange Use-Case-Namen wie
+         * `"Rate Tradesperson (Symmetric, Double-Blind)"` (44 Zeichen → ~290 px)
+         * liefen weit über den Ellipsenrand hinaus (siehe Vault-Diagramm
+         * `use-case-customer.kuml.kts`, Pepela Portal).
+         */
+        private fun usecaseSize(u: UmlUseCase): Size {
+            val nameW = estimateLabelWidth(u.name, charPx = BODY_CHAR_PX)
+            return Size(maxOf(DEFAULT_W, nameW.toFloat() + 2 * ELLIPSE_H_PAD), DEFAULT_H)
+        }
+
         private fun interfaceSize(i: UmlInterface): Size {
             val nameLine = i.name
             val stereoLine = stereoLabel(i.appliedStereotypes) ?: "«interface»"
@@ -665,6 +706,14 @@ public class UmlContentSizeProvider
 
             /** Extra reserve so port labels can sit inside without overlapping the title. */
             public const val PORT_RESERVE: Float = 12f
+
+            /**
+             * Horizontal padding (left + right) reserved around a Use-Case
+             * ellipse's name text. Wider than [BOX_H_PADDING] because text near
+             * an ellipse's horizontal extremes visually crowds the curved
+             * boundary — the ellipse is only full-width at its vertical center.
+             */
+            public const val ELLIPSE_H_PAD: Float = 30f
 
             // ── Composite-Structure: verschachtelte Parts (V3.x) ──────────────────
             //
