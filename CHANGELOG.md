@@ -18,10 +18,11 @@ use-case, object, package, deployment, profile, composite-structure, activity,
 communication, timing, and interaction-overview. The metamodel (`UmlComment`,
 `UmlCommentLink`) and the renderer/layout-bridge support for them were already generic
 across diagram types; the only gap was that nine of the diagram builders' internal
-`addRelationship` guards rejected `UmlCommentLink` outright. Those guards are now
-opened up, so free-standing notes and dashed anchor lines render exactly like they
-already did on class diagrams — no new DSL surface was needed, since all twelve
-diagram types share the single `UmlModelScope.comment()` overload.
+`addRelationship` guards rejected `UmlCommentLink` outright (two more, object and
+package, already allowed it implicitly). Those guards are now opened up, so
+free-standing notes and dashed anchor lines render exactly like they already did on
+class diagrams — no new DSL surface was needed, since all fourteen diagram types share
+the single `UmlModelScope.comment()` overload.
 
 ### Changed
 
