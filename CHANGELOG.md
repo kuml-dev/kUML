@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.39.0] — 2026-07-22
+
 ### Added
 
 **Comment/Note support extended to all remaining UML diagram types**
@@ -35,6 +37,49 @@ channel whose entire purpose is already managing the JDK for the user. New
 `:kuml-cli:universalDist` Gradle task builds the JAVA_HOME/PATH-based image once
 (no per-OS matrix needed); `release.yml`'s `sdkman-release` job is a single
 `platform: UNIVERSAL` publish instead of a 5-leg matrix.
+
+### Fixed
+
+**Requirement-box text overflow in SysML 2 REQ diagrams**
+
+`Sysml2LayoutBridge.reqContentAwareSizeProvider()` estimated a requirement box's
+text-compartment height from `text.length / 25`, assuming pure character-count
+wrapping. The SVG renderer's actual `wrapWords()` only breaks at word boundaries,
+which always produces a ragged right edge and therefore *more* lines than a naive
+character-count division predicts — several requirement boxes (e.g. `FR-4`, `FR-5`,
+`NFR-1.2` in a Pepela Portal requirements diagram) rendered 1–2 text lines taller
+than the box reserved for them, spilling past the bottom edge. The estimator now
+mirrors `wrapWords()`'s word-boundary algorithm exactly. The same provider also gave
+every `UseCaseDefinition` ellipse a fixed 160 px width regardless of name length;
+it now grows with the estimated label width, with extra padding since an ellipse
+only reaches full width at its vertical center.
+
+**Use-case ellipse and actor-label overflow in plain UML use-case diagrams**
+
+The same fixed-size bug existed independently in `UmlContentSizeProvider`:
+`UmlActor` and `UmlUseCase` had no dedicated `collect()` branch and fell through to
+the generic `160 × 80` default regardless of name length, even though both
+renderers (`renderUmlActor`, `renderUmlUseCase`) draw a single-line, non-wrapping,
+centered label. Long names — e.g. `"Rate Tradesperson (Symmetric, Double-Blind)"`
+or `"Payment Provider (BOG iPay / TBC Pay)"` — ran past the ellipse/box edge. Both
+now size to their estimated label width, with the same ellipse-specific extra
+padding as the SysML 2 fix above.
+
+**Service Blueprint step-card text overflow**
+
+`BlueprintGridConstants.ROW_HEIGHT` was a hardcoded 112 px regardless of title
+length, and `renderStepCard()` vertically "centered" wrapped titles by shifting the
+first line up by half the wrapped block's extra height. For titles wrapping to 3+
+lines that shift pushed the first baseline above the card's top border (e.g.
+`"Discovers Pepela Portal via search or word of mouth in Tbilisi; visits
+pepela.ge"` in a Pepela Portal user-journey diagram); titles wrapping to 6+ lines
+ran past the bottom border regardless of centering, since the fixed 80 px card
+interior only fits ~5 lines. Added `BlueprintGridConstants.contentAwareRowHeight()`,
+which grows the row height diagram-wide to fit the tallest wrapped title; both
+`BlueprintGeometry` (SVG renderer) and `BlueprintLayoutBridge` (LaTeX/MCP
+consumers) now call it instead of the fixed constant, keeping the two parallel grid
+implementations in sync. `renderStepCard()` now always top-anchors the first line,
+which is safe now that the card always has room below.
 
 ## [0.38.0] — 2026-07-20
 
