@@ -149,6 +149,25 @@ public object Sysml2LayoutBridge {
     public const val WRAP_LINE_H: Float = 13f
 
     /**
+     * Max characters per wrapped line in a REQ text compartment. MUSS mit
+     * `WRAP_WIDTH` in `Sysml2RequirementSvg.kt` (kuml-io-svg) synchron
+     * bleiben — dort wird mit demselben Wert tatsächlich gewrappt gezeichnet.
+     * Kein Modul-Import möglich (kuml-layout-bridge hängt nicht von
+     * kuml-io-svg ab), daher wird der Wert hier dupliziert.
+     */
+    public const val REQ_WRAP_CHARS_PER_LINE: Int = 25
+
+    /**
+     * Horizontal padding (left + right) reserved around a Use-Case ellipse's
+     * name text (V2.x overflow fix). Wider than a rectangle's [IBD_H_PAD]
+     * because text sitting near the ellipse's horizontal extremes visually
+     * crowds the curved boundary — the ellipse only reaches full width at
+     * its vertical center, so long names need extra breathing room on both
+     * sides to avoid appearing to touch the edge.
+     */
+    public const val UC_ELLIPSE_H_PAD: Float = 30f
+
+    /**
      * Default-Größe pro IBD-Box (V2.0.6). Kleiner als die BDD-Default-Größe,
      * weil IBD-Boxen nur `name : Type [mult]` zeigen — keine Compartments für
      * Attribute/Ports/Sub-Parts. Die `«part»`-Stereotyp-Zeile plus eine
@@ -586,7 +605,7 @@ public object Sysml2LayoutBridge {
                 "RequirementDefinition" -> {
                     val req = model.definitions.firstOrNull { it.id == id } as? RequirementDefinition
                     val reqText = req?.text?.takeIf { it.isNotEmpty() }
-                    val textLineCount = reqText?.let { (it.length + 24) / 25 } ?: 0
+                    val textLineCount = reqText?.let { reqWrappedLineCount(it, REQ_WRAP_CHARS_PER_LINE) } ?: 0
                     val h =
                         STEREOTYPE_LINE_H + NAME_LINE_H +
                             (if (textLineCount > 0) DIVIDER_GAP + textLineCount * WRAP_LINE_H else 0f) +
@@ -594,10 +613,52 @@ public object Sysml2LayoutBridge {
                     dev.kuml.layout.Size(REQ_DEFAULT_WIDTH, maxOf(h, 70f))
                 }
                 "ActorDefinition" -> dev.kuml.layout.Size(UC_ACTOR_WIDTH, UC_ACTOR_HEIGHT)
-                "UseCaseDefinition" -> dev.kuml.layout.Size(UC_USECASE_WIDTH, UC_USECASE_HEIGHT)
+                "UseCaseDefinition" -> {
+                    val uc = model.definitions.firstOrNull { it.id == id } as? UseCaseDefinition
+                    val nameW = (uc?.name?.length ?: 0) * BDD_BODY_CHAR_PX
+                    val contentW = nameW + 2 * UC_ELLIPSE_H_PAD
+                    dev.kuml.layout.Size(maxOf(contentW, UC_USECASE_WIDTH), UC_USECASE_HEIGHT)
+                }
                 else -> dev.kuml.layout.Size(REQ_DEFAULT_WIDTH, REQ_DEFAULT_HEIGHT)
             }
         }
+
+    /**
+     * Mirrors the word-boundary wrapping that `wrapWords()` in
+     * `Sysml2RequirementSvg.kt` (kuml-io-svg) actually performs when drawing
+     * a requirement's text compartment, so the reserved box height matches
+     * what gets rendered.
+     *
+     * A naive `text.length / maxChars` estimate (the previous approach)
+     * systematically UNDERCOUNTS: wrapping only at word boundaries leaves a
+     * ragged right edge, so a line often falls short of `maxChars` before
+     * the next word would overflow it — producing more lines than pure
+     * character-count division predicts. That mismatch caused several
+     * requirement boxes (e.g. FR-4, FR-5, NFR-1) to render 1-2 text lines
+     * taller than the box the layout bridge had sized for, spilling text
+     * past the bottom edge.
+     */
+    private fun reqWrappedLineCount(
+        text: String,
+        maxChars: Int,
+    ): Int {
+        val words = text.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        if (words.isEmpty()) return 0
+        var lines = 1
+        var currentLen = 0
+        for (word in words) {
+            currentLen =
+                if (currentLen == 0) {
+                    word.length
+                } else if (currentLen + 1 + word.length <= maxChars) {
+                    currentLen + 1 + word.length
+                } else {
+                    lines++
+                    word.length
+                }
+        }
+        return lines
+    }
 
     /** Diagnose-Helfer: extrahiert die in [diagram] referenzierten Definitionen aus [model]. */
     public fun resolveVisibleDefinitions(
