@@ -6,6 +6,38 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.40.0] — 2026-07-23
+
+### Added
+
+**Service Blueprint: pain-point captions and a touchpoint-name legend**
+
+Two long-standing gaps in Service Blueprint / Journey Map diagrams: pain-point text
+only ever existed in a hover-only `<title>` tooltip (invisible in PDF/PNG exports), and
+touchpoint names were never rendered anywhere — only the channel icon — so two
+touchpoints sharing a channel (e.g. two different push notifications) were visually
+indistinguishable.
+
+Pain points now get a short, single-line, truncated caption next to the existing pain
+dot, on its own row directly above the touchpoint-icon row (the two sit close together
+horizontally, so free text has nowhere to go if it shares the icon row); the full,
+untruncated text remains available via the tooltip. Touchpoint names go in a new
+legend band below the grid: each touchpoint actually referenced by a visible step gets
+a small numbered badge on its icon, and the legend maps each number back to the
+touchpoint's name — keyed by individual touchpoint, not just symbol+channel, since
+those aren't unique. Legend entries wrap across as many rows as needed and the canvas
+grows to fit; diagrams with no touchpoints render exactly as before (no empty legend
+band).
+
+Design reviewed against the project's standing UI/UX design-team review process before
+implementation. An independent doc-review pass (part of the mandatory pre-release
+documentation review) traced the release notes' claims against the actual renderer
+code and caught a real bug before it ever shipped: the legend scanned all steps
+regardless of which layers the diagram actually shows, so a step in a hidden layer
+(e.g. a `journeyDiagram()`'s default single-layer view) could add an orphaned legend
+entry with no matching badge anywhere on screen. Fixed by filtering the legend's
+touchpoint collection by the diagram's visible layers before this version was tagged.
+
 ## [0.39.0] — 2026-07-22
 
 ### Added
