@@ -75,14 +75,17 @@ public object BlueprintGridConstants {
 
     /**
      * Extra bottom clearance reserved when any step in the diagram has a
-     * pain point — makes room for the pain-point caption line
-     * `renderStepCard` draws above the pain-dot/touchpoint-icon row (see
-     * design decision: caption gets its own line rather than sharing the
-     * dot's row, to avoid colliding with touchpoint icons at the same y).
-     * Applied diagram-wide (not per-cell) like the rest of [contentAwareRowHeight],
+     * pain point — makes room for the pain-dot/caption row
+     * `renderStepCard` draws above the touchpoint-icon row (see design
+     * decision: pain dot + caption share their own row rather than the
+     * touchpoint-icon row, to avoid colliding with the icons). 22px (not
+     * just one 14px text line) leaves a clear ~6px gap above the touchpoint
+     * icons' top edge — MUST stay in sync with the `y + h - 32` offset in
+     * `renderStepCard` (`BlueprintStepSvg.kt`, kuml-io-svg). Applied
+     * diagram-wide (not per-cell) like the rest of [contentAwareRowHeight],
      * matching the uniform-grid design.
      */
-    private const val PAIN_TEXT_RESERVE: Double = 14.0
+    private const val PAIN_TEXT_RESERVE: Double = 22.0
 
     /** Card interior height when nothing needs more room (matches the pre-fix fixed 80px). */
     private const val CARD_INNER_HEIGHT_DEFAULT: Double = ROW_HEIGHT - CARD_MARGIN_TOP - CARD_MARGIN_BOTTOM

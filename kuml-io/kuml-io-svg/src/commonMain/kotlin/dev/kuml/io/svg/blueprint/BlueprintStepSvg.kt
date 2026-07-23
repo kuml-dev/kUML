@@ -163,7 +163,12 @@ internal fun SvgBuilder.renderStepCard(
             // their own means the touchpoint row no longer needs any
             // pain-specific offset either, see BlueprintGridSvg's tpStartX).
             // Single line, truncated: the full text remains in the tooltip.
-            val painRowY = y + h - 24
+            // -32 (not -24) leaves a clear ~6px gap above the touchpoint
+            // icons' top edge (icon cy = cardBottom-8, r=13, so icon top =
+            // cardBottom-21) — MUST stay in sync with
+            // BlueprintGridConstants.PAIN_TEXT_RESERVE, which reserves the
+            // matching extra row height.
+            val painRowY = y + h - 32
             rawXml(
                 """<circle cx="${f(x + 10)}" cy="${f(painRowY)}" r="5" fill="#d00080"/>""" +
                     """<title>${xmlEscapeContent("Pain: $painPoint")}</title>""",
