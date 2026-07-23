@@ -6,6 +6,45 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.41.0] — 2026-07-23
+
+### Added
+
+**`UmlModelDslPrinter`: full round-trip coverage for the UML class-diagram subset**
+
+`kuml-core-dsl`'s `KumlModel`/`KumlDiagram` → kUML-DSL-text printer (used today for
+layout-hint round-tripping) previously covered only a subset of the class-diagram
+model: dependencies, OCL constraints, comments, non-default visibility, aggregation
+kind, association-level applied stereotypes, operation parameters, and association
+name/role/navigable were all silently dropped on export (stereotypes on
+classes/interfaces/enums/attributes/operations already worked). Extended the printer
+to emit all of these, plus `UmlTypeRef.referencedId` (classifier-typed
+attributes/parameters/return types, previously silently dropped too), closing the gap
+against everything the DSL compiler (`InProcessScriptEvaluator`) accepts — validated
+with full data-class-equality round-trip tests (build a model, print it, re-parse it,
+assert it matches the original exactly), not just substring checks on the generated
+text.
+
+`UmlPackage`/`packageOf` remains a deliberate scope cut: doing it correctly needs
+nested sub-package handling and has documented edge cases with `PackageBuilder`'s
+inline `extends`/`implements` behavior, so rather than half-implement it, a package
+element now emits a visible comment reporting exactly how many nested classifiers,
+attributes, operations, and constraints it would otherwise silently drop — nothing
+disappears from the output without a trace.
+
+This closes a real, previously-undocumented gap found during independent review: the
+printer never emitted `UmlProperty.defaultValue`/`isStatic` at all, in either of its
+two call forms — fixed and covered by dedicated regression tests, including an
+adversarial one (quotes, backslashes, `$`, embedded newlines in a string default
+value) that caught the bug in the first place.
+
+No other module's production code changed (only a new test in `kuml-core-script`,
+needed because that module is the only place the compiler-path round-trip oracle is
+available) — this is otherwise a self-contained `kuml-core-dsl` library extension.
+Not consumed by the CLI/Desktop/website yet; it's the foundation for the
+kUML Portal's upcoming real-time collaboration feature (CRDT sync layer), which needs
+a reliable way to serialize a live-edited in-memory model back to DSL text.
+
 ## [0.40.0] — 2026-07-23
 
 ### Added
