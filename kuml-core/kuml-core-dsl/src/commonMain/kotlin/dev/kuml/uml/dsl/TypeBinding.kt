@@ -35,6 +35,21 @@ fun typeRef(name: String): UmlTypeRef = UmlTypeRef(name = name)
  */
 fun typeRef(classifier: UmlClassifier): UmlTypeRef = UmlTypeRef(name = classifier.name, referencedId = classifier.id)
 
+/**
+ * Creates a [UmlTypeRef] with an explicit [referencedId], for cases where the
+ * referenced classifier is not available as a builder handle (e.g. when
+ * reconstructing a model from serialized data, such as
+ * [dev.kuml.uml.dsl.print.UmlModelDslPrinter]'s round-trip output).
+ *
+ * ```kotlin
+ * attribute(name = "status", type = typeRef("OrderStatus", referencedId = "OrderStatus"))
+ * ```
+ */
+fun typeRef(
+    name: String,
+    referencedId: String?,
+): UmlTypeRef = UmlTypeRef(name = name, referencedId = referencedId)
+
 // ── Multiplicity parsing ──────────────────────────────────────────────────────
 
 /**
