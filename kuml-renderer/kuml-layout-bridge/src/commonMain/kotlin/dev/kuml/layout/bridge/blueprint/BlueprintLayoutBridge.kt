@@ -90,7 +90,7 @@ public class BlueprintLayoutBridge {
         // Content-aware — mirrors BlueprintGeometry's legendHeight (kuml-io-svg)
         // so canvasHeight stays consistent even though this bridge doesn't
         // draw the legend itself (no SVG renderer here, just cell geometry).
-        val legendH = BlueprintGridConstants.legendHeight(model, contentWidth)
+        val legendH = BlueprintGridConstants.legendHeight(model, contentWidth, layers.toSet())
         return BlueprintLayout(
             cells = cells,
             columnCenters = columnCenters,

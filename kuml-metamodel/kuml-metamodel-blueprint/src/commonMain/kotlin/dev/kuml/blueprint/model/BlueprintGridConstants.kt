@@ -182,13 +182,27 @@ public object BlueprintGridConstants {
     }
 
     /**
-     * Touchpoints actually referenced by at least one step, in declaration
-     * order, each paired with a stable 1-based badge number. Touchpoints
-     * declared but never referenced by a visible step are silently omitted
-     * (no orphaned legend entries).
+     * Touchpoints actually referenced by at least one *visible* step, in
+     * declaration order, each paired with a stable 1-based badge number.
+     * Touchpoints declared but never referenced by a visible step — either
+     * unused entirely, or only referenced by a step whose layer isn't in
+     * [visibleLayers] — are silently omitted (no orphaned legend entries).
+     *
+     * Bug this fixes: the first version scanned `model.steps` unfiltered by
+     * layer, so a step in a hidden layer (e.g. a `JourneyDiagram`'s default
+     * `visibleLayers = {CUSTOMER_ACTIONS}` hiding a frontstage/backstage/
+     * support step) could still add its touchpoint to the legend — an entry
+     * with no matching badge anywhere in the actually-drawn diagram.
      */
-    public fun legendEntries(model: BlueprintModel): List<Pair<Int, Touchpoint>> {
-        val usedIds = model.steps.flatMap { it.touchpointRefs }.toSet()
+    public fun legendEntries(
+        model: BlueprintModel,
+        visibleLayers: Set<BlueprintLayer>,
+    ): List<Pair<Int, Touchpoint>> {
+        val usedIds =
+            model.steps
+                .filter { it.layer in visibleLayers }
+                .flatMap { it.touchpointRefs }
+                .toSet()
         return model.touchpoints
             .filter { it.id in usedIds }
             .mapIndexed { index, tp -> (index + 1) to tp }
@@ -231,14 +245,16 @@ public object BlueprintGridConstants {
 
     /**
      * Height (px) of the touchpoint legend band for [model] at [contentWidth]
-     * — `0.0` when no step references any touchpoint, so diagrams without
-     * touchpoints render exactly as before (no empty legend band).
+     * — `0.0` when no *visible* step (see [legendEntries]) references any
+     * touchpoint, so diagrams without touchpoints render exactly as before
+     * (no empty legend band).
      */
     public fun legendHeight(
         model: BlueprintModel,
         contentWidth: Double,
+        visibleLayers: Set<BlueprintLayer>,
     ): Double {
-        val entries = legendEntries(model)
+        val entries = legendEntries(model, visibleLayers)
         if (entries.isEmpty()) return 0.0
         val rows = wrapLegendEntries(entries, contentWidth)
         return LEGEND_TOP_PADDING + rows.size * LEGEND_ROW_HEIGHT

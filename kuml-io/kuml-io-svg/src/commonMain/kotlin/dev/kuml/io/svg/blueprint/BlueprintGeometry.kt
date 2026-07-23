@@ -84,13 +84,13 @@ internal class BlueprintGeometry(
      * references a touchpoint, so diagrams without touchpoints get no
      * legend band at all.
      */
-    val legendEntries = BlueprintGridConstants.legendEntries(model)
+    val legendEntries = BlueprintGridConstants.legendEntries(model, layers.toSet())
 
     /** [legendEntries] wrapped into rows that fit within the grid's content width. */
     val legendRows = BlueprintGridConstants.wrapLegendEntries(legendEntries, contentRight - contentLeft)
 
     /** Height of the touchpoint legend band, `0.0` when [legendEntries] is empty. */
-    val legendHeight = BlueprintGridConstants.legendHeight(model, contentRight - contentLeft)
+    val legendHeight = BlueprintGridConstants.legendHeight(model, contentRight - contentLeft, layers.toSet())
 
     val totalWidth = contentRight + padding
     val totalHeight = gridBottom + legendHeight + padding
