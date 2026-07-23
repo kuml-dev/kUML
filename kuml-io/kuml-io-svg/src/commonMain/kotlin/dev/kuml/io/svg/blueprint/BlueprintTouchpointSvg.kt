@@ -14,7 +14,14 @@ import kotlin.math.sin
  * Draws a touchpoint symbol (circle/diamond/square/hexagon) with the channel
  * icon centred inside it.
  *
- * V3.1.23
+ * V3.1.23. Fix: the symbol only ever showed the channel glyph, never the
+ * touchpoint's own name — two touchpoints on the same channel (e.g. two
+ * different push notifications) were visually indistinguishable. When
+ * [badge] is set (assigned by
+ * [dev.kuml.blueprint.model.BlueprintGridConstants.legendEntries], one
+ * number per touchpoint actually used in the diagram) a small numbered
+ * circle is drawn at the symbol's upper-right corner; the legend band below
+ * the grid maps each number back to its touchpoint's name.
  */
 internal fun SvgBuilder.renderTouchpoint(
     tp: Touchpoint,
@@ -22,6 +29,7 @@ internal fun SvgBuilder.renderTouchpoint(
     cx: Double,
     cy: Double,
     size: Double = 26.0,
+    badge: Int? = null,
 ) {
     val r = size / 2.0
     val shape =
@@ -51,6 +59,17 @@ internal fun SvgBuilder.renderTouchpoint(
     val ty = cy - 12.0 * iconScale
     val icon = BlueprintChannelIcons.fragmentFor(channel?.kind ?: ChannelKind.OTHER)
     rawXml("""<g transform="translate(${f(tx)},${f(ty)}) scale(${f(iconScale)})" color="#333">$icon</g>""")
+
+    if (badge != null) {
+        val badgeR = 7.0
+        val badgeCx = cx + r * 0.8
+        val badgeCy = cy - r * 0.8
+        rawXml(
+            """<circle cx="${f(badgeCx)}" cy="${f(badgeCy)}" r="${f(badgeR)}" fill="#333" stroke="white" stroke-width="1"/>""" +
+                """<text x="${f(badgeCx)}" y="${f(badgeCy + 3.0)}" text-anchor="middle" """ +
+                """font-size="9" font-weight="700" fill="white">$badge</text>""",
+        )
+    }
 }
 
 internal fun f(v: Double): String = fmt2(v.toFloat())

@@ -73,8 +73,47 @@ public object BlueprintGridConstants {
     /** Extra clearance below the last line's baseline (descenders + breathing room). */
     private const val BOTTOM_TEXT_CLEARANCE: Double = 10.0
 
+    /**
+     * Extra bottom clearance reserved when any step in the diagram has a
+     * pain point — makes room for the pain-point caption line
+     * `renderStepCard` draws above the pain-dot/touchpoint-icon row (see
+     * design decision: caption gets its own line rather than sharing the
+     * dot's row, to avoid colliding with touchpoint icons at the same y).
+     * Applied diagram-wide (not per-cell) like the rest of [contentAwareRowHeight],
+     * matching the uniform-grid design.
+     */
+    private const val PAIN_TEXT_RESERVE: Double = 14.0
+
     /** Card interior height when nothing needs more room (matches the pre-fix fixed 80px). */
     private const val CARD_INNER_HEIGHT_DEFAULT: Double = ROW_HEIGHT - CARD_MARGIN_TOP - CARD_MARGIN_BOTTOM
+
+    // ── Touchpoint legend (fix: touchpoint names were never rendered) ──────
+    //
+    // Touchpoint icons only ever drew the channel glyph, never the
+    // touchpoint's own name — readers had no way to tell two same-channel
+    // touchpoints apart (e.g. two different push notifications) without
+    // reading the source DSL. Each touchpoint actually referenced by a step
+    // gets a small numbered badge on its icon; the legend below the grid
+    // maps badge number -> touchpoint name, keyed by individual touchpoint
+    // (not just channel/symbol), so distinct touchpoints stay distinguishable.
+
+    /** Diameter of a legend badge circle (mirrors the badge drawn on touchpoint icons). */
+    public const val LEGEND_BADGE_DIAMETER: Double = 16.0
+
+    /** Gap between a legend badge and its label text. */
+    public const val LEGEND_BADGE_TEXT_GAP: Double = 4.0
+
+    /** Gap between one legend chip and the next. */
+    public const val LEGEND_CHIP_GAP: Double = 20.0
+
+    /** Vertical height per wrapped legend row. */
+    public const val LEGEND_ROW_HEIGHT: Double = 22.0
+
+    /** Gap between the last diagram row and the legend's first row. */
+    public const val LEGEND_TOP_PADDING: Double = 12.0
+
+    /** Avg width of a 9pt legend-label character (mirrors kuml-small typography). */
+    private const val LEGEND_CHAR_WIDTH_PX: Double = 5.4
 
     /**
      * Counts how many lines [text] wraps to at [maxWidthPx] — mirrors the
@@ -132,8 +171,73 @@ public object BlueprintGridConstants {
                         (if (step.actorRef != null) ACTOR_ICON_RESERVE_PX else 0.0)
                 wrappedLineCount(step.name ?: step.id, textWidth)
             } ?: 1
-        val neededCardInnerHeight = FIRST_LINE_TOP_OFFSET + (maxLines - 1) * TITLE_LINE_HEIGHT + BOTTOM_TEXT_CLEARANCE
+        val hasPain = model.steps.any { it.painPoint != null }
+        val bottomClearance = BOTTOM_TEXT_CLEARANCE + (if (hasPain) PAIN_TEXT_RESERVE else 0.0)
+        val neededCardInnerHeight = FIRST_LINE_TOP_OFFSET + (maxLines - 1) * TITLE_LINE_HEIGHT + bottomClearance
         val cardInnerHeight = maxOf(CARD_INNER_HEIGHT_DEFAULT, neededCardInnerHeight)
         return CARD_MARGIN_TOP + cardInnerHeight + CARD_MARGIN_BOTTOM
+    }
+
+    /**
+     * Touchpoints actually referenced by at least one step, in declaration
+     * order, each paired with a stable 1-based badge number. Touchpoints
+     * declared but never referenced by a visible step are silently omitted
+     * (no orphaned legend entries).
+     */
+    public fun legendEntries(model: BlueprintModel): List<Pair<Int, Touchpoint>> {
+        val usedIds = model.steps.flatMap { it.touchpointRefs }.toSet()
+        return model.touchpoints
+            .filter { it.id in usedIds }
+            .mapIndexed { index, tp -> (index + 1) to tp }
+    }
+
+    /** Estimated rendered width of one legend chip (badge + gap + label + trailing gap). */
+    private fun legendChipWidth(touchpoint: Touchpoint): Double {
+        val label = touchpoint.name ?: touchpoint.id
+        val textWidth = label.length * LEGEND_CHAR_WIDTH_PX
+        return LEGEND_BADGE_DIAMETER + LEGEND_BADGE_TEXT_GAP + textWidth + LEGEND_CHIP_GAP
+    }
+
+    /**
+     * Greedily wraps [entries] into rows that fit within [contentWidth] —
+     * same left-to-right fill strategy as [wrappedLineCount]'s word-wrap,
+     * except the unit is a whole chip (badge + label) rather than a word,
+     * since a chip can't be split across rows.
+     */
+    public fun wrapLegendEntries(
+        entries: List<Pair<Int, Touchpoint>>,
+        contentWidth: Double,
+    ): List<List<Pair<Int, Touchpoint>>> {
+        if (entries.isEmpty()) return emptyList()
+        val rows = mutableListOf<List<Pair<Int, Touchpoint>>>()
+        var currentRow = mutableListOf<Pair<Int, Touchpoint>>()
+        var currentWidth = 0.0
+        for (entry in entries) {
+            val w = legendChipWidth(entry.second)
+            if (currentRow.isNotEmpty() && currentWidth + w > contentWidth) {
+                rows += currentRow
+                currentRow = mutableListOf()
+                currentWidth = 0.0
+            }
+            currentRow += entry
+            currentWidth += w
+        }
+        if (currentRow.isNotEmpty()) rows += currentRow
+        return rows
+    }
+
+    /**
+     * Height (px) of the touchpoint legend band for [model] at [contentWidth]
+     * — `0.0` when no step references any touchpoint, so diagrams without
+     * touchpoints render exactly as before (no empty legend band).
+     */
+    public fun legendHeight(
+        model: BlueprintModel,
+        contentWidth: Double,
+    ): Double {
+        val entries = legendEntries(model)
+        if (entries.isEmpty()) return 0.0
+        val rows = wrapLegendEntries(entries, contentWidth)
+        return LEGEND_TOP_PADDING + rows.size * LEGEND_ROW_HEIGHT
     }
 }

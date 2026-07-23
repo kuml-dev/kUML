@@ -2,6 +2,7 @@ package dev.kuml.io.svg.blueprint
 
 import dev.kuml.blueprint.model.BlueprintDiagram
 import dev.kuml.blueprint.model.BlueprintDiagramFull
+import dev.kuml.blueprint.model.BlueprintGridConstants
 import dev.kuml.blueprint.model.BlueprintLayer
 import dev.kuml.blueprint.model.BlueprintLine
 import dev.kuml.blueprint.model.BlueprintModel
@@ -56,6 +57,9 @@ internal fun renderBlueprintJourney(
         }
 
     val geo = BlueprintGeometry(model, effectiveLayers, showEmotion)
+    // Touchpoint id -> legend badge number, so each touchpoint's icon in the
+    // grid (below) can carry the same number the legend uses for its name.
+    val badgeByTouchpointId = geo.legendEntries.associate { (badge, tp) -> tp.id to badge }
     val b = SvgBuilder(pretty = false)
 
     b.tag(
@@ -159,6 +163,7 @@ internal fun renderBlueprintJourney(
                             channel = ch,
                             cx = tpStartX + tIdx * 30,
                             cy = cellY + geo.rowHeight - geo.cardMarginBottom - 8,
+                            badge = badgeByTouchpointId[tp.id],
                         )
                     }
                 }
@@ -178,6 +183,17 @@ internal fun renderBlueprintJourney(
             if (src != null && dst != null) {
                 renderConnection(src, dst, conn.style)
             }
+        }
+
+        // 7. touchpoint legend (fix: touchpoint names were never rendered
+        // anywhere — see BlueprintLegendSvg.kt). Empty when no step
+        // references a touchpoint, so unaffected diagrams render unchanged.
+        if (geo.legendRows.isNotEmpty()) {
+            renderBlueprintLegend(
+                rows = geo.legendRows,
+                x = geo.contentLeft,
+                y = geo.gridBottom + BlueprintGridConstants.LEGEND_TOP_PADDING,
+            )
         }
     }
     // "Powered by kUML" branding — this renderer bypasses SvgDocument.render's

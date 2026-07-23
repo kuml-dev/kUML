@@ -74,8 +74,26 @@ internal class BlueprintGeometry(
     }
 
     val contentRight = contentLeft + columnWidth * phases.size
+
+    /** Bottom Y of the last layer band — where the touchpoint legend (if any) starts. */
+    val gridBottom = gridTop + rowHeight * layers.size
+
+    /**
+     * Touchpoints actually referenced by a visible step, badge-numbered —
+     * see [BlueprintGridConstants.legendEntries]. Empty when no step
+     * references a touchpoint, so diagrams without touchpoints get no
+     * legend band at all.
+     */
+    val legendEntries = BlueprintGridConstants.legendEntries(model)
+
+    /** [legendEntries] wrapped into rows that fit within the grid's content width. */
+    val legendRows = BlueprintGridConstants.wrapLegendEntries(legendEntries, contentRight - contentLeft)
+
+    /** Height of the touchpoint legend band, `0.0` when [legendEntries] is empty. */
+    val legendHeight = BlueprintGridConstants.legendHeight(model, contentRight - contentLeft)
+
     val totalWidth = contentRight + padding
-    val totalHeight = gridTop + rowHeight * layers.size + padding
+    val totalHeight = gridBottom + legendHeight + padding
 
     /** Cell origin (x,y) for a (phase, layer) cell. */
     fun cellOrigin(

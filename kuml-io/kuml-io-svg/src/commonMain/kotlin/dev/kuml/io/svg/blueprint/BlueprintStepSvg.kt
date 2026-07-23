@@ -12,6 +12,9 @@ private const val AVG_CHAR_WIDTH_PX = 6.5
 /** Line height for wrapped step-card titles (px). */
 private const val TITLE_LINE_HEIGHT = 14.0
 
+/** Approximate average character width for the 9pt `kuml-small` pain caption (px). */
+private const val SMALL_CHAR_WIDTH_PX = 5.4
+
 /**
  * Wraps [text] into lines that fit within [maxWidthPx], splitting only at
  * word boundaries. A single word wider than the column is kept on its own
@@ -38,6 +41,25 @@ internal fun wrapText(
     }
     if (current.isNotEmpty()) lines += current.toString()
     return lines
+}
+
+/**
+ * Truncates [text] to fit within [maxWidthPx] on a single line, appending an
+ * ellipsis when it doesn't fit. Deliberately never wraps to a second line —
+ * the pain-point caption sits in a fixed-height reserve
+ * ([dev.kuml.blueprint.model.BlueprintGridConstants.contentAwareRowHeight]
+ * only reserves one extra line), so unbounded pain text would either
+ * overflow or require unbounded card growth. The full, untruncated text
+ * stays available via the pain-dot's `<title>` tooltip.
+ */
+internal fun truncateOneLine(
+    text: String,
+    maxWidthPx: Double,
+): String {
+    val maxChars = (maxWidthPx / SMALL_CHAR_WIDTH_PX).toInt().coerceAtLeast(1)
+    if (text.length <= maxChars) return text
+    if (maxChars <= 1) return "…"
+    return text.take(maxChars - 1) + "…"
 }
 
 /**
@@ -132,11 +154,28 @@ internal fun SvgBuilder.renderStepCard(
                     """<title>${xmlEscapeContent((actor.name ?: actor.id) + " (" + actor.role + ")")}</title></g>""",
             )
         }
-        if (step.painPoint != null) {
+        val painPoint = step.painPoint
+        if (painPoint != null) {
             rawXml(
                 """<circle cx="${f(x + 10)}" cy="${f(y + h - 10)}" r="5" fill="#d00080"/>""" +
-                    """<title>${xmlEscapeContent("Pain: " + step.painPoint)}</title>""",
+                    """<title>${xmlEscapeContent("Pain: $painPoint")}</title>""",
             )
+            // Caption gets its own line above the dot/touchpoint-icon row
+            // rather than sharing it — the two already sit close together
+            // horizontally (tpStartX in BlueprintGridSvg shifts right when a
+            // pain point exists specifically to avoid collision), so a third
+            // element (free-text) on the same line has nowhere to go for
+            // anything but the shortest pain descriptions. Single line,
+            // truncated: the full text remains in the tooltip above.
+            tag(
+                "text",
+                mapOf(
+                    "x" to f(x + 6),
+                    "y" to f(y + h - 24),
+                    "class" to "kuml-small",
+                    "font-size" to "9",
+                ),
+            ) { text(truncateOneLine(painPoint, w - 12.0)) }
         }
         if (step.opportunity != null) {
             rawXml(
