@@ -156,26 +156,27 @@ internal fun SvgBuilder.renderStepCard(
         }
         val painPoint = step.painPoint
         if (painPoint != null) {
+            // Dot + caption share their own row above the touchpoint-icon
+            // row (fix: the dot used to sit in the touchpoint row itself,
+            // which only had horizontal room for the dot — a caption there
+            // would collide with the icons; moving both up onto a row of
+            // their own means the touchpoint row no longer needs any
+            // pain-specific offset either, see BlueprintGridSvg's tpStartX).
+            // Single line, truncated: the full text remains in the tooltip.
+            val painRowY = y + h - 24
             rawXml(
-                """<circle cx="${f(x + 10)}" cy="${f(y + h - 10)}" r="5" fill="#d00080"/>""" +
+                """<circle cx="${f(x + 10)}" cy="${f(painRowY)}" r="5" fill="#d00080"/>""" +
                     """<title>${xmlEscapeContent("Pain: $painPoint")}</title>""",
             )
-            // Caption gets its own line above the dot/touchpoint-icon row
-            // rather than sharing it — the two already sit close together
-            // horizontally (tpStartX in BlueprintGridSvg shifts right when a
-            // pain point exists specifically to avoid collision), so a third
-            // element (free-text) on the same line has nowhere to go for
-            // anything but the shortest pain descriptions. Single line,
-            // truncated: the full text remains in the tooltip above.
             tag(
                 "text",
                 mapOf(
-                    "x" to f(x + 6),
-                    "y" to f(y + h - 24),
+                    "x" to f(x + 20),
+                    "y" to f(painRowY + 3.0),
                     "class" to "kuml-small",
                     "font-size" to "9",
                 ),
-            ) { text(truncateOneLine(painPoint, w - 12.0)) }
+            ) { text(truncateOneLine(painPoint, w - 26.0)) }
         }
         if (step.opportunity != null) {
             rawXml(

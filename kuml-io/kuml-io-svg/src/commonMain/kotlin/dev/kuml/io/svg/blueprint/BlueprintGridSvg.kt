@@ -154,10 +154,10 @@ internal fun renderBlueprintJourney(
                         //             = cellY + rowHeight - cardMarginBottom
                         // Icon cy     = card bottom - 8
                         //
-                        // When a pain indicator is present it occupies (cellX+18, cellY+78).
-                        // Shift the touchpoint row 20 px right so the first icon does not
-                        // cover the pain circle (both share cx = cellX+18 otherwise).
-                        val tpStartX = cellX + 18 + if (step.painPoint != null) 20 else 0
+                        // No longer needs a pain-specific offset: the pain dot + caption
+                        // now share their own row above this one (see renderStepCard),
+                        // so this row is exclusively the touchpoint icons' again.
+                        val tpStartX = cellX + 18
                         renderTouchpoint(
                             tp = tp,
                             channel = ch,
