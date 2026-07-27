@@ -6,6 +6,32 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.42.0] — 2026-07-27
+
+### Fixed
+
+**Chocolatey/Windows package size: deduped jars shared between kuml-cli, kuml-mcp, and kuml-lsp**
+
+`kuml-mcp` and `kuml-lsp` are separate Gradle `application`-plugin installDist outputs,
+each copied verbatim into the bundled image with their own full `lib/` — mostly
+overlapping with the main CLI's, since all three depend on much of the same
+`kuml-core-*`/`kuml-metamodel-*`/`kotlin-compiler-*` graph. The ~60 MB
+`kotlin-compiler-embeddable-*.jar` alone was physically duplicated once for `kuml-cli`
+and again for `kuml-mcp`. Found investigating a Chocolatey moderation notice for the
+v0.40.0 `kuml` package: `kuml-runtime-0.40.0-windows-x86_64.zip` was 262 MB, over
+VirusTotal's 200 MB single-file scan limit that Chocolatey's automated review enforces
+(the package was exempted from scanning and put up for manual moderator review instead
+of failing outright, but every future release would have hit the same wall).
+
+Jars that exactly match (filename + byte size) a jar already in the shared `lib/` are
+now deleted from `mcp/lib`/`lsp/lib`, with both the Unix and Windows launcher
+classpaths rewritten to reference the shared copy one directory up instead. Only exact
+matches are deduplicated — a differing filename means a genuinely different dependency
+version (Gradle/Maven jar names always embed the version) and is left untouched, so a
+version skew between modules can never cause the wrong jar to be picked up. Result:
+`kuml-runtime-*.zip` 273 MB → 188.6 MB, `kuml-universal-*.zip` 240 MB → 155.6 MB — both
+comfortably under the 200 MB scan limit.
+
 ## [0.41.0] — 2026-07-23
 
 ### Added
