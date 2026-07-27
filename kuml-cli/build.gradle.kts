@@ -486,7 +486,25 @@ object WindowsClasspathFix {
         val line = lines[idx]
 
         val entries = line.removePrefix("set CLASSPATH=").split(";")
-        val jarNames = entries.map { it.substringAfterLast('\\') }
+        // Each entry is normally %APP_HOME%\lib\<jar> — same directory as the
+        // pathing jar we're about to create, so a bare filename resolves
+        // correctly per the manifest Class-Path spec (relative to the jar
+        // containing the manifest). After SharedLibDedup below, a jar shared
+        // with the main image instead reads %APP_HOME%\..\lib\<jar> (one
+        // directory above APP_HOME). Since the pathing jar lives one level
+        // DEEPER than APP_HOME (inside its own lib/), a same-dir entry needs
+        // its "lib/" prefix stripped to become bare, while an already-"../"
+        // entry needs one MORE "../" on top — it's relative to APP_HOME, but
+        // the manifest needs it relative to APP_HOME/lib.
+        val jarNames =
+            entries.map { entry ->
+                val relToAppHome = entry.removePrefix("%APP_HOME%\\").replace('\\', '/')
+                if (relToAppHome.startsWith("lib/")) {
+                    relToAppHome.removePrefix("lib/")
+                } else {
+                    "../$relToAppHome"
+                }
+            }
 
         // bin/ and lib/ are siblings directly under the image root (or, for
         // kuml-mcp, under mcp/) — batFile is .../<root>/bin/kuml.bat.
@@ -504,6 +522,97 @@ object WindowsClasspathFix {
         val newLines = lines.toMutableList()
         newLines[idx] = "set CLASSPATH=%APP_HOME%\\lib\\${pathingJar.name}"
         batFile.writeText(newLines.joinToString(eol))
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dedup jars shared between the main image's lib/ and each bundled sub-app's
+// own lib/ (mcp/lib, lsp/lib).
+//
+// kuml-mcp and kuml-lsp are separate Gradle `application`-plugin installDist
+// outputs, each with their own full dependency-jar set — but the large
+// majority of that set overlaps with the main CLI's, because both modules
+// depend on much of the same kuml-core-*/kuml-metamodel-*/kotlin-compiler-*
+// graph. Before this fix, bundledImage/universalImage copied each sub-app's
+// lib/ verbatim, so e.g. the ~60 MB kotlin-compiler-embeddable-*.jar was
+// physically duplicated once for kuml-cli and again for kuml-mcp — found
+// investigating a Chocolatey moderation email for the v0.40.0 `kuml` package:
+// kuml-runtime-0.40.0-windows-x86_64.zip was 262 MB, over VirusTotal's 200 MB
+// single-file scan limit that Chocolatey's automated review enforces.
+//
+// Only jars with an EXACT filename+size match against the main lib/ are
+// deduplicated. Gradle/Maven jar names always embed the version
+// (artifactId-version.jar), so a differing filename means a genuinely
+// different artifact version — left alone rather than silently merged, so a
+// version skew between kuml-cli and kuml-mcp/kuml-lsp (if one ever exists)
+// can never cause the wrong jar to be picked up for either.
+object SharedLibDedup {
+    /**
+     * Deletes jars from [subLibDir] that exactly match (same filename AND
+     * byte size) a jar already present in [sharedLibDir], then rewrites
+     * [unixLauncher]'s `CLASSPATH=` line and [batLauncher]'s
+     * `set CLASSPATH=` line so those entries point at the shared lib/ one
+     * directory up instead of the now-deleted local copy.
+     *
+     * Must run before [WindowsClasspathFix.explodeIfNeeded] is called on
+     * [batLauncher] — that function reads exactly the entries this rewrites,
+     * and relies on the "../lib/<jar>" shape to compute the pathing jar's
+     * manifest Class-Path correctly.
+     */
+    fun dedupe(
+        sharedLibDir: File,
+        subLibDir: File,
+        unixLauncher: File,
+        batLauncher: File,
+    ) {
+        val sharedByNameAndSize =
+            sharedLibDir
+                .listFiles { f -> f.extension == "jar" }
+                .orEmpty()
+                .associateBy { it.name to it.length() }
+
+        val dedupedNames =
+            subLibDir
+                .listFiles { f -> f.extension == "jar" }
+                .orEmpty()
+                .filter { candidate -> sharedByNameAndSize.containsKey(candidate.name to candidate.length()) }
+                .onEach { it.delete() }
+                .map { it.name }
+                .toSet()
+        if (dedupedNames.isEmpty()) return
+
+        // Unix: CLASSPATH=$APP_HOME/lib/foo.jar:$APP_HOME/lib/bar.jar:...
+        val unixLines = unixLauncher.readText().split("\n").toMutableList()
+        val unixIdx = unixLines.indexOfFirst { it.startsWith("CLASSPATH=") }
+        require(unixIdx >= 0) {
+            "Expected a CLASSPATH= line in $unixLauncher — inspect the launcher and adjust SharedLibDedup."
+        }
+        unixLines[unixIdx] =
+            unixLines[unixIdx]
+                .removePrefix("CLASSPATH=")
+                .split(":")
+                .joinToString(":") { entry ->
+                    val jarName = entry.substringAfterLast('/')
+                    if (jarName in dedupedNames) "\$APP_HOME/../lib/$jarName" else entry
+                }.let { "CLASSPATH=$it" }
+        unixLauncher.writeText(unixLines.joinToString("\n"))
+
+        // Windows: set CLASSPATH=%APP_HOME%\lib\foo.jar;%APP_HOME%\lib\bar.jar;...
+        val eol = "\r\n"
+        val batLines = batLauncher.readText().split(eol).toMutableList()
+        val batIdx = batLines.indexOfFirst { it.startsWith("set CLASSPATH=") }
+        require(batIdx >= 0) {
+            "Expected a set CLASSPATH= line in $batLauncher — inspect the launcher and adjust SharedLibDedup."
+        }
+        batLines[batIdx] =
+            batLines[batIdx]
+                .removePrefix("set CLASSPATH=")
+                .split(";")
+                .joinToString(";") { entry ->
+                    val jarName = entry.substringAfterLast('\\')
+                    if (jarName in dedupedNames) "%APP_HOME%\\..\\lib\\$jarName" else entry
+                }.let { "set CLASSPATH=$it" }
+        batLauncher.writeText(batLines.joinToString(eol))
     }
 }
 
@@ -762,6 +871,14 @@ tasks.register("bundledImage") {
                             batMarker,
                     )
                 mcpBatLauncher.writeText(mcpBatPatched)
+                SharedLibDedup.dedupe(
+                    sharedLibDir =
+                        mcpBatLauncher.parentFile.parentFile.parentFile
+                            .resolve("lib"),
+                    subLibDir = mcpBatLauncher.parentFile.parentFile.resolve("lib"),
+                    unixLauncher = mcpLauncher,
+                    batLauncher = mcpBatLauncher,
+                )
                 WindowsClasspathFix.explodeIfNeeded(mcpBatLauncher)
 
                 // ── bin/kuml-mcp.bat wrapper ───────────────────────────────────
@@ -876,6 +993,14 @@ tasks.register("bundledImage") {
                             batMarker,
                     )
                 lspBatLauncher.writeText(lspBatPatched)
+                SharedLibDedup.dedupe(
+                    sharedLibDir =
+                        lspBatLauncher.parentFile.parentFile.parentFile
+                            .resolve("lib"),
+                    subLibDir = lspBatLauncher.parentFile.parentFile.resolve("lib"),
+                    unixLauncher = lspLauncher,
+                    batLauncher = lspBatLauncher,
+                )
                 WindowsClasspathFix.explodeIfNeeded(lspBatLauncher)
 
                 // ── bin/kuml-lsp.bat wrapper ─────────────────────────────────────
@@ -1397,6 +1522,16 @@ tasks.register("universalImage") {
             .asFile
             .resolve("mcp/bin/kuml-mcp.bat")
             .absolutePath
+    // Needed for SharedLibDedup (dedup runs regardless of JRE bundling — the
+    // duplicated-jar bloat this fixes is independent of the JAVA_HOME
+    // question above), even though the Unix launcher itself needs no other
+    // patching here.
+    val mcpLauncherPath =
+        universalImageDir
+            .get()
+            .asFile
+            .resolve("mcp/bin/kuml-mcp")
+            .absolutePath
     val mcpWrapperPath =
         universalImageDir
             .get()
@@ -1415,6 +1550,14 @@ tasks.register("universalImage") {
             .asFile
             .resolve("lsp/bin/kuml-lsp.bat")
             .absolutePath
+    // See mcpLauncherPath above for why this is needed despite no other
+    // Unix-launcher patching happening in this task.
+    val lspLauncherPath =
+        universalImageDir
+            .get()
+            .asFile
+            .resolve("lsp/bin/kuml-lsp")
+            .absolutePath
     val lspWrapperPath =
         universalImageDir
             .get()
@@ -1431,9 +1574,11 @@ tasks.register("universalImage") {
     outputs.files(
         batLauncherPath,
         mcpBatLauncherPath,
+        mcpLauncherPath,
         mcpWrapperPath,
         mcpBatWrapperPath,
         lspBatLauncherPath,
+        lspLauncherPath,
         lspWrapperPath,
         lspBatWrapperPath,
     )
@@ -1449,10 +1594,26 @@ tasks.register("universalImage") {
 
                 val mcpBatLauncher = File(mcpBatLauncherPath)
                 require(mcpBatLauncher.isFile) { "Expected kuml-mcp installDist Windows launcher at $mcpBatLauncher" }
+                SharedLibDedup.dedupe(
+                    sharedLibDir =
+                        mcpBatLauncher.parentFile.parentFile.parentFile
+                            .resolve("lib"),
+                    subLibDir = mcpBatLauncher.parentFile.parentFile.resolve("lib"),
+                    unixLauncher = File(mcpLauncherPath),
+                    batLauncher = mcpBatLauncher,
+                )
                 WindowsClasspathFix.explodeIfNeeded(mcpBatLauncher)
 
                 val lspBatLauncher = File(lspBatLauncherPath)
                 require(lspBatLauncher.isFile) { "Expected kuml-lsp installDist Windows launcher at $lspBatLauncher" }
+                SharedLibDedup.dedupe(
+                    sharedLibDir =
+                        lspBatLauncher.parentFile.parentFile.parentFile
+                            .resolve("lib"),
+                    subLibDir = lspBatLauncher.parentFile.parentFile.resolve("lib"),
+                    unixLauncher = File(lspLauncherPath),
+                    batLauncher = lspBatLauncher,
+                )
                 WindowsClasspathFix.explodeIfNeeded(lspBatLauncher)
 
                 // ── bin/kuml-mcp + bin/kuml-mcp.bat thin wrappers — identical to
