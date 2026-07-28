@@ -12,6 +12,8 @@ data class RenderRequest(
     val standaloneTex: Boolean = false,
     // ERM notation override: martin|bachman|chen|idef1x (case-insensitive); null uses the DSL's declared notation.
     val notation: String? = null,
+    // Opt-in visible "Powered by kUML" watermark (off by default). No effect on Blueprint output.
+    val watermark: Boolean = false,
 )
 
 @Serializable

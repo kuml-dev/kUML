@@ -108,6 +108,8 @@ internal object WebRenderPipeline {
      * @param themeName optional theme name; falls back to "kuml"
      * @param layoutOverride optional engine override: "grid", "elk", or null/"auto"
      * @param widthPx PNG width in pixels (ignored for SVG)
+     * @param watermark When `true`, render the opt-in "Powered by kUML" visible watermark
+     *   (off by default). No effect on Blueprint output — see [renderBlueprint].
      */
     fun render(
         script: String,
@@ -117,6 +119,7 @@ internal object WebRenderPipeline {
         widthPx: Int = 1024,
         standaloneTex: Boolean = false,
         notation: String? = null,
+        watermark: Boolean = false,
     ): WebRenderResult {
         val startMs = System.currentTimeMillis()
         return try {
@@ -142,12 +145,14 @@ internal object WebRenderPipeline {
 
             val durationMs = System.currentTimeMillis() - startMs
             when (extracted) {
-                is ExtractedDiagram.Uml -> renderUml(extracted, format, theme, layoutOverride, widthPx, durationMs, standaloneTex)
-                is ExtractedDiagram.C4 -> renderC4(extracted, format, theme, widthPx, durationMs, standaloneTex)
-                is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, format, theme, widthPx, durationMs, standaloneTex)
-                is ExtractedDiagram.Bpmn -> renderBpmn(extracted, format, theme, widthPx, durationMs)
+                is ExtractedDiagram.Uml ->
+                    renderUml(extracted, format, theme, layoutOverride, widthPx, durationMs, standaloneTex, watermark)
+                is ExtractedDiagram.C4 -> renderC4(extracted, format, theme, widthPx, durationMs, standaloneTex, watermark)
+                is ExtractedDiagram.Sysml2 -> renderSysml2(extracted, format, theme, widthPx, durationMs, standaloneTex, watermark)
+                is ExtractedDiagram.Bpmn -> renderBpmn(extracted, format, theme, widthPx, durationMs, watermark)
+                // Blueprint intentionally excludes `watermark` — see renderBlueprint's doc comment.
                 is ExtractedDiagram.Blueprint -> renderBlueprint(extracted, format, widthPx, durationMs)
-                is ExtractedDiagram.Erm -> renderErm(extracted, format, theme, widthPx, durationMs, notation)
+                is ExtractedDiagram.Erm -> renderErm(extracted, format, theme, widthPx, durationMs, notation, watermark)
             }
         } catch (e: ScriptEvaluationException) {
             WebRenderResult.Error(e.message ?: "Script error")
@@ -164,6 +169,7 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         standaloneTex: Boolean = false,
+        watermark: Boolean = false,
     ): WebRenderResult {
         val diagram = extracted.diagram
         val layoutGraph = UmlLayoutBridge.toLayoutGraph(diagram)
@@ -177,7 +183,7 @@ internal object WebRenderPipeline {
             "svg" -> {
                 val geometry = NodeGeometryExtractor.extract(diagram.type, layoutResult)
                 WebRenderResult.Svg(
-                    svg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme),
+                    svg = KumlSvgRenderer.toSvg(diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
                     durationMs = durationMs,
                     nodes = geometry.nodes,
                     grid = geometry.grid,
@@ -202,6 +208,7 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         standaloneTex: Boolean = false,
+        watermark: Boolean = false,
     ): WebRenderResult {
         val diagram = extracted.diagram
         val model = extracted.model
@@ -212,7 +219,11 @@ internal object WebRenderPipeline {
                 ?: return WebRenderResult.Error("ELK layout engine not available")
         val layoutResult: LayoutResult = engine.layout(layoutGraph, LayoutHints.DEFAULT)
         return when (format) {
-            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(diagram, model, layoutResult, theme), durationMs)
+            "svg" ->
+                WebRenderResult.Svg(
+                    KumlSvgRenderer.toSvg(diagram, model, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                    durationMs,
+                )
             "png" -> {
                 val bytes = KumlPngRenderer.toPng(diagram, model, layoutResult, theme, PngRenderOptions(widthPx = widthPx))
                 WebRenderResult.Png(bytes, durationMs)
@@ -232,6 +243,7 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         standaloneTex: Boolean = false,
+        watermark: Boolean = false,
     ): WebRenderResult {
         val model = extracted.model
         val engine =
@@ -240,15 +252,15 @@ internal object WebRenderPipeline {
         return when (val diagram = extracted.diagram) {
             is BdDiagram -> {
                 val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Bdd(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex)
+                renderSysml2Bdd(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
             }
             is IbdDiagram -> {
                 val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Ibd(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex)
+                renderSysml2Ibd(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
             }
             is UcDiagram -> {
                 val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Uc(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex)
+                renderSysml2Uc(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
             }
             is ReqDiagram -> {
                 // V2.0.8+: same wider-spacing fix as CLI RenderPipeline — see
@@ -263,23 +275,23 @@ internal object WebRenderPipeline {
                             ),
                     )
                 val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), reqHints)
-                renderSysml2Req(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex)
+                renderSysml2Req(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
             }
             is StmDiagram -> {
                 val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Stm(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex)
+                renderSysml2Stm(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
             }
             is ActDiagram -> {
                 val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Act(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex)
+                renderSysml2Act(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
             }
             is SeqDiagram -> {
                 val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Seq(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex)
+                renderSysml2Seq(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
             }
             is ParDiagram -> {
                 val layoutResult = engine.layout(Sysml2LayoutBridge.toLayoutGraph(model, diagram), LayoutHints.DEFAULT)
-                renderSysml2Par(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex)
+                renderSysml2Par(model, diagram, layoutResult, theme, format, widthPx, durationMs, standaloneTex, watermark)
             }
         }
     }
@@ -293,9 +305,14 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         standaloneTex: Boolean = false,
+        watermark: Boolean = false,
     ): WebRenderResult =
         when (format) {
-            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme), durationMs)
+            "svg" ->
+                WebRenderResult.Svg(
+                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                    durationMs,
+                )
             "png" ->
                 WebRenderResult.Png(
                     KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
@@ -318,9 +335,14 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         standaloneTex: Boolean = false,
+        watermark: Boolean = false,
     ): WebRenderResult =
         when (format) {
-            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme), durationMs)
+            "svg" ->
+                WebRenderResult.Svg(
+                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                    durationMs,
+                )
             "png" ->
                 WebRenderResult.Png(
                     KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
@@ -343,9 +365,14 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         standaloneTex: Boolean = false,
+        watermark: Boolean = false,
     ): WebRenderResult =
         when (format) {
-            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme), durationMs)
+            "svg" ->
+                WebRenderResult.Svg(
+                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                    durationMs,
+                )
             "png" ->
                 WebRenderResult.Png(
                     KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
@@ -368,9 +395,14 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         standaloneTex: Boolean = false,
+        watermark: Boolean = false,
     ): WebRenderResult =
         when (format) {
-            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme), durationMs)
+            "svg" ->
+                WebRenderResult.Svg(
+                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                    durationMs,
+                )
             "png" ->
                 WebRenderResult.Png(
                     KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
@@ -393,11 +425,18 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         standaloneTex: Boolean = false,
+        watermark: Boolean = false,
     ): WebRenderResult =
         when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(paddingPx = 64f)),
+                    KumlSvgRenderer.toSvg(
+                        model,
+                        diagram,
+                        layoutResult,
+                        theme,
+                        SvgRenderOptions(paddingPx = 64f, watermark = watermark),
+                    ),
                     durationMs,
                 )
             "png" ->
@@ -422,11 +461,18 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         standaloneTex: Boolean = false,
+        watermark: Boolean = false,
     ): WebRenderResult =
         when (format) {
             "svg" ->
                 WebRenderResult.Svg(
-                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(paddingPx = 64f)),
+                    KumlSvgRenderer.toSvg(
+                        model,
+                        diagram,
+                        layoutResult,
+                        theme,
+                        SvgRenderOptions(paddingPx = 64f, watermark = watermark),
+                    ),
                     durationMs,
                 )
             "png" ->
@@ -451,9 +497,14 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         standaloneTex: Boolean = false,
+        watermark: Boolean = false,
     ): WebRenderResult =
         when (format) {
-            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme), durationMs)
+            "svg" ->
+                WebRenderResult.Svg(
+                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                    durationMs,
+                )
             "png" ->
                 WebRenderResult.Png(
                     KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
@@ -476,9 +527,14 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         standaloneTex: Boolean = false,
+        watermark: Boolean = false,
     ): WebRenderResult =
         when (format) {
-            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme), durationMs)
+            "svg" ->
+                WebRenderResult.Svg(
+                    KumlSvgRenderer.toSvg(model, diagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                    durationMs,
+                )
             "png" ->
                 WebRenderResult.Png(
                     KumlPngRenderer.toPng(model, diagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx)),
@@ -536,6 +592,7 @@ internal object WebRenderPipeline {
         theme: KumlTheme,
         widthPx: Int,
         durationMs: Long,
+        watermark: Boolean = false,
     ): WebRenderResult {
         val model = extracted.model
         val bpmnDiagram = extracted.diagram
@@ -556,7 +613,11 @@ internal object WebRenderPipeline {
                 val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
-                    "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(kumlDiagram, layoutResult, theme), durationMs)
+                    "svg" ->
+                        WebRenderResult.Svg(
+                            KumlSvgRenderer.toSvg(kumlDiagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                            durationMs,
+                        )
                     "png" -> {
                         val pngBytes = KumlPngRenderer.toPng(kumlDiagram, layoutResult, theme, PngRenderOptions(widthPx = widthPx))
                         WebRenderResult.Png(pngBytes, durationMs)
@@ -568,7 +629,11 @@ internal object WebRenderPipeline {
                 val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
-                    "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme), durationMs)
+                    "svg" ->
+                        WebRenderResult.Svg(
+                            KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                            durationMs,
+                        )
                     "png" -> {
                         val svg = KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme)
                         WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
@@ -580,7 +645,11 @@ internal object WebRenderPipeline {
                 // V3.2.2 — Choreography bypasses ELK entirely: deterministic custom grid layout.
                 val layoutResult: LayoutResult = ChoreographyGridLayout.layout(model, bpmnDiagram)
                 when (format) {
-                    "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme), durationMs)
+                    "svg" ->
+                        WebRenderResult.Svg(
+                            KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                            durationMs,
+                        )
                     "png" -> {
                         val svg = KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme)
                         WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
@@ -592,7 +661,11 @@ internal object WebRenderPipeline {
                 val layoutGraph = BpmnLayoutBridge.toLayoutGraph(model, bpmnDiagram, BpmnContentSizeProvider(model))
                 val layoutResult: LayoutResult = bpmnEngine.layout(layoutGraph, LayoutHints.DEFAULT)
                 when (format) {
-                    "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme), durationMs)
+                    "svg" ->
+                        WebRenderResult.Svg(
+                            KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme, SvgRenderOptions(watermark = watermark)),
+                            durationMs,
+                        )
                     "png" -> {
                         val svg = KumlSvgRenderer.toSvg(model, bpmnDiagram, layoutResult, theme)
                         WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
@@ -650,6 +723,7 @@ internal object WebRenderPipeline {
         widthPx: Int,
         durationMs: Long,
         notationOverride: String? = null,
+        watermark: Boolean = false,
     ): WebRenderResult {
         val model = extracted.model
         val diagram = extracted.diagram
@@ -688,7 +762,18 @@ internal object WebRenderPipeline {
         val layout: LayoutResult = engine.layout(graph, hints)
 
         return when (format) {
-            "svg" -> WebRenderResult.Svg(KumlSvgRenderer.toSvg(model, diagram, layout, theme, notation = notation), durationMs)
+            "svg" ->
+                WebRenderResult.Svg(
+                    KumlSvgRenderer.toSvg(
+                        model,
+                        diagram,
+                        layout,
+                        theme,
+                        options = SvgRenderOptions(watermark = watermark),
+                        notation = notation,
+                    ),
+                    durationMs,
+                )
             "png" -> {
                 val svg = KumlSvgRenderer.toSvg(model, diagram, layout, theme, notation = notation)
                 WebRenderResult.Png(KumlPngRenderer.toPng(svg, PngRenderOptions(widthPx = widthPx)), durationMs)
