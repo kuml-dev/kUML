@@ -6,6 +6,63 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.43.0] — 2026-07-28
+
+### Added
+
+**Opt-in "Powered by kUML" watermark exposed through the `kuml-web` render API**
+
+The CLI's `--watermark` flag (visible, theme-consistent "Powered by kUML" label, off by
+default) had no equivalent on the `kuml-web`/`kuml serve` render API — a consumer of
+that API (e.g. the Obsidian plugin's server render mode) had no way to opt into it.
+`WebRenderPipeline` now threads a `watermark` parameter through every SVG-producing
+branch (UML, C4, all SysML 2 diagram types, BPMN, ERM — mirroring the CLI's existing
+support matrix; Blueprint is intentionally excluded, matching the CLI), exposed as
+`RenderRequest.watermark` (default `false`) on `POST /api/render`.
+
+### Fixed
+
+**UML plain state-machine diagrams: long state names overflowing their box**
+
+`renderUmlState` drew a simple state's name on a single non-wrapping line regardless of
+length, and `UmlContentSizeProvider` had no branch for `UmlState` at all, so every
+simple state fell back to a fixed 160×80 box — a name like "Antragsvorschlag
+Eingereicht auf Agora-Platform" ran past the box's rounded border. Simple states now
+wrap their name at word boundaries and vertically center the resulting text block; box
+height grows to fit when needed. A single-line name renders byte-identical to before.
+Composite states are unaffected (ELK already sizes those from their substates).
+
+**UML state-machine diagrams: watermark rendered below/outside the frame**
+
+Every other diagram type draws its outer frame via `SvgDocument.render`'s generic
+`renderDiagramFrame`, which already grows to cover the watermark band added to the
+canvas. Plain UML state diagrams draw their frame differently — the `UmlStateMachine`
+is rendered as a layout group sized only to its own content — so with the watermark on,
+"Powered by kUML" (positioned near the true canvas bottom) landed below that frame's
+bottom edge instead of inside it. The state-machine frame now stretches to the same
+edge clearance the generic frame uses whenever the watermark is on.
+
+**UML activity diagrams: long guard labels overflowing the frame**
+
+A decision edge's `[guard]` label (e.g. a long boolean condition) could run past the
+diagram's left/right frame border — unlike state machines, which already widen their
+frame for overhanging transition labels, nothing did the equivalent for activity
+diagrams. Added the matching fix: the canvas widens (and content shifts) so a guard
+label's estimated background rect always fits inside the frame.
+
+**UML state-machine diagrams: back-edge lines and labels overlapping**
+
+A state with several transitions looping back into it from below (e.g. multiple
+distinct "reminder sent" transitions into the same waiting state) rendered with the
+near-parallel return lines bunched only a few px apart, and their trigger-text labels
+overlapping into illegible text. Two causes: ELK's edge-to-edge spacing for state
+diagrams was too tight for many parallel back-edges (widened 36px → 56px), and —
+the actual bug — back-edge labels had no collision detection at all, because the
+overlap-clustering pass measured each edge's *natural* route midpoint instead of the
+different, fixed point back-edges actually render their label at. Overlapping
+back-edges now get properly detected and staggered like any other colliding label
+group.
+
 ## [0.42.0] — 2026-07-27
 
 ### Fixed

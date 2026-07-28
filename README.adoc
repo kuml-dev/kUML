@@ -136,13 +136,13 @@ flows and a stroke-width pulse highlights each active task. Rendered by `BpmnSmi
 | `sdk install kuml` — *not available yet*; SDKMAN! vendor onboarding (API keys) is still pending. Planned platforms: Linux x86_64, Linux ARM64, macOS, Windows x86_64. Use Homebrew or the native installers in the meantime.
 
 | *Docker*
-| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.24.3` — minimal CLI image.
+| `docker pull ghcr.io/kuml-dev/kuml-cli:v0.43.0` — minimal CLI image.
 
 | *Native installers*
-| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.24.3). Download from the GitHub Releases page.
+| DEB, RPM, DMG, MSI packages built by the `release-installers.yml` CI workflow on every version tag (v0.43.0). Download from the GitHub Releases page.
 
 | *Maven Central* (library modules)
-| `implementation("dev.kuml:kuml-core-dsl:0.24.3")` — library modules published to Maven Central.
+| `implementation("dev.kuml:kuml-core-dsl:0.43.0")` — library modules published to Maven Central.
 |===
 
 == Features
@@ -539,6 +539,27 @@ An ERM model can be authored directly (`ermModel { … }`) or derived from an ex
 | `kuml ai pricing [--provider <id>]`
 | Display per-token input/output cost tables for all configured LLM providers (or a specific one). Reads live pricing from the provider SPI. (V3.1.x)
 
+| `kuml ai audit [--output text\|json]`
+| Read the compliance audit log (`~/.kuml/audit/`) of every LLM call — IDs and timestamps only, never prompts or model responses. (V3.1.x)
+
+| `kuml ai vault unlock\|lock\|status`
+| Manage the API-key vault's master-password encryption: derive the key and re-encrypt stored keys (`unlock`), zero-fill the in-memory key (`lock`), or show the current backend/encryption state (`status`). (V3.1.20)
+
+| `kuml dump-json <script> --diagram-out <f> --layout-out <f> [--model-out <f>]`
+| Dump the parsed diagram, its owning model, and the computed `LayoutResult` as JSON — the prerequisite input for the wasm playground render path. Supports UML, C4, SysML 2, BPMN, Blueprint.
+
+| `kuml asciidoc --input <f> --output <f>` / `--input-dir <d> --output-dir <d>`
+| Pre-render `[source,kuml]` blocks and `kuml::path[]` macros in AsciiDoc files to SVG/PNG, producing plain AsciiDoc that Antora's Node.js Asciidoctor pipeline can consume directly (Antora cannot load the JVM `kuml-asciidoc` extension itself). Directory mode mirrors an entire tree, copying non-`.adoc` files through unchanged.
+
+| `kuml trace replay <trace> <script> [--verbose]` / `kuml trace export [--format otlp-json]`
+| Inspect, replay, and export behaviour traces (V2.0.39).
+
+| `kuml sandbox validate <script> [--strict] [--guard-timeout-ms N]`
+| Validate guards/actions against the sandbox policy (V2.0.40).
+
+| `kuml chain connect\|verify\|events\|sign\|verify-sig`
+| Connect a behaviour-runtime state machine to a live on-chain contract (EVM by default, pluggable adapter), verify the on-chain `modelHash`, stream events, and sign/verify off-chain payloads. (V3.0.5)
+
 | `kuml version`
 | Print the installed kUML version and build metadata.
 |===
@@ -608,7 +629,7 @@ Generalization/InterfaceRealization/Dependency ✅ +
 `kuml-core-expr` — Typed Expression AST + Parser + Evaluator ✅ +
 `kuml-metamodel-kerml` + `kuml-metamodel-sysml2` — KerML foundation + SysML 2 sealed hierarchy ✅ +
 `kuml-widget-compose` — Executable behaviour widget (Compose Multiplatform) ✅ +
-`kuml-vault-examples-tests` — 31 CI smoke tests rendering all vault examples ✅
+`kuml-vault-examples-tests` — 47 CI smoke tests rendering all vault examples ✅
 | ✅ Done (`v0.12.0`)
 
 | *V3.x*
@@ -783,7 +804,7 @@ kuml-tests/
   kuml-renderer-tests         ✅  SVG snapshot tests
   kuml-codegen-tests          ✅  Codegen tests
   kuml-cli-tests              ✅  CLI end-to-end tests
-  kuml-vault-examples-tests   ✅  34 CI smoke tests: render all vault examples incl. 3 BPMN (V3.0.x+)
+  kuml-vault-examples-tests   ✅  47 CI smoke tests: render all vault examples incl. BPMN + ERM (V3.0.x+)
   kuml-mcp-tests, kuml-ocl-tests, kuml-llm-tests  ✅
 ----
 
