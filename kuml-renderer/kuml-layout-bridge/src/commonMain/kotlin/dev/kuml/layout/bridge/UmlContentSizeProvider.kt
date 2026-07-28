@@ -28,6 +28,8 @@ import dev.kuml.uml.UmlNode
 import dev.kuml.uml.UmlOperation
 import dev.kuml.uml.UmlPackage
 import dev.kuml.uml.UmlProperty
+import dev.kuml.uml.UmlState
+import dev.kuml.uml.UmlStateMachine
 import dev.kuml.uml.UmlStereotype
 import dev.kuml.uml.UmlUseCase
 import dev.kuml.uml.Visibility
@@ -131,6 +133,19 @@ public class UmlContentSizeProvider
                             else -> {}
                         }
                     is UmlPackage -> collect(e.members, out)
+                    is UmlStateMachine -> collect(e.vertices, out)
+                    is UmlState ->
+                        if (e.substates.isEmpty()) {
+                            out[e.id] = stateSize(e)
+                        } else {
+                            // Composite state itself is intentionally skipped: UmlLayoutBridge
+                            // sizes it as an ELK compound group from its substates' own
+                            // layout, never calling sizeOf() for the composite state — see
+                            // stateSize() doc comment below. Its substates (possibly nested
+                            // composite states of their own) still need collecting so any
+                            // simple states inside get content-aware sizing too.
+                            collect(e.substates, out)
+                        }
                     else -> {} // ignore — fall back to default
                 }
             }
@@ -447,6 +462,63 @@ public class UmlContentSizeProvider
             return Size(maxOf(DEFAULT_W, nameW.toFloat() + 2 * ELLIPSE_H_PAD), DEFAULT_H)
         }
 
+        /**
+         * Counts how many lines [text] wraps to at [maxWidthPx] — mirrors the
+         * word-boundary algorithm in `wrapStateName()`
+         * (`dev.kuml.io.svg.uml.UmlStateSvg.kt`, kuml-io-svg) exactly, just
+         * returning a count instead of the line list. kuml-io-svg doesn't
+         * depend on kuml-layout-bridge, so this is duplicated rather than
+         * shared — same established pattern as `wrappedLineCount` in
+         * `Sysml2LayoutBridge` and `contentAwareRowHeight` in
+         * `BlueprintGridConstants`.
+         */
+        private fun stateWrappedLineCount(
+            text: String,
+            maxWidthPx: Float,
+        ): Int {
+            val maxChars = (maxWidthPx / BODY_CHAR_PX).toInt().coerceAtLeast(1)
+            val words = text.split(" ")
+            var lines = 0
+            var current = ""
+            for (word in words) {
+                val candidate = if (current.isEmpty()) word else "$current $word"
+                if (candidate.length <= maxChars) {
+                    current = candidate
+                } else {
+                    if (current.isNotEmpty()) lines++
+                    current = word
+                }
+            }
+            if (current.isNotEmpty()) lines++
+            return lines.coerceAtLeast(1)
+        }
+
+        /**
+         * Größe eines einfachen `UmlState`-Knotens (ein Composite State —
+         * `substates` nicht leer — wird nicht hier, sondern von
+         * `UmlLayoutBridge` als ELK-Compound-Gruppe aus seinen Substates
+         * heraus dimensioniert; [collect] ruft diese Funktion dafür gar
+         * nicht erst auf).
+         *
+         * Vor diesem Fix fiel [UmlState] durch den `else`-Zweig in [collect]
+         * und bekam immer `DEFAULT_W × DEFAULT_H` (160 × 80) — der Renderer
+         * ([dev.kuml.io.svg.uml.renderUmlState]) zeichnete den Namen zudem
+         * immer einzeilig, sodass ein Name wie "Antragsvorschlag
+         * Eingereicht auf Agora-Platform" seitlich weit über den Rand
+         * hinauslief (State-Machine-Diagramm "Meeting Document Status").
+         * `renderUmlState` bricht den Namen jetzt wortweise um; die Breite
+         * bleibt bewusst bei [DEFAULT_W] (wie schon für kürzere Namen) —
+         * nur die Höhe wächst content-aware, analog zum "Breite fix, Höhe
+         * wächst"-Muster von Blueprint-Step-Cards und
+         * SysML-2-Requirement-Boxen.
+         */
+        private fun stateSize(s: UmlState): Size {
+            val wrapWidthPx = DEFAULT_W - STATE_H_PADDING
+            val lines = stateWrappedLineCount(s.name, wrapWidthPx)
+            val neededHeight = (lines - 1) * STATE_LINE_HEIGHT + STATE_HEIGHT_SAFETY_PADDING
+            return Size(DEFAULT_W, maxOf(DEFAULT_H, neededHeight))
+        }
+
         private fun interfaceSize(i: UmlInterface): Size {
             val nameLine = i.name
             val stereoLine = stereoLabel(i.appliedStereotypes) ?: "«interface»"
@@ -714,6 +786,25 @@ public class UmlContentSizeProvider
              * boundary — the ellipse is only full-width at its vertical center.
              */
             public const val ELLIPSE_H_PAD: Float = 30f
+
+            // ── UmlState: einfacher State mit umgebrochenem Namen ─────────────────
+            //
+            // Diese Konstanten MÜSSEN mit den gleichnamigen Werten in
+            // `dev.kuml.io.svg.uml.UmlStateSvg.kt` (Modul kuml-io-svg) übereinstimmen
+            // — gleiche Hauskonvention wie bei NESTED_* oben.
+
+            /** Horizontal padding (left + right) reserved around a simple state's name — mirrors H_PADDING_PX. */
+            public const val STATE_H_PADDING: Float = 16f
+
+            /** Line height for a wrapped simple-state name (px) — mirrors LINE_HEIGHT_PX. */
+            public const val STATE_LINE_HEIGHT: Float = 13f
+
+            /**
+             * Extra vertical clearance so a vertically-centered, wrapped name
+             * block never touches the rounded box edge — covers first-line
+             * ascent + last-line descent + a small margin.
+             */
+            public const val STATE_HEIGHT_SAFETY_PADDING: Float = 28f
 
             // ── Composite-Structure: verschachtelte Parts (V3.x) ──────────────────
             //
