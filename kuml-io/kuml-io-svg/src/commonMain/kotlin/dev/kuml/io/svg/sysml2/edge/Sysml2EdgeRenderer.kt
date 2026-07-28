@@ -316,11 +316,42 @@ internal object Sysml2EdgeRenderer {
      * `labelStackIndex * STACK_OFFSET_PX` measures a consistent gap from
      * that shared baseline instead of compounding onto a different one.
      */
-    fun computeLabelStackAssignments(edges: Iterable<Triple<EdgeId, EdgeRoute, String?>>): Map<EdgeId, LabelStackAssignment> {
+    fun computeLabelStackAssignments(edges: Iterable<Triple<EdgeId, EdgeRoute, String?>>): Map<EdgeId, LabelStackAssignment> =
+        computeLabelStackAssignmentsFromAnchors(
+            edges.map { (edgeId, route, labelText) -> LabelAnchorInput(edgeId, labelAnchor(route), labelText) },
+        )
+
+    /**
+     * One edge's input to [computeLabelStackAssignmentsFromAnchors]: its id,
+     * the anchor its label would render at absent any clustering override,
+     * and its label text (for half-width estimation).
+     */
+    data class LabelAnchorInput(
+        val edgeId: EdgeId,
+        val anchor: Pair<Float, Float>,
+        val labelText: String?,
+    )
+
+    /**
+     * Same clustering algorithm as [computeLabelStackAssignments], but takes
+     * each edge's label anchor directly instead of deriving it from
+     * [labelAnchor]. Lets a caller substitute a different anchor for edges
+     * whose *actual* rendered position diverges from their route's natural
+     * longest-segment midpoint — e.g. UML state-machine back-edges, which
+     * render at a fixed 8%-of-arc-length point near the source instead of
+     * their natural midpoint (see [dev.kuml.io.svg.KumlSvgRenderer]'s STM
+     * back-edge handling). Feeding the *natural* midpoint into clustering for
+     * those edges misses overlaps entirely: several back-edges converging on
+     * the same target state can have natural midpoints far apart (different
+     * long vertical runs) even though their real, overridden anchors land
+     * within a few px of each other — exactly the bug this overload exists to
+     * let callers avoid.
+     */
+    fun computeLabelStackAssignmentsFromAnchors(entries: Iterable<LabelAnchorInput>): Map<EdgeId, LabelStackAssignment> {
         val result = mutableMapOf<EdgeId, LabelStackAssignment>()
         val clusters = mutableListOf<LabelCluster>()
-        for ((edgeId, route, labelText) in edges) {
-            val (mx, my) = labelAnchor(route)
+        for ((edgeId, anchor, labelText) in entries) {
+            val (mx, my) = anchor
             val halfWidth = estimateLabelHalfWidth(labelText)
             val leftX = mx - halfWidth
             val rightX = mx + halfWidth

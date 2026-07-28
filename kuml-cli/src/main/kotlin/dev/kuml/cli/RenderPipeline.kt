@@ -326,7 +326,11 @@ internal object RenderPipeline {
         //  - `nodeToNode = 110f` — horizontal breathing room between sibling states
         //    (e.g. Picking / Packing inside a composite, or a state and its
         //    self-transition loop).
-        //  - `edgeToEdge = 36f` — keeps parallel/adjacent transition labels apart.
+        //  - `edgeToEdge = 56f` — keeps parallel/adjacent transition labels apart.
+        //    Bumped from 36f (Vault feedback: a state with several back-edges
+        //    converging on it from below — e.g. multiple "E-Mail sent
+        //    successful" transitions — still bunched their near-parallel
+        //    return lines only a few px apart even at 36f).
         //  - `layerToLayer = 130f` — the dominant knob for top-to-bottom state
         //    machines: it widens the vertical gap between successive states so the
         //    inter-state transition labels sit in clear space, not on a box edge.
@@ -335,7 +339,7 @@ internal object RenderPipeline {
             if (diagram.type == DiagramType.STATE) {
                 Spacing(
                     nodeToNode = 110f,
-                    edgeToEdge = 36f,
+                    edgeToEdge = 56f,
                     groupPadding = 28f,
                     layerToLayer = 130f,
                 )

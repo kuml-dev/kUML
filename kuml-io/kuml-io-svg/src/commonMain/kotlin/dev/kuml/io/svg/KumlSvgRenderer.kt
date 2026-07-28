@@ -1010,24 +1010,73 @@ public object KumlSvgRenderer {
         }.joinToString(" ")
 
     /**
+     * Resolves the (x, y) a transition's label would render at *absent* any
+     * cluster override — i.e. the point [umlStmComputeLabelStackAssignments]'s
+     * clustering pass measures overlap from, and what
+     * [umlStmTransitionLabelAnchor] falls back to for an unclustered
+     * (`index == 0`) label.
+     *
+     * V3.x — Back-edge label repositioning: in a top-to-bottom STM the
+     * longest segment of a back-edge (e.g. Yellow→Red) is the long vertical
+     * run on the left side of the diagram. Its midpoint sits at the y-level
+     * of an intermediate state and far to the left, which causes the label
+     * to overlap that state. Instead we anchor the label at 8 % of the arc
+     * length from the source — this lands in the short upward stub that
+     * exits the source state, which is always in the whitespace BELOW the
+     * nearest intermediate node and ABOVE the source state.
+     *
+     * Bug fix: this back-edge anchor used to be applied *after* clustering,
+     * bypassing it entirely — so several back-edges converging on the same
+     * target state (e.g. multiple "E-Mail sent successful" transitions into
+     * one state) each landed at their own 8 %-arc point with no collision
+     * check between them, even when those points ended up only a few px
+     * apart. Computing the effective anchor here, *before*
+     * [umlStmComputeLabelStackAssignments] runs its clustering pass, lets
+     * that pass see back-edges' true rendered positions and stagger them
+     * like any other overlapping label group.
+     */
+    private fun umlStmEffectiveAnchor(
+        shiftedRoute: dev.kuml.layout.EdgeRoute,
+        label: String,
+    ): Pair<Float, Float> {
+        val isBackEdge = label.isNotEmpty() && shiftedRoute.source.y > shiftedRoute.target.y + 5f
+        return if (isBackEdge) {
+            val a = EdgeLabelGeometry.anchorAt(shiftedRoute, 0.08f)
+            a.x to a.y
+        } else {
+            dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
+                .labelAnchor(shiftedRoute)
+        }
+    }
+
+    /**
      * Pre-computes per-transition label stacking (see
-     * [dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.computeLabelStackAssignments])
+     * [dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.computeLabelStackAssignmentsFromAnchors])
      * from [layoutResult]'s edges, already shifted into the same *shifted*
      * (padding-applied) coordinate space [umlStmTransitionLabelAnchor] and the
      * render loop use — computing it from the raw, unshifted route would
      * offset every overridden sibling by `padding` px relative to its
      * correctly-shifted stackIndex-0 neighbour.
+     *
+     * Feeds each edge's *effective* anchor ([umlStmEffectiveAnchor] — the
+     * back-edge 8%-arc point where applicable) into clustering, not the
+     * route's raw natural midpoint, so back-edges that converge on the same
+     * target get detected as overlapping and staggered (see
+     * [umlStmEffectiveAnchor]'s KDoc for the bug this fixes).
      */
     private fun umlStmComputeLabelStackAssignments(
         layoutResult: LayoutResult,
         transitionIndex: Map<String, dev.kuml.uml.UmlTransition>,
         padding: Float,
     ): Map<dev.kuml.layout.EdgeId, dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.LabelStackAssignment> =
-        dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.computeLabelStackAssignments(
+        dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.computeLabelStackAssignmentsFromAnchors(
             layoutResult.edges.entries.map { (edgeId, route) ->
                 val transition = transitionIndex[edgeId.value]
                 val labelText = transition?.let { umlStmTransitionLabel(it).ifEmpty { null } }
-                Triple(edgeId, shiftRoute(route, padding), labelText)
+                val shiftedRoute = shiftRoute(route, padding)
+                val anchor = umlStmEffectiveAnchor(shiftedRoute, labelText ?: "")
+                dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
+                    .LabelAnchorInput(edgeId, anchor, labelText)
             },
         )
 
@@ -1038,34 +1087,16 @@ public object KumlSvgRenderer {
      * so [umlStmWidenForLabelOverhang]'s pre-pass and the actual render loop
      * agree on exactly where every label will land.
      *
-     * Priority: an explicit back-edge anchor (already chosen to sit clear of
-     * the frame/intermediate states — see the back-edge KDoc below) wins over
-     * the cluster's shared-baseline override; without either, falls back to
-     * the edge's own natural longest-segment anchor.
+     * Priority: the cluster's shared-baseline override (present for every
+     * sibling after a cluster's first member — see
+     * [dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.computeLabelStackAssignmentsFromAnchors])
+     * wins; without one, falls back to this edge's own [umlStmEffectiveAnchor].
      */
     private fun umlStmTransitionLabelAnchor(
         shiftedRoute: dev.kuml.layout.EdgeRoute,
         label: String,
         assignment: dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer.LabelStackAssignment?,
-    ): Pair<Float, Float> {
-        // V3.x — Back-edge label repositioning: in a top-to-bottom STM the
-        // longest segment of a back-edge (e.g. Yellow→Red) is the long
-        // vertical run on the left side of the diagram. Its midpoint sits at
-        // the y-level of an intermediate state and far to the left, which
-        // causes the label to overlap that state. Instead we anchor the
-        // label at 8 % of the arc length from the source — this lands in the
-        // short upward stub that exits the source state, which is always in
-        // the whitespace BELOW the nearest intermediate node and ABOVE the
-        // source state.
-        val isBackEdge = label.isNotEmpty() && shiftedRoute.source.y > shiftedRoute.target.y + 5f
-        if (isBackEdge) {
-            val a = EdgeLabelGeometry.anchorAt(shiftedRoute, 0.08f)
-            return a.x to a.y
-        }
-        return assignment?.anchorOverride
-            ?: dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
-                .labelAnchor(shiftedRoute)
-    }
+    ): Pair<Float, Float> = assignment?.anchorOverride ?: umlStmEffectiveAnchor(shiftedRoute, label)
 
     /**
      * Widens the state-machine frame (and, if needed, the overall canvas) so
