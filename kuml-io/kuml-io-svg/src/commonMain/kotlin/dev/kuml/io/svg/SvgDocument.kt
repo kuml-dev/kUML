@@ -29,7 +29,12 @@ internal object SvgDocument {
 
     // Extra canvas height reserved below the existing bottom padding when the
     // watermark is on — a small-font text line plus a little breathing room.
-    private const val WATERMARK_BAND_PX = 18f
+    // internal (not private): a handful of diagram types render their own
+    // outer "frame" as an ordinary layout node instead of going through this
+    // function's generic renderDiagramFrame (see KumlSvgRenderer's UmlStateMachine
+    // handling) — those need to grow by the exact same amount so the
+    // watermark band lands inside their frame, not below it.
+    internal const val WATERMARK_BAND_PX = 18f
 
     // Gap between the bottom of the (grown) canvas and the watermark baseline.
     private const val WATERMARK_GAP_PX = 6f

@@ -1,5 +1,13 @@
 package dev.kuml.io.svg
 
+// Margin between the outer diagram frame and the true SVG canvas edge.
+// internal (not private): renderUmlStateDiagram's SM-frame is the one other
+// place in the renderer that draws a canvas-covering "diagram frame" (as a
+// layout group rather than through renderDiagramFrame below) and needs the
+// exact same edge clearance so it, too, reaches all the way down to the
+// watermark band added to canvasH.
+internal const val DIAGRAM_FRAME_INSET_PX = 2f
+
 /**
  * Renders the outer UML diagram frame: a rounded rectangle covering the SVG canvas
  * and a small `typeLabel: name` label in the top-left corner (within the padding margin).
@@ -16,7 +24,7 @@ internal fun renderDiagramFrame(
     builder: SvgBuilder,
 ) {
     if (name.isBlank()) return
-    val inset = 2f
+    val inset = DIAGRAM_FRAME_INSET_PX
     val x = inset
     val y = inset
     val w = canvasW - 2f * inset

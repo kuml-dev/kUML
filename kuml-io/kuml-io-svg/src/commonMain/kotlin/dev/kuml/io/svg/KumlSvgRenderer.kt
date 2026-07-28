@@ -1211,11 +1211,32 @@ public object KumlSvgRenderer {
             // Composite states surface as LayoutGroups (nested inside the SM group) so
             // ELK can position their substates correctly. We draw them here, in z-order
             // BEFORE the individual vertex nodes so that substate boxes appear on top.
+            // Mirrors SvgDocument.render's own canvasH formula exactly (same
+            // inputs: content height, padding, watermark) — canvasH itself
+            // isn't threaded into this populate callback, so it's recomputed
+            // here rather than duplicated as a separate magic number.
+            val watermarkBand = if (options.watermark) SvgDocument.WATERMARK_BAND_PX else 0f
+            val canvasH = layoutResult.canvas.height + 2 * padding + watermarkBand
             for ((groupId, groupLayout) in layoutResult.groups) {
                 val gx = groupLayout.bounds.origin.x + padding
                 val gy = groupLayout.bounds.origin.y + padding
                 val gw = groupLayout.bounds.size.width
-                val gh = groupLayout.bounds.size.height
+                val isSmFrame = groupId.value == sm.id
+                // The SM outer frame is the ONLY visible "diagram frame" for a
+                // plain UML state diagram — SvgDocument.render's generic
+                // renderDiagramFrame is never used here (frameName/frameTypeLabel
+                // aren't passed for DiagramType.STATE). When the watermark is on,
+                // stretch its bottom edge all the way down to canvasH (same edge
+                // clearance renderDiagramFrame itself uses), instead of stopping
+                // at the un-grown content height — otherwise the watermark
+                // (positioned near the true canvas bottom) lands below this
+                // frame's bottom edge instead of inside it.
+                val gh =
+                    if (isSmFrame && options.watermark) {
+                        canvasH - DIAGRAM_FRAME_INSET_PX - gy
+                    } else {
+                        groupLayout.bounds.size.height
+                    }
                 val groupNodeLayout =
                     dev.kuml.layout.NodeLayout(
                         bounds =
@@ -1224,7 +1245,7 @@ public object KumlSvgRenderer {
                                 size = dev.kuml.layout.Size(gw, gh),
                             ),
                     )
-                if (groupId.value == sm.id) {
+                if (isSmFrame) {
                     // State machine outer frame
                     NodeRendererDispatcher.dispatch(sm, groupNodeLayout, theme, nodesBuilder)
                 } else {
