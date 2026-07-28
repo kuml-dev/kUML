@@ -180,6 +180,8 @@ public object KumlSvgRenderer {
         val effectiveLayoutResult: LayoutResult =
             if (diagram.type == DiagramType.PACKAGE) {
                 snapPackageEdgesToBodyBoundary(elementIndex, layoutResult)
+            } else if (diagram.type == DiagramType.ACTIVITY) {
+                umlActivityWidenForGuardOverhang(layoutResult, diagram.elements, options.paddingPx)
             } else {
                 layoutResult
             }
@@ -1157,6 +1159,88 @@ public object KumlSvgRenderer {
                             ),
                     )
                 }
+            }
+        return layoutResult.copy(
+            canvas = layoutResult.canvas.copy(width = layoutResult.canvas.width + leftOverhang + rightOverhang),
+            nodes = shiftedNodes,
+            edges = shiftedEdges,
+            groups = shiftedGroups,
+        )
+    }
+
+    /**
+     * Widens a plain UML ACTIVITY diagram's canvas so every activity edge's
+     * `[guard]` label fits inside the diagram's outer frame instead of
+     * running past its left/right border (Vault feedback: a long guard like
+     * `[has BackupDelegateFunction AND OrdinaryDelegateFunction for this
+     * BackupDelegateFunction]` overflowed the frame on a decision edge).
+     *
+     * Unlike [umlStmWidenForLabelOverhang] (which grows a dedicated
+     * state-machine frame GROUP), plain UML activity diagrams draw their
+     * frame the generic way — [SvgDocument.render]'s `renderDiagramFrame`
+     * spans the canvas directly (`canvasW - 2 * `[DIAGRAM_FRAME_INSET_PX]`,
+     * see that function). So there's no separate frame rect to resize here:
+     * growing [layoutResult]'s canvas width (and shifting every node/edge/
+     * group right by the overflow found on the left) is enough —
+     * `SvgDocument.render` then draws a wider frame that automatically
+     * reaches the new canvas edges.
+     *
+     * Returns [layoutResult] unchanged when no guard overflows (the
+     * overwhelming majority of activity diagrams), so unrelated diagrams
+     * render byte-for-byte identical to before this fix.
+     */
+    private fun umlActivityWidenForGuardOverhang(
+        layoutResult: LayoutResult,
+        elements: List<KumlElement>,
+        padding: Float,
+    ): LayoutResult {
+        val edgeIndex = elements.filterIsInstance<dev.kuml.uml.UmlActivityEdge>().associateBy { it.id }
+        if (edgeIndex.isEmpty()) return layoutResult
+
+        val canvasW = layoutResult.canvas.width + 2 * padding
+        val frameLeft = DIAGRAM_FRAME_INSET_PX
+        val frameRight = canvasW - DIAGRAM_FRAME_INSET_PX
+
+        var leftOverhang = 0f
+        var rightOverhang = 0f
+        for ((edgeId, route) in layoutResult.edges) {
+            val edge = edgeIndex[edgeId.value] ?: continue
+            val guard = edge.guard ?: continue
+            val label = "[$guard]"
+            val (mx, _) =
+                dev.kuml.io.svg.uml
+                    .routeLabelMid(shiftRoute(route, padding))
+            val halfWidth =
+                dev.kuml.io.svg.sysml2.edge.Sysml2EdgeRenderer
+                    .estimateLabelHalfWidth(label)
+            leftOverhang = maxOf(leftOverhang, (frameLeft + STM_LABEL_FRAME_CLEARANCE_PX) - (mx - halfWidth))
+            rightOverhang = maxOf(rightOverhang, (mx + halfWidth) - (frameRight - STM_LABEL_FRAME_CLEARANCE_PX))
+        }
+        if (leftOverhang <= 0f && rightOverhang <= 0f) return layoutResult
+
+        // Shift every node/edge/group by leftOverhang so nothing lands at a
+        // negative x once the canvas grows on the left — the frame itself
+        // needs no separate shift, it's redrawn from canvasW at render time.
+        val shiftedNodes =
+            layoutResult.nodes.mapValues { (_, nodeLayout) ->
+                nodeLayout.copy(
+                    bounds =
+                        nodeLayout.bounds.copy(
+                            origin = nodeLayout.bounds.origin.copy(x = nodeLayout.bounds.origin.x + leftOverhang),
+                        ),
+                    ports = nodeLayout.ports.mapValues { (_, p) -> p.copy(x = p.x + leftOverhang) },
+                )
+            }
+        val shiftedEdges =
+            layoutResult.edges.mapValues { (_, route) -> shiftRoute(route, dx = leftOverhang, dy = 0f) }
+        val shiftedGroups =
+            layoutResult.groups.mapValues { (_, groupLayout) ->
+                groupLayout.copy(
+                    bounds =
+                        groupLayout.bounds.copy(
+                            origin = groupLayout.bounds.origin.copy(x = groupLayout.bounds.origin.x + leftOverhang),
+                        ),
+                )
             }
         return layoutResult.copy(
             canvas = layoutResult.canvas.copy(width = layoutResult.canvas.width + leftOverhang + rightOverhang),
