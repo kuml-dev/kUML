@@ -964,6 +964,41 @@ class ErmToExposedTransformerTest :
             transform(model).shouldBeInstanceOf<TransformResult.Success<List<GeneratedFile>>>()
         }
 
+        // ── Partial/conditional indexes (V3.4.11 — comment-only, not emitted as Exposed DSL) ──
+
+        test("a partial (WHERE-carrying) index is documented in the not-emitted comment with its predicate") {
+            val model =
+                ermModel("M") {
+                    entity("invitations") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("consumed_at", ErmDataType.Timestamp(), nullable = true)
+                        index("consumed_at", unique = true, name = "idx_invitations_pending", where = "consumed_at IS NULL")
+                    }
+                }
+            val content = successFiles(model)[0].content
+            content shouldContain "// Note: 1 index(es) declared on this entity are not emitted (1 partial, with a WHERE predicate) —"
+            content shouldContain "idx_invitations_pending: WHERE consumed_at IS NULL"
+            // Still comment-only — no fabricated .uniqueIndex()/index{} call for this index (the word
+            // "filterCondition" legitimately appears in the explanatory comment text above).
+            content shouldNotContain ".uniqueIndex()"
+            content shouldNotContain "= index("
+        }
+
+        test("a non-partial index does not mention a WHERE predicate in the not-emitted comment") {
+            val model =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("email", ErmDataType.Varchar(255))
+                        index("email", name = "idx_users_email")
+                    }
+                }
+            val content = successFiles(model)[0].content
+            content shouldContain "// Note: 1 index(es) declared on this entity are not emitted —"
+            content shouldNotContain "partial"
+            content shouldNotContain "WHERE"
+        }
+
         // ── uuidRepresentation option ────────────────────────────────────────
 
         test("no uuidRepresentation option set renders javaUUID/UUID (unchanged default behaviour)") {
@@ -1122,6 +1157,52 @@ class ErmToExposedTransformerTest :
             content shouldNotContain "org.jetbrains.exposed.v1.javatime.datetime"
             content shouldNotContain "import java.time.LocalDate"
             content shouldNotContain "import java.time.LocalDateTime"
+        }
+
+        test(
+            "dateTimeRepresentation = \"instant\" renders timestamp(...)/Column<Instant> with kotlin.time.Instant import",
+        ) {
+            val model =
+                ermModel("M") {
+                    entity("events") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("created_at", ErmDataType.Timestamp(), nullable = false)
+                    }
+                }
+            val content = successFiles(model, mapOf("dateTimeRepresentation" to "instant"))[0].content
+            content shouldContain "val createdAt: Column<Instant> = timestamp(\"created_at\")"
+            content shouldContain "import org.jetbrains.exposed.v1.datetime.timestamp"
+            content shouldContain "import kotlin.time.Instant"
+            content shouldNotContain "datetime("
+            content shouldNotContain "LocalDateTime"
+        }
+
+        test("dateTimeRepresentation = \"instant\": a Date column falls back to the kotlin (kotlinx.datetime) rendering") {
+            val model =
+                ermModel("M") {
+                    entity("events") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("released_on", ErmDataType.Date, nullable = false)
+                    }
+                }
+            val content = successFiles(model, mapOf("dateTimeRepresentation" to "instant"))[0].content
+            content shouldContain "val releasedOn: Column<LocalDate> = date(\"released_on\")"
+            content shouldContain "import org.jetbrains.exposed.v1.datetime.date"
+            content shouldContain "import kotlinx.datetime.LocalDate"
+            content shouldNotContain "org.jetbrains.exposed.v1.javatime.date"
+            content shouldNotContain "java.time.LocalDate"
+        }
+
+        test("dateTimeRepresentation = \"instant\": nullable Timestamp column renders Column<Instant?> with .nullable()") {
+            val model =
+                ermModel("M") {
+                    entity("events") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("created_at", ErmDataType.Timestamp(), nullable = true)
+                    }
+                }
+            val content = successFiles(model, mapOf("dateTimeRepresentation" to "instant"))[0].content
+            content shouldContain "val createdAt: Column<Instant?> = timestamp(\"created_at\").nullable()"
         }
 
         test("unrecognized dateTimeRepresentation value falls back to the java default rather than failing") {

@@ -29,10 +29,11 @@ import java.io.File
  *    1.x native support). See [UuidRepresentation] and [ErmExposedEmitter]'s KDoc.
  *  - `dateTimeRepresentation` — which Kotlin type `ErmDataType.Date`/`ErmDataType.Timestamp`
  *    columns render as: `"java"` (default, `Column<java.time.LocalDate>`/
- *    `Column<java.time.LocalDateTime>`) or `"kotlin"` (`Column<kotlinx.datetime.LocalDate>`/
- *    `Column<kotlinx.datetime.LocalDateTime>`, Exposed 1.x's kotlinx-datetime module).
- *    Independent of `uuidRepresentation`. See [DateTimeRepresentation] and
- *    [ErmExposedEmitter]'s KDoc.
+ *    `Column<java.time.LocalDateTime>`), `"kotlin"` (`Column<kotlinx.datetime.LocalDate>`/
+ *    `Column<kotlinx.datetime.LocalDateTime>`, Exposed 1.x's kotlinx-datetime module), or
+ *    `"instant"` (`Column<kotlin.time.Instant>` for Timestamp columns via `timestamp(...)` —
+ *    Date columns fall back to the `"kotlin"` rendering). Independent of `uuidRepresentation`.
+ *    See [DateTimeRepresentation] and [ErmExposedEmitter]'s KDoc.
  *
  * Writes one file per [ErmModel] entity, named `"<ObjectName>.kt"`.
  */

@@ -46,4 +46,5 @@ public object ErmProfileNames {
     public const val TAG_TARGET_COLUMN: String = "targetColumn"
     public const val TAG_INDEX_COLUMNS: String = "columns"
     public const val TAG_INDEX_NAME: String = "name"
+    public const val TAG_INDEX_WHERE: String = "where"
 }

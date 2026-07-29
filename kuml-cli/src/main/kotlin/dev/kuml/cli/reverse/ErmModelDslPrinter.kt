@@ -128,6 +128,7 @@ internal object ErmModelDslPrinter {
         val parts = attrNames.map { "\"${escape(it)}\"" }.toMutableList()
         if (index.unique) parts += "unique = true"
         index.name?.let { parts += "name = \"${escape(it)}\"" }
+        index.where?.let { parts += "where = \"${escape(it)}\"" }
         sb.appendLine("        index(${parts.joinToString(", ")})")
     }
 

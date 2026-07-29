@@ -149,10 +149,10 @@ internal object ErmSchemaDiffGenerator {
             }
             val oldCols = indexColumnNames(old, oldIndex)
             val newCols = indexColumnNames(new, newIndex)
-            if (oldCols != newCols || oldIndex.unique != newIndex.unique) {
+            if (oldCols != newCols || oldIndex.unique != newIndex.unique || oldIndex.where != newIndex.where) {
                 reasons +=
-                    "index '${indexDisplayName(new, newIndex)}' on '$entityKey' changed (columns or uniqueness) — " +
-                    "modifications require a hand-authored migration"
+                    "index '${indexDisplayName(new, newIndex)}' on '$entityKey' changed (columns, uniqueness, or " +
+                    "predicate) — modifications require a hand-authored migration"
             }
         }
     }

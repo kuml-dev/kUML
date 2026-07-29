@@ -17,5 +17,14 @@ data class ErmIndex(
     override val name: String?,
     val attributeIds: List<String>,
     val unique: Boolean = false,
+    /**
+     * Raw, dialect-neutral SQL boolean predicate for a partial/conditional index
+     * (Postgres/SQLite `CREATE INDEX ... WHERE <where>`), emitted verbatim by
+     * [dev.kuml.codegen.sql.ErmSqlEmitter] — `null` means an ordinary (non-partial)
+     * index. Same trust model as [ErmCheckConstraint.expression] and
+     * [ErmDataType.Custom.raw]: a trusted dialect-SQL fragment, not user input to
+     * sanitize.
+     */
+    val where: String? = null,
     override val metadata: Map<String, KumlMetaValue> = emptyMap(),
 ) : ErmElement

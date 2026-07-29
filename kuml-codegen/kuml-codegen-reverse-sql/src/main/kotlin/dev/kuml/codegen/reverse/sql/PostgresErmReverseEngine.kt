@@ -82,33 +82,44 @@ public class PostgresErmReverseEngine : ErmReverseEngine {
             val nameIndex = LinkedHashMap<String, String>()
             val pendingForeignKeys = mutableListOf<PendingForeignKey>()
             var entityIx = 0
-            for ((stmt, fileName) in parsed) {
+            for (parsedStmt in parsed) {
+                val stmt = parsedStmt.statement
                 if (stmt !is CreateTable) continue
                 val entityId = "entity_$entityIx"
-                val entity = TableMapper.map(stmt, entityId, entityIx, diagnostics, pendingForeignKeys, fileName)
+                val entity = TableMapper.map(stmt, entityId, entityIx, diagnostics, pendingForeignKeys, parsedStmt.fileName)
                 entities[entityId] = entity
                 nameIndex[SqlIdentifiers.fold(stmt.table.name)] = entityId
                 entityIx++
             }
 
             // Pass 2: ALTER TABLE (needs the full name index — forward references + ADD CONSTRAINT FK).
-            for ((stmt, fileName) in parsed) {
+            for (parsedStmt in parsed) {
+                val stmt = parsedStmt.statement
                 if (stmt !is Alter) continue
-                ConstraintResolver.applyAlter(stmt, entities, nameIndex, pendingForeignKeys, diagnostics, fileName)
+                ConstraintResolver.applyAlter(stmt, entities, nameIndex, pendingForeignKeys, diagnostics, parsedStmt.fileName)
             }
 
             ConstraintResolver.resolveForeignKeys(pendingForeignKeys, entities, nameIndex, diagnostics, null)
 
-            for ((stmt, fileName) in parsed) {
+            for (parsedStmt in parsed) {
+                val stmt = parsedStmt.statement
                 if (stmt !is CreateIndex) continue
-                ConstraintResolver.applyCreateIndex(stmt, entities, nameIndex, diagnostics, fileName)
+                ConstraintResolver.applyCreateIndex(
+                    stmt,
+                    entities,
+                    nameIndex,
+                    diagnostics,
+                    parsedStmt.fileName,
+                    parsedStmt.partialIndexPredicate,
+                )
             }
 
             val views = mutableListOf<ErmView>()
             var viewIx = 0
-            for ((stmt, fileName) in parsed) {
+            for (parsedStmt in parsed) {
+                val stmt = parsedStmt.statement
                 if (stmt !is CreateView) continue
-                views += ConstraintResolver.mapView(stmt, viewIx, nameIndex, diagnostics, fileName)
+                views += ConstraintResolver.mapView(stmt, viewIx, nameIndex, diagnostics, parsedStmt.fileName)
                 viewIx++
             }
 

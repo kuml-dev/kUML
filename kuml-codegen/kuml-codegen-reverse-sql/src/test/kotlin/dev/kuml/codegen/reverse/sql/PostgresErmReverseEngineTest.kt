@@ -114,12 +114,32 @@ class PostgresErmReverseEngineTest :
 
         test("CREATE INDEX and CREATE UNIQUE INDEX are captured on the target entity") {
             val orders = model.entities.first { it.name == "orders" }
-            orders.indexes shouldHaveSize 2
+            orders.indexes shouldHaveSize 3
             val simple = orders.indexes.first { !it.unique }
             simple.attributeIds shouldBe listOf(orders.attributeByName("customer_id")!!.id)
-            val unique = orders.indexes.first { it.unique }
-            unique.attributeIds shouldBe
+            val compositeUnique = orders.indexes.first { it.unique && it.attributeIds.size == 2 }
+            compositeUnique.attributeIds shouldBe
                 listOf(orders.attributeByName("customer_id")!!.id, orders.attributeByName("status")!!.id)
+        }
+
+        // ── Partial/conditional CREATE UNIQUE INDEX ... WHERE ... (V3.4.11) ──
+
+        test("partial unique index with a WHERE ... IS NULL predicate is captured with where set") {
+            // The brief's own motivating example: JSqlParser 5.3's CreateIndex grammar cannot
+            // parse "WHERE cancelled_at IS NULL" on its own (IS is outside its hand-rolled
+            // keyword whitelist) — this asserts the WHERE-stripping workaround in
+            // SqlStatementCollector actually round-trips it instead of silently dropping the
+            // whole index (which is what happened before the fix: a REV-SQL-002 WARN and no
+            // ErmIndex at all).
+            val orders = model.entities.first { it.name == "orders" }
+            val partial = orders.indexes.first { it.attributeIds.size == 1 && it.unique }
+            partial.name shouldBe "idx_orders_active_customer"
+            partial.where shouldBe "cancelled_at IS NULL"
+            partial.attributeIds shouldBe listOf(orders.attributeByName("customer_id")!!.id)
+        }
+
+        test("no new REV-SQL-002 diagnostics are produced for the partial index statement") {
+            success.diagnostics.none { it.code == "REV-SQL-002" } shouldBe true
         }
 
         test("CREATE VIEW resolves its referenced entity") {

@@ -58,6 +58,11 @@ public val ermMappingProfile: KumlProfile =
             property<List<String>>(ErmProfileNames.TAG_INDEX_COLUMNS) // required — no default; column names, not UML property names
             property<Boolean>(ErmProfileNames.TAG_UNIQUE) { default = false }
             property<String>(ErmProfileNames.TAG_INDEX_NAME) { required = false } // optional — no default; falls back to idx_<table>_<cols>
+            // Optional partial/conditional-index predicate (e.g. Postgres/SQLite "consumed_at IS
+            // NULL") — a raw, dialect-neutral SQL boolean expression emitted verbatim by
+            // ErmSqlEmitter's "CREATE [UNIQUE] INDEX ... WHERE <where>" clause. No default — null
+            // means an ordinary (non-partial) index.
+            property<String>(ErmProfileNames.TAG_INDEX_WHERE) { required = false }
         }
 
         // ── Property-level ────────────────────────────────────────────────────

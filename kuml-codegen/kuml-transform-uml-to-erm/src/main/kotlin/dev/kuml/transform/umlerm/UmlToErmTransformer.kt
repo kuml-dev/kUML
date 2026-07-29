@@ -723,7 +723,9 @@ public class UmlToErmTransformer : KumlTransformer<KumlDiagram, ErmModel> {
                         }
                     val unique = app.boolTag(ErmProfileNames.TAG_UNIQUE) ?: false
                     val name = app.stringTag(ErmProfileNames.TAG_INDEX_NAME)?.takeIf { it.isNotBlank() }
-                    entity.indexes += ErmIndex(id = entity.nextIndexId(), name = name, attributeIds = attrIds, unique = unique)
+                    val where = app.stringTag(ErmProfileNames.TAG_INDEX_WHERE)?.takeIf { it.isNotBlank() }
+                    entity.indexes +=
+                        ErmIndex(id = entity.nextIndexId(), name = name, attributeIds = attrIds, unique = unique, where = where)
                 }
             }
         }

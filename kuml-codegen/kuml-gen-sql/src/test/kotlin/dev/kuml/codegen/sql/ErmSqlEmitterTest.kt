@@ -176,6 +176,24 @@ class ErmSqlEmitterTest :
             sql shouldContain "CREATE UNIQUE INDEX idx_users_email_unique ON users (email);"
         }
 
+        test("partial/conditional unique index renders a trailing WHERE clause, verbatim") {
+            val model =
+                ermModel("M") {
+                    entity("teams") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("consumed_at", ErmDataType.Timestamp(), nullable = true)
+                        index(
+                            "consumed_at",
+                            unique = true,
+                            name = "idx_team_pending",
+                            where = "consumed_at IS NULL",
+                        )
+                    }
+                }
+            val sql = emit(model)
+            sql shouldContain "CREATE UNIQUE INDEX idx_team_pending ON teams (consumed_at) WHERE consumed_at IS NULL;"
+        }
+
         test("index without an explicit name gets a derived default name") {
             val model =
                 ermModel("M") {

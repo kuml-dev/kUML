@@ -102,6 +102,51 @@ class UmlToErmIndexTest :
             entity.indexes.single().name shouldBe null
         }
 
+        test("«Index».where synthesizes a partial/conditional ErmIndex predicate") {
+            val diagram =
+                classDiagram("D") {
+                    applyProfile(ermMappingProfile)
+                    classOf("Invitation") {
+                        stereotype("Index") {
+                            "columns" to listOf("team_id")
+                            "name" to "idx_invitation_pending"
+                            "unique" to true
+                            "where" to "consumed_at IS NULL"
+                        }
+                        attribute("id", "UUID")
+                        attribute("teamId", "UUID") {
+                            stereotype("Column") { "columnName" to "team_id" }
+                        }
+                        attribute("consumedAt", "String") {
+                            stereotype("Column") {
+                                "columnName" to "consumed_at"
+                                "nullable" to true
+                            }
+                        }
+                    }
+                }
+            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val entity = result.output.entities.first { it.name == "invitations" }
+            entity.indexes.single().where shouldBe "consumed_at IS NULL"
+        }
+
+        test("«Index» without a where tag leaves ErmIndex.where null (unchanged default behaviour)") {
+            val diagram =
+                classDiagram("D") {
+                    applyProfile(ermMappingProfile)
+                    classOf("Subscription") {
+                        stereotype("Index") { "columns" to listOf("member_id") }
+                        attribute("id", "UUID")
+                        attribute("memberId", "UUID") {
+                            stereotype("Column") { "columnName" to "member_id" }
+                        }
+                    }
+                }
+            val result = transformer.transform(diagram, TransformContext()) as TransformResult.Success
+            val entity = result.output.entities.first { it.name == "subscriptions" }
+            entity.indexes.single().where shouldBe null
+        }
+
         test("unresolvable «Index» column fails the transform") {
             val diagram =
                 classDiagram("D") {

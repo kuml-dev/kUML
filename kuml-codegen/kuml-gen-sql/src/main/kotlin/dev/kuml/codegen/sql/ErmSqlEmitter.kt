@@ -434,7 +434,10 @@ internal class ErmSqlEmitter(
         val defaultName = "idx_${tableName}_${cols.joinToString("_")}"
         val idxName = SqlNames.requireSafe(index.name ?: defaultName, "index name", index.id)
         val uniqueKeyword = if (index.unique) "UNIQUE " else ""
-        return "CREATE ${uniqueKeyword}INDEX $idxName ON $tableName (${cols.joinToString(", ")});\n"
+        // index.where is a trusted, dialect-neutral raw SQL boolean predicate (same trust model as
+        // ErmCheckConstraint.expression / ErmDataType.Custom.raw) — emitted verbatim, no escaping.
+        val whereClause = index.where?.let { " WHERE $it" } ?: ""
+        return "CREATE ${uniqueKeyword}INDEX $idxName ON $tableName (${cols.joinToString(", ")})$whereClause;\n"
     }
 
     // ── Views ────────────────────────────────────────────────────────────────

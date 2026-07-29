@@ -134,6 +134,28 @@ class ErmSchemaDiffGeneratorTest :
             sql shouldContain "CREATE UNIQUE INDEX idx_users_email ON users (email);"
         }
 
+        test("new partial index on existing entity renders CREATE INDEX with a WHERE clause") {
+            val old =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("email", ErmDataType.Varchar(255))
+                        attribute("consumed_at", ErmDataType.Timestamp(), nullable = true)
+                    }
+                }
+            val new =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("email", ErmDataType.Varchar(255))
+                        attribute("consumed_at", ErmDataType.Timestamp(), nullable = true)
+                        index("email", unique = true, name = "idx_users_pending", where = "consumed_at IS NULL")
+                    }
+                }
+            val sql = migrationSql(old, new)
+            sql shouldContain "CREATE UNIQUE INDEX idx_users_pending ON users (email) WHERE consumed_at IS NULL;"
+        }
+
         test("new view renders CREATE VIEW") {
             val old =
                 ermModel("M") {
@@ -365,6 +387,33 @@ class ErmSchemaDiffGeneratorTest :
                     }
                 }
             refusedReasons(old, changedIndexNew)[0] shouldContain "index 'idx_users_email' on 'users' changed"
+        }
+
+        test("index predicate-only change (same name/columns/uniqueness, different WHERE) refuses") {
+            // Regression guard: before the fix, diffIndexes only compared columns + uniqueness, so
+            // a where-only change on an otherwise-identical index would have been silently ignored
+            // by the additive-migration diff tool instead of being refused.
+            val old =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("email", ErmDataType.Varchar(255))
+                        attribute("consumed_at", ErmDataType.Timestamp(), nullable = true)
+                        index("email", unique = true, name = "idx_users_pending", where = "consumed_at IS NULL")
+                    }
+                }
+            val new =
+                ermModel("M") {
+                    entity("users") {
+                        id("id", ErmDataType.Integer(64))
+                        attribute("email", ErmDataType.Varchar(255))
+                        attribute("consumed_at", ErmDataType.Timestamp(), nullable = true)
+                        index("email", unique = true, name = "idx_users_pending", where = "consumed_at IS NOT NULL")
+                    }
+                }
+            val reasons = refusedReasons(old, new)
+            reasons[0] shouldContain "index 'idx_users_pending' on 'users' changed"
+            reasons[0] shouldContain "predicate"
         }
 
         test("changed view body (same name) refuses") {

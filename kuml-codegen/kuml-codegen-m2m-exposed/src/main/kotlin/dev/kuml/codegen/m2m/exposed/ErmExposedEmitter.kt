@@ -13,6 +13,7 @@ import dev.kuml.erm.model.ErmAttribute
 import dev.kuml.erm.model.ErmDataType
 import dev.kuml.erm.model.ErmEntity
 import dev.kuml.erm.model.ErmForeignKey
+import dev.kuml.erm.model.ErmIndex
 import dev.kuml.erm.model.ErmMetadataKeys
 import dev.kuml.erm.model.ErmModel
 import dev.kuml.erm.model.ReferentialAction
@@ -75,18 +76,33 @@ internal enum class DateTimeRepresentation {
      */
     KOTLIN,
 
+    /**
+     * `timestamp(...)` (`org.jetbrains.exposed.v1.datetime`, the same Exposed 1.x kotlinx-datetime
+     * module [KOTLIN] already uses) → `Column<kotlin.time.Instant>` for [ErmDataType.Timestamp]
+     * columns — a timezone-independent moment in time, matching a schema (e.g. kUML Portal's)
+     * that uses Exposed's `timestamp()` function throughout instead of `datetime()`. [ErmDataType.Date]
+     * columns render identically to [KOTLIN] (`kotlinx.datetime.LocalDate`) — `kotlin.time.Instant`
+     * has no calendar-date-only equivalent to map a Date column onto. Verified against Exposed
+     * 1.3.1 source: on Postgres, `timestamp()`/`InstantColumnType` and `datetime()`/
+     * `LocalDateTimeColumnType` emit byte-identical DDL (both fall through to
+     * `dataTypeProvider.dateTimeType() == "TIMESTAMP"` — Postgres never overrides
+     * `timestampType()` separately) — [dev.kuml.codegen.sql.ErmSqlEmitter] needs no change.
+     */
+    INSTANT,
+
     ;
 
     internal companion object {
         /**
          * Parses `TransformContext.options["dateTimeRepresentation"]` — trims + lowercases first
-         * (mirroring [UuidRepresentation.fromOption]), then maps `"kotlin"` to [KOTLIN] and
-         * everything else (`null`, `"java"`, blank, or an unrecognized typo) to [JAVA].
-         * Unrecognized values are tolerated rather than failing generation.
+         * (mirroring [UuidRepresentation.fromOption]), then maps `"kotlin"` to [KOTLIN], `"instant"`
+         * to [INSTANT], and everything else (`null`, `"java"`, blank, or an unrecognized typo) to
+         * [JAVA]. Unrecognized values are tolerated rather than failing generation.
          */
         fun fromOption(raw: String?): DateTimeRepresentation =
             when (raw?.trim()?.lowercase()) {
                 "kotlin" -> KOTLIN
+                "instant" -> INSTANT
                 else -> JAVA
             }
     }
@@ -238,10 +254,16 @@ internal enum class DateTimeRepresentation {
  *   `import kotlinx.datetime.LocalDateTime`). Like [UuidRepresentation], this is a
  *   whole-generation-run option, not a per-column tag — a Kotlin Multiplatform project sharing
  *   code with Kotlin/JS (where `java.time.*` does not exist) needs *every* Date/Timestamp column
- *   consistently typed. [DateTimeRepresentation] is entirely independent of [UuidRepresentation]:
- *   the two options are selected separately and may be mixed freely. Default stays
- *   [DateTimeRepresentation.JAVA] for full backward compatibility with every existing
- *   model/consumer.
+ *   consistently typed. A third option, [DateTimeRepresentation.INSTANT] (`"instant"`), renders
+ *   [ErmDataType.Timestamp] columns via `timestamp(...)` (same `org.jetbrains.exposed.v1.datetime`
+ *   module) → `Column<kotlin.time.Instant>` — a timezone-independent moment in time, for a schema
+ *   that models "when" rather than "wall-clock date/time" (e.g. kUML Portal). [ErmDataType.Date]
+ *   columns under `INSTANT` fall back to the same rendering as `KOTLIN` (`kotlin.time.Instant` has
+ *   no calendar-date-only equivalent). See [DateTimeRepresentation.INSTANT]'s KDoc for the full
+ *   rationale, including the verified-unaffected SQL DDL side. [DateTimeRepresentation] is entirely
+ *   independent of [UuidRepresentation]: the two options are selected separately and may be mixed
+ *   freely. Default stays [DateTimeRepresentation.JAVA] for full backward compatibility with every
+ *   existing model/consumer.
  * - [ErmDataType.Uuid] renders via `javaUUID(...)` (`org.jetbrains.exposed.v1.core.java.javaUUID`),
  *   yielding `Column<java.util.UUID>`, **by default** — the direct Exposed-1.x continuation of
  *   the pre-1.0 `uuid(...)` contract (which returned `Column<java.util.UUID>` too). Opting into
@@ -699,9 +721,33 @@ internal class ErmExposedEmitter(
         }
 
         if (entity.indexes.isNotEmpty()) {
+            val partialCount = entity.indexes.count { it.where != null }
+            val partialNote =
+                if (partialCount > 0) {
+                    " ($partialCount partial, with a WHERE predicate)"
+                } else {
+                    ""
+                }
             sb.appendLine()
-            sb.appendLine("    // Note: ${entity.indexes.size} index(es) declared on this entity are not emitted —")
+            sb.appendLine("    // Note: ${entity.indexes.size} index(es) declared on this entity are not emitted$partialNote —")
             sb.appendLine("    // Exposed's index {} DSL needs typed column references, not wired up in this wave.")
+            if (partialCount > 0) {
+                sb.appendLine(
+                    "    // Exposed 1.3.1's index()/uniqueIndex() do accept a filterCondition: (() -> " +
+                        "Op<Boolean>)? for a",
+                )
+                sb.appendLine(
+                    "    // partial index, but it requires a typed Op<Boolean>, not mechanically derivable " +
+                        "from ErmIndex.where's",
+                )
+                sb.appendLine(
+                    "    // raw SQL string — same category of limitation as checks (below), so it stays " +
+                        "comment-only.",
+                )
+                entity.indexes.filter { it.where != null }.forEach { idx ->
+                    sb.appendLine("    //   - ${indexLabelFor(idx, entity)}: WHERE ${commentSafe(idx.where!!)}")
+                }
+            }
         }
         if (entity.checks.isNotEmpty()) {
             sb.appendLine()
@@ -727,6 +773,15 @@ internal class ErmExposedEmitter(
         }
 
         return EntityResult.Ok(GeneratedFile("$objectName.kt", sb.toString()))
+    }
+
+    /** `<name>` if the index carries one, else `(<comma-separated column names>)` — matches [dev.kuml.codegen.sql.ErmSchemaDiffGenerator]'s `indexDisplayName` shape. */
+    private fun indexLabelFor(
+        index: ErmIndex,
+        entity: ErmEntity,
+    ): String {
+        val cols = index.attributeIds.mapNotNull { attrId -> entity.attributes.firstOrNull { it.id == attrId }?.name }
+        return index.name ?: "(${cols.joinToString(", ")})"
     }
 
     private fun renderBaseColumnLine(
@@ -850,7 +905,9 @@ internal class ErmExposedEmitter(
                             "LocalDate",
                             setOf("org.jetbrains.exposed.v1.javatime.date", "java.time.LocalDate"),
                         )
-                    DateTimeRepresentation.KOTLIN ->
+                    // INSTANT falls back to the same rendering as KOTLIN — kotlin.time.Instant has
+                    // no calendar-date-only equivalent to map a Date column onto (see DateTimeRepresentation.INSTANT KDoc).
+                    DateTimeRepresentation.KOTLIN, DateTimeRepresentation.INSTANT ->
                         ColumnCallRendering(
                             "date(\"$colLiteral\")",
                             "LocalDate",
@@ -876,6 +933,12 @@ internal class ErmExposedEmitter(
                             "datetime(\"$colLiteral\")",
                             "LocalDateTime",
                             setOf("org.jetbrains.exposed.v1.datetime.datetime", "kotlinx.datetime.LocalDateTime"),
+                        )
+                    DateTimeRepresentation.INSTANT ->
+                        ColumnCallRendering(
+                            "timestamp(\"$colLiteral\")",
+                            "Instant",
+                            setOf("org.jetbrains.exposed.v1.datetime.timestamp", "kotlin.time.Instant"),
                         )
                 }
             ErmDataType.Uuid ->

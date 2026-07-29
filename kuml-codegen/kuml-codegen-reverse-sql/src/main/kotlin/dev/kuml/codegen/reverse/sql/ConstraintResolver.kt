@@ -285,6 +285,7 @@ internal object ConstraintResolver {
         nameIndex: Map<String, String>,
         diagnostics: MutableList<ReverseDiagnostic>,
         fileHint: String?,
+        wherePredicate: String? = null,
     ) {
         val tableName = SqlIdentifiers.fold(ci.table.name)
         val entity = nameIndex[tableName]?.let { entities[it] }
@@ -317,6 +318,7 @@ internal object ConstraintResolver {
                 name = idx.name?.let { SqlIdentifiers.fold(it) },
                 attributeIds = attrIds,
                 unique = idx.type?.equals("UNIQUE", ignoreCase = true) == true,
+                where = wherePredicate,
             )
     }
 

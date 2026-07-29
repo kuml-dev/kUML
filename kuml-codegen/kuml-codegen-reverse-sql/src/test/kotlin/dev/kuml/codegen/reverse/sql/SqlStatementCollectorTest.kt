@@ -5,6 +5,7 @@ import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.collections.shouldHaveSize
 import io.kotest.matchers.shouldBe
 import io.kotest.matchers.string.shouldContain
+import net.sf.jsqlparser.parser.CCJSqlParserUtil
 import net.sf.jsqlparser.statement.create.table.CreateTable
 import java.nio.file.Files
 
@@ -43,6 +44,55 @@ class SqlStatementCollectorTest :
             parts[0] shouldContain "'a;b'"
         }
 
+        // ── extractPartialIndexPredicate (V3.4.11 — partial/conditional index support) ──
+
+        test("extractPartialIndexPredicate strips a trivial already-parseable WHERE clause") {
+            val (stripped, predicate) =
+                SqlStatementCollector.extractPartialIndexPredicate(
+                    "CREATE UNIQUE INDEX idx_x ON t (a) WHERE status = 'active'",
+                )
+            stripped shouldBe "CREATE UNIQUE INDEX idx_x ON t (a)"
+            predicate shouldBe "status = 'active'"
+        }
+
+        test("extractPartialIndexPredicate strips an IS NULL predicate JSqlParser's grammar cannot parse on its own") {
+            // The brief's own motivating example — JSqlParser 5.3's CreateIndex grammar's
+            // hand-rolled keyword whitelist excludes IS, so "WHERE consumed_at IS NULL" fails to
+            // parse if left attached; this is the core case the whole mechanism exists for.
+            val (stripped, predicate) =
+                SqlStatementCollector.extractPartialIndexPredicate(
+                    "CREATE UNIQUE INDEX idx_x ON t (a) WHERE consumed_at IS NULL",
+                )
+            stripped shouldBe "CREATE UNIQUE INDEX idx_x ON t (a)"
+            predicate shouldBe "consumed_at IS NULL"
+            // The stripped statement is now the well-formed, WHERE-less shape JSqlParser already
+            // parses fine today — proves the workaround actually unblocks parsing, not just string-splits.
+            CCJSqlParserUtil.parse(stripped)
+        }
+
+        test("extractPartialIndexPredicate leaves a non-CREATE-INDEX statement unchanged") {
+            val (stripped, predicate) =
+                SqlStatementCollector.extractPartialIndexPredicate("DELETE FROM t WHERE consumed_at IS NULL")
+            stripped shouldBe "DELETE FROM t WHERE consumed_at IS NULL"
+            predicate shouldBe null
+        }
+
+        test("extractPartialIndexPredicate leaves a non-partial CREATE INDEX unchanged") {
+            val (stripped, predicate) =
+                SqlStatementCollector.extractPartialIndexPredicate("CREATE INDEX idx_x ON t (a, b)")
+            stripped shouldBe "CREATE INDEX idx_x ON t (a, b)"
+            predicate shouldBe null
+        }
+
+        test("extractPartialIndexPredicate ignores a WHERE-looking token inside a string literal or a paren group") {
+            val (stripped, predicate) =
+                SqlStatementCollector.extractPartialIndexPredicate(
+                    "CREATE INDEX idx_x ON t (lower(name)) WHERE status = 'has WHERE inside'",
+                )
+            stripped shouldBe "CREATE INDEX idx_x ON t (lower(name))"
+            predicate shouldBe "status = 'has WHERE inside'"
+        }
+
         test("collect recovers CREATE TABLE statements around an unsupported DO block") {
             val dir = Files.createTempDirectory("sql-collector-")
             Files.writeString(
@@ -60,7 +110,7 @@ class SqlStatementCollectorTest :
             )
             val diagnostics = mutableListOf<ReverseDiagnostic>()
             val statements = SqlStatementCollector.collect(listOf(dir.resolve("dump.sql")), diagnostics)
-            val tableNames = statements.map { it.first }.filterIsInstance<CreateTable>().map { it.table.name }
+            val tableNames = statements.map { it.statement }.filterIsInstance<CreateTable>().map { it.table.name }
             tableNames shouldBe listOf("t", "u")
             diagnostics.any { it.code == "REV-SQL-002" } shouldBe true
         }

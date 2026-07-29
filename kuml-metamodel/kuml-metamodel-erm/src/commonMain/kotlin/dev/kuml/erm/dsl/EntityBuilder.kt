@@ -97,6 +97,7 @@ class EntityBuilder internal constructor(
         vararg attributeNames: String,
         unique: Boolean = false,
         name: String? = null,
+        where: String? = null,
     ) {
         val attributeIds = attributeNames.mapNotNull { attrName -> attributes.firstOrNull { it.name == attrName }?.id }
         indexes +=
@@ -105,6 +106,7 @@ class EntityBuilder internal constructor(
                 name = name,
                 attributeIds = attributeIds,
                 unique = unique,
+                where = where,
             )
     }
 

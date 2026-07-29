@@ -146,9 +146,9 @@ class ErmMappingProfileTest :
             tableName.default shouldBe null
         }
 
-        test("Index has columns (required), unique (default false), name (optional)") {
+        test("Index has columns (required), unique (default false), name (optional), where (optional)") {
             val index = ermMappingProfile.stereotype("Index")!!
-            index.properties.size shouldBe 3
+            index.properties.size shouldBe 4
             val columns = index.properties.first { it.name == "columns" }
             columns.required shouldBe true
             columns.default shouldBe null
@@ -158,6 +158,9 @@ class ErmMappingProfileTest :
             val name = index.properties.first { it.name == "name" }
             name.required shouldBe false
             name.default shouldBe null
+            val where = index.properties.first { it.name == "where" }
+            where.required shouldBe false
+            where.default shouldBe null
         }
 
         // ── Test 4: ServiceLoader discovery ──────────────────────────────────────

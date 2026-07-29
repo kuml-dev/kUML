@@ -3,7 +3,7 @@
 -- unique, nullable, default (literal + function-call), a named table-level
 -- FK + CHECK, a composite-PK junction table with FKs added via
 -- ALTER TABLE ADD CONSTRAINT (Flyway/pg_dump shape), CREATE INDEX
--- (simple + composite unique), and CREATE VIEW.
+-- (simple + composite unique + partial/conditional), and CREATE VIEW.
 
 CREATE TABLE customers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -16,6 +16,7 @@ CREATE TABLE orders (
     customer_id UUID NOT NULL,
     total NUMERIC(10,2) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    cancelled_at TIMESTAMPTZ,
     CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
     CONSTRAINT chk_orders_total CHECK (total >= 0)
 );
@@ -39,5 +40,9 @@ ALTER TABLE order_items ADD CONSTRAINT fk_oi_product FOREIGN KEY (product_id) RE
 
 CREATE INDEX idx_orders_customer ON orders (customer_id);
 CREATE UNIQUE INDEX idx_orders_status_customer ON orders (customer_id, status);
+-- Partial/conditional unique index — JSqlParser 5.3's CreateIndex grammar cannot parse this
+-- WHERE clause on its own (IS is not in its hand-rolled keyword whitelist, see
+-- SqlStatementCollector's KDoc); this fixture exercises the WHERE-stripping workaround.
+CREATE UNIQUE INDEX idx_orders_active_customer ON orders (customer_id) WHERE cancelled_at IS NULL;
 
 CREATE VIEW big_orders AS SELECT * FROM orders WHERE total > 100;
