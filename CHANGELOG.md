@@ -6,6 +6,50 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.44.0] — 2026-07-29
+
+### Added
+
+**`InterpreterUmlModelDslPrinter` — a UML model-to-DSL printer targeting the interpreter dialect**
+
+`UmlModelDslPrinter` emits UML class-diagram DSL text in the compiler dialect (string-ID
+relationships, `stereotypes += "..."`, etc.), which `InterpreterScriptEvaluator` — the
+execution-free, sandboxed-by-construction DSL evaluator — cannot parse back: its lexer has no `+`
+token at all (a single stereotype anywhere fails the whole script, not just that element), and
+every relationship builder requires a `val`-bound classifier reference, never a string ID. A
+consumer that needs to serialize a `KumlModel` back to DSL text and keep it evaluable through the
+interpreter (rather than a real, heavier Kotlin compiler) had no printer that produced compatible
+output.
+
+`InterpreterUmlModelDslPrinter` closes this gap: a two-pass printer (every classifier declared as
+a `val` first, then every relationship/comment referencing those `val`s) that correctly handles
+circular and self-referential structures, with a fully documented, tested boundary of exactly
+which fields survive the interpreter's stricter grammar. Relationships (generalization,
+realization, dependency, association) and attribute types round-trip via `val` references.
+Several fields are always dropped on read-back, matching the interpreter's own grammar limits:
+stereotypes and parameter/return-type classifier references are dropped silently (no representable
+syntax exists for either); enum/interface `visibility`, grid layout hints, attribute
+`multiplicity`, constraint `kind`/`contextOperation`, parameter `direction`/`defaultValue`,
+comment `id`, and every relationship `id` are also silently dropped. Only two cases get a visible
+`// TODO` marker in the printed output: an out-of-scope `UmlPackage`, and a comment anchor beyond
+the first. Round-trip fidelity for everything that *is* claimed to survive is proven against the
+real `InterpreterScriptEvaluator`, not a mock.
+
+### Fixed
+
+**`InterpreterUmlModelDslPrinter`: deeply nested packages could crash the printer with a stack overflow**
+
+`countNestedMembers` (used when printing an out-of-scope `UmlPackage`'s `// TODO` marker) recursed
+one JVM call-stack frame per level of package nesting; a diagram with a deeply nested package chain
+(confirmed: 200,000 levels) threw an uncaught `StackOverflowError`. Replaced with an iterative
+worklist — memory use now scales with total member count, never with nesting depth.
+
+**`InterpreterUmlModelDslPrinter`: many comments could make printing quadratically slower**
+
+`printComments` re-scanned the full comment-link list once per comment (`O(comments × links)`),
+confirmed near-quadratic in practice (10,000 comments × 10,000 links was the pathological case
+tested). Replaced with a single up-front grouping pass (`O(comments + links)`).
+
 ## [0.43.0] — 2026-07-28
 
 ### Added
