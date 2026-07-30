@@ -6,6 +6,49 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.45.0] — 2026-07-30
+
+### Changed
+
+**`kuml-ai-tools`: `PatchValidator`'s RENDER phase is now pluggable, with no unsafe default**
+
+`PatchValidator`'s RENDER phase (an optional, off-by-default smoke-render pass over an applied
+patch) previously had an implicit default renderer (`RenderSmokeCheck`) with no size cap and no
+timeout — appropriate for a trusted, single-user desktop/CLI caller, but a silent
+denial-of-service trap for any future server-side caller validating untrusted, multi-tenant input.
+
+`renderSmokeStrategy` is now a nullable constructor parameter with **no safe default** (it still
+defaults to `null`, but that default is no longer usable together with `renderSmokeEnabled =
+true`). Constructing `PatchValidator(renderSmokeEnabled = true)` without an explicit
+`renderSmokeStrategy` still compiles, but now fails fast with `IllegalArgumentException` at
+construction time, instead of silently falling back to the unbounded renderer. Trusted single-user
+callers that want the old behavior back opt in explicitly via the new `PatchValidator.desktop(...)`
+factory. Server-side callers inject their own DoS-hardened `RenderSmokeStrategy` (new `fun
+interface`) instead — e.g. one that enforces a model-size cap and a render timeout before the
+RENDER phase ever runs.
+
+This is a runtime-breaking change for any caller that previously relied on the implicit default —
+old call sites still compile, but throw the first time they execute. Replace
+`PatchValidator(renderSmokeEnabled = true)` with `PatchValidator.desktop()`.
+
+### Fixed
+
+**`kuml-core-expr`: `OclLikeExpressionParser` could crash with a stack overflow on deeply nested input**
+
+The recursive-descent parser had no nesting-depth limit: attacker-controlled input with enough
+chained `!`/unary `-`, nested parentheses, or nested function-call arguments threw an uncaught
+`StackOverflowError` — an `Error`, not an `Exception`, so it propagated straight through every
+caller's `catch (_: Exception)`, including `tryParse`/`tryParseEffects`. Added a `MAX_NESTING_DEPTH`
+of 200 enforced during parsing, well above any realistic `SandboxPolicy`'s own expression-depth
+limit (16 for `Strict`, 64 for `Permissive`), so legitimate input is unaffected.
+
+**`kuml-ai-tools` / `kuml-runtime-sandbox`: expression/guard/action-body strings had no upfront length bound before parsing**
+
+`TypeCheckPatchChecks` and `SandboxValidator` handed raw strings straight to the expression parser
+with no length check first — a very long string could burn CPU in the parser before any other
+validation ran. Added an upfront length check (new `ViolationKind.EXPRESSION_TOO_LONG`) against
+`SandboxPolicy.maxStringLength`, rejecting oversized input before parsing starts.
+
 ## [0.44.0] — 2026-07-29
 
 ### Added
