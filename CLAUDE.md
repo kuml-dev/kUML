@@ -326,6 +326,18 @@ attribute("id", UUID, PRIVATE)
 > (kein Kotlin-Compile-Target, daher keine Typauflösung) — letztere sind bereits von
 > Hand im benannten Stil geschrieben, siehe `03 Bereiche/kUML/Beispiele/`.
 >
+> **Weitere bekannte Lücke** (2026-07-30, Review-Fund): Bei den KMP-Modulen mit
+> `jvm()`-Target (`kuml-io-svg`, `kuml-profile-api`, `kuml-layout-api`,
+> `kuml-themes-core`) läuft die Typauflösung nur über `detektMainJvm`/
+> `detektTestJvm`, deckt also nur `commonMain` + `jvmMain` ab. Code, der
+> ausschließlich in einem `jsMain`/`wasmJsMain`-Actual liegt, wird von keiner
+> Typauflösungs-Task erfasst (`detektJsMainSourceSet`/`detektWasmJsMainSourceSet`
+> sind die Nicht-Typauflösungs-Variante und bewusst deaktiviert). Aktuell
+> harmlos — alle betroffenen `jsMain`/`wasmJsMain`-Actuals sind triviale
+> Ein-bis-Drei-Zeilen-Stubs mit ≤1 signifikantem Argument — aber ein künftiger
+> `dev.kuml.*`-Aufruf mit >1 Positionsargument, der ausschließlich in einem
+> solchen Actual-Body steht, würde das Gate lautlos umgehen.
+>
 > **Modul-Ausnahmen vom Gate** (dokumentiert in `kumlDetektExemptModules`,
 > root `build.gradle.kts`, mit Begründung im jeweiligen Modul-Build-Skript):
 > `kuml-wasm-playground` (kein `jvm()`-Target → keine Typauflösung möglich) und
